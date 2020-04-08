@@ -25,23 +25,23 @@ import unittest
 import asynctest
 
 from lsst.ts.observatory.control.mock import LATISSMock
-from lsst.ts.observatory.control.auxtel.latiss import LATISS
-from lsst.ts.observatory.control.utils import BaseGroupTestCase
+from lsst.ts.observatory.control.auxtel.latiss import LATISS, LATISSUsages
+from lsst.ts.observatory.control.utils import RemoteGroupTestCase
 
 random.seed(47)  # for set_random_lsst_dds_domain
 
 logging.basicConfig(level=logging.DEBUG)
 
 
-class TestLATISS(BaseGroupTestCase, asynctest.TestCase):
-    async def basic_make_group(self):
-        self.latiss_remote = LATISS()
+class TestLATISS(RemoteGroupTestCase, asynctest.TestCase):
+    async def basic_make_group(self, usage=None):
+        self.latiss_remote = LATISS(intended_usage=usage)
         self.latiss_mock = LATISSMock()
         return self.latiss_remote, self.latiss_mock
 
     async def test_take_bias(self):
 
-        async with self.make_group():
+        async with self.make_group(usage=LATISSUsages.TakeImage):
 
             nbias = 4
             await self.latiss_remote.take_bias(nbias=nbias)
@@ -54,7 +54,7 @@ class TestLATISS(BaseGroupTestCase, asynctest.TestCase):
             self.assertIsNone(self.latiss_mock.latiss_filter)
 
     async def test_take_darks(self):
-        async with self.make_group():
+        async with self.make_group(usage=LATISSUsages.TakeImage):
             ndarks = 4
             exptime = 1.0
             await self.latiss_remote.take_darks(ndarks=ndarks, exptime=exptime)
@@ -67,7 +67,7 @@ class TestLATISS(BaseGroupTestCase, asynctest.TestCase):
             self.assertIsNone(self.latiss_mock.latiss_filter)
 
     async def test_take_flats(self):
-        async with self.make_group():
+        async with self.make_group(usage=LATISSUsages.TakeImage + LATISSUsages.Setup):
             nflats = 4
             exptime = 1.0
             filter_id = 1

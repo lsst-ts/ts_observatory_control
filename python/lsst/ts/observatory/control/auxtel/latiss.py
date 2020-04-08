@@ -18,17 +18,54 @@
 #
 # You should have received a copy of the GNU General Public License
 
-__all__ = ["LATISS"]
+__all__ = ["LATISS", "LATISSUsages"]
 
+import types
 import asyncio
 
 import numpy as np
 import astropy
 
-from ..base_group import BaseGroup
+from ..remote_group import RemoteGroup, Usages
 
 
-class LATISS(BaseGroup):
+class LATISSUsages(Usages):
+    """LATISS usages definition.
+
+    Notes
+    -----
+
+    Additional usages definition:
+
+    TakeImage: Enable Camera-only take image operations. Exclude HeaderService,
+    ATSpectrograph and Archiver data.
+
+    Setup: Enable ATSpectrograph setup operations.
+
+    TakeImageFull: Enable all take image operations with additional support
+    events from HeaderService and Archiver
+    """
+
+    TakeImage = 1 << 3
+    Setup = 1 << 4
+    TakeImageFull = 1 << 5
+
+    def __iter__(self):
+
+        return iter(
+            [
+                self.All,
+                self.StateTransition,
+                self.MonitorState,
+                self.MonitorHeartBeat,
+                self.TakeImage,
+                self.Setup,
+                self.TakeImageFull,
+            ]
+        )
+
+
+class LATISS(RemoteGroup):
     """LSST Auxiliary Telescope Image and Slit less Spectrograph (LATISS).
 
     LATISS encapsulates core functionality from the following CSCs ATCamera,
@@ -38,18 +75,30 @@ class LATISS(BaseGroup):
     ----------
     domain : `lsst.ts.salobj.Domain`
         Domain for remotes. If `None` create a domain.
+    log : `logging.Logger`
+        Optional logging class to be used for logging operations. If `None`,
+        creates a new logger. Useful to use in salobj.BaseScript and allow
+        logging in the class use the script logging.
+    intended_usage: `int`
+        Optional integer that maps to a list of intended operations. This is
+        used to limit the resources allocated by the class by gathering some
+        knowledge about the usage intention. By default allocates all
+        resources.
     """
 
-    def __init__(self, domain=None, log=None):
+    def __init__(self, domain=None, log=None, intended_usage=None):
 
         super().__init__(
             components=["ATCamera", "ATSpectrograph", "ATHeaderService", "ATArchiver"],
             domain=domain,
             log=log,
+            intended_usage=intended_usage,
         )
 
+        # TODO: (DM-24550) Read these from settingsApplied event from ATCamera
         self.read_out_time = 2.0  # readout time (sec)
-        self.shutter_time = 1  # time to open or close shutter (sec)
+        self.shutter_time = 1.0  # time to open or close shutter (sec)
+        self.min_exptime = 0.1  # minimum open-shutter exposure time
 
         self.valid_imagetype = ["BIAS", "DARK", "FLAT", "OBJECT", "ENGTEST"]
 
@@ -278,8 +327,10 @@ class LATISS(BaseGroup):
             self.log.debug("Generating group_id")
             group_id = self.next_group_id()
 
-        if imgtype == "BIAS" and exptime > 0.0:
-            self.log.warning("Image type is BIAS, ignoring exptime.")
+        if imgtype not in ["BIAS", "DARK"]:
+            await self.setup_atspec(
+                filter=filter, grating=grating, linear_stage=linear_stage
+            )
 
         for i in range(n):
             tag = f"{imgtype} {i+1:04} - {n:04}"
@@ -289,16 +340,12 @@ class LATISS(BaseGroup):
             else:
                 self.log.debug(tag)
 
-            end_readout = await self.take_image(
-                exptime=exptime if imgtype != "BIAS" else 0.0,
+            end_readout = await self.expose(
+                exp_time=exptime if imgtype != "BIAS" else 0.0,
                 shutter=imgtype not in ["BIAS", "DARK"],
                 image_type=imgtype,
                 group_id=group_id,
-                filter=filter if i == 0 else None,
-                grating=grating if i == 0 else None,
-                linear_stage=linear_stage if i == 0 else None,
             )
-
             # parse out visitID from filename -
             # (Patrick comment) this is highly annoying
             _, _, i_prefix, i_suffix = end_readout.imageName.split("_")
@@ -306,74 +353,6 @@ class LATISS(BaseGroup):
             exp_ids[i] = int((i_prefix + i_suffix[1:]))
 
         return exp_ids
-
-    async def take_image(
-        self,
-        exptime,
-        shutter,
-        image_type,
-        group_id,
-        filter=None,
-        grating=None,
-        linear_stage=None,
-        science=True,
-        guide=False,
-        wfs=False,
-    ):
-        """Set up the spectrograph and take a series of images.
-
-
-        Setting up the spectrograph and taking images cannot be done
-        concurrently. One needs first to setup the spectrograph then,
-        request images.
-
-        Parameters
-        ----------
-        exptime : `float`
-            The exposure time for the image, in seconds.
-        shutter : `bool`
-            Should activate the shutter? (False for bias and dark)
-        image_type : `str`
-            Image type (a.k.a. IMGTYPE) (e.g. e.g. BIAS, DARK, FLAT, FE55,
-            XTALK, CCOB, SPOT...)
-        filter : `None` or `int` or `str`
-            Filter id or name. If None, do not change the filter.
-        grating : `None` or `int` or `str`
-            Grating id or name.  If None, do not change the grating.
-        linear_stage : `None` or `float`
-            Linear stage position.  If None, do not change the linear stage.
-        group_id : `str`
-            Image groupId. Used to fill in FITS GROUPID header
-        grating : `None` or `int` or `str`
-            Grating id or name.  If None, do not change the grating.
-        linear_stage : `None` or `float`
-            Linear stage position.  If None, do not change the linear stage.
-        science : `bool`
-            Mark image as science (default=True)?
-        guide : `bool`
-            Mark image as guide (default=False)?
-        wfs : `bool`
-            Mark image as wfs (default=False)?
-
-        Returns
-        -------
-        endReadout : ``self.atcam.evt_endReadout.DataType``
-            End readout event data.
-        """
-
-        await self.setup_atspec(
-            filter=filter, grating=grating, linear_stage=linear_stage
-        )
-
-        return await self.expose(
-            exp_time=exptime,
-            shutter=shutter,
-            image_type=image_type,
-            group_id=group_id,
-            science=science,
-            guide=guide,
-            wfs=wfs,
-        )
 
     async def expose(
         self,
@@ -417,7 +396,17 @@ class LATISS(BaseGroup):
             # FIXME: Current version of ATCamera software is not set up to take
             # images with numImages > 1, so this is fixed at 1 for now and we
             # loop through any set of images we want to take. (2019/03/11)
-            self.atcamera.cmd_takeImages.set(
+
+            if image_type == "BIAS" and exp_time > 0.0:
+                self.log.warning("Image type is BIAS, ignoring exptime.")
+                exp_time = 0.0
+            elif bool(shutter) and exp_time < self.min_exptime:
+                raise RuntimeError(
+                    f"Minimum allowed open-shutter exposure time "
+                    f"is {self.min_exptime}. Got {exp_time}."
+                )
+
+            self.rem.atcamera.cmd_takeImages.set(
                 numImages=1,
                 expTime=float(exp_time),
                 shutter=bool(shutter),
@@ -429,10 +418,9 @@ class LATISS(BaseGroup):
             )
 
             timeout = self.read_out_time + self.long_timeout + self.long_long_timeout
-            self.atcamera.evt_endReadout.flush()
-            self.atheaderservice.evt_largeFileObjectAvailable.flush()
-            await self.atcamera.cmd_takeImages.start(timeout=timeout + exp_time)
-            end_readout = await self.atcamera.evt_endReadout.next(
+            self.rem.atcamera.evt_endReadout.flush()
+            await self.rem.atcamera.cmd_takeImages.start(timeout=timeout + exp_time)
+            end_readout = await self.rem.atcamera.evt_endReadout.next(
                 flush=False, timeout=timeout
             )
             return end_readout
@@ -454,38 +442,48 @@ class LATISS(BaseGroup):
         setup_coroutines = []
         if filter is not None:
             if isinstance(filter, int):
-                self.atspectrograph.cmd_changeFilter.set(filter=filter, name="")
+                self.rem.atspectrograph.cmd_changeFilter.set(filter=filter, name="")
             elif type(filter) == str:
-                self.atspectrograph.cmd_changeFilter.set(filter=0, name=filter)
+                self.rem.atspectrograph.cmd_changeFilter.set(filter=0, name=filter)
             else:
                 raise RuntimeError(
                     f"Filter must be a string or an int, got "
                     f"{type(filter)}:{filter}"
                 )
             setup_coroutines.append(
-                self.atspectrograph.cmd_changeFilter.start(timeout=self.long_timeout)
+                self.rem.atspectrograph.cmd_changeFilter.start(
+                    timeout=self.long_timeout
+                )
             )
 
         if grating is not None:
             if isinstance(grating, int):
-                self.atspectrograph.cmd_changeDisperser.set(disperser=grating, name="")
+                self.rem.atspectrograph.cmd_changeDisperser.set(
+                    disperser=grating, name=""
+                )
             elif type(grating) == str:
-                self.atspectrograph.cmd_changeDisperser.set(disperser=0, name=grating)
+                self.rem.atspectrograph.cmd_changeDisperser.set(
+                    disperser=0, name=grating
+                )
             else:
                 raise RuntimeError(
                     f"Grating must be a string or an int, got "
                     f"{type(grating)}:{grating}"
                 )
             setup_coroutines.append(
-                self.atspectrograph.cmd_changeDisperser.start(timeout=self.long_timeout)
+                self.rem.atspectrograph.cmd_changeDisperser.start(
+                    timeout=self.long_timeout
+                )
             )
 
         if linear_stage is not None:
-            self.atspectrograph.cmd_moveLinearStage.set(
+            self.rem.atspectrograph.cmd_moveLinearStage.set(
                 distanceFromHome=float(linear_stage)
             )
             setup_coroutines.append(
-                self.atspectrograph.cmd_moveLinearStage.start(timeout=self.long_timeout)
+                self.rem.atspectrograph.cmd_moveLinearStage.start(
+                    timeout=self.long_timeout
+                )
             )
 
         if len(setup_coroutines) > 0:
@@ -501,3 +499,62 @@ class LATISS(BaseGroup):
         "2020-01-17T22:59:05.721"
         """
         return astropy.time.Time.now().tai.isot
+
+    @property
+    def valid_use_cases(self):
+        """Returns valid usages.
+
+        When subclassing, overwrite this method to return the proper enum.
+
+        Returns
+        -------
+        usages: enum
+
+        """
+        return LATISSUsages()
+
+    @property
+    def usages(self):
+
+        usages = super().usages
+
+        usages[self.valid_use_cases.All] = types.SimpleNamespace(
+            components=self._components,
+            readonly=False,
+            include=[
+                "takeImages",
+                "changeFilter",
+                "changeDisperser",
+                "moveLinearStage",
+                "summaryState",
+                "endReadout",
+                "largeFileObjectAvailable",
+            ],
+        )
+        usages[self.valid_use_cases.TakeImage] = types.SimpleNamespace(
+            components=["ATCamera"],
+            readonly=False,
+            include=["takeImages", "summaryState", "endReadout"],
+        )
+        usages[self.valid_use_cases.Setup] = types.SimpleNamespace(
+            components=["ATSpectrograph"],
+            readonly=False,
+            include=[
+                "changeFilter",
+                "changeDisperser",
+                "moveLinearStage",
+                "summaryState",
+            ],
+        )
+        usages[self.valid_use_cases.TakeImageFull] = types.SimpleNamespace(
+            components=["ATCamera", "ATSpectrograph", "ATArchiver"],
+            readonly=False,
+            include=[
+                "takeImages",
+                "summaryState",
+                "endReadout",
+                "largeFileObjectAvailable",
+            ],
+        )
+
+        return usages

@@ -5,11 +5,12 @@ import unittest
 
 import asynctest
 
+from lsst.ts import salobj
 from lsst.ts.idl.enums import ATPtg
 
 from lsst.ts.observatory.control.mock import ATCSMock
-from lsst.ts.observatory.control.auxtel.atcs import ATCS
-from lsst.ts.observatory.control.utils import BaseGroupTestCase
+from lsst.ts.observatory.control.auxtel.atcs import ATCS, ATCSUsages
+from lsst.ts.observatory.control.utils import RemoteGroupTestCase
 
 HB_TIMEOUT = 5  # Basic timeout for heartbeats
 MAKE_TIMEOUT = 60  # Timeout for make_script (sec)
@@ -19,8 +20,8 @@ random.seed(47)  # for set_random_lsst_dds_domain
 logging.basicConfig(level=logging.DEBUG)
 
 
-class TestATTCS(BaseGroupTestCase, asynctest.TestCase):
-    async def basic_make_group(self):
+class TestATTCS(RemoteGroupTestCase, asynctest.TestCase):
+    async def basic_make_group(self, usage=None):
         self.attcs_mock = ATCSMock()
 
         self.atmcs = self.attcs_mock.atmcs
@@ -31,13 +32,13 @@ class TestATTCS(BaseGroupTestCase, asynctest.TestCase):
         self.athexapod = self.attcs_mock.athexapod
         self.atdometrajectory = self.attcs_mock.atdometrajectory
 
-        self.attcs = ATCS()
+        self.attcs = ATCS(intended_usage=usage)
 
         return self.attcs_mock, self.attcs
 
     async def test_slew_all(self):
 
-        async with self.make_group():
+        async with self.make_group(usage=ATCSUsages.StateTransition + ATCSUsages.Slew):
 
             await self.attcs.enable(
                 {
@@ -164,7 +165,7 @@ class TestATTCS(BaseGroupTestCase, asynctest.TestCase):
 
     async def test_startup_shutdown(self):
 
-        async with self.make_group():
+        async with self.make_group(usage=ATCSUsages.StartUp + ATCSUsages.Shutdown):
 
             # Testing when not passing settings for all components and only
             # atdome and ataos sent evt_settingVersions.
@@ -185,6 +186,10 @@ class TestATTCS(BaseGroupTestCase, asynctest.TestCase):
                 await self.attcs.enable()
 
             for comp in self.attcs.components:
+                state = await self.attcs.get_state(comp)
+                while state != salobj.State.ENABLED:
+                    state = await self.attcs.next_state(comp)
+
                 with self.subTest("test::startup:settings_to_apply", comp=comp):
                     if comp == "atdome":
                         self.assertEqual(
@@ -209,7 +214,7 @@ class TestATTCS(BaseGroupTestCase, asynctest.TestCase):
             )
 
             with self.subTest("test::startup::with settings", **settings):
-                await self.attcs.startup(settings)
+                await self.attcs.prepare_for_onsky(settings)
 
             for comp in settings:
                 with self.subTest("test::startup:settings_to_apply", comp=comp):

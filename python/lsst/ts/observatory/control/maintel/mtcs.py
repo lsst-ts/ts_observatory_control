@@ -20,10 +20,10 @@
 
 __all__ = ["MTCS"]
 
-from ..base_group import BaseGroup
+from ..remote_group import RemoteGroup
 
 
-class MTCS(BaseGroup):
+class MTCS(RemoteGroup):
     """High level library for the Main Telescope Control System
 
     This is the high level interface for interacting with the CSCs that

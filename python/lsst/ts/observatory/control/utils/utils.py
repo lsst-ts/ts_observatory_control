@@ -18,7 +18,12 @@
 #
 # You should have received a copy of the GNU General Public License
 
-__all__ = ["subtract_angles"]
+__all__ = ["subtract_angles", "parallactic_angle"]
+
+import numpy as np
+
+import astropy.units as u
+from astropy.coordinates import Angle
 
 
 def subtract_angles(angle1, angle2):
@@ -37,3 +42,49 @@ def subtract_angles(angle1, angle2):
         angle1 - angle2 wrapped to [-180, 180] degrees
     """
     return ((angle1 - angle2) + 180) % 360.0 - 180
+
+
+def parallactic_angle(location, lst, target):
+    """
+    Calculate the parallactic angle.
+
+    Parameters
+    ----------
+    location: ``
+        Observatory location.
+
+    lst: ``
+        Local sidereal time.
+
+    target: ``
+        The observing target coordinates.
+
+    Returns
+    -------
+    `~astropy.coordinates.Angle`
+        Parallactic angle.
+
+    Notes
+    -----
+    The parallactic angle is the angle between the great circle that
+    intersects a celestial object and the zenith, and the object's hour
+    circle [1]_.
+
+    .. [1] https://en.wikipedia.org/wiki/Parallactic_angle
+
+    """
+
+    # Eqn (14.1) of Meeus' Astronomical Algorithms
+    H = (lst - target.ra).radian
+    q = (
+        np.arctan2(
+            np.sin(H),
+            (
+                np.tan(location.lat.radian) * np.cos(target.dec.radian)
+                - np.sin(target.dec.radian) * np.cos(H)
+            ),
+        )
+        * u.rad
+    )
+
+    return Angle(q)

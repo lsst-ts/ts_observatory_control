@@ -19,7 +19,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-from .base_group import *
+from .remote_group import *
 from .auxtel import *
 from .utils import *
 

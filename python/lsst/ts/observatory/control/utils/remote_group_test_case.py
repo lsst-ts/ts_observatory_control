@@ -19,7 +19,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-__all__ = ["BaseGroupTestCase"]
+__all__ = ["RemoteGroupTestCase"]
 
 import abc
 import asyncio
@@ -31,7 +31,7 @@ from lsst.ts import salobj
 MAKE_TIMEOUT = 30  # Default time for make_script (seconds)
 
 
-class BaseGroupTestCase(metaclass=abc.ABCMeta):
+class RemoteGroupTestCase(metaclass=abc.ABCMeta):
     """Base class for testing groups of CSCs.
 
     Subclasses must:
@@ -51,7 +51,7 @@ class BaseGroupTestCase(metaclass=abc.ABCMeta):
     _index_iter = salobj.index_generator()
 
     @abc.abstractmethod
-    async def basic_make_group(self):
+    async def basic_make_group(self, usage=None):
         """Make a group as self.group.
 
         Make all other controllers and remotes, as well
@@ -76,7 +76,7 @@ class BaseGroupTestCase(metaclass=abc.ABCMeta):
         pass
 
     @contextlib.asynccontextmanager
-    async def make_group(self, timeout=MAKE_TIMEOUT, verbose=False):
+    async def make_group(self, timeout=MAKE_TIMEOUT, usage=None, verbose=False):
         """Create a Group.
 
         The group is accessed as ``self.group``.
@@ -87,13 +87,15 @@ class BaseGroupTestCase(metaclass=abc.ABCMeta):
             Timeout (sec) for waiting for ``item.start_task`` and
             ``item.close()`` for each item returned by `basic_make_script`,
             and `self.close`.
+        usage: `int`
+            Combined enumeration with intended usage.
         verbose : `bool`
             Log data? This can be helpful for setting ``timeout``.
         """
         salobj.set_random_lsst_dds_domain()
 
         items_to_await = await self.wait_for(
-            self.basic_make_group(),
+            self.basic_make_group(usage),
             timeout=timeout,
             description="self.basic_make_group()",
             verbose=verbose,

@@ -21,6 +21,7 @@
 __all__ = ["ATCSMock"]
 
 import asyncio
+
 import numpy as np
 
 import astropy.units as u
@@ -29,9 +30,9 @@ from astropy.coordinates import EarthLocation, Angle
 
 from lsst.ts import salobj
 from lsst.ts.idl.enums import ATDome, ATPneumatics, ATMCS
-from lsst.ts.observatory.control.auxtel import VentsPosition
 
 LONG_TIMEOUT = 30
+HEARTBEAT_INTERVAL = 1  # seconds
 
 
 class ATCSMock:
@@ -93,7 +94,9 @@ class ATCSMock:
             self.close_m1_cell_vents_callback
         )
 
-        self.atpneumatics.evt_m1VentsPosition.set(position=VentsPosition.CLOSED)
+        self.atpneumatics.evt_m1VentsPosition.set(
+            position=ATPneumatics.VentsPosition.CLOSED
+        )
 
         self.ataos.cmd_enableCorrection.callback = self.generic_callback
         self.ataos.cmd_disableCorrection.callback = self.generic_callback
@@ -246,8 +249,11 @@ class ATCSMock:
         self.task_list.append(asyncio.create_task(self.close_m1_cover()))
 
     async def open_m1_cell_vents_callback(self, data):
-        if self.atpneumatics.evt_m1VentsPosition.data.position != VentsPosition.CLOSED:
-            vent_pos = VentsPosition(
+        if (
+            self.atpneumatics.evt_m1VentsPosition.data.position
+            != ATPneumatics.VentsPosition.CLOSED
+        ):
+            vent_pos = ATPneumatics.VentsPosition(
                 self.atpneumatics.evt_m1VentsPosition.data.position
             )
             raise RuntimeError(
@@ -257,8 +263,11 @@ class ATCSMock:
             self.task_list.append(asyncio.create_task(self.open_m1_cell_vents()))
 
     async def close_m1_cell_vents_callback(self, data):
-        if self.atpneumatics.evt_m1VentsPosition.data.position != VentsPosition.OPENED:
-            vent_pos = VentsPosition(
+        if (
+            self.atpneumatics.evt_m1VentsPosition.data.position
+            != ATPneumatics.VentsPosition.OPENED
+        ):
+            vent_pos = ATPneumatics.VentsPosition(
                 self.atpneumatics.evt_m1VentsPosition.data.position
             )
             raise RuntimeError(
@@ -285,17 +294,21 @@ class ATCSMock:
 
     async def open_m1_cell_vents(self):
         self.atpneumatics.evt_m1VentsPosition.set(
-            position=VentsPosition.PARTIALLYOPENED
+            position=ATPneumatics.VentsPosition.PARTIALLYOPENED
         )
         await asyncio.sleep(2.0)
-        self.atpneumatics.evt_m1VentsPosition.set(position=VentsPosition.OPENED)
-
-    async def pass_m1_cell_vents(self):
         self.atpneumatics.evt_m1VentsPosition.set(
-            position=VentsPosition.PARTIALLYOPENED
+            position=ATPneumatics.VentsPosition.OPENED
+        )
+
+    async def close_m1_cell_vents(self):
+        self.atpneumatics.evt_m1VentsPosition.set(
+            position=ATPneumatics.VentsPosition.PARTIALLYOPENED
         )
         await asyncio.sleep(2.0)
-        self.atpneumatics.evt_m1VentsPosition.set(position=VentsPosition.CLOSED)
+        self.atpneumatics.evt_m1VentsPosition.set(
+            position=ATPneumatics.VentsPosition.CLOSED
+        )
 
     async def home_dome(self):
         print("Homing dome")
@@ -313,7 +326,7 @@ class ATCSMock:
         )
         self.is_dome_homming = False
 
-    async def slew_callback(self, id_data):
+    async def slew_callback(self, data):
         """Fake slew waits 5 seconds, then reports all axes
            in position. Does not simulate the actual slew.
         """
@@ -351,6 +364,9 @@ class ATCSMock:
         await asyncio.sleep(0.5)
         self.track = False
         self.atmcs.evt_atMountState.set_put(state=ATMCS.AtMountState.TRACKINGDISABLED)
+        await asyncio.sleep(0.5)
+        self.atmcs.evt_allAxesInPosition.set_put(inPosition=False, force_output=True)
+
         print("Stop tracking end")
 
     async def wait_and_send_inposition(self):
@@ -362,21 +378,21 @@ class ATCSMock:
 
         self.atmcs.evt_atMountState.set_put(state=ATMCS.AtMountState.TRACKINGENABLED)
 
-    async def generic_callback(self, id_data):
+    async def generic_callback(self, data):
         await asyncio.sleep(0.5)
 
-    async def move_shutter_callback(self, id_data):
-        if id_data.open and self.dome_shutter_pos == 0.0:
+    async def move_shutter_callback(self, data):
+        if data.open and self.dome_shutter_pos == 0.0:
             await self.open_shutter()
-        elif not id_data.open and self.dome_shutter_pos == 1.0:
+        elif not data.open and self.dome_shutter_pos == 1.0:
             await self.close_shutter()
         else:
             raise RuntimeError(
-                f"Cannot execute operation: {id_data.open} with dome "
+                f"Cannot execute operation: {data.open} with dome "
                 f"at {self.dome_shutter_pos}"
             )
 
-    async def close_shutter_callback(self, id_data):
+    async def close_shutter_callback(self, data):
         if self.dome_shutter_pos == 1.0:
             await self.close_shutter()
         else:
@@ -418,15 +434,21 @@ class ATCSMock:
         self.atdome.evt_shutterInPosition.set_put(inPosition=True, force_output=True)
         self.atdome.evt_mainDoorState.set_put(state=ATDome.ShutterDoorState.CLOSED)
 
-    def atdome_start_callback(self, data):
+    async def atdome_start_callback(self, data):
         """ATDome start commands do more than the generic callback."""
 
         ss = self.atdome.evt_summaryState
 
         if ss.data.summaryState != salobj.State.STANDBY:
             raise RuntimeError(
-                f"Current state is {salobj.State(ss.data.summaryState)!r}."
+                f"atdome current state is {salobj.State(ss.data.summaryState)!r}. "
+                f"Expected {salobj.State.STANDBY!r}"
             )
+
+        print(
+            f"[atdome] {ss.data.summaryState!r} -> {salobj.State.DISABLED!r} "
+            f"[{data.settingsToApply}]"
+        )
 
         ss.set_put(summaryState=salobj.State.DISABLED)
 
@@ -436,62 +458,85 @@ class ATCSMock:
         self.atdome.tel_position.set(azimuthPosition=0.0)
         self.atdome.evt_azimuthInPosition.set_put(inPosition=True, force_output=True)
 
+        await asyncio.sleep(HEARTBEAT_INTERVAL)
+
     def get_start_callback(self, comp):
-        def callback(id_data):
+        async def callback(data):
 
             ss = getattr(self, comp).evt_summaryState
 
             if ss.data.summaryState != salobj.State.STANDBY:
                 raise RuntimeError(
-                    f"Current state is {salobj.State(ss.data.summaryState)}."
+                    f"{comp} current state is {salobj.State(ss.data.summaryState)!r}. "
+                    f"Expected {salobj.State.STANDBY!r}"
                 )
+
+            print(
+                f"[{comp}] {ss.data.summaryState!r} -> {salobj.State.DISABLED!r} "
+                f"[settings: {data.settingsToApply}]"
+            )
 
             ss.set_put(summaryState=salobj.State.DISABLED)
 
-            self.settings_to_apply[comp] = id_data.settingsToApply
+            self.settings_to_apply[comp] = data.settingsToApply
+
+            await asyncio.sleep(HEARTBEAT_INTERVAL)
 
         return callback
 
     def get_enable_callback(self, comp):
-        def callback(id_data):
+        async def callback(data):
 
             ss = getattr(self, comp).evt_summaryState
 
             if ss.data.summaryState != salobj.State.DISABLED:
                 raise RuntimeError(
-                    f"Current state is {salobj.State(ss.data.summaryState)}."
+                    f"{comp} current state is {salobj.State(ss.data.summaryState)!r}. "
+                    f"Expected {salobj.State.DISABLED!r}"
                 )
 
+            print(f"[{comp}] {ss.data.summaryState!r} -> {salobj.State.ENABLED!r}")
+
             ss.set_put(summaryState=salobj.State.ENABLED)
+
+            await asyncio.sleep(HEARTBEAT_INTERVAL)
 
         return callback
 
     def get_disable_callback(self, comp):
-        def callback(id_data):
+        async def callback(data):
 
             ss = getattr(self, comp).evt_summaryState
 
             if ss.data.summaryState != salobj.State.ENABLED:
                 raise RuntimeError(
-                    f"Current state is {salobj.State(ss.data.summaryState)}."
+                    f"{comp} current state is {salobj.State(ss.data.summaryState)!r}. "
+                    f"Expected {salobj.State.ENABLED!r}."
                 )
+            print(f"[{comp}] {ss.data.summaryState!r} -> {salobj.State.DISABLED!r}")
 
             ss.set_put(summaryState=salobj.State.DISABLED)
+
+            await asyncio.sleep(HEARTBEAT_INTERVAL)
 
         return callback
 
     def get_standby_callback(self, comp):
-        def callback(id_data):
+        async def callback(data):
 
             ss = getattr(self, comp).evt_summaryState
 
             if ss.data.summaryState not in (salobj.State.DISABLED, salobj.State.FAULT):
                 raise RuntimeError(
-                    f"[{comp}]: Current state is {salobj.State(ss.data.summaryState)!r}. "
+                    f"{comp}: Current state is {salobj.State(ss.data.summaryState)!r}. "
                     f"Expected {salobj.State.DISABLED!r} or {salobj.State.FAULT!r}"
                 )
 
+            print(f"[{comp}] {ss.data.summaryState!r} -> {salobj.State.STANDBY!r}")
+
             ss.set_put(summaryState=salobj.State.STANDBY)
+
+            await asyncio.sleep(HEARTBEAT_INTERVAL)
 
         return callback
 
