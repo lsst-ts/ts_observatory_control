@@ -31,8 +31,9 @@ from astropy.coordinates import EarthLocation, Angle
 from lsst.ts import salobj
 from lsst.ts.idl.enums import ATDome, ATPneumatics, ATMCS
 
-LONG_TIMEOUT = 30
+LONG_TIMEOUT = 30  # seconds
 HEARTBEAT_INTERVAL = 1  # seconds
+CLOSE_SLEEP = 5  # seconds
 
 
 class ATCSMock:
@@ -201,7 +202,7 @@ class ATCSMock:
         while self.run_telemetry_loop:
             now = Time.now()
             self.atptg.tel_timeAndDate.set_put(
-                tai=now.tai.mjd,
+                timestamp=now.tai.mjd,
                 utc=now.utc.value.hour
                 + now.utc.value.minute / 60.0
                 + (now.utc.value.second + now.utc.value.microsecond / 1e3)
@@ -570,3 +571,5 @@ class ATCSMock:
 
     async def __aexit__(self, *args):
         await self.close()
+
+        await asyncio.sleep()

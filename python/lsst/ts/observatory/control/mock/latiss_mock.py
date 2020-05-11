@@ -26,6 +26,8 @@ import logging
 
 from lsst.ts import salobj
 
+CLOSE_SLEEP = 5  # seconds
+
 index_gen = salobj.index_generator()
 
 
@@ -210,7 +212,8 @@ class LATISSMock:
             except Exception:
                 pass
 
-        await asyncio.gather(self.atcam.close(), self.atspec.close())
+        for comp in (self.atspec, self.atcam, self.atheaderservice, self.atarchiver):
+            await comp.close()
 
     async def __aenter__(self):
         await asyncio.gather(self.start_task)
@@ -218,3 +221,5 @@ class LATISSMock:
 
     async def __aexit__(self, *args):
         await self.close()
+
+        await asyncio.sleep(CLOSE_SLEEP)
