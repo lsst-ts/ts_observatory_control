@@ -1,0 +1,56 @@
+{% set data= load_setup_py_data() %}
+package:
+  name: ts-observatory-control
+  version: {{ data.get('version') }}
+
+source:
+  path: ../
+
+build:
+  script: python -m pip install --no-deps --ignore-installed .
+  script_env:
+    - PATH
+    - PYTHONPATH
+    - LD_LIBRARY_PATH
+    - OSPL_HOME
+    - PYTHON_BUILD_VERSION
+    - PYTHON_BUILD_LOCATION
+    - LSST_DDS_DOMAIN
+    - TS_CONFIG_OCS_DIR
+
+test:
+  requires:
+    - pytest
+    - pytest-flake8
+    - pytest-cov
+    - asynctest
+    - pytest-tornasync
+    - numpy
+    - astropy
+    - astroquery
+    - jsonschema
+    - pyyaml
+    - boto3
+    - moto
+    - ts-idl
+    - ts-salobj
+  source_files:
+    - python
+    - tests
+    - setup.cfg
+  commands:
+    - py.test
+
+requirements:
+  host:
+    - python
+    - pip
+    - setuptools_scm
+    - setuptools
+    - pytest-runner
+  run:
+    - python
+    - setuptools
+    - setuptools_scm
+    - ts-idl
+    - ts-salobj
