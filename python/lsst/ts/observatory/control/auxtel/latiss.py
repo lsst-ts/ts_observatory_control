@@ -104,7 +104,9 @@ class LATISS(RemoteGroup):
 
         self.cmd_lock = asyncio.Lock()
 
-    async def take_bias(self, nbias, group_id=None, checkpoint=None):
+    async def take_bias(
+        self, nbias, group_id=None, test_type=None, note=None, checkpoint=None
+    ):
         """Take a series of bias images.
 
         Parameters
@@ -114,6 +116,10 @@ class LATISS(RemoteGroup):
         group_id : `str`
             Optional group id for the data sequence. Will generate a common
             one for all the data if none is given.
+        test_type : `str`
+            Optional string to be added to the keyword testType image header.
+        note : `str`
+            Optional observer note to be added to the image header.
         checkpoint : `coro`
             A optional awaitable callback that accepts one string argument
             that is called before each bias is taken.
@@ -124,10 +130,14 @@ class LATISS(RemoteGroup):
             exptime=0.0,
             n=nbias,
             group_id=group_id,
+            test_type=test_type,
+            note=note,
             checkpoint=checkpoint,
         )
 
-    async def take_darks(self, exptime, ndarks, group_id=None, checkpoint=None):
+    async def take_darks(
+        self, exptime, ndarks, group_id=None, test_type=None, note=None, checkpoint=None
+    ):
         """Take a series of dark images.
 
         Parameters
@@ -139,6 +149,10 @@ class LATISS(RemoteGroup):
         group_id : `str`
             Optional group id for the data sequence. Will generate a common
             one for all the data if none is given.
+        test_type : `str`
+            Optional string to be added to the keyword testType image header.
+        note : `str`
+            Optional observer note to be added to the image header.
         checkpoint : `coro`
             A optional awaitable callback that accepts one string argument
             that is called before each bias is taken.
@@ -149,6 +163,8 @@ class LATISS(RemoteGroup):
             exptime=exptime,
             n=ndarks,
             group_id=group_id,
+            test_type=test_type,
+            note=note,
             checkpoint=checkpoint,
         )
 
@@ -160,6 +176,8 @@ class LATISS(RemoteGroup):
         grating=None,
         linear_stage=None,
         group_id=None,
+        test_type=None,
+        note=None,
         checkpoint=None,
     ):
         """Take a series of flat field images.
@@ -179,6 +197,10 @@ class LATISS(RemoteGroup):
         group_id : `str`
             Optional group id for the data sequence. Will generate a common
             one for all the data if none is given.
+        test_type : `str`
+            Optional string to be added to the keyword testType image header.
+        note : `str`
+            Optional observer note to be added to the image header.
         checkpoint : `coro`
             A optional awaitable callback that accepts one string argument
             that is called before each bias is taken.
@@ -192,6 +214,8 @@ class LATISS(RemoteGroup):
             grating=grating,
             linear_stage=linear_stage,
             group_id=group_id,
+            test_type=test_type,
+            note=note,
             checkpoint=checkpoint,
         )
 
@@ -203,6 +227,8 @@ class LATISS(RemoteGroup):
         grating=None,
         linear_stage=None,
         group_id=None,
+        test_type=None,
+        note=None,
         checkpoint=None,
     ):
         """Take a series of object images.
@@ -225,6 +251,10 @@ class LATISS(RemoteGroup):
         group_id : `str`
             Optional group id for the data sequence. Will generate a common
             one for all the data if none is given.
+        test_type : `str`
+            Optional string to be added to the keyword testType image header.
+        note : `str`
+            Optional observer note to be added to the image header.
         checkpoint : `coro`
             A optional awaitable callback that accepts one string argument
             that is called before each bias is taken.
@@ -238,6 +268,8 @@ class LATISS(RemoteGroup):
             grating=grating,
             linear_stage=linear_stage,
             group_id=group_id,
+            test_type=test_type,
+            note=note,
             checkpoint=checkpoint,
         )
 
@@ -249,6 +281,8 @@ class LATISS(RemoteGroup):
         grating=None,
         linear_stage=None,
         group_id=None,
+        test_type=None,
+        note=None,
         checkpoint=None,
     ):
         """Take a series of engineering test images.
@@ -268,6 +302,10 @@ class LATISS(RemoteGroup):
         group_id : `str`
             Optional group id for the data sequence. Will generate a common
             one for all the data if none is given.
+        test_type : `str`
+            Optional string to be added to the keyword testType image header.
+        note : `str`
+            Optional observer note to be added to the image header.
         checkpoint : `coro`
             A optional awaitable callback that accepts one string argument
             that is called before each bias is taken.
@@ -281,6 +319,8 @@ class LATISS(RemoteGroup):
             grating=grating,
             linear_stage=linear_stage,
             group_id=group_id,
+            test_type=test_type,
+            note=note,
             checkpoint=checkpoint,
         )
 
@@ -293,6 +333,8 @@ class LATISS(RemoteGroup):
         grating=None,
         linear_stage=None,
         group_id=None,
+        test_type=None,
+        note=None,
         checkpoint=None,
     ):
         """Take a series of images of the specified image type.
@@ -309,6 +351,10 @@ class LATISS(RemoteGroup):
             Grating id or name.  If None, do not change the grating.
         linear_stage : `None` or `float`
             Linear stage position.  If None, do not change the linear stage.
+        test_type : `str`
+            Optional string to be added to the keyword testType image header.
+        note : `str`
+            Optional observer note to be added to the image header.
         checkpoint : `coro`
             A optional awaitable callback that accepts one string argument
             that is called before each bias is taken.
@@ -345,6 +391,8 @@ class LATISS(RemoteGroup):
                 shutter=imgtype not in ["BIAS", "DARK"],
                 image_type=imgtype,
                 group_id=group_id,
+                test_type=test_type,
+                note=note,
             )
             # parse out visitID from filename -
             # (Patrick comment) this is highly annoying
@@ -355,14 +403,7 @@ class LATISS(RemoteGroup):
         return exp_ids
 
     async def expose(
-        self,
-        exp_time,
-        shutter,
-        image_type,
-        group_id,
-        science=True,
-        guide=False,
-        wfs=False,
+        self, exp_time, shutter, image_type, group_id, test_type=None, note=None,
     ):
         """Encapsulates the take image command.
 
@@ -380,12 +421,10 @@ class LATISS(RemoteGroup):
             XTALK, CCOB, SPOT...)
         group_id : `str`
             Image groupId. Used to fill in FITS GROUPID header
-        science : `bool`
-            Mark image as science (default=True)?
-        guide : `bool`
-            Mark image as guide (default=False)?
-        wfs : `bool`
-            Mark image as wfs (default=False)?
+        test_type : `str`
+            Optional string to be added to the keyword testType image header.
+        note : `str`
+            Optional observer note to be added to the image header.
 
         Returns
         -------
@@ -406,15 +445,17 @@ class LATISS(RemoteGroup):
                     f"is {self.min_exptime}. Got {exp_time}."
                 )
 
+            key_value_map = f"groupId: {group_id},imageType: {image_type}"
+            if test_type is not None:
+                key_value_map += f",testType: {test_type}"
+
             self.rem.atcamera.cmd_takeImages.set(
                 numImages=1,
                 expTime=float(exp_time),
                 shutter=bool(shutter),
-                imageType=str(image_type),
-                groupId=str(group_id),
-                science=bool(science),
-                guide=bool(guide),
-                wfs=bool(wfs),
+                sensors="",  # For ATCamera this should always be empty string
+                keyValueMap=key_value_map,
+                obsNote=note if note is not None else "",
             )
 
             timeout = self.read_out_time + self.long_timeout + self.long_long_timeout
