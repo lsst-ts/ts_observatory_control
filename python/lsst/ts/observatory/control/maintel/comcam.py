@@ -56,7 +56,9 @@ class ComCam(RemoteGroup):
 
         self.cmd_lock = asyncio.Lock()
 
-    async def take_bias(self, nbias, group_id=None, checkpoint=None):
+    async def take_bias(
+        self, nbias, group_id=None, sensors=None, obs_note=None, checkpoint=None
+    ):
         """Take a series of bias images.
 
         Parameters
@@ -66,6 +68,10 @@ class ComCam(RemoteGroup):
         group_id : `str`
             Optional group id for the data sequence. Will generate a common
             one for all the data if none is given.
+        sensors : `str`
+            A colon delimited list of sensor names to use for the image.
+        obs_note : `str`
+            A freeform string containing small notes about the image.
         checkpoint : `coro`
             A optional awaitable callback that accepts one string argument
             that is called before each bias is taken.
@@ -76,10 +82,20 @@ class ComCam(RemoteGroup):
             exptime=0.0,
             n=nbias,
             group_id=group_id,
+            sensors=sensors,
+            obs_note=obs_note,
             checkpoint=checkpoint,
         )
 
-    async def take_darks(self, exptime, ndarks, group_id=None, checkpoint=None):
+    async def take_darks(
+        self,
+        exptime,
+        ndarks,
+        group_id=None,
+        sensors=None,
+        obs_note=None,
+        checkpoint=None,
+    ):
         """Take a series of dark images.
 
         Parameters
@@ -91,6 +107,10 @@ class ComCam(RemoteGroup):
         group_id : `str`
             Optional group id for the data sequence. Will generate a common
             one for all the data if none is given.
+        sensors : `str`
+            A colon delimited list of sensor names to use for the image.
+        obs_note : `str`
+            A freeform string containing small notes about the image.
         checkpoint : `coro`
             A optional awaitable callback that accepts one string argument
             that is called before each bias is taken.
@@ -101,10 +121,20 @@ class ComCam(RemoteGroup):
             exptime=exptime,
             n=ndarks,
             group_id=group_id,
+            sensors=sensors,
+            obs_note=obs_note,
             checkpoint=checkpoint,
         )
 
-    async def take_flats(self, exptime, nflats, group_id=None, checkpoint=None):
+    async def take_flats(
+        self,
+        exptime,
+        nflats,
+        group_id=None,
+        sensors=None,
+        obs_note=None,
+        checkpoint=None,
+    ):
         """Take a series of flat field images.
 
         Parameters
@@ -116,6 +146,10 @@ class ComCam(RemoteGroup):
         group_id : `str`
             Optional group id for the data sequence. Will generate a common
             one for all the data if none is given.
+        sensors : `str`
+            A colon delimited list of sensor names to use for the image.
+        obs_note : `str`
+            A freeform string containing small notes about the image.
         checkpoint : `coro`
             A optional awaitable callback that accepts one string argument
             that is called before each bias is taken.
@@ -126,10 +160,14 @@ class ComCam(RemoteGroup):
             exptime=exptime,
             n=nflats,
             group_id=group_id,
+            sensors=sensors,
+            obs_note=obs_note,
             checkpoint=checkpoint,
         )
 
-    async def take_object(self, exptime, n=1, group_id=None, checkpoint=None):
+    async def take_object(
+        self, exptime, n=1, group_id=None, sensors=None, obs_note=None, checkpoint=None
+    ):
         """Take a series of object images.
 
         Object images are assumed to be looking through an open dome at the
@@ -144,6 +182,10 @@ class ComCam(RemoteGroup):
         group_id : `str`
             Optional group id for the data sequence. Will generate a common
             one for all the data if none is given.
+        sensors : `str`
+            A colon delimited list of sensor names to use for the image.
+        obs_note : `str`
+            A freeform string containing small notes about the image.
         checkpoint : `coro`
             A optional awaitable callback that accepts one string argument
             that is called before each bias is taken.
@@ -154,11 +196,20 @@ class ComCam(RemoteGroup):
             exptime=exptime,
             n=n,
             group_id=group_id,
+            sensors=sensors,
+            obs_note=obs_note,
             checkpoint=checkpoint,
         )
 
     async def take_engtest(
-        self, exptime, n=1, group_id=None, test_type=None, checkpoint=None
+        self,
+        exptime,
+        n=1,
+        group_id=None,
+        test_type=None,
+        sensors=None,
+        obs_note=None,
+        checkpoint=None,
     ):
         """Take a series of engineering test images.
 
@@ -171,6 +222,13 @@ class ComCam(RemoteGroup):
         group_id : `str`
             Optional group id for the data sequence. Will generate a common
             one for all the data if none is given.
+        test_type : `str`
+            The classifier for the testing type. Usually the same as
+            `image_type`.
+        sensors : `str`
+            A colon delimited list of sensor names to use for the image.
+        obs_note : `str`
+            A freeform string containing small notes about the image.
         checkpoint : `coro`
             A optional awaitable callback that accepts one string argument
             that is called before each bias is taken.
@@ -182,10 +240,14 @@ class ComCam(RemoteGroup):
             n=n,
             group_id=group_id,
             test_type=test_type,
+            sensors=sensors,
+            obs_note=obs_note,
             checkpoint=checkpoint,
         )
 
-    async def take_spot(self, exptime, n=1, group_id=None, checkpoint=None):
+    async def take_spot(
+        self, exptime, n=1, group_id=None, sensors=None, obs_note=None, checkpoint=None
+    ):
         """Take a series of spot test images.
 
         Parameters
@@ -197,6 +259,10 @@ class ComCam(RemoteGroup):
         group_id : `str`
             Optional group id for the data sequence. Will generate a common
             one for all the data if none is given.
+        sensors : `str`
+            A colon delimited list of sensor names to use for the image.
+        obs_note : `str`
+            A freeform string containing small notes about the image.
         checkpoint : `coro`
             A optional awaitable callback that accepts one string argument
             that is called before each bias is taken.
@@ -207,11 +273,21 @@ class ComCam(RemoteGroup):
             exptime=exptime,
             n=n,
             group_id=group_id,
+            sensors=sensors,
+            obs_note=obs_note,
             checkpoint=checkpoint,
         )
 
     async def take_imgtype(
-        self, imgtype, exptime, n, group_id=None, test_type=None, checkpoint=None
+        self,
+        imgtype,
+        exptime,
+        n,
+        group_id=None,
+        test_type=None,
+        sensors=None,
+        obs_note=None,
+        checkpoint=None,
     ):
         """Take a series of images of the specified image type.
 
@@ -227,6 +303,13 @@ class ComCam(RemoteGroup):
         group_id : `str`
             Optional group id for the data sequence. Will generate a common
             one for all the data if none is given.
+        test_type : `str`
+            The classifier for the testing type. Usually the same as
+            `image_type`.
+        sensors : `str`
+            A colon delimited list of sensor names to use for the image.
+        obs_note : `str`
+            A freeform string containing small notes about the image.
         checkpoint : `coro`
             A optional awaitable callback that accepts one string argument
             that is called before each bias is taken.
@@ -262,6 +345,8 @@ class ComCam(RemoteGroup):
                 image_type=imgtype,
                 group_id=group_id,
                 test_type=imgtype if test_type is None else test_type,
+                sensors="" if sensors is None else sensors,
+                obs_note="" if obs_note is None else obs_note,
             )
 
             # parse out visitID from filename -
@@ -273,7 +358,7 @@ class ComCam(RemoteGroup):
         return exp_ids
 
     async def take_image(
-        self, exptime, shutter, image_type, group_id, test_type,
+        self, exptime, shutter, image_type, group_id, test_type, sensors, obs_note
     ):
         """Set up the camera and take a series of images.
 
@@ -288,6 +373,13 @@ class ComCam(RemoteGroup):
             XTALK, CCOB, SPOT...)
         group_id : `str`
             Image groupId. Used to fill in FITS GROUPID header
+        test_type : `str`
+            The classifier for the testing type. Usually the same as
+            `image_type`.
+        sensors : `str`
+            A colon delimited list of sensor names to use for the image.
+        obs_note : `str`
+            A freeform string containing small notes about the image.
 
         Returns
         -------
@@ -301,10 +393,12 @@ class ComCam(RemoteGroup):
             image_type=image_type,
             group_id=group_id,
             test_type=test_type,
+            sensors=sensors,
+            obs_note=obs_note,
         )
 
     async def expose(
-        self, exp_time, shutter, image_type, group_id, test_type,
+        self, exp_time, shutter, image_type, group_id, test_type, sensors, obs_note
     ):
         """Encapsulates the take image command.
 
@@ -322,6 +416,13 @@ class ComCam(RemoteGroup):
             XTALK, CCOB, SPOT...)
         group_id : `str`
             Image groupId. Used to fill in FITS GROUPID header
+        test_type : `str`
+            The classifier for the testing type. Usually the same as
+            `image_type`.
+        sensors : `str`
+            A colon delimited list of sensor names to use for the image.
+        obs_note : `str`
+            A freeform string containing small notes about the image.
 
         Returns
         -------
@@ -341,6 +442,8 @@ class ComCam(RemoteGroup):
                 expTime=float(exp_time),
                 shutter=bool(shutter),
                 keyValueMap=key_value_map,
+                sensors=sensors,
+                obsNote=obs_note,
             )
 
             timeout = self.read_out_time + self.long_timeout + self.long_long_timeout

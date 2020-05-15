@@ -23,7 +23,7 @@ import unittest
 
 import asynctest
 
-from lsst.ts import salobj
+# from lsst.ts import salobj
 from lsst.ts.observatory.control.maintel import ComCam
 from lsst.ts.observatory.control.mock import ComCamMock
 from lsst.ts.observatory.control.utils import RemoteGroupTestCase
