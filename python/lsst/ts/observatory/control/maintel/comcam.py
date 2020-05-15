@@ -1,0 +1,363 @@
+# This file is part of ts_observatory_control
+#
+# Developed for the LSST Telescope and Site System.
+# This product includes software developed by the LSST Project
+# (https://www.lsst.org).
+# See the COPYRIGHT file at the top-level directory of this distribution
+# for details of code ownership.
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+
+__all__ = ["ComCam"]
+
+import asyncio
+
+import numpy as np
+import astropy
+
+from ..remote_group import RemoteGroup
+
+
+class ComCam(RemoteGroup):
+    """Commissioning Camera (ComCam).
+
+    ComCam encapsulates core functionality from the following CSCs CCCamera,
+    CCHeaderService and CCArchiver CSCs.
+
+    Parameters
+    ----------
+    domain : `lsst.ts.salobj.Domain`
+        Domain for remotes. If `None` create a domain.
+    """
+
+    def __init__(self, domain=None, log=None, intended_usage=None):
+
+        super().__init__(
+            components=["CCCamera", "CCHeaderService", "CCArchiver"],
+            domain=domain,
+            log=log,
+            intended_usage=intended_usage,
+        )
+
+        self.read_out_time = 2.0  # readout time (sec)
+        self.shutter_time = 1  # time to open or close shutter (sec)
+
+        self.valid_imagetype = ["BIAS", "DARK", "FLAT", "OBJECT", "ENGTEST", "SPOT"]
+
+        self.cmd_lock = asyncio.Lock()
+
+    async def take_bias(self, nbias, group_id=None, checkpoint=None):
+        """Take a series of bias images.
+
+        Parameters
+        ----------
+        nbias : `int`
+            Number of bias frames to take.
+        group_id : `str`
+            Optional group id for the data sequence. Will generate a common
+            one for all the data if none is given.
+        checkpoint : `coro`
+            A optional awaitable callback that accepts one string argument
+            that is called before each bias is taken.
+
+        """
+        return await self.take_imgtype(
+            imgtype="BIAS",
+            exptime=0.0,
+            n=nbias,
+            group_id=group_id,
+            checkpoint=checkpoint,
+        )
+
+    async def take_darks(self, exptime, ndarks, group_id=None, checkpoint=None):
+        """Take a series of dark images.
+
+        Parameters
+        ----------
+        exptime : `float`
+            Exposure time for darks.
+        ndarks : `int`
+            Number of dark frames to take.
+        group_id : `str`
+            Optional group id for the data sequence. Will generate a common
+            one for all the data if none is given.
+        checkpoint : `coro`
+            A optional awaitable callback that accepts one string argument
+            that is called before each bias is taken.
+
+        """
+        return await self.take_imgtype(
+            imgtype="DARK",
+            exptime=exptime,
+            n=ndarks,
+            group_id=group_id,
+            checkpoint=checkpoint,
+        )
+
+    async def take_flats(self, exptime, nflats, group_id=None, checkpoint=None):
+        """Take a series of flat field images.
+
+        Parameters
+        ----------
+        exptime : `float`
+            Exposure time for flats.
+        nflats : `int`
+            Number of flat frames to take.
+        group_id : `str`
+            Optional group id for the data sequence. Will generate a common
+            one for all the data if none is given.
+        checkpoint : `coro`
+            A optional awaitable callback that accepts one string argument
+            that is called before each bias is taken.
+
+        """
+        return await self.take_imgtype(
+            imgtype="FLAT",
+            exptime=exptime,
+            n=nflats,
+            group_id=group_id,
+            checkpoint=checkpoint,
+        )
+
+    async def take_object(self, exptime, n=1, group_id=None, checkpoint=None):
+        """Take a series of object images.
+
+        Object images are assumed to be looking through an open dome at the
+        sky.
+
+        Parameters
+        ----------
+        exptime : `float`
+            Exposure time for flats.
+        n : `int`
+            Number of frames to take.
+        group_id : `str`
+            Optional group id for the data sequence. Will generate a common
+            one for all the data if none is given.
+        checkpoint : `coro`
+            A optional awaitable callback that accepts one string argument
+            that is called before each bias is taken.
+
+        """
+        return await self.take_imgtype(
+            imgtype="OBJECT",
+            exptime=exptime,
+            n=n,
+            group_id=group_id,
+            checkpoint=checkpoint,
+        )
+
+    async def take_engtest(
+        self, exptime, n=1, group_id=None, test_type=None, checkpoint=None
+    ):
+        """Take a series of engineering test images.
+
+        Parameters
+        ----------
+        exptime : `float`
+            Exposure time for flats.
+        n : `int`
+            Number of frames to take.
+        group_id : `str`
+            Optional group id for the data sequence. Will generate a common
+            one for all the data if none is given.
+        checkpoint : `coro`
+            A optional awaitable callback that accepts one string argument
+            that is called before each bias is taken.
+
+        """
+        return await self.take_imgtype(
+            imgtype="ENGTEST",
+            exptime=exptime,
+            n=n,
+            group_id=group_id,
+            test_type=test_type,
+            checkpoint=checkpoint,
+        )
+
+    async def take_spot(self, exptime, n=1, group_id=None, checkpoint=None):
+        """Take a series of spot test images.
+
+        Parameters
+        ----------
+        exptime : `float`
+            Exposure time for flats.
+        n : `int`
+            Number of frames to take.
+        group_id : `str`
+            Optional group id for the data sequence. Will generate a common
+            one for all the data if none is given.
+        checkpoint : `coro`
+            A optional awaitable callback that accepts one string argument
+            that is called before each bias is taken.
+
+        """
+        return await self.take_imgtype(
+            imgtype="SPOT",
+            exptime=exptime,
+            n=n,
+            group_id=group_id,
+            checkpoint=checkpoint,
+        )
+
+    async def take_imgtype(
+        self, imgtype, exptime, n, group_id=None, test_type=None, checkpoint=None
+    ):
+        """Take a series of images of the specified image type.
+
+        Parameters
+        ----------
+        image_type : `str`
+            Image type (a.k.a. IMGTYPE) (e.g. e.g. BIAS, DARK, FLAT, FE55,
+            XTALK, CCOB, SPOT...)
+        exptime : `float`
+            Exposure time for flats.
+        n : `int`
+            Number of frames to take.
+        group_id : `str`
+            Optional group id for the data sequence. Will generate a common
+            one for all the data if none is given.
+        checkpoint : `coro`
+            A optional awaitable callback that accepts one string argument
+            that is called before each bias is taken.
+
+        """
+
+        if imgtype not in self.valid_imagetype:
+            raise RuntimeError(
+                f"Invalid imgtype:{imgtype}. Must be one of "
+                f"{self.valid_imagetype!r}"
+            )
+
+        exp_ids = np.zeros(n, dtype=int)
+
+        if group_id is None:
+            self.log.debug("Generating group_id")
+            group_id = self.next_group_id()
+
+        if imgtype == "BIAS" and exptime > 0.0:
+            self.log.warning("Image type is BIAS, ignoring exptime.")
+
+        for i in range(n):
+            tag = f"{imgtype} {i+1:04} - {n:04}"
+
+            if checkpoint is not None:
+                await checkpoint(tag)
+            else:
+                self.log.debug(tag)
+
+            end_readout = await self.take_image(
+                exptime=exptime if imgtype != "BIAS" else 0.0,
+                shutter=imgtype not in ["BIAS", "DARK"],
+                image_type=imgtype,
+                group_id=group_id,
+                test_type=imgtype if test_type is None else test_type,
+            )
+
+            # parse out visitID from filename -
+            # (Patrick comment) this is highly annoying
+            _, _, i_prefix, i_suffix = end_readout.imageName.split("_")
+
+            exp_ids[i] = int((i_prefix + i_suffix[1:]))
+
+        return exp_ids
+
+    async def take_image(
+        self, exptime, shutter, image_type, group_id, test_type,
+    ):
+        """Set up the camera and take a series of images.
+
+        Parameters
+        ----------
+        exptime : `float`
+            The exposure time for the image, in seconds.
+        shutter : `bool`
+            Should activate the shutter? (False for bias and dark)
+        image_type : `str`
+            Image type (a.k.a. IMGTYPE) (e.g. e.g. BIAS, DARK, FLAT, FE55,
+            XTALK, CCOB, SPOT...)
+        group_id : `str`
+            Image groupId. Used to fill in FITS GROUPID header
+
+        Returns
+        -------
+        endReadout : ``self.cam.evt_endReadout.DataType``
+            End readout event data.
+        """
+
+        return await self.expose(
+            exp_time=exptime,
+            shutter=shutter,
+            image_type=image_type,
+            group_id=group_id,
+            test_type=test_type,
+        )
+
+    async def expose(
+        self, exp_time, shutter, image_type, group_id, test_type,
+    ):
+        """Encapsulates the take image command.
+
+        This basically consists of configuring and sending a takeImages
+        command to the camera and waiting for an endReadout event.
+
+        Parameters
+        ----------
+        exp_time : `float`
+            The exposure time for the image, in seconds.
+        shutter : `bool`
+            Should activate the shutter? (False for bias and dark)
+        image_type : `str`
+            Image type (a.k.a. IMGTYPE) (e.g. e.g. BIAS, DARK, FLAT, FE55,
+            XTALK, CCOB, SPOT...)
+        group_id : `str`
+            Image groupId. Used to fill in FITS GROUPID header
+
+        Returns
+        -------
+        endReadout : ``self.cccamera.evt_endReadout.DataType``
+            End readout event data.
+        """
+        async with self.cmd_lock:
+            # FIXME: Current version of CCCamera software is not set up to take
+            # images with numImages > 1, so this is fixed at 1 for now and we
+            # loop through any set of images we want to take.
+            key_value_map = (
+                f"imageType: {image_type}, groupId: {group_id}, testType: {test_type}"
+            )
+
+            self.rem.cccamera.cmd_takeImages.set(
+                numImages=1,
+                expTime=float(exp_time),
+                shutter=bool(shutter),
+                keyValueMap=key_value_map,
+            )
+
+            timeout = self.read_out_time + self.long_timeout + self.long_long_timeout
+            self.rem.cccamera.evt_endReadout.flush()
+            self.rem.ccheaderservice.evt_largeFileObjectAvailable.flush()
+            await self.rem.cccamera.cmd_takeImages.start(timeout=timeout + exp_time)
+            end_readout = await self.rem.cccamera.evt_endReadout.next(
+                flush=False, timeout=timeout
+            )
+            return end_readout
+
+    def next_group_id(self):
+        """Get the next group ID.
+
+        The group ID is the current TAI date and time as a string in ISO
+        format. It has T separating date and time and no time zone suffix.
+        Here is an example:
+        "2020-01-17T22:59:05.721"
+        """
+        return astropy.time.Time.now().tai.isot
