@@ -449,20 +449,21 @@ class LATISS(RemoteGroup):
             if test_type is not None:
                 key_value_map += f",testType: {test_type}"
 
-            self.rem.atcamera.cmd_takeImages.set(
+            base_timeout = (
+                self.read_out_time + self.long_timeout + self.long_long_timeout
+            )
+            self.rem.atcamera.evt_endReadout.flush()
+            await self.rem.atcamera.cmd_takeImages.set_start(
                 numImages=1,
                 expTime=float(exp_time),
                 shutter=bool(shutter),
                 sensors="",  # For ATCamera this should always be empty string
                 keyValueMap=key_value_map,
                 obsNote=note if note is not None else "",
+                timeout=base_timeout + exp_time,
             )
-
-            timeout = self.read_out_time + self.long_timeout + self.long_long_timeout
-            self.rem.atcamera.evt_endReadout.flush()
-            await self.rem.atcamera.cmd_takeImages.start(timeout=timeout + exp_time)
             end_readout = await self.rem.atcamera.evt_endReadout.next(
-                flush=False, timeout=timeout
+                flush=False, timeout=base_timeout
             )
             return end_readout
 
@@ -483,47 +484,40 @@ class LATISS(RemoteGroup):
         setup_coroutines = []
         if filter is not None:
             if isinstance(filter, int):
-                self.rem.atspectrograph.cmd_changeFilter.set(filter=filter, name="")
+                filter_kwargs = dict(filter=filter, name="")
             elif type(filter) == str:
-                self.rem.atspectrograph.cmd_changeFilter.set(filter=0, name=filter)
+                filter_kwargs = dict(filter=0, name=filter)
             else:
                 raise RuntimeError(
                     f"Filter must be a string or an int, got "
                     f"{type(filter)}:{filter}"
                 )
             setup_coroutines.append(
-                self.rem.atspectrograph.cmd_changeFilter.start(
-                    timeout=self.long_timeout
+                self.rem.atspectrograph.cmd_changeFilter.set_start(
+                    **filter_kwargs, timeout=self.long_timeout
                 )
             )
 
         if grating is not None:
             if isinstance(grating, int):
-                self.rem.atspectrograph.cmd_changeDisperser.set(
-                    disperser=grating, name=""
-                )
+                grating_kwargs = dict(disperser=grating, name="")
             elif type(grating) == str:
-                self.rem.atspectrograph.cmd_changeDisperser.set(
-                    disperser=0, name=grating
-                )
+                grating_kwargs = dict(disperser=0, name=grating)
             else:
                 raise RuntimeError(
                     f"Grating must be a string or an int, got "
                     f"{type(grating)}:{grating}"
                 )
             setup_coroutines.append(
-                self.rem.atspectrograph.cmd_changeDisperser.start(
-                    timeout=self.long_timeout
+                self.rem.atspectrograph.cmd_changeDisperser.set_start(
+                    **grating_kwargs, timeout=self.long_timeout
                 )
             )
 
         if linear_stage is not None:
-            self.rem.atspectrograph.cmd_moveLinearStage.set(
-                distanceFromHome=float(linear_stage)
-            )
             setup_coroutines.append(
-                self.rem.atspectrograph.cmd_moveLinearStage.start(
-                    timeout=self.long_timeout
+                self.rem.atspectrograph.cmd_moveLinearStage.set_start(
+                    distanceFromHome=float(linear_stage), timeout=self.long_timeout
                 )
             )
 
