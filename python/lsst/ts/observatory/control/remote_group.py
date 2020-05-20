@@ -403,20 +403,23 @@ class RemoteGroup:
 
         """
 
-        settings_all = dict([(comp, "") for comp in self.components])
-
         if settings is not None:
             settings_all = settings
+        else:
+            settings_all = dict([(comp, "") for comp in self.components])
 
         set_ss_tasks = []
 
         for comp in self.components:
             if getattr(self.check, comp):
+                settingsToApply = settings_all[comp]
+                if settingsToApply is None:
+                    settingsToApply = ""
                 set_ss_tasks.append(
                     salobj.set_summary_state(
                         getattr(self.rem, comp),
                         salobj.State(state),
-                        settingsToApply=settings_all[comp],
+                        settingsToApply=settingsToApply,
                         timeout=self.long_long_timeout,
                     )
                 )
