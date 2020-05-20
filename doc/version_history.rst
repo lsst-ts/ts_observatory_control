@@ -1,10 +1,10 @@
 .. py:currentmodule:: lsst.ts.observatory.control
 
-.. _lsst.ts.observatory.control.revision_history:
+.. _lsst.ts.observatory.control.version_history:
 
-################
-Revision History
-################
+###############
+Version History
+###############
 
 v0.1.0
 ======
