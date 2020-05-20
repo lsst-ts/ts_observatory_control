@@ -6,6 +6,19 @@
 Version History
 ###############
 
+v0.1.1
+======
+
+Update `ATCS` for compatibility with ts_salobj 5.13.
+Use the ``set_start`` method of remote commands, where practical.
+Fix a bug in `RemoteGroup.set_state`: ``settingsToApply`` could be `None` in calls to ``lsst.ts.salobj.set_summary_state``.
+
+Requirements:
+
+* ts_salobj >=v5.6.0
+* ts_idl >=v1.3.0
+* IDL files for all components, e.g. built with ``make_idl_files.py``
+
 v0.1.0
 ======
 
