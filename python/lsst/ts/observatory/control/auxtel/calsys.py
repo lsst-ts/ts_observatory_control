@@ -62,7 +62,7 @@ class ATCalSys(RemoteGroup):
         super().__init__(
             components=[
                 f"Electrometer:{electrometer_index}",
-                f"ATMonochromator",
+                "ATMonochromator",
                 f"FiberSpectrograph:{fiber_spectrograph_index}",
             ],
             domain=domain,

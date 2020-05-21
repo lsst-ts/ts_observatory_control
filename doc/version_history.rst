@@ -6,7 +6,20 @@
 Version History
 ###############
 
-v0.1.1
+v0.2.2
+======
+
+Fix flake8 F541 violations.
+
+Requirements:
+
+* ts_salobj >=v5.6.0
+* ts_xml >=5.1.0
+* ts_idl >=v1.3.0
+* IDL files for all components, e.g. built with ``make_idl_files.py``
+
+
+v0.2.1
 ======
 
 Update `ATCS` for compatibility with ts_salobj 5.13.
@@ -16,6 +29,19 @@ Fix a bug in `RemoteGroup.set_state`: ``settingsToApply`` could be `None` in cal
 Requirements:
 
 * ts_salobj >=v5.6.0
+* ts_xml >=5.1.0
+* ts_idl >=v1.3.0
+* IDL files for all components, e.g. built with ``make_idl_files.py``
+
+v0.2.0
+======
+
+Update package for compatibility with ts_xml 5.1.
+
+Requirements:
+
+* ts_salobj >=v5.6.0
+* ts_xml >=5.1.0
 * ts_idl >=v1.3.0
 * IDL files for all components, e.g. built with ``make_idl_files.py``
 

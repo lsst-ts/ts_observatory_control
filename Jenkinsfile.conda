@@ -48,6 +48,7 @@ pipeline {
             }
         }
         stage("Push Conda package") {
+            when { expression { env.TAG_NAME != null } }
             steps {
                 withCredentials([usernamePassword(credentialsId: 'CondaForge', passwordVariable: 'anaconda_pass', usernameVariable: 'anaconda_user')]) {
                     script {
@@ -55,6 +56,21 @@ pipeline {
                         docker exec ${container_name} sh -c "source ~/miniconda3/bin/activate && \
                             anaconda login --user ${anaconda_user} --password ${anaconda_pass} && \
                             anaconda upload -u lsstts --force \
+                            ~/miniconda3/conda-bld/linux-64/ts-${package_name}*.tar.bz2"
+                        """
+                    }
+                }
+            }
+        }
+        stage("Push develop conda package") {
+            when { expression { env.TAG_NAME == null } }
+            steps {
+                withCredentials([usernamePassword(credentialsId: 'CondaForge', passwordVariable: 'anaconda_pass', usernameVariable: 'anaconda_user')]) {
+                    script {
+                        sh """
+                        docker exec ${container_name} sh -c "source ~/miniconda3/bin/activate && \
+                            anaconda login --user ${anaconda_user} --password ${anaconda_pass} && \
+                            anaconda upload -u lsstts --force  --label dev \
                             ~/miniconda3/conda-bld/linux-64/ts-${package_name}*.tar.bz2"
                         """
                     }

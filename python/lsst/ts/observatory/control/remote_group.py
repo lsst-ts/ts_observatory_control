@@ -382,7 +382,7 @@ class RemoteGroup:
                     )
                 else:
                     self.log.debug(
-                        f"Couldn't get settingVersions event. Using empty settings."
+                        "Couldn't get settingVersions event. Using empty settings."
                     )
                     complete_settings[comp] = ""
 
