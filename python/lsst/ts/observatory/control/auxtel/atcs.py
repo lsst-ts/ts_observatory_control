@@ -1203,7 +1203,7 @@ class ATCS(RemoteGroup):
         except asyncio.TimeoutError:
             pass
 
-        slew_cmd.set(trackId=track_id)
+        slew_cmd.data.trackId = track_id
 
         ack = await slew_cmd.start(timeout=slew_timeout)
         self.dome_az_in_position.clear()

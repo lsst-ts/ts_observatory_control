@@ -147,5 +147,5 @@ Revision History
 ================
 
 .. toctree::
-    revision_history
+    version_history
     :maxdepth: 1

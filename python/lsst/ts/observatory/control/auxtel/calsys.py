@@ -160,11 +160,12 @@ class ATCalSys(RemoteGroup):
             timeout=self.long_timeout, flush=True
         )
 
-        self.fiberspectrograph.cmd_expose.set(
-            imageType=image_type, integrationTime=integration_time, lamp=lamp,
+        await self.fiberspectrograph.cmd_expose.set_start(
+            imageType=image_type,
+            integrationTime=integration_time,
+            lamp=lamp,
+            timeout=timeout,
         )
-
-        await self.fiberspectrograph.cmd_expose.start(timeout=timeout)
 
         return await fs_lfo_coro
 
