@@ -112,7 +112,7 @@ class RemoteGroupTestCase(metaclass=abc.ABCMeta):
             await self.wait_for(
                 self.close(),
                 timeout=timeout,
-                description=f"self.close()",
+                description="self.close()",
                 verbose=verbose,
             )
             await self.wait_for(
