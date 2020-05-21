@@ -172,9 +172,9 @@ class LATISSMock:
         image_name = f"test_latiss_{date_id}_{next(index_gen)}"
         self.log.debug(f"sending endReadout: {image_name}")
         self.atcam.evt_endReadout.set_put(imageName=image_name)
-        self.log.debug(f"sending LFOA")
+        self.log.debug("sending LFOA")
         self.atheaderservice.evt_largeFileObjectAvailable.put()
-        self.log.debug(f"end_readout done")
+        self.log.debug("end_readout done")
 
     async def cmd_changeFilter_callback(self, data):
         """Emulate change filter command"""

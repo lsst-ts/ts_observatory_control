@@ -1016,7 +1016,7 @@ class ATCS(RemoteGroup):
                         f"{ATPneumatics.MirrorCoverState(cover_state.state)!r}"
                     )
         elif cover_state.state == ATPneumatics.MirrorCoverState.OPENED:
-            self.log.info(f"M1 cover already opened.")
+            self.log.info("M1 cover already opened.")
         else:
             raise RuntimeError(
                 f"M1 cover in {ATPneumatics.MirrorCoverState(cover_state.state)!r} "
@@ -1080,7 +1080,7 @@ class ATCS(RemoteGroup):
                     )
 
         elif cover_state.state == ATPneumatics.MirrorCoverState.CLOSED:
-            self.log.info(f"M1 cover already closed.")
+            self.log.info("M1 cover already closed.")
         else:
             raise RuntimeError(
                 f"M1 cover in {ATPneumatics.MirrorCoverState(cover_state.state)!r} "
@@ -1121,7 +1121,7 @@ class ATCS(RemoteGroup):
                     f"M1 vent state {ATPneumatics.VentsPosition(vent_state.position)!r}"
                 )
         elif vent_state.position == ATPneumatics.VentsPosition.OPENED:
-            self.log.info(f"M1 vents already opened.")
+            self.log.info("M1 vents already opened.")
         else:
             raise RuntimeError(
                 f"Unrecognized M1 vent position: {vent_state.position!r}"
@@ -1162,7 +1162,7 @@ class ATCS(RemoteGroup):
                     f"M1 vent state {ATPneumatics.VentsPosition(vent_state.position)!r}"
                 )
         elif vent_state.position == ATPneumatics.VentsPosition.CLOSED:
-            self.log.info(f"M1 vents already closed.")
+            self.log.info("M1 vents already closed.")
         else:
             raise RuntimeError(
                 f"Unrecognized M1 vent position: {vent_state.position!r}"
@@ -1361,10 +1361,10 @@ class ATCS(RemoteGroup):
                     if wait_settle:
                         self.log.info("Waiting for telescope to settle.")
                         await asyncio.sleep(self.tel_settle_time)
-                    self.log.info(f"Telescope in position.")
-                    return f"Telescope in position."
+                    self.log.info("Telescope in position.")
+                    return "Telescope in position."
                 else:
-                    self.log.debug(f"Telescope not in position")
+                    self.log.debug("Telescope not in position")
 
     async def wait_for_atdome_inposition(self, timeout, cmd_ack=None):
         """Wait for inPosition of atdome to be ready.
@@ -1388,8 +1388,8 @@ class ATCS(RemoteGroup):
         # I will deactivate this method and rely on monitor_position for the
         # job
         await self.dome_az_in_position.wait()
-        self.log.info(f"ATDome in position.")
-        return f"ATDome in position."
+        self.log.info("ATDome in position.")
+        return "ATDome in position."
 
     async def wait_for_atdome_shutter_inposition(self):
         """Wait for the atdome shutter to be in position.
@@ -1540,7 +1540,7 @@ class ATCS(RemoteGroup):
             in_position = await self.rem.atmcs.evt_allAxesInPosition.next(flush=False)
             self.log.debug(f"Got {in_position.inPosition}")
             if in_position.inPosition is False:
-                raise RuntimeError(f"ATMCS is no longer tracking.")
+                raise RuntimeError("ATMCS is no longer tracking.")
 
     async def focus_offset(self, offset):
         """ Apply focus offset.
