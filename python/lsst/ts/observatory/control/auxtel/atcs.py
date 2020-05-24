@@ -74,12 +74,15 @@ class ATCSUsages(Usages):
     Shutdown: Enable shutdown operations.
 
     PrepareForFlatfield: Enable preparation for flat-field.
+
+    OffsettingForATAOS: Enable offsetting from ATAOS
     """
 
     Slew = 1 << 3
     StartUp = 1 << 4
     Shutdown = 1 << 5
     PrepareForFlatfield = 1 << 6
+    OffsettingForATAOS = 1 << 7
 
     def __iter__(self):
 
@@ -93,6 +96,7 @@ class ATCSUsages(Usages):
                 self.StartUp,
                 self.Shutdown,
                 self.PrepareForFlatfield,
+                self.OffsettingForATAOS
             ]
         )
 
@@ -1244,13 +1248,16 @@ class ATCS(RemoteGroup):
         await self.rem.atptg.cmd_offsetAzEl.set_start(
             az=az, el=el, num=0 if not relative else 1
         )
+
         try:
             await self.rem.atmcs.evt_allAxesInPosition.next(
-                flush=True, timeout=self.tel_settle_time
+                flush=False, timeout=self.tel_settle_time
             )
+
         except asyncio.TimeoutError:
             pass
         self.log.debug("Waiting for telescope to settle.")
+
         await asyncio.sleep(self.tel_settle_time)
         self.log.debug("Done")
 
@@ -1288,16 +1295,15 @@ class ATCS(RemoteGroup):
             `False` (default) offset replaces any existing offsets.
         """
 
-        self.log.debug(f"Applying x/y offset: {x}/ {y} ")
+        self.log.debug(f"Calculating x/y offset: {x}/ {y} ")
         azel = await self.rem.atmcs.tel_mount_AzEl_Encoders.aget()
-        nasmyth = await self.rem.atmcs.tel_mount_Nasmyth_Encoders.aget()
+        nasmyth = await self.rem.atmcs.tel_mount_Nasmyth_Encoders.aget(timeout=1)
         angle = (
             np.mean(azel.elevationCalculatedAngle)
             - np.mean(nasmyth.nasmyth2CalculatedAngle)
             + 90.0
         )
         el, az, _ = np.matmul([x, y, 0.0], self.rotation_matrix(angle))
-
         await self.offset_azel(az, el, relative)
 
     async def wait_for_inposition(self, timeout, cmd_ack=None, wait_settle=True):
@@ -1842,6 +1848,22 @@ class ATCS(RemoteGroup):
                 "mount_AzEl_Encoders",
                 "position",
                 "mount_Nasmyth_Encoders",
+            ],
+        )
+
+        usages[self.valid_use_cases.OffsettingForATAOS] = types.SimpleNamespace(
+            components=self._components,
+            readonly=False,
+            include=[
+                "offsetAzEl",
+                "offsetRADec",
+                "allAxesInPosition",
+                "positionUpdate",
+                "target",
+                "mount_AzEl_Encoders",
+                "position",
+                "mount_Nasmyth_Encoders",
+                "timeAndDate",
             ],
         )
 
