@@ -24,6 +24,8 @@ import asyncio
 
 import numpy as np
 
+from .base_group_mock import BaseGroupMock
+
 import astropy.units as u
 from astropy.time import Time
 from astropy.coordinates import EarthLocation, Angle
@@ -36,7 +38,7 @@ HEARTBEAT_INTERVAL = 1  # seconds
 CLOSE_SLEEP = 5  # seconds
 
 
-class ATCSMock:
+class ATCSMock(BaseGroupMock):
     """ Mock the behavior of the combined components that make out ATTCS.
 
     This is useful for unit testing.
@@ -45,40 +47,21 @@ class ATCSMock:
 
     def __init__(self):
 
+        super().__init__(
+            components=[
+                "ATMCS",
+                "ATPtg",
+                "ATAOS",
+                "ATPneumatics",
+                "ATHexapod",
+                "ATDome",
+                "ATDomeTrajectory",
+            ]
+        )
+
         self.location = EarthLocation.from_geodetic(
             lon=-70.747698 * u.deg, lat=-30.244728 * u.deg, height=2663.0 * u.m
         )
-
-        self._components = [
-            "ATMCS",
-            "ATPtg",
-            "ATAOS",
-            "ATPneumatics",
-            "ATHexapod",
-            "ATDome",
-            "ATDomeTrajectory",
-        ]
-
-        self.components = [comp.lower() for comp in self._components]
-
-        # creating controllers for all components involved
-        self.atmcs = salobj.Controller("ATMCS")
-        self.atptg = salobj.Controller("ATPtg")
-        self.atdome = salobj.Controller("ATDome")
-        self.ataos = salobj.Controller("ATAOS")
-        self.atpneumatics = salobj.Controller("ATPneumatics")
-        self.athexapod = salobj.Controller("ATHexapod")
-        self.atdometrajectory = salobj.Controller("ATDomeTrajectory")
-
-        self.setting_versions = {}
-
-        self.settings_to_apply = {}
-
-        for comp in self.components:
-            getattr(self, comp).cmd_start.callback = self.get_start_callback(comp)
-            getattr(self, comp).cmd_enable.callback = self.get_enable_callback(comp)
-            getattr(self, comp).cmd_disable.callback = self.get_disable_callback(comp)
-            getattr(self, comp).cmd_standby.callback = self.get_standby_callback(comp)
 
         self.atdome.cmd_start.callback = self.atdome_start_callback
 
@@ -115,10 +98,6 @@ class ATCSMock:
 
         self.track = False
 
-        self.start_task = asyncio.create_task(self.start_task_publish())
-
-        self.task_list = []
-
         self.atmcs_telemetry_task = None
         self.atdome_telemetry_task = None
         self.atptg_telemetry_task = None
@@ -130,6 +109,34 @@ class ATCSMock:
         self.atptg.cmd_stopTracking.callback = self.stop_tracking_callback
 
         self.atdome.cmd_moveAzimuth.callback = self.move_dome
+
+    @property
+    def atmcs(self):
+        return self.controllers.atmcs
+
+    @property
+    def atptg(self):
+        return self.controllers.atptg
+
+    @property
+    def ataos(self):
+        return self.controllers.ataos
+
+    @property
+    def atpneumatics(self):
+        return self.controllers.atpneumatics
+
+    @property
+    def athexapod(self):
+        return self.controllers.athexapod
+
+    @property
+    def atdome(self):
+        return self.controllers.atdome
+
+    @property
+    def atdometrajectory(self):
+        return self.controllers.atdometrajectory
 
     @property
     def m1_cover_state(self):
@@ -146,29 +153,12 @@ class ATCSMock:
         if self.start_task.done():
             raise RuntimeError("Start task already completed.")
 
-        await asyncio.gather(
-            self.atmcs.start_task,
-            self.atptg.start_task,
-            self.atdome.start_task,
-            self.ataos.start_task,
-            self.atpneumatics.start_task,
-            self.athexapod.start_task,
-            self.atdometrajectory.start_task,
-        )
-
-        for comp in self.components:
-            getattr(self, comp).evt_summaryState.set_put(
-                summaryState=salobj.State.STANDBY
-            )
-            self.setting_versions[comp] = f"test_{comp}"
-            getattr(self, comp).evt_settingVersions.set_put(
-                recommendedSettingsVersion=f"{self.setting_versions[comp]},"
-            )
+        await super().start_task_publish()
 
         self.atmcs.evt_atMountState.set_put(state=ATMCS.AtMountState.TRACKINGDISABLED)
         self.atdome.evt_scbLink.set_put(active=True, force_output=True)
         self.atdome.evt_azimuthCommandedState.put()
-        self.run_telemetry_loop = True
+
         self.atmcs_telemetry_task = asyncio.create_task(self.atmcs_telemetry())
         self.atdome_telemetry_task = asyncio.create_task(self.atdome_telemetry())
         self.atptg_telemetry_task = asyncio.create_task(self.atptg_telemetry())
@@ -379,9 +369,6 @@ class ATCSMock:
 
         self.atmcs.evt_atMountState.set_put(state=ATMCS.AtMountState.TRACKINGENABLED)
 
-    async def generic_callback(self, data):
-        await asyncio.sleep(0.5)
-
     async def move_shutter_callback(self, data):
         if data.open and self.dome_shutter_pos == 0.0:
             await self.open_shutter()
@@ -461,86 +448,6 @@ class ATCSMock:
 
         await asyncio.sleep(HEARTBEAT_INTERVAL)
 
-    def get_start_callback(self, comp):
-        async def callback(data):
-
-            ss = getattr(self, comp).evt_summaryState
-
-            if ss.data.summaryState != salobj.State.STANDBY:
-                raise RuntimeError(
-                    f"{comp} current state is {salobj.State(ss.data.summaryState)!r}. "
-                    f"Expected {salobj.State.STANDBY!r}"
-                )
-
-            print(
-                f"[{comp}] {ss.data.summaryState!r} -> {salobj.State.DISABLED!r} "
-                f"[settings: {data.settingsToApply}]"
-            )
-
-            ss.set_put(summaryState=salobj.State.DISABLED)
-
-            self.settings_to_apply[comp] = data.settingsToApply
-
-            await asyncio.sleep(HEARTBEAT_INTERVAL)
-
-        return callback
-
-    def get_enable_callback(self, comp):
-        async def callback(data):
-
-            ss = getattr(self, comp).evt_summaryState
-
-            if ss.data.summaryState != salobj.State.DISABLED:
-                raise RuntimeError(
-                    f"{comp} current state is {salobj.State(ss.data.summaryState)!r}. "
-                    f"Expected {salobj.State.DISABLED!r}"
-                )
-
-            print(f"[{comp}] {ss.data.summaryState!r} -> {salobj.State.ENABLED!r}")
-
-            ss.set_put(summaryState=salobj.State.ENABLED)
-
-            await asyncio.sleep(HEARTBEAT_INTERVAL)
-
-        return callback
-
-    def get_disable_callback(self, comp):
-        async def callback(data):
-
-            ss = getattr(self, comp).evt_summaryState
-
-            if ss.data.summaryState != salobj.State.ENABLED:
-                raise RuntimeError(
-                    f"{comp} current state is {salobj.State(ss.data.summaryState)!r}. "
-                    f"Expected {salobj.State.ENABLED!r}."
-                )
-            print(f"[{comp}] {ss.data.summaryState!r} -> {salobj.State.DISABLED!r}")
-
-            ss.set_put(summaryState=salobj.State.DISABLED)
-
-            await asyncio.sleep(HEARTBEAT_INTERVAL)
-
-        return callback
-
-    def get_standby_callback(self, comp):
-        async def callback(data):
-
-            ss = getattr(self, comp).evt_summaryState
-
-            if ss.data.summaryState not in (salobj.State.DISABLED, salobj.State.FAULT):
-                raise RuntimeError(
-                    f"{comp}: Current state is {salobj.State(ss.data.summaryState)!r}. "
-                    f"Expected {salobj.State.DISABLED!r} or {salobj.State.FAULT!r}"
-                )
-
-            print(f"[{comp}] {ss.data.summaryState!r} -> {salobj.State.STANDBY!r}")
-
-            ss.set_put(summaryState=salobj.State.STANDBY)
-
-            await asyncio.sleep(HEARTBEAT_INTERVAL)
-
-        return callback
-
     async def close(self):
 
         # await all tasks created during runtime
@@ -557,19 +464,4 @@ class ATCSMock:
         except Exception:
             pass
 
-        close_task = []
-
-        for comp in self.components:
-            close_task.append(getattr(self, comp).close())
-
-        await asyncio.gather(*close_task)
-
-    async def __aenter__(self):
-        await self.start_task
-
-        return self
-
-    async def __aexit__(self, *args):
-        await self.close()
-
-        await asyncio.sleep()
+        await super().close()

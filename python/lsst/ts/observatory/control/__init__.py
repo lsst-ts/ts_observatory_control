@@ -20,7 +20,6 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 from .remote_group import *
-from .auxtel import *
 from .utils import *
 
 try:

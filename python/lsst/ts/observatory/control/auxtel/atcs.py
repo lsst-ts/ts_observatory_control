@@ -20,7 +20,6 @@
 
 __all__ = ["ATCS", "ATCSUsages"]
 
-import enum
 import types
 import asyncio
 
@@ -30,33 +29,10 @@ from astropy.coordinates import AltAz, ICRS, EarthLocation, Angle
 from astroquery.simbad import Simbad
 
 from ..remote_group import RemoteGroup, Usages
-from ..utils import subtract_angles, parallactic_angle
+from ..utils import subtract_angles, parallactic_angle, handle_rottype, RotType
 
 from lsst.ts import salobj
 from lsst.ts.idl.enums import ATPtg, ATDome, ATPneumatics, ATMCS
-
-
-class RotType(enum.IntEnum):
-    """Defines the different types of rotator strategies.
-
-    Sky: Sky position angle strategy. The rotator is positioned with respect
-         to the North axis so rot_angle=0. means y-axis is aligned with North.
-         Angle grows clock-wise.
-
-    Parallactic: This strategy is required for taking optimum spectra with
-                 LATISS. If set to zero, the rotator is positioned so that the
-                 y-axis (dispersion axis) is aligned with the parallactic
-                 angle.
-
-    Physical_Sky: This strategy allows users to select the **initial** position
-                  of the rotator in terms of the physical rotator angle (in the
-                  reference frame of the telescope). Note that the telescope
-                  will resume tracking the sky rotation.
-    """
-
-    Sky = 0
-    Parallactic = 1
-    Physical_Sky = 2
 
 
 class ATCSUsages(Usages):
@@ -318,10 +294,9 @@ class ATCS(RemoteGroup):
             await self._slew_to(
                 self.rem.atptg.cmd_azElTarget, slew_timeout=slew_timeout
             )
-        except Exception as e:
+        finally:
             self.check.atdome = check_atdome
             self.check.atdometrajectory = check_atdometrajectory
-            raise e
 
     async def start_tracking(self):
         """Start tracking the current position of the telescope.
@@ -458,7 +433,7 @@ class ATCS(RemoteGroup):
         """
         radec_icrs = ICRS(Angle(ra, unit=u.hourangle), Angle(dec, unit=u.deg))
 
-        _rot, _rottype = self.handle_rottype(
+        _rot, _rottype = handle_rottype(
             rot_sky=rot_sky, rot_par=rot_par, rot_phys_sky=rot_phys_sky
         )
 
@@ -1661,48 +1636,6 @@ class ATCS(RemoteGroup):
             self.log.debug("Opening new pointing file.")
             await self.rem.atptg.cmd_pointNewFile.start()
             await self.rem.atptg.cmd_pointAddData.start()
-
-    @staticmethod
-    def handle_rottype(rot_sky=0.0, rot_par=None, rot_phys_sky=None):
-        """Handle different kinds of rotation strategies.
-
-        From the given input the method will return an angle to be used
-        (converted to `astropy.coordinates.Angle`) and a rotator positioning
-        strategy; sky, parallactic or physical (see `RotType` for an
-        explanation).
-
-        Parameters
-        ----------
-        rot_sky : `float`, `str` or `astropy.coordinates.Angle`
-            Has the same behavior of `rottype=RotType.Sky`.
-        rot_par :  `float`, `str` or `astropy.coordinates.Angle`
-            Has the same behavior of `rottype=RotType.Parallactic`.
-        rot_phys_sky : `float`, `str` or `astropy.coordinates.Angle`
-            Has the same behavior of `rottype=RotType.Physical_Sky`.
-
-        Returns
-        -------
-        rotang: `astropy.coordinates.Angle`
-            Selected rotation angle.
-        rottype: `RotSky`
-            Selected rotation type.
-
-        Raises
-        ------
-        RuntimeError: If both `rot_par` and `rot_tel` are specified.
-
-        """
-        if rot_par is not None and rot_phys_sky is not None:
-            raise RuntimeError(
-                f"Cannot specify both `rot_par` and `rot_tel`. Got: rot_par={rot_par}, "
-                f"rot_tel={rot_phys_sky}."
-            )
-        elif rot_par is not None:
-            return Angle(rot_par, unit=u.deg), RotType.Parallactic
-        elif rot_phys_sky is not None:
-            return Angle(rot_phys_sky, unit=u.deg), RotType.Physical_Sky
-        else:
-            return Angle(rot_sky, unit=u.deg), RotType.Sky
 
     @property
     def valid_use_cases(self):

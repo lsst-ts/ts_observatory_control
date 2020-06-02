@@ -237,23 +237,39 @@ class RemoteGroup:
         )
         return resources
 
-    async def get_state(self, component):
+    async def get_state(self, component, fail_safe=False):
         """Get summary state for component.
 
         Parameters
         ----------
         component : `str`
             Name of the component.
+        fail_safe : `bool`
+            Run in fail_safe mode? If `True` will return None in case it can
+            not get the state. Default is `False`, which means raise
+            `TimeoutError`.
 
         Returns
         -------
-        state : `salobj.State`
+        state : `salobj.State` or `None`
             Current state of component.
+
+        Raises
+        ------
+        `asyncio.TimeoutError`
+            If can not get state in `self.fast_timeout` seconds.
+
         """
-        ss = await getattr(self.rem, component).evt_summaryState.aget(
-            timeout=self.fast_timeout
-        )
-        return salobj.State(ss.summaryState)
+        try:
+            ss = await getattr(self.rem, component).evt_summaryState.aget(
+                timeout=self.fast_timeout
+            )
+            return salobj.State(ss.summaryState)
+        except Exception as e:
+            if fail_safe:
+                return None
+            else:
+                raise e
 
     async def next_state(self, component):
         """Get summary state for component.
@@ -424,7 +440,7 @@ class RemoteGroup:
                     )
                 )
             else:
-                set_ss_tasks.append(self.get_state(comp))
+                set_ss_tasks.append(self.get_state(comp, fail_safe=True))
 
         ret_val = await asyncio.gather(*set_ss_tasks, return_exceptions=True)
 
