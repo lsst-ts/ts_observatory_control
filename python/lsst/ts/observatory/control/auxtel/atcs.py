@@ -1296,8 +1296,9 @@ class ATCS(RemoteGroup):
         """
 
         self.log.debug(f"Calculating x/y offset: {x}/ {y} ")
-        azel = await self.rem.atmcs.tel_mount_AzEl_Encoders.aget()
-        nasmyth = await self.rem.atmcs.tel_mount_Nasmyth_Encoders.aget(timeout=1)
+
+        azel = await self.rem.atmcs.tel_mount_AzEl_Encoders.aget(timeout=1.5)
+        nasmyth = await self.rem.atmcs.tel_mount_Nasmyth_Encoders.aget(timeout=1.5)
         angle = (
             np.mean(azel.elevationCalculatedAngle)
             - np.mean(nasmyth.nasmyth2CalculatedAngle)
@@ -1852,18 +1853,37 @@ class ATCS(RemoteGroup):
         )
 
         usages[self.valid_use_cases.OffsettingForATAOS] = types.SimpleNamespace(
-            components=self._components,
+            components=["ATMCS",
+                        "ATPtg",
+                        "ATPneumatics",
+                        "ATHexapod"],
             readonly=False,
             include=[
                 "offsetAzEl",
                 "offsetRADec",
                 "allAxesInPosition",
                 "positionUpdate",
+                "moveToPosition",
                 "target",
                 "mount_AzEl_Encoders",
                 "position",
                 "mount_Nasmyth_Encoders",
                 "timeAndDate",
+                "m1SetPressure",
+                "m2SetPressure",
+                "m1OpenAirValve",
+                "m2OpenAirValve",
+                "m1CloseAirValve",
+                "m2CloseAirValve",
+                "openMasterAirSupply",
+                "openInstrumentAirValve",
+                "m1State",
+                "m2State",
+                "instrumentState",
+                "mainValveState",
+                "summaryState",
+                "m1AirPressure",
+                "m2AirPressure"
             ],
         )
 
