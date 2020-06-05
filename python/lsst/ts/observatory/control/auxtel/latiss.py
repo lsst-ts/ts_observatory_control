@@ -37,13 +37,11 @@ class LATISSUsages(Usages):
 
     Additional usages definition:
 
-    TakeImage: Enable Camera-only take image operations. Exclude HeaderService,
-    ATSpectrograph and Archiver data.
-
-    Setup: Enable ATSpectrograph setup operations.
-
-    TakeImageFull: Enable all take image operations with additional support
-    events from HeaderService and Archiver
+    * TakeImage: Enable Camera-only take image operations. Exclude
+                 HeaderService, ATSpectrograph and Archiver data.
+    * Setup: Enable ATSpectrograph setup operations.
+    * TakeImageFull: Enable all take image operations with additional support
+                     events from HeaderService and Archiver
     """
 
     TakeImage = 1 << 3

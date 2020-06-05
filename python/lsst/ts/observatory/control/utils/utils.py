@@ -18,7 +18,7 @@
 #
 # You should have received a copy of the GNU General Public License
 
-__all__ = ["subtract_angles", "parallactic_angle", "handle_rottype"]
+__all__ = ["parallactic_angle", "handle_rottype"]
 
 import numpy as np
 
@@ -68,24 +68,6 @@ def handle_rottype(rot_sky=0.0, rot_par=None, rot_phys_sky=None):
         return Angle(rot_phys_sky, unit=u.deg), RotType.Physical_Sky
     else:
         return Angle(rot_sky, unit=u.deg), RotType.Sky
-
-
-def subtract_angles(angle1, angle2):
-    """Compute the difference between two angles, wrapped to [-180, 180].
-
-    Parameters
-    ----------
-    angle1 : `float`
-        Angle 1 (deg)
-    angle2 : `float`
-        Angle 2 (deg)
-
-    Returns
-    -------
-    subtract_angles : `float`
-        angle1 - angle2 wrapped to [-180, 180] degrees
-    """
-    return ((angle1 - angle2) + 180) % 360.0 - 180
 
 
 def parallactic_angle(location, lst, target):

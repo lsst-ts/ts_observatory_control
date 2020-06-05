@@ -34,8 +34,6 @@ from astropy.coordinates import AltAz, ICRS, EarthLocation, Angle
 
 from lsst.ts.idl.enums import MTPtg
 
-from ..utils import subtract_angles
-
 LONG_TIMEOUT = 30  # seconds
 HEARTBEAT_INTERVAL = 1  # seconds
 CLOSE_SLEEP = 5  # seconds
@@ -167,9 +165,9 @@ class MTCSMock(BaseGroupMock):
                     self.controllers.mtmount.tel_Elevation.data.Elevation_Angle_Actual
                 )
 
-                az_dif = subtract_angles(az_set, az_actual)
-                el_dif = subtract_angles(el_set, el_actual)
-                in_position = az_dif < 1e-1 and el_dif < 1e-1
+                az_dif = salobj.angle_diff(az_set, az_actual)
+                el_dif = salobj.angle_diff(el_set, el_actual)
+                in_position = np.abs(az_dif) < 1e-1*u.deg and np.abs(el_dif) < 1e-1*u.deg
 
                 if self.acting:
                     self.controllers.mtmount.evt_mountInPosition.set_put(
@@ -177,10 +175,10 @@ class MTCSMock(BaseGroupMock):
                     )
 
                 self.controllers.mtmount.tel_Azimuth.set_put(
-                    Azimuth_Angle_Actual=az_actual + az_induced_error + az_dif / 1.1
+                    Azimuth_Angle_Actual=az_actual + az_induced_error + az_dif.deg / 1.1
                 )
                 self.controllers.mtmount.tel_Elevation.set_put(
-                    Elevation_Angle_Actual=el_actual + el_induced_error + el_dif / 1.1
+                    Elevation_Angle_Actual=el_actual + el_induced_error + el_dif.deg / 1.1
                 )
 
                 self.controllers.newmtmount.evt_target.put()
@@ -198,9 +196,9 @@ class MTCSMock(BaseGroupMock):
                 error = np.random.normal(0.0, 1e-7)
                 demand = self.controllers.rotator.tel_Application.data.Demand
                 position = self.controllers.rotator.tel_Application.data.Position
-                dif = subtract_angles(demand, position)
+                dif = salobj.angle_diff(demand, position)
 
-                in_position = dif < 1e-1
+                in_position = np.abs(dif) < 1e-1*u.deg
 
                 if self.acting:
                     self.controllers.rotator.evt_inPosition.set_put(
@@ -208,7 +206,7 @@ class MTCSMock(BaseGroupMock):
                     )
 
                 self.controllers.rotator.tel_Application.set_put(
-                    Position=position + error + dif / 1.1, Error=error + dif / 1.1
+                    Position=position + error + dif.deg / 1.1, Error=error + dif.deg / 1.1
                 )
 
             await asyncio.sleep(HEARTBEAT_INTERVAL)
@@ -234,8 +232,8 @@ class MTCSMock(BaseGroupMock):
                 error_az = np.random.normal(0.0, 1e-7)
                 error_el = np.random.normal(0.0, 1e-7)
 
-                diff_az = subtract_angles(dome_az_set, dome_az_pos)
-                diff_el = subtract_angles(dome_el_set, dome_el_pos)
+                diff_az = salobj.angle_diff(dome_az_set, dome_az_pos)
+                diff_el = salobj.angle_diff(dome_el_set, dome_el_pos)
 
                 # This next bit is to simulate the MTDomeTrajectory behavior.
                 if (
@@ -251,13 +249,13 @@ class MTCSMock(BaseGroupMock):
 
                 self.controllers.dome.tel_domeADB_status.set(
                     positionCmd=dome_az_set,
-                    positionActual=dome_az_pos + error_az + diff_az / 1.1,
-                    positionError=error_az + diff_az / 1.1,
+                    positionActual=dome_az_pos + error_az + diff_az.deg / 1.1,
+                    positionError=error_az + diff_az.deg / 1.1,
                 )
                 self.controllers.dome.tel_domeAPS_status.set(
                     positionCmd=dome_el_set,
-                    positionActual=dome_el_pos + error_el + diff_el / 1.1,
-                    positionError=error_el + diff_el / 1.1,
+                    positionActual=dome_el_pos + error_el + diff_el.deg / 1.1,
+                    positionError=error_el + diff_el.deg / 1.1,
                 )
 
                 self.controllers.dome.tel_domeADB_status.put()
