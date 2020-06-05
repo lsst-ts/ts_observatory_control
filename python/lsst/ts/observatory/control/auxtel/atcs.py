@@ -74,12 +74,15 @@ class ATCSUsages(Usages):
     Shutdown: Enable shutdown operations.
 
     PrepareForFlatfield: Enable preparation for flat-field.
+
+    OffsettingForATAOS: Enable offsetting from ATAOS
     """
 
     Slew = 1 << 3
     StartUp = 1 << 4
     Shutdown = 1 << 5
     PrepareForFlatfield = 1 << 6
+    OffsettingForATAOS = 1 << 7
 
     def __iter__(self):
 
@@ -93,6 +96,7 @@ class ATCSUsages(Usages):
                 self.StartUp,
                 self.Shutdown,
                 self.PrepareForFlatfield,
+                self.OffsettingForATAOS,
             ]
         )
 
@@ -163,6 +167,20 @@ class ATCS(RemoteGroup):
             ]
         )
 
+        self._tel_position = None
+        self._tel_position_updated = asyncio.Event()
+
+        self._tel_target = None
+        self._tel_target_updated = asyncio.Event()
+
+        if hasattr(self.rem.atmcs, "tel_mount_AzEl_Encoders"):
+            self.rem.atmcs.tel_mount_AzEl_Encoders.callback = (
+                self.mount_AzEl_Encoders_callback
+            )
+
+        if hasattr(self.rem.atmcs, "evt_target"):
+            self.rem.atmcs.evt_target.callback = self.atmcs_target_callback
+
         self.tel_park_el = 80.0
         self.tel_park_az = 0.0
         self.tel_flat_el = 39.0
@@ -182,6 +200,72 @@ class ATCS(RemoteGroup):
         self.dome_az_in_position.clear()
 
         self.track_id_gen = salobj.index_generator()
+
+    async def mount_AzEl_Encoders_callback(self, data):
+        """Callback function to update the telescope position telemetry topic.
+        """
+        self._tel_position = data
+        self._tel_position_updated.set()
+
+    async def atmcs_target_callback(self, data):
+        """Callback function to update the telescope target event topic.
+        """
+        self._tel_target = data
+        self._tel_target_updated.set()
+
+    async def next_telescope_position(self, timeout=None):
+        """Wait for next telescope position to become available and return
+        data.
+
+        Parameters
+        ----------
+        timeout: `float`
+            How long to wait for target to arrive (in seconds). Default is
+            `None`, which means, wait for ever.
+
+        Returns
+        -------
+        data: `ATMCS_tel_mount_AzEl_Encoders`
+
+        Raises
+        ------
+        asyncio.TimeoutError
+            If no new data is seen in less then `timeout` seconds.
+        """
+        self._tel_position_updated.clear()
+        await asyncio.wait_for(self._tel_position_updated.wait(), timeout=timeout)
+        return self._tel_position
+
+    async def next_telescope_target(self, timeout=None):
+        """Wait for next telescope position to become available and return
+        data.
+
+        Parameters
+        ----------
+        timeout: `float`
+            How long to wait for target to arrive (in seconds). Default is
+            `None`, which means, wait for ever.
+
+        Returns
+        -------
+        data: `ATMCS_tel_mount_AzEl_Encoders`
+
+        Raises
+        ------
+        asyncio.TimeoutError
+            If no new data is seen in less then `timeout` seconds.
+        """
+        self._tel_target_updated.clear()
+        await asyncio.wait_for(self._tel_target_updated.wait(), timeout=timeout)
+        return self._tel_target
+
+    @property
+    def telescope_position(self):
+        return self._tel_position
+
+    @property
+    def telescope_target(self):
+        return self._tel_target
 
     async def point_azel(
         self,
@@ -990,9 +1074,7 @@ class ATCS(RemoteGroup):
             # Check that telescope is in a good elevation to open cover.
             # If not, point to current azimuth and elevation 75 degrees
             # before opening the mirror cover.
-            tel_pos = await self.rem.atmcs.tel_mount_AzEl_Encoders.next(
-                flush=True, timeout=self.fast_timeout
-            )
+            tel_pos = await self.next_telescope_position(timeout=self.fast_timeout)
 
             if tel_pos.elevationCalculatedAngle[-1] < self.tel_el_operate_pneumatics:
                 await self.point_azel(
@@ -1050,9 +1132,7 @@ class ATCS(RemoteGroup):
             # Check that telescope is in a good elevation to close cover.
             # If not, point to current azimuth and elevation 75 degrees
             # before opening the mirror cover.
-            tel_pos = await self.rem.atmcs.tel_mount_AzEl_Encoders.next(
-                flush=True, timeout=self.fast_timeout
-            )
+            tel_pos = await self.next_telescope_position(timeout=self.fast_timeout)
 
             if tel_pos.elevationCalculatedAngle[-1] < self.tel_el_operate_pneumatics:
                 await self.point_azel(
@@ -1193,9 +1273,7 @@ class ATCS(RemoteGroup):
         track_id = next(self.track_id_gen)
 
         try:
-            current_target = await self.rem.atmcs.evt_target.next(
-                flush=True, timeout=self.fast_timeout
-            )
+            current_target = await self.next_telescope_target(self.fast_timeout)
             if track_id <= current_target.trackId:
                 self.track_id_gen = salobj.index_generator(current_target.trackId + 1)
                 track_id = next(self.track_id_gen)
@@ -1244,13 +1322,16 @@ class ATCS(RemoteGroup):
         await self.rem.atptg.cmd_offsetAzEl.set_start(
             az=az, el=el, num=0 if not relative else 1
         )
+
         try:
             await self.rem.atmcs.evt_allAxesInPosition.next(
-                flush=True, timeout=self.tel_settle_time
+                flush=False, timeout=self.tel_settle_time
             )
+
         except asyncio.TimeoutError:
             pass
         self.log.debug("Waiting for telescope to settle.")
+
         await asyncio.sleep(self.tel_settle_time)
         self.log.debug("Done")
 
@@ -1288,16 +1369,18 @@ class ATCS(RemoteGroup):
             `False` (default) offset replaces any existing offsets.
         """
 
-        self.log.debug(f"Applying x/y offset: {x}/ {y} ")
-        azel = await self.rem.atmcs.tel_mount_AzEl_Encoders.aget()
-        nasmyth = await self.rem.atmcs.tel_mount_Nasmyth_Encoders.aget()
+        self.log.debug(f"Calculating x/y offset: {x}/ {y} ")
+
+        azel = self.telescope_position
+        nasmyth = await self.rem.atmcs.tel_mount_Nasmyth_Encoders.aget(
+            timeout=self.fast_timeout
+        )
         angle = (
             np.mean(azel.elevationCalculatedAngle)
             - np.mean(nasmyth.nasmyth2CalculatedAngle)
             + 90.0
         )
         el, az, _ = np.matmul([x, y, 0.0], self.rotation_matrix(angle))
-
         await self.offset_azel(az, el, relative)
 
     async def wait_for_inposition(self, timeout, cmd_ack=None, wait_settle=True):
@@ -1430,9 +1513,7 @@ class ATCS(RemoteGroup):
 
         if atmcs:
             try:
-                await self.rem.atmcs.evt_target.next(
-                    flush=True, timeout=self.long_timeout
-                )
+                await self.next_telescope_target(timeout=self.long_timeout)
             except asyncio.TimeoutError:
                 raise RuntimeError(
                     "Not receiving target events from the ATMCS. "
@@ -1443,12 +1524,8 @@ class ATCS(RemoteGroup):
 
         while not in_position:
             if atmcs:
-                comm_pos = await self.rem.atmcs.evt_target.next(
-                    flush=True, timeout=self.fast_timeout
-                )
-                tel_pos = await self.rem.atmcs.tel_mount_AzEl_Encoders.next(
-                    flush=True, timeout=self.fast_timeout
-                )
+                comm_pos = await self.next_telescope_target(timeout=self.long_timeout)
+                tel_pos = await self.next_telescope_position(timeout=self.fast_timeout)
                 nasm_pos = await self.rem.atmcs.tel_mount_Nasmyth_Encoders.next(
                     flush=True, timeout=self.fast_timeout
                 )
@@ -1842,6 +1919,38 @@ class ATCS(RemoteGroup):
                 "mount_AzEl_Encoders",
                 "position",
                 "mount_Nasmyth_Encoders",
+            ],
+        )
+
+        usages[self.valid_use_cases.OffsettingForATAOS] = types.SimpleNamespace(
+            components=["ATMCS", "ATPtg", "ATPneumatics", "ATHexapod"],
+            readonly=False,
+            include=[
+                "offsetAzEl",
+                "offsetRADec",
+                "allAxesInPosition",
+                "positionUpdate",
+                "moveToPosition",
+                "target",
+                "mount_AzEl_Encoders",
+                "position",
+                "mount_Nasmyth_Encoders",
+                "timeAndDate",
+                "m1SetPressure",
+                "m2SetPressure",
+                "m1OpenAirValve",
+                "m2OpenAirValve",
+                "m1CloseAirValve",
+                "m2CloseAirValve",
+                "openMasterAirSupply",
+                "openInstrumentAirValve",
+                "m1State",
+                "m2State",
+                "instrumentState",
+                "mainValveState",
+                "summaryState",
+                "m1AirPressure",
+                "m2AirPressure",
             ],
         )
 
