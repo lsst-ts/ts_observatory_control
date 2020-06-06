@@ -82,11 +82,14 @@ pipeline {
                 }
             }
         }
-         stage("Build dependency - ts_standardscripts") {
-            steps {
-                build job: 'LSST_Telescope-and-Site/ts_standardscripts/develop', parameters: [stringParam(name: 'CHANGE_BRANCH', value: ${work_branches})], wait: false
-            }
-         }
+// This next step would start a build of ts_standardscripts. This need a bit
+// more work to sort the branches right. I will leave it here for future
+// reference.
+//         stage("Build dependency - ts_standardscripts") {
+//            steps {
+//                build job: 'LSST_Telescope-and-Site/ts_standardscripts/develop', parameters: [stringParam(name: 'CHANGE_BRANCH', value: "${work_branches}")], wait: false
+//            }
+//         }
     }
     post {
         always {
