@@ -167,7 +167,9 @@ class MTCSMock(BaseGroupMock):
 
                 az_dif = salobj.angle_diff(az_set, az_actual)
                 el_dif = salobj.angle_diff(el_set, el_actual)
-                in_position = np.abs(az_dif) < 1e-1*u.deg and np.abs(el_dif) < 1e-1*u.deg
+                in_position = (
+                    np.abs(az_dif) < 1e-1 * u.deg and np.abs(el_dif) < 1e-1 * u.deg
+                )
 
                 if self.acting:
                     self.controllers.mtmount.evt_mountInPosition.set_put(
@@ -178,7 +180,9 @@ class MTCSMock(BaseGroupMock):
                     Azimuth_Angle_Actual=az_actual + az_induced_error + az_dif.deg / 1.1
                 )
                 self.controllers.mtmount.tel_Elevation.set_put(
-                    Elevation_Angle_Actual=el_actual + el_induced_error + el_dif.deg / 1.1
+                    Elevation_Angle_Actual=el_actual
+                    + el_induced_error
+                    + el_dif.deg / 1.1
                 )
 
                 self.controllers.newmtmount.evt_target.put()
@@ -198,7 +202,7 @@ class MTCSMock(BaseGroupMock):
                 position = self.controllers.rotator.tel_Application.data.Position
                 dif = salobj.angle_diff(demand, position)
 
-                in_position = np.abs(dif) < 1e-1*u.deg
+                in_position = np.abs(dif) < 1e-1 * u.deg
 
                 if self.acting:
                     self.controllers.rotator.evt_inPosition.set_put(
@@ -206,7 +210,8 @@ class MTCSMock(BaseGroupMock):
                     )
 
                 self.controllers.rotator.tel_Application.set_put(
-                    Position=position + error + dif.deg / 1.1, Error=error + dif.deg / 1.1
+                    Position=position + error + dif.deg / 1.1,
+                    Error=error + dif.deg / 1.1,
                 )
 
             await asyncio.sleep(HEARTBEAT_INTERVAL)

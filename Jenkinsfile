@@ -82,6 +82,11 @@ pipeline {
                 }
             }
         }
+         stage("Build dependency - ts_standardscripts") {
+            steps {
+                build job: 'LSST_Telescope-and-Site/ts_standardscripts/develop', parameters: [stringParam(name: 'CHANGE_BRANCH', value: ${work_branches})], wait: false
+            }
+         }
     }
     post {
         always {
