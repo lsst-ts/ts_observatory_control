@@ -89,6 +89,20 @@ class RemoteGroup:
         knowledge about the usage intention. By default allocates all
         resources.
 
+    Attributes
+    ----------
+    rem: `types.SimpleNamespace`
+        Namespace with Remotes for all the components defined in the group.
+        The name of the component is converted to all lowercase and indexed
+        component have an underscore instead of a colon, e.g. MTMount ->
+        mtmount, Hexapod:1 -> hexapod_1.
+    check: `types.SimpleNamespace`
+        Allow users to specify if a component should be part of operations. For
+        each component in `rem`, there will be an equivalent (with same name)
+        in this namespace, with a boolean value. When subclassing, users may
+        use this flag to skip components in different kinds of operations as
+        well.
+
     Notes
     -----
 
@@ -237,17 +251,16 @@ class RemoteGroup:
         )
         return resources
 
-    async def get_state(self, component, fail_safe=False):
+    async def get_state(self, component, ignore_timeout=False):
         """Get summary state for component.
 
         Parameters
         ----------
         component : `str`
             Name of the component.
-        fail_safe : `bool`
-            Run in fail_safe mode? If `True` will return None in case it can
-            not get the state. Default is `False`, which means raise
-            `TimeoutError`.
+        ignore_timeout : `bool`
+            If `True` will return None in case it times out getting the state.
+            Default is `False`, which means raise `TimeoutError`.
 
         Returns
         -------
@@ -265,8 +278,8 @@ class RemoteGroup:
                 timeout=self.fast_timeout
             )
             return salobj.State(ss.summaryState)
-        except Exception as e:
-            if fail_safe:
+        except asyncio.TimeoutError as e:
+            if ignore_timeout:
                 return None
             else:
                 raise e
@@ -440,7 +453,7 @@ class RemoteGroup:
                     )
                 )
             else:
-                set_ss_tasks.append(self.get_state(comp, fail_safe=True))
+                set_ss_tasks.append(self.get_state(comp, ignore_timeout=True))
 
         ret_val = await asyncio.gather(*set_ss_tasks, return_exceptions=True)
 

@@ -22,6 +22,7 @@ __all__ = ["BaseGroupMock"]
 
 import types
 import asyncio
+import functools
 
 from lsst.ts import salobj
 
@@ -42,7 +43,13 @@ class BaseGroupMock:
         of the group.
     output_only : `list` [`str`]
         A list of strings with the names of the SAL components that only send
-        telemetry and events, but do not reply to commands.
+        telemetry and events, but do not reply to commands. Components in this
+        list must also be in the `components` list.
+
+    Raises
+    ------
+    RuntimeError
+        If a component is listed in `output_only` but not in `components`.
 
     """
 
@@ -52,23 +59,29 @@ class BaseGroupMock:
 
         self.components = [comp.lower() for comp in self._components]
 
-        self._component_names = []
-
-        self._output_only = output_only if output_only is not None else []
-
         _controllers = {}
-        self._output_only = []
+        self._component_names = set()
+        self._output_only = set()
+
+        bad_output_only_names = set()
+        for component in output_only:
+            if component not in components:
+                bad_output_only_names.add(component)
+
+        if len(bad_output_only_names) > 0:
+            raise RuntimeError(
+                f"Component(s) {bad_output_only_names} found in output_only but not in components list"
+                f"({components}). Check spelling and make sure the components are listed in"
+                " both entries."
+            )
 
         for i, component in enumerate(self._components):
             name, index = salobj.name_to_name_index(component)
             rname = component.lower().replace(":", "_")
-            self._component_names.append(rname)
+            self._component_names.add(rname)
             _controllers[rname] = salobj.Controller(name=name, index=index)
             if component in output_only:
-                self._output_only.append(rname)
-
-        self._component_names = tuple(self._component_names)
-        self._output_only = tuple(self._output_only)
+                self._output_only.add(rname)
 
         self.controllers = types.SimpleNamespace(**_controllers)
 
@@ -78,18 +91,22 @@ class BaseGroupMock:
 
         for comp in self.component_names:
             if comp not in self._output_only:
+                getattr(self.controllers, comp).cmd_start.callback = functools.partial(
+                    self.get_start_callback, comp=comp
+                )
+                getattr(self.controllers, comp).cmd_enable.callback = functools.partial(
+                    self.get_enable_callback, comp=comp
+                )
                 getattr(
                     self.controllers, comp
-                ).cmd_start.callback = self.get_start_callback(comp)
+                ).cmd_disable.callback = functools.partial(
+                    self.get_disable_callback, comp=comp
+                )
                 getattr(
                     self.controllers, comp
-                ).cmd_enable.callback = self.get_enable_callback(comp)
-                getattr(
-                    self.controllers, comp
-                ).cmd_disable.callback = self.get_disable_callback(comp)
-                getattr(
-                    self.controllers, comp
-                ).cmd_standby.callback = self.get_standby_callback(comp)
+                ).cmd_standby.callback = functools.partial(
+                    self.get_standby_callback, comp=comp
+                )
 
         for comp in self.output_only:
             for cmd in getattr(self.controllers, comp).salinfo.command_names:
@@ -135,85 +152,69 @@ class BaseGroupMock:
         """
         raise RuntimeError("This command should not be called.")
 
-    def get_start_callback(self, comp):
-        async def callback(data):
+    async def get_start_callback(self, data, comp):
+        ss = getattr(self.controllers, comp).evt_summaryState
 
-            ss = getattr(self.controllers, comp).evt_summaryState
-
-            if ss.data.summaryState != salobj.State.STANDBY:
-                raise RuntimeError(
-                    f"{comp} current state is {salobj.State(ss.data.summaryState)!r}. "
-                    f"Expected {salobj.State.STANDBY!r}"
-                )
-
-            print(
-                f"[{comp}] {ss.data.summaryState!r} -> {salobj.State.DISABLED!r} "
-                f"[settings: {data.settingsToApply}]"
+        if ss.data.summaryState != salobj.State.STANDBY:
+            raise RuntimeError(
+                f"{comp} current state is {salobj.State(ss.data.summaryState)!r}. "
+                f"Expected {salobj.State.STANDBY!r}"
             )
 
-            ss.set_put(summaryState=salobj.State.DISABLED)
+        print(
+            f"[{comp}] {ss.data.summaryState!r} -> {salobj.State.DISABLED!r} "
+            f"[settings: {data.settingsToApply}]"
+        )
 
-            self.settings_to_apply[comp] = data.settingsToApply
+        ss.set_put(summaryState=salobj.State.DISABLED)
 
-            await asyncio.sleep(HEARTBEAT_INTERVAL)
+        self.settings_to_apply[comp] = data.settingsToApply
 
-        return callback
+        await asyncio.sleep(HEARTBEAT_INTERVAL)
 
-    def get_enable_callback(self, comp):
-        async def callback(data):
+    async def get_enable_callback(self, data, comp):
+        ss = getattr(self.controllers, comp).evt_summaryState
 
-            ss = getattr(self.controllers, comp).evt_summaryState
+        if ss.data.summaryState != salobj.State.DISABLED:
+            raise RuntimeError(
+                f"{comp} current state is {salobj.State(ss.data.summaryState)!r}. "
+                f"Expected {salobj.State.DISABLED!r}"
+            )
 
-            if ss.data.summaryState != salobj.State.DISABLED:
-                raise RuntimeError(
-                    f"{comp} current state is {salobj.State(ss.data.summaryState)!r}. "
-                    f"Expected {salobj.State.DISABLED!r}"
-                )
+        print(f"[{comp}] {ss.data.summaryState!r} -> {salobj.State.ENABLED!r}")
 
-            print(f"[{comp}] {ss.data.summaryState!r} -> {salobj.State.ENABLED!r}")
+        ss.set_put(summaryState=salobj.State.ENABLED)
 
-            ss.set_put(summaryState=salobj.State.ENABLED)
+        await asyncio.sleep(HEARTBEAT_INTERVAL)
 
-            await asyncio.sleep(HEARTBEAT_INTERVAL)
+    async def get_disable_callback(self, data, comp):
+        ss = getattr(self.controllers, comp).evt_summaryState
 
-        return callback
+        if ss.data.summaryState != salobj.State.ENABLED:
+            raise RuntimeError(
+                f"{comp} current state is {salobj.State(ss.data.summaryState)!r}. "
+                f"Expected {salobj.State.ENABLED!r}."
+            )
+        print(f"[{comp}] {ss.data.summaryState!r} -> {salobj.State.DISABLED!r}")
 
-    def get_disable_callback(self, comp):
-        async def callback(data):
+        ss.set_put(summaryState=salobj.State.DISABLED)
 
-            ss = getattr(self.controllers, comp).evt_summaryState
+        await asyncio.sleep(HEARTBEAT_INTERVAL)
 
-            if ss.data.summaryState != salobj.State.ENABLED:
-                raise RuntimeError(
-                    f"{comp} current state is {salobj.State(ss.data.summaryState)!r}. "
-                    f"Expected {salobj.State.ENABLED!r}."
-                )
-            print(f"[{comp}] {ss.data.summaryState!r} -> {salobj.State.DISABLED!r}")
+    async def get_standby_callback(self, data, comp):
+        ss = getattr(self.controllers, comp).evt_summaryState
 
-            ss.set_put(summaryState=salobj.State.DISABLED)
+        if ss.data.summaryState not in (salobj.State.DISABLED, salobj.State.FAULT):
+            raise RuntimeError(
+                f"{comp}: Current state is {salobj.State(ss.data.summaryState)!r}. "
+                f"Expected {salobj.State.DISABLED!r} or {salobj.State.FAULT!r}"
+            )
 
-            await asyncio.sleep(HEARTBEAT_INTERVAL)
+        print(f"[{comp}] {ss.data.summaryState!r} -> {salobj.State.STANDBY!r}")
 
-        return callback
+        ss.set_put(summaryState=salobj.State.STANDBY)
 
-    def get_standby_callback(self, comp):
-        async def callback(data):
-
-            ss = getattr(self.controllers, comp).evt_summaryState
-
-            if ss.data.summaryState not in (salobj.State.DISABLED, salobj.State.FAULT):
-                raise RuntimeError(
-                    f"{comp}: Current state is {salobj.State(ss.data.summaryState)!r}. "
-                    f"Expected {salobj.State.DISABLED!r} or {salobj.State.FAULT!r}"
-                )
-
-            print(f"[{comp}] {ss.data.summaryState!r} -> {salobj.State.STANDBY!r}")
-
-            ss.set_put(summaryState=salobj.State.STANDBY)
-
-            await asyncio.sleep(HEARTBEAT_INTERVAL)
-
-        return callback
+        await asyncio.sleep(HEARTBEAT_INTERVAL)
 
     @property
     def component_names(self):

@@ -142,36 +142,28 @@ class TestMTCS(RemoteGroupTestCase, asynctest.TestCase):
         ):
 
             # enable all components
-
             await self.mtcs.enable()
 
             # This is a circumpolar object, should be always vizible in
             # Pachon.
-
             name = "HD 185975"
             ra = Angle("20:28:18.74", unit=u.hourangle)
             dec = Angle("-87:28:19.9", unit=u.deg)
 
             # Test that slew command works with RA/Dec alone
-            with self.subTest("test_slew", ra=ra, dec=dec):
-
-                # This method only takes floats (ra in hourangle and dec in
-                # degrees), so need to get the value of Angle.
-                await self.mtcs.slew(ra.value, dec.value, slew_timeout=SLEW_TIMEOUT)
+            # This method only takes floats (ra in hourangle and dec in
+            # degrees), so need to get the value of Angle.
+            await self.mtcs.slew(ra.value, dec.value, slew_timeout=SLEW_TIMEOUT)
 
             # Test slew_object
-            with self.subTest("test_object", name=name):
-
-                await self.mtcs.slew_object(name=name, slew_timeout=SLEW_TIMEOUT)
+            await self.mtcs.slew_object(name=name, slew_timeout=SLEW_TIMEOUT)
 
             # Test slew_icrs
-            with self.subTest("test_icrs", ra=ra, dec=dec, name=name):
+            await self.mtcs.slew_icrs(
+                ra=ra, dec=dec, target_name=name, slew_timeout=SLEW_TIMEOUT
+            )
 
-                await self.mtcs.slew_icrs(
-                    ra=ra, dec=dec, target_name=name, slew_timeout=SLEW_TIMEOUT
-                )
-
-            # Test a couple of failure situations.
+            # TODO: (DM-21336) Test a couple of failure situations.
 
 
 if __name__ == "__main__":
