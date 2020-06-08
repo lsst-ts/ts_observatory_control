@@ -20,43 +20,18 @@
 
 __all__ = ["ATCS", "ATCSUsages"]
 
-import enum
 import types
 import asyncio
 
 import numpy as np
 import astropy.units as u
-from astropy.coordinates import AltAz, ICRS, EarthLocation, Angle
-from astroquery.simbad import Simbad
+from astropy.coordinates import Angle
 
-from ..remote_group import RemoteGroup, Usages
-from ..utils import subtract_angles, parallactic_angle
+from ..remote_group import Usages
+from ..base_tcs import BaseTCS
 
 from lsst.ts import salobj
 from lsst.ts.idl.enums import ATPtg, ATDome, ATPneumatics, ATMCS
-
-
-class RotType(enum.IntEnum):
-    """Defines the different types of rotator strategies.
-
-    Sky: Sky position angle strategy. The rotator is positioned with respect
-         to the North axis so rot_angle=0. means y-axis is aligned with North.
-         Angle grows clock-wise.
-
-    Parallactic: This strategy is required for taking optimum spectra with
-                 LATISS. If set to zero, the rotator is positioned so that the
-                 y-axis (dispersion axis) is aligned with the parallactic
-                 angle.
-
-    Physical_Sky: This strategy allows users to select the **initial** position
-                  of the rotator in terms of the physical rotator angle (in the
-                  reference frame of the telescope). Note that the telescope
-                  will resume tracking the sky rotation.
-    """
-
-    Sky = 0
-    Parallactic = 1
-    Physical_Sky = 2
 
 
 class ATCSUsages(Usages):
@@ -67,15 +42,11 @@ class ATCSUsages(Usages):
 
     Additional usages definition:
 
-    Slew: Enable all slew operations.
-
-    StartUp: Enable startup operations.
-
-    Shutdown: Enable shutdown operations.
-
-    PrepareForFlatfield: Enable preparation for flat-field.
-
-    OffsettingForATAOS: Enable offsetting from ATAOS
+    * Slew: Enable all slew operations.
+    * StartUp: Enable startup operations.
+    * Shutdown: Enable shutdown operations.
+    * PrepareForFlatfield: Enable preparation for flat-field.
+    * OffsettingForATAOS: Enable offsetting from ATAOS
     """
 
     Slew = 1 << 3
@@ -101,7 +72,7 @@ class ATCSUsages(Usages):
         )
 
 
-class ATCS(RemoteGroup):
+class ATCS(BaseTCS):
     """High level library for the Auxiliary Telescope Control System
 
     This is the high level interface for interacting with the CSCs that
@@ -153,34 +124,6 @@ class ATCS(RemoteGroup):
 
         self.open_dome_shutter_time = 600.0
 
-        self.location = EarthLocation.from_geodetic(
-            lon=-70.747698 * u.deg, lat=-30.244728 * u.deg, height=2663.0 * u.m
-        )
-
-        # Rotation matrix to take into account angle between camera and
-        # boresight
-        self.rotation_matrix = lambda angle: np.array(
-            [
-                [np.cos(np.radians(angle)), -np.sin(np.radians(angle)), 0.0],
-                [np.sin(np.radians(angle)), np.cos(np.radians(angle)), 0.0],
-                [0.0, 0.0, 1.0],
-            ]
-        )
-
-        self._tel_position = None
-        self._tel_position_updated = asyncio.Event()
-
-        self._tel_target = None
-        self._tel_target_updated = asyncio.Event()
-
-        if hasattr(self.rem.atmcs, "tel_mount_AzEl_Encoders"):
-            self.rem.atmcs.tel_mount_AzEl_Encoders.callback = (
-                self.mount_AzEl_Encoders_callback
-            )
-
-        if hasattr(self.rem.atmcs, "evt_target"):
-            self.rem.atmcs.evt_target.callback = self.atmcs_target_callback
-
         self.tel_park_el = 80.0
         self.tel_park_az = 0.0
         self.tel_flat_el = 39.0
@@ -196,10 +139,22 @@ class ATCS(RemoteGroup):
         self.dome_flat_az = 20.0
         self.dome_slew_tolerance = Angle(5.1 * u.deg)
 
+        self._tel_position = None
+        self._tel_position_updated = asyncio.Event()
+
+        self._tel_target = None
+        self._tel_target_updated = asyncio.Event()
+
+        if hasattr(self.rem.atmcs, "tel_mount_AzEl_Encoders"):
+            self.rem.atmcs.tel_mount_AzEl_Encoders.callback = (
+                self.mount_AzEl_Encoders_callback
+            )
+
+        if hasattr(self.rem.atmcs, "evt_target"):
+            self.rem.atmcs.evt_target.callback = self.atmcs_target_callback
+
         self.dome_az_in_position = asyncio.Event()
         self.dome_az_in_position.clear()
-
-        self.track_id_gen = salobj.index_generator()
 
     async def mount_AzEl_Encoders_callback(self, data):
         """Callback function to update the telescope position telemetry topic.
@@ -266,375 +221,6 @@ class ATCS(RemoteGroup):
     @property
     def telescope_target(self):
         return self._tel_target
-
-    async def point_azel(
-        self,
-        az,
-        el,
-        rot_tel=0.0,
-        target_name="azel_target",
-        wait_dome=False,
-        slew_timeout=1200.0,
-    ):
-        """Slew the telescope to a fixed alt/az position.
-
-        Telescope will not track once it arrives in position.
-
-        Parameters
-        ----------
-        az : `float`, `str` or astropy.coordinates.Angle
-            Target Azimuth (degree). Accepts float (deg), sexagesimal string
-            (DD:MM:SS.S or DD MM SS.S) coordinates or
-            `astropy.coordinates.Angle`
-        el : `float` or `str`
-            Target Elevation (degree). Accepts float (deg), sexagesimal string
-            (DD:MM:SS.S or DD MM SS.S) coordinates or
-            `astropy.coordinates.Angle`
-        rot_tel : `float` or `str`
-            Specify rotator angle in mount physical coordinates.
-            Accepts float (deg), sexagesimal string
-            (DD:MM:SS.S or DD MM SS.S) coordinates or
-            `astropy.coordinates.Angle`
-        target_name : `str`
-            Name of the position.
-        wait_dome : `bool`
-            Wait for dome to be in sync with the telescope? If preparing to
-            take a flat, for instance, the dome will never be in sync.
-        slew_timeout : `float`
-            Timeout for the slew command (second).
-        """
-        self.rem.atptg.cmd_azElTarget.set(
-            targetName=target_name,
-            azDegs=Angle(az, unit=u.deg).deg,
-            elDegs=Angle(el, unit=u.deg).deg,
-            rotPA=Angle(rot_tel, unit=u.deg).deg,
-        )
-        check_atdome = self.check.atdome
-        self.check.atdome = wait_dome
-        check_atdometrajectory = self.check.atdometrajectory
-        self.check.atdometrajectory = wait_dome
-
-        try:
-            await self._slew_to(
-                self.rem.atptg.cmd_azElTarget, slew_timeout=slew_timeout
-            )
-        except Exception as e:
-            self.check.atdome = check_atdome
-            self.check.atdometrajectory = check_atdometrajectory
-            raise e
-
-    async def start_tracking(self):
-        """Start tracking the current position of the telescope.
-
-        Method returns once telescope and dome are in sync.
-        """
-        raise NotImplementedError("Start tracking not implemented yet.")
-
-    async def slew_object(
-        self, name, rot_sky=0.0, rot_par=None, rot_phys_sky=None, slew_timeout=240.0,
-    ):
-        """Slew to an object name.
-
-        Use simbad to resolve the name and get coordinates.
-
-        Parameters
-        ----------
-        name : `str`
-            Target name.
-        rot_sky : `float`, `str` or `astropy.coordinates.Angle`
-            Specify rotation in sky coordinates, clock-wise, relative to the
-            north celestial pole. Accepts float (deg), sexagesimal string
-            (DD:MM:SS.S or DD MM SS.S) coordinates or
-            `astropy.coordinates.Angle`
-        rot_par :  `float`, `str` or `astropy.coordinates.Angle`
-            Specify rotation with respect to the parallactic angle.
-            Accepts float (deg), sexagesimal string (DD:MM:SS.S or DD MM SS.S)
-            coordinates or `astropy.coordinates.Angle`
-        rot_phys_sky : `float`, `str` or `astropy.coordinates.Angle`
-            Specify rotation in mount physical coordinates.
-            Accepts float (deg), sexagesimal string
-            (DD:MM:SS.S or DD MM SS.S) coordinates or
-            `astropy.coordinates.Angle`. See `slew_icrs` for a detailed
-            explanation.
-        slew_timeout : `float`
-            Timeout for the slew command (second).
-
-        See Also
-        --------
-        slew_icrs : Slew to an ICRS coordinates.
-
-        """
-
-        object_table = Simbad.query_object(name)
-
-        if object_table is None:
-            raise RuntimeError(f"Could not find {name} in Simbad database.")
-        elif len(object_table) > 1:
-            self.log.warning(f"Found more than one entry for {name}. Using first one.")
-
-        self.log.info(
-            f"Slewing to {name}: {object_table['RA'][0]} {object_table['DEC'][0]}"
-        )
-
-        await self.slew_icrs(
-            ra=object_table["RA"][0],
-            dec=object_table["DEC"][0],
-            rot_sky=rot_sky,
-            rot_par=rot_par,
-            rot_phys_sky=rot_phys_sky,
-            target_name=name,
-            slew_timeout=slew_timeout,
-        )
-
-    async def slew_icrs(
-        self,
-        ra,
-        dec,
-        rot_sky=0.0,
-        rot_par=None,
-        rot_phys_sky=None,
-        target_name="slew_icrs",
-        slew_timeout=240.0,
-        stop_before_slew=True,
-        wait_settle=True,
-    ):
-        """Slew the telescope and start tracking an Ra/Dec target in ICRS
-        coordinate frame.
-
-        Parameters
-        ----------
-        ra : `float`, `str` or `astropy.coordinates.Angle`
-            Target RA, either as a float (hour), a sexagesimal string
-            (HH:MM:SS.S or HH MM SS.S) coordinates or
-            `astropy.coordinates.Angle`.
-        dec : `float`, `str` or `astropy.coordinates.Angle`
-            Target Dec, either as a float (deg), a sexagesimal string
-            (DD:MM:SS.S or DD MM SS.S) coordinates or
-            `astropy.coordinates.Angle`.
-        rot_sky : `float`, `str` or `astropy.coordinates.Angle`
-            Specify rotation in sky coordinates, clock-wise, relative to the
-            north celestial pole. Accepts float (deg), sexagesimal string
-            (DD:MM:SS.S or DD MM SS.S) coordinates or
-            `astropy.coordinates.Angle`
-        rot_par :  `float`, `str` or `astropy.coordinates.Angle`
-            Specify rotation with respect to the parallactic angle.
-            Accepts float (deg), sexagesimal string (DD:MM:SS.S or DD MM SS.S)
-            coordinates or `astropy.coordinates.Angle`
-        rot_phys_sky : `float`, `str` or `astropy.coordinates.Angle`
-            Specify rotation in mount physical coordinates.
-            Accepts float (deg), sexagesimal string
-            (DD:MM:SS.S or DD MM SS.S) coordinates or
-            `astropy.coordinates.Angle`. See notes for some details.
-        target_name :  `str`
-            Target name.
-        slew_timeout : `float`
-            Timeout for the slew command (second). Default is 240s.
-        stop_before_slew : `bool`
-            Stop tracking before starting the slew? This option is a
-            workaround to some issues with the ATMCS not sending events
-            reliably.
-        wait_settle : `bool`
-            Wait telescope to settle before returning? It `True` add an
-            additional sleep of `self.tel_settle_time` to the telescope
-            positioning algorithm. Otherwise the algorithm will return as soon
-            as it receives `allAxesInPosition` event from the ATMCS.
-
-        Raises
-        ------
-        RuntimeError: If both `rot_par` and `rot_tel` are specified.
-
-        See Also
-        --------
-        slew_object : Slew to an object name.
-
-        Notes
-        -----
-        If either `rot_par` or `rot_tel` are specified, `rot_sky` is ignored.
-
-        When using `rot_phys_sky` to specify the rotator position in terms of
-        physical coordinates, the rotator will still track the sky. The
-        rotator will not be kept in a fixed position.
-
-        """
-        radec_icrs = ICRS(Angle(ra, unit=u.hourangle), Angle(dec, unit=u.deg))
-
-        _rot, _rottype = self.handle_rottype(
-            rot_sky=rot_sky, rot_par=rot_par, rot_phys_sky=rot_phys_sky
-        )
-
-        current_time = salobj.astropy_time_from_tai_unix(salobj.current_tai())
-
-        current_time.location = self.location
-
-        par_angle = parallactic_angle(
-            self.location, current_time.sidereal_time("mean"), radec_icrs,
-        )
-
-        coord_frame_altaz = AltAz(location=self.location, obstime=current_time)
-
-        alt_az = radec_icrs.transform_to(coord_frame_altaz)
-
-        if _rottype == RotType.Sky:
-            self.log.debug(f"Setting sky angle to {_rot}.")
-        elif _rottype == RotType.Physical_Sky:
-
-            self.log.debug(f"Setting rotator physical position to {_rot}.")
-
-            _rot += par_angle + alt_az.alt
-
-            self.log.debug(
-                f"Parallactic angle: {par_angle.deg} | " f"Sky Angle: {_rot.deg}"
-            )
-        elif _rottype == RotType.Parallactic:
-
-            self.log.debug(
-                f"Setting rotator position with respect to parallactic angle to {_rot}."
-            )
-
-            _rot += par_angle + 2 * alt_az.alt - 90.0
-
-            self.log.debug(
-                f"Parallactic angle: {par_angle.deg} | " f"Sky Angle: {_rot.deg}"
-            )
-        else:
-            valid_rottypes = [f"{rt!r}" for rt in RotType].__str__()
-            raise RuntimeError(
-                f"Unrecognized rottype {_rottype}. Should be one of {valid_rottypes}"
-            )
-
-        await self.slew(
-            radec_icrs.ra.hour,
-            radec_icrs.dec.deg,
-            rotPA=_rot.deg,
-            target_name=target_name,
-            frame=ATPtg.CoordFrame.ICRS,
-            epoch=2000,
-            equinox=2000,
-            parallax=0,
-            pmRA=0,
-            pmDec=0,
-            rv=0,
-            dRA=0,
-            dDec=0,
-            rot_frame=ATPtg.RotFrame.TARGET,
-            rot_mode=ATPtg.RotMode.FIELD,
-            slew_timeout=slew_timeout,
-            stop_before_slew=stop_before_slew,
-            wait_settle=wait_settle,
-        )
-
-    async def slew(
-        self,
-        ra,
-        dec,
-        rotPA=0.0,
-        target_name="slew_icrs",
-        frame=ATPtg.CoordFrame.ICRS,
-        epoch=2000,
-        equinox=2000,
-        parallax=0,
-        pmRA=0,
-        pmDec=0,
-        rv=0,
-        dRA=0,
-        dDec=0,
-        rot_frame=ATPtg.RotFrame.TARGET,
-        rot_mode=ATPtg.RotMode.FIELD,
-        slew_timeout=1200.0,
-        stop_before_slew=True,
-        wait_settle=True,
-    ):
-        """Slew the telescope and start tracking an Ra/Dec target.
-
-        Parameters
-        ----------
-
-        ra : float
-            Target Right Ascension (hour)
-        dec : float
-            Target Declination (degree)
-        rotPA : float
-            Desired rotator position angle for slew (degree).
-        target_name : `str`
-            Name of the target
-        frame : `int`
-            Target co-ordinate reference frame.
-        epoch : `float`
-            Target epoch in years e.g. 2000.0. Julian (J) epoch is assumed.
-        equinox : `float`
-            Target equinox in years e.g. 2000.0
-        parallax : `float`
-            Parallax (arcseconds).
-        pmRA : `float`
-            Proper Motion (RA) in RA Seconds/year.
-        pmDec : `float`
-            Proper motion (Dec) in Arcseconds/year.
-        rv : `float`
-            Radial velocity (km/sec).
-        dRA : `float`
-            Differential Track Rate in RA.
-        rot_frame : `enum`
-            Rotator coordinate frame (`ATPtg.RotFrame`).
-            If `ATPtg.RotFrame.TARGET` follow sky, if `ATPtg.RotFrame.FIXED`
-            keep rotator in a fixed position.
-        rot_mode : `enum`
-            Rotator position mode (`ATPtg.RotMode`).
-            If `ATPtg.RotMode.FIELD` optimize for sky tracking, if
-            `ATPtg.RotMode.SLIT` optimize for slit spectroscopy.
-        slew_timeout : `float`
-            Timeout for the slew command (second).
-        stop_before_slew : `bool`
-            Stop tracking before starting the slew? This option is a
-            workaround to some issues with the ATMCS not sending events
-            reliably.
-        wait_settle : `bool`
-            Wait telescope to settle before returning?
-        """
-        self.rem.atptg.cmd_raDecTarget.set(
-            ra=ra,
-            declination=dec,
-            rotPA=rotPA,
-            targetName=target_name,
-            frame=frame,
-            epoch=epoch,
-            equinox=equinox,
-            parallax=parallax,
-            pmRA=pmRA,
-            pmDec=pmDec,
-            rv=rv,
-            dRA=dRA,
-            dDec=dDec,
-            rotFrame=rot_frame,
-            rotMode=rot_mode,
-        )
-
-        await self._slew_to(
-            self.rem.atptg.cmd_raDecTarget,
-            slew_timeout=slew_timeout,
-            stop_before_slew=stop_before_slew,
-            wait_settle=wait_settle,
-        )
-
-    async def slew_to_planet(self, planet, rot_sky=0.0, slew_timeout=1200.0):
-        """Slew and track a solar system body.
-
-        Parameters
-        ----------
-        planet : `ATPtg.Planets`
-            Enumeration with planet name.
-        rot_sky : `float`
-            Desired instrument position angle (degree), Eastwards from North.
-        slew_timeout : `float`
-            Timeout for the slew command (second).
-        """
-        self.rem.atptg.cmd_planetTarget.set(
-            planetName=planet.value,
-            dRA=0.0,
-            dDec=0.0,
-            rotPA=Angle(rot_sky, unit=u.deg).deg,
-        )
-
-        await self._slew_to(self.rem.atptg.cmd_planetTarget, slew_timeout=slew_timeout)
 
     async def slew_dome_to(self, az):
         """Utility method to slew dome to a specified position.
@@ -1530,30 +1116,22 @@ class ATCS(RemoteGroup):
                     flush=True, timeout=self.fast_timeout
                 )
 
-                alt_dif = subtract_angles(
+                alt_dif = salobj.angle_diff(
                     comm_pos.elevation, tel_pos.elevationCalculatedAngle[-1]
                 )
-                az_dif = subtract_angles(
+                az_dif = salobj.angle_diff(
                     comm_pos.azimuth, tel_pos.azimuthCalculatedAngle[-1]
                 )
-                nasm1_dif = subtract_angles(
+                nasm1_dif = salobj.angle_diff(
                     comm_pos.nasmyth1RotatorAngle, nasm_pos.nasmyth1CalculatedAngle[-1]
                 )
-                nasm2_dif = subtract_angles(
+                nasm2_dif = salobj.angle_diff(
                     comm_pos.nasmyth2RotatorAngle, nasm_pos.nasmyth2CalculatedAngle[-1]
                 )
-                alt_in_position = (
-                    Angle(np.abs(alt_dif) * u.deg) < self.tel_el_slew_tolerance
-                )
-                az_in_position = (
-                    Angle(np.abs(az_dif) * u.deg) < self.tel_az_slew_tolerance
-                )
-                na1_in_position = (
-                    Angle(np.abs(nasm1_dif) * u.deg) < self.tel_nasm_slew_tolerance
-                )
-                na2_in_position = (
-                    Angle(np.abs(nasm2_dif) * u.deg) < self.tel_nasm_slew_tolerance
-                )
+                alt_in_position = np.abs(alt_dif) < self.tel_el_slew_tolerance
+                az_in_position = np.abs(az_dif) < self.tel_az_slew_tolerance
+                na1_in_position = np.abs(nasm1_dif) < self.tel_nasm_slew_tolerance
+                na2_in_position = np.abs(nasm2_dif) < self.tel_nasm_slew_tolerance
 
             if atdome:
                 dom_pos = await self.rem.atdome.tel_position.next(
@@ -1563,13 +1141,11 @@ class ATCS(RemoteGroup):
                     timeout=self.fast_timeout
                 )
 
-                dom_az_dif = subtract_angles(
+                dom_az_dif = salobj.angle_diff(
                     dom_comm_pos.azimuth, dom_pos.azimuthPosition
                 )
 
-                dom_in_position = (
-                    Angle(np.abs(dom_az_dif) * u.deg) < self.dome_slew_tolerance
-                )
+                dom_in_position = np.abs(dom_az_dif) < self.dome_slew_tolerance
                 if dom_in_position:
                     self.dome_az_in_position.set()
 
@@ -1642,67 +1218,45 @@ class ATCS(RemoteGroup):
             self.log.warning("Did not received position update from ATHexapod.")
             pass
 
-    async def add_point_data(self):
-        """ Add current position to a point file. If a file is open it will
-        append to that file. If no file is opened it will open a new one.
-
+    def set_azel_slew_checks(self, wait_dome):
+        """Handle azEl slew to wait or not for the dome.
         """
+        check = types.SimpleNamespace(
+            dome=self.check.atdome, dometrajectory=self.check.atdometrajectory,
+        )
+        self.check.atdome = wait_dome
+        self.check.atdometrajectory = wait_dome
+        return check
 
-        state = await self.get_state("atptg")
-        if state != salobj.State.ENABLED:
-            raise RuntimeError(
-                f"ATPtg in {state!r}. Expected {salobj.State.ENABLED!r}."
-            )
-
-        # TODO: DM-24526 Check event to see if point file is opened.
-        try:
-            await self.rem.atptg.cmd_pointAddData.start()
-        except salobj.AckError:
-            self.log.debug("Opening new pointing file.")
-            await self.rem.atptg.cmd_pointNewFile.start()
-            await self.rem.atptg.cmd_pointAddData.start()
-
-    @staticmethod
-    def handle_rottype(rot_sky=0.0, rot_par=None, rot_phys_sky=None):
-        """Handle different kinds of rotation strategies.
-
-        From the given input the method will return an angle to be used
-        (converted to `astropy.coordinates.Angle`) and a rotator positioning
-        strategy; sky, parallactic or physical (see `RotType` for an
-        explanation).
-
-        Parameters
-        ----------
-        rot_sky : `float`, `str` or `astropy.coordinates.Angle`
-            Has the same behavior of `rottype=RotType.Sky`.
-        rot_par :  `float`, `str` or `astropy.coordinates.Angle`
-            Has the same behavior of `rottype=RotType.Parallactic`.
-        rot_phys_sky : `float`, `str` or `astropy.coordinates.Angle`
-            Has the same behavior of `rottype=RotType.Physical_Sky`.
-
-        Returns
-        -------
-        rotang: `astropy.coordinates.Angle`
-            Selected rotation angle.
-        rottype: `RotSky`
-            Selected rotation type.
-
-        Raises
-        ------
-        RuntimeError: If both `rot_par` and `rot_tel` are specified.
-
+    def unset_azel_slew_checks(self, checks):
+        """Handle azEl slew to wait or not for the dome.
         """
-        if rot_par is not None and rot_phys_sky is not None:
-            raise RuntimeError(
-                f"Cannot specify both `rot_par` and `rot_tel`. Got: rot_par={rot_par}, "
-                f"rot_tel={rot_phys_sky}."
-            )
-        elif rot_par is not None:
-            return Angle(rot_par, unit=u.deg), RotType.Parallactic
-        elif rot_phys_sky is not None:
-            return Angle(rot_phys_sky, unit=u.deg), RotType.Physical_Sky
-        else:
-            return Angle(rot_sky, unit=u.deg), RotType.Sky
+        self.check.adome = checks.dome
+        self.check.atdometrajectory = checks.dometrajectory
+
+    @property
+    def ptg_name(self):
+        """Return name of the pointing component.
+        """
+        return "atptg"
+
+    @property
+    def CoordFrame(self):
+        """Return CoordFrame enumeration.
+        """
+        return ATPtg.CoordFrame
+
+    @property
+    def RotFrame(self):
+        """Return RotFrame enumeration.
+        """
+        return ATPtg.RotFrame
+
+    @property
+    def RotMode(self):
+        """Return RotMode enumeration.
+        """
+        return ATPtg.RotMode
 
     @property
     def valid_use_cases(self):

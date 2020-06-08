@@ -8,4 +8,8 @@ import lsst.ts.observatory.control
 
 
 _g = globals()
-_g.update(build_package_configs(project_name="ts_observatory_control",))
+_g.update(
+    build_package_configs(project_name="ts_observatory_control",),
+    version=lsst.ts.observatory.control.__version__,
+    release="",
+)

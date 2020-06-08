@@ -18,30 +18,56 @@
 #
 # You should have received a copy of the GNU General Public License
 
-__all__ = ["subtract_angles", "parallactic_angle"]
+__all__ = ["parallactic_angle", "handle_rottype"]
 
 import numpy as np
 
 import astropy.units as u
 from astropy.coordinates import Angle
 
+from .enums import RotType
 
-def subtract_angles(angle1, angle2):
-    """Compute the difference between two angles, wrapped to [-180, 180].
+
+def handle_rottype(rot_sky=0.0, rot_par=None, rot_phys_sky=None):
+    """Handle different kinds of rotation strategies.
+
+    From the given input the method will return an angle to be used
+    (converted to `astropy.coordinates.Angle`) and a rotator positioning
+    strategy; sky, parallactic or physical (see `RotType` for an
+    explanation).
 
     Parameters
     ----------
-    angle1 : `float`
-        Angle 1 (deg)
-    angle2 : `float`
-        Angle 2 (deg)
+    rot_sky : `float`, `str` or `astropy.coordinates.Angle`
+        Has the same behavior of `rottype=RotType.Sky`.
+    rot_par :  `float`, `str` or `astropy.coordinates.Angle`
+        Has the same behavior of `rottype=RotType.Parallactic`.
+    rot_phys_sky : `float`, `str` or `astropy.coordinates.Angle`
+        Has the same behavior of `rottype=RotType.Physical_Sky`.
 
     Returns
     -------
-    subtract_angles : `float`
-        angle1 - angle2 wrapped to [-180, 180] degrees
+    rotang: `astropy.coordinates.Angle`
+        Selected rotation angle.
+    rottype: `RotSky`
+        Selected rotation type.
+
+    Raises
+    ------
+    RuntimeError: If both `rot_par` and `rot_tel` are specified.
+
     """
-    return ((angle1 - angle2) + 180) % 360.0 - 180
+    if rot_par is not None and rot_phys_sky is not None:
+        raise RuntimeError(
+            f"Cannot specify both `rot_par` and `rot_tel`. Got: rot_par={rot_par}, "
+            f"rot_tel={rot_phys_sky}."
+        )
+    elif rot_par is not None:
+        return Angle(rot_par, unit=u.deg), RotType.Parallactic
+    elif rot_phys_sky is not None:
+        return Angle(rot_phys_sky, unit=u.deg), RotType.Physical_Sky
+    else:
+        return Angle(rot_sky, unit=u.deg), RotType.Sky
 
 
 def parallactic_angle(location, lst, target):

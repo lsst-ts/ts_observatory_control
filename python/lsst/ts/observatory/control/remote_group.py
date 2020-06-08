@@ -89,6 +89,20 @@ class RemoteGroup:
         knowledge about the usage intention. By default allocates all
         resources.
 
+    Attributes
+    ----------
+    rem: `types.SimpleNamespace`
+        Namespace with Remotes for all the components defined in the group.
+        The name of the component is converted to all lowercase and indexed
+        component have an underscore instead of a colon, e.g. MTMount ->
+        mtmount, Hexapod:1 -> hexapod_1.
+    check: `types.SimpleNamespace`
+        Allow users to specify if a component should be part of operations. For
+        each component in `rem`, there will be an equivalent (with same name)
+        in this namespace, with a boolean value. When subclassing, users may
+        use this flag to skip components in different kinds of operations as
+        well.
+
     Notes
     -----
 
@@ -237,23 +251,38 @@ class RemoteGroup:
         )
         return resources
 
-    async def get_state(self, component):
+    async def get_state(self, component, ignore_timeout=False):
         """Get summary state for component.
 
         Parameters
         ----------
         component : `str`
             Name of the component.
+        ignore_timeout : `bool`
+            If `True` will return None in case it times out getting the state.
+            Default is `False`, which means raise `TimeoutError`.
 
         Returns
         -------
-        state : `salobj.State`
+        state : `salobj.State` or `None`
             Current state of component.
+
+        Raises
+        ------
+        `asyncio.TimeoutError`
+            If can not get state in `self.fast_timeout` seconds.
+
         """
-        ss = await getattr(self.rem, component).evt_summaryState.aget(
-            timeout=self.fast_timeout
-        )
-        return salobj.State(ss.summaryState)
+        try:
+            ss = await getattr(self.rem, component).evt_summaryState.aget(
+                timeout=self.fast_timeout
+            )
+            return salobj.State(ss.summaryState)
+        except asyncio.TimeoutError as e:
+            if ignore_timeout:
+                return None
+            else:
+                raise e
 
     async def next_state(self, component):
         """Get summary state for component.
@@ -424,7 +453,7 @@ class RemoteGroup:
                     )
                 )
             else:
-                set_ss_tasks.append(self.get_state(comp))
+                set_ss_tasks.append(self.get_state(comp, ignore_timeout=True))
 
         ret_val = await asyncio.gather(*set_ss_tasks, return_exceptions=True)
 

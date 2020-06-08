@@ -6,6 +6,17 @@
 Version History
 ###############
 
+v0.3.0
+======
+
+* Some minor changes to `RemoteGroup` to support components that only send out telemetry and events and do not reply to commands.
+  This is to support the MTMount component.
+* Add `BaseGroupMock` class.
+  This class will make writing of mock classes with group of CSCs slightly easier, by taking care of a the basics.
+* Modify atcs and latiss mock classes to use the BaseGroupMock.
+* Initial implementation of MTCS with mock class and unit tests.
+  Currently implemented the basics and a couple of slew commands.
+
 v0.2.2
 ======
 
