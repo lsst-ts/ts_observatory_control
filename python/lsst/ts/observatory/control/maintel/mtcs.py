@@ -172,6 +172,10 @@ class MTCS(BaseTCS):
 
         self.log.debug("Sending slew command.")
 
+        if stop_before_slew:
+            self.rem.newmtmount.evt_axesInPosition.flush()
+            self.rem.rotator.evt_inPosition.flush()
+
         ack = await slew_cmd.start(timeout=slew_timeout)
         self._dome_az_in_position.clear()
 
@@ -249,7 +253,7 @@ class MTCS(BaseTCS):
                 target = await self.rem.newmtmount.evt_target.next(
                     flush=True, timeout=self.long_timeout
                 )
-                self.log.debug(f"Got {target}")
+                self.log.debug(f"Mount target: {target}")
             except asyncio.TimeoutError:
                 raise RuntimeError(
                     "Not receiving target events from the NewMTMount. "
@@ -261,22 +265,34 @@ class MTCS(BaseTCS):
             status = ""
 
             if self.check.newmtmount:
-                tel_az = await self.rem.mtmount.tel_Azimuth.next(
-                    flush=True, timeout=self.fast_timeout
+                target, tel_az, tel_el = await asyncio.gather(
+                    self.rem.newmtmount.evt_target.next(
+                        flush=True, timeout=self.long_timeout
+                    ),
+                    self.rem.mtmount.tel_Azimuth.next(
+                        flush=True, timeout=self.fast_timeout
+                    ),
+                    self.rem.mtmount.tel_Elevation.next(
+                        flush=True, timeout=self.fast_timeout
+                    ),
                 )
-                tel_el = await self.rem.mtmount.tel_Elevation.next(
-                    flush=True, timeout=self.fast_timeout
+                distance_az = salobj.angle_diff(
+                    target.azimuth, tel_az.Azimuth_Angle_Actual
+                )
+                distance_el = salobj.angle_diff(
+                    target.elevation, tel_el.Elevation_Angle_Actual
                 )
                 status += (
-                    f"[Tel]: Az = {tel_az.Azimuth_Angle_Actual:+08.3f}; "
-                    f"El = {tel_el.Elevation_Angle_Actual:+08.3f} "
+                    f"[Tel]: Az = {tel_az.Azimuth_Angle_Actual:+08.3f}[{distance_az.deg:+6.1f}]; "
+                    f"El = {tel_el.Elevation_Angle_Actual:+08.3f}[{distance_el.deg:+6.1f}] "
                 )
 
             if self.check.rotator:
                 rotator = await self.rem.rotator.tel_Application.next(
                     flush=True, timeout=self.fast_timeout
                 )
-                status += f"[Rot]: {rotator.Position:+08.3f} "
+                distance_rot = salobj.angle_diff(rotator.Demand, rotator.Position)
+                status += f"[Rot]: {rotator.Position:+08.3f}[{distance_rot.deg:+6.1f}] "
 
             if self.check.dome:
                 dome_az = await self.rem.dome.tel_domeADB_status.next(
@@ -328,7 +344,7 @@ class MTCS(BaseTCS):
 
         while True:
 
-            in_position = await self.rem.mtmount.evt_mountInPosition.next(
+            in_position = await self.rem.newmtmount.evt_axesInPosition.next(
                 flush=False, timeout=timeout
             )
 
@@ -339,15 +355,17 @@ class MTCS(BaseTCS):
             ):
                 self.log.debug("Received old event. Ignoring.")
             else:
-                self.log.info(f"Got {in_position.inposition}")
-                if in_position.inposition:
+                self.log.debug(
+                    "MTMount axesInPosition got: "
+                    f"elevation {in_position.elevation}, "
+                    f"azimuth {in_position.azimuth}."
+                )
+                if in_position.elevation and in_position.azimuth:
                     if wait_settle:
                         self.log.info("Waiting for telescope to settle.")
                         await asyncio.sleep(self.tel_settle_time)
                     self.log.info("Telescope in position.")
                     return "Telescope in position."
-                else:
-                    self.log.debug("Telescope not in position")
 
     async def wait_for_dome_inposition(self, timeout, cmd_ack=None, wait_settle=True):
         """Wait for the Dome to be in position.

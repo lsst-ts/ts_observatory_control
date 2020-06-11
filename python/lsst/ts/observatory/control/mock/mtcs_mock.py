@@ -85,7 +85,9 @@ class MTCSMock(BaseGroupMock):
 
         self.tracking = False
         self.acting = False
-        self.controllers.mtmount.evt_mountInPosition.set_put(inposition=False)
+        self.controllers.newmtmount.evt_axesInPosition.set_put(
+            elevation=False, azimuth=False
+        )
         self.controllers.rotator.evt_inPosition.set_put(inPosition=False)
 
         await asyncio.sleep(HEARTBEAT_INTERVAL)
@@ -167,13 +169,12 @@ class MTCSMock(BaseGroupMock):
 
                 az_dif = salobj.angle_diff(az_set, az_actual)
                 el_dif = salobj.angle_diff(el_set, el_actual)
-                in_position = (
-                    np.abs(az_dif) < 1e-1 * u.deg and np.abs(el_dif) < 1e-1 * u.deg
-                )
+                in_position_elevation = np.abs(el_dif) < 1e-1 * u.deg
+                in_position_azimuth = np.abs(az_dif) < 1e-1 * u.deg
 
                 if self.acting:
-                    self.controllers.mtmount.evt_mountInPosition.set_put(
-                        inposition=in_position
+                    self.controllers.newmtmount.evt_axesInPosition.set_put(
+                        elevation=in_position_elevation, azimuth=in_position_azimuth
                     )
 
                 self.controllers.mtmount.tel_Azimuth.set_put(
