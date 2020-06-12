@@ -225,14 +225,14 @@ class MTCSMock(BaseGroupMock):
                 == salobj.State.ENABLED
             ):
 
-                dome_az_set = self.controllers.dome.tel_domeADB_status.data.positionCmd
-                dome_el_set = self.controllers.dome.tel_domeAPS_status.data.positionCmd
-
-                dome_az_pos = (
-                    self.controllers.dome.tel_domeADB_status.data.positionActual
+                dome_az_set = self.controllers.dome.tel_azimuth.data.positionCommanded
+                dome_el_set = (
+                    self.controllers.dome.tel_lightWindScreen.data.positionCommanded
                 )
+
+                dome_az_pos = self.controllers.dome.tel_azimuth.data.positionActual
                 dome_el_pos = (
-                    self.controllers.dome.tel_domeAPS_status.data.positionActual
+                    self.controllers.dome.tel_lightWindScreen.data.positionActual
                 )
 
                 error_az = np.random.normal(0.0, 1e-7)
@@ -253,20 +253,18 @@ class MTCSMock(BaseGroupMock):
                         self.controllers.mtmount.tel_Elevation.data.Elevation_Angle_Set
                     )
 
-                self.controllers.dome.tel_domeADB_status.set(
-                    positionCmd=dome_az_set,
+                self.controllers.dome.tel_azimuth.set(
+                    positionCommanded=dome_az_set,
                     positionActual=dome_az_pos + error_az + diff_az.deg / 1.1,
-                    positionError=error_az + diff_az.deg / 1.1,
                 )
-                self.controllers.dome.tel_domeAPS_status.set(
-                    positionCmd=dome_el_set,
+                self.controllers.dome.tel_lightWindScreen.set(
+                    positionCommanded=dome_el_set,
                     positionActual=dome_el_pos + error_el + diff_el.deg / 1.1,
-                    positionError=error_el + diff_el.deg / 1.1,
                 )
 
-                self.controllers.dome.tel_domeADB_status.put()
+                self.controllers.dome.tel_azimuth.put()
 
-                self.controllers.dome.tel_domeAPS_status.put()
+                self.controllers.dome.tel_lightWindScreen.put()
 
             await asyncio.sleep(HEARTBEAT_INTERVAL)
 

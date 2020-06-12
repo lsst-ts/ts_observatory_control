@@ -295,17 +295,17 @@ class MTCS(BaseTCS):
                 status += f"[Rot]: {rotator.Position:+08.3f}[{distance_rot.deg:+6.1f}] "
 
             if self.check.dome:
-                dome_az = await self.rem.dome.tel_domeADB_status.next(
+                dome_az = await self.rem.dome.tel_azimuth.next(
                     flush=True, timeout=self.fast_timeout
                 )
-                dome_el = await self.rem.dome.tel_domeAPS_status.next(
+                dome_el = await self.rem.dome.tel_lightWindScreen.next(
                     flush=True, timeout=self.fast_timeout
                 )
                 dome_az_diff = salobj.angle_diff(
-                    dome_az.positionActual, dome_az.positionCmd
+                    dome_az.positionActual, dome_az.positionCommanded
                 )
                 dome_el_diff = salobj.angle_diff(
-                    dome_el.positionActual, dome_el.positionCmd
+                    dome_el.positionActual, dome_el.positionCommanded
                 )
                 if np.abs(dome_az_diff) < self.dome_slew_tolerance:
                     self._dome_az_in_position.set()
@@ -593,10 +593,10 @@ class MTCS(BaseTCS):
                 "Application",
                 "Azimuth",
                 "Elevation",
-                "mountInPosition",
+                "axesInPosition",
                 "inPosition",
-                "domeADB_status",
-                "domeAPS_status",
+                "azimuth",
+                "lightWindScreen",
             ],
         )
 
