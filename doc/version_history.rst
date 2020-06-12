@@ -13,9 +13,17 @@ v0.3.0
   This is to support the MTMount component.
 * Add `BaseGroupMock` class.
   This class will make writing of mock classes with group of CSCs slightly easier, by taking care of a the basics.
-* Modify atcs and latiss mock classes to use the BaseGroupMock.
-* Initial implementation of MTCS with mock class and unit tests.
+* Add `BaseTCS` class to support generic `TCS` behavior
+* Modify `ATCS` and `LATISS` mock classes to use the BaseGroupMock.
+* Initial implementation of `MTCS` with mock class and unit tests.
   Currently implemented the basics and a couple of slew commands.
+
+Requirements:
+
+* ts_salobj >= v5.6.0
+* ts_xml >= v6.1.0
+* ts_idl >= 1.2.2
+* IDL files for all components, e.g. built with ``make_idl_files.py``
 
 v0.2.2
 ======
@@ -26,7 +34,7 @@ Requirements:
 
 * ts_salobj >=v5.6.0
 * ts_xml >=5.1.0
-* ts_idl >=v1.3.0
+* ts_idl >=v1.1.3
 * IDL files for all components, e.g. built with ``make_idl_files.py``
 
 
@@ -41,7 +49,7 @@ Requirements:
 
 * ts_salobj >=v5.6.0
 * ts_xml >=5.1.0
-* ts_idl >=v1.3.0
+* ts_idl >=v1.1.3
 * IDL files for all components, e.g. built with ``make_idl_files.py``
 
 v0.2.0
@@ -53,7 +61,7 @@ Requirements:
 
 * ts_salobj >=v5.6.0
 * ts_xml >=5.1.0
-* ts_idl >=v1.3.0
+* ts_idl >=v1.1.3
 * IDL files for all components, e.g. built with ``make_idl_files.py``
 
 v0.1.0
@@ -66,5 +74,5 @@ loaded at initialization time (useful for writing SAL Scripts).
 Requirements:
 
 * ts_salobj >=v5.6.0
-* ts_idl >=v1.3.0
+* ts_idl >=v1.1.3
 * IDL files for all components, e.g. built with ``make_idl_files.py``

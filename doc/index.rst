@@ -143,8 +143,8 @@ Python API reference
    :no-main-docstr:
    :no-inheritance-diagram:
 
-Revision History
-================
+Version History
+===============
 
 .. toctree::
     version_history
