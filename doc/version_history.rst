@@ -17,6 +17,7 @@ v0.3.0
 * Modify `ATCS` and `LATISS` mock classes to use the BaseGroupMock.
 * Initial implementation of `MTCS` with mock class and unit tests.
   Currently implemented the basics and a couple of slew commands.
+* Some improvements on how resources isolation (using check namespace) is implemented in TCS classes.
 
 Requirements:
 

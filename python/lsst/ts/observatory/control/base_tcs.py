@@ -420,27 +420,8 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
             getattr(self.rem, self.ptg_name).cmd_planetTarget, slew_timeout=slew_timeout
         )
 
-    async def slew_dome_to(self, az):
-        """Utility method to slew dome to a specified position.
-
-        This method works at cross purposes to ATDomeTrajectory, so this method
-        disables ATDomeTrajectory and leaves it disabled. If ATDomeTrajectory
-        is enabled while the dome is slewing to the requested position this
-        method raises an exception.
-
-        The method will return once the dome arrives in position, at which
-        point all checks will be canceled before returning.
-
-        Parameters
-        ----------
-        az : `float` or `str`
-            Azimuth angle for the dome (in deg).
-        """
-        # TODO: (DM-25283) make method mpre abstract
-        raise NotImplementedError()
-
     async def offset_radec(self, ra, dec):
-        """ Offset telescope in RA and Dec.
+        """Offset telescope in RA and Dec.
 
         Perform arc-length offset in sky coordinates. The magnitude of the
         offset is sqrt(ra^2 + dec^2) and the angle is the usual atan2(dec, ra).
@@ -453,20 +434,77 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
             Offset in dec (arcsec).
 
         """
-        # TODO: (DM-25283) Improve method
         self.log.debug(f"Applying RA/Dec offset: {ra}/ {dec} ")
+
+        await self.flush_offset_events()
+
         await getattr(self.rem, self.ptg_name).cmd_offsetRADec.set_start(
             type=0, off1=ra, off2=dec, num=0
         )
+
+        try:
+
+            await self.offset_done()
+
+        except asyncio.TimeoutError:
+
+            self.log.debug("Timed out waiting for offset done events.")
+
         self.log.debug("Waiting for telescope to settle.")
         await asyncio.sleep(self.tel_settle_time)
         self.log.debug("Done")
 
-    async def monitor_position(self, **argv):
-        """Monitor and log the position of the telescope and the dome.
+    async def offset_azel(self, az, el, relative=False):
+        """Offset telescope in azimuth and elevation.
+
+        Parameters
+        ----------
+        az : `float`
+            Offset in azimuth (arcsec).
+        el : `float`
+            Offset in elevation (arcsec).
+        relative : `bool`
+            If `True` offset is applied relative to the current position, if
+            `False` (default) offset replaces any existing offsets.
         """
-        # TODO: (DM-25283) make method mpre abstract
-        pass
+        self.log.debug(f"Applying Az/El offset: {az}/ {el} ")
+        self.flush_offset_events()
+
+        await getattr(self.rem, self.ptg_name).cmd_offsetAzEl.set_start(
+            az=az, el=el, num=0 if not relative else 1
+        )
+
+        try:
+
+            await self.offset_done()
+
+        except asyncio.TimeoutError:
+
+            self.log.debug("Timed out waiting for offset done events.")
+
+        self.log.debug("Waiting for telescope to settle.")
+        await asyncio.sleep(self.tel_settle_time)
+        self.log.debug("Done")
+
+    async def offset_xy(self, x, y, relative=False):
+        """ Offset telescope in x and y.
+
+        Parameters
+        ----------
+        x : `float`
+        Offset in camera x-axis (arcsec).
+        y : `float`
+        Offset in camera y-axis (arcsec).
+        relative : `bool`
+        If `True` offset is applied relative to the current position, if
+        `False` (default) offset replaces any existing offsets.
+        """
+        self.log.debug(f"Calculating x/y offset: {x}/ {y} ")
+
+        bore_sight_angle = await self.get_bore_sight_angle()
+
+        el, az, _ = np.matmul([x, y, 0.0], self.rotation_matrix(bore_sight_angle))
+        await self.offset_azel(az, el, relative)
 
     async def add_point_data(self):
         """ Add current position to a point file. If a file is open it will
@@ -497,38 +535,6 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
             timeout=self.fast_timeout
         )
 
-    async def offset_azel(self, az, el, relative=False):
-        """ Offset telescope in azimuth and elevation.
-
-        Parameters
-        ----------
-        az : `float`
-            Offset in azimuth (arcsec).
-        el : `float`
-            Offset in elevation (arcsec).
-        relative : `bool`
-            If `True` offset is applied relative to the current position, if
-            `False` (default) offset replaces any existing offsets.
-        """
-        # TODO: (DM-25283) make method mpre abstract
-        pass
-
-    async def offset_xy(self, x, y, relative=False):
-        """ Offset telescope in x and y.
-
-        Parameters
-        ----------
-        x : `float`
-        Offset in camera x-axis (arcsec).
-        y : `float`
-        Offset in camera y-axis (arcsec).
-        relative : `bool`
-        If `True` offset is applied relative to the current position, if
-        `False` (default) offset replaces any existing offsets.
-        """
-        # TODO: (DM-25283) make method mpre abstract
-        pass
-
     @staticmethod
     def rotation_matrix(angle):
         """Rotation matrix.
@@ -542,9 +548,38 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
         )
 
     @abc.abstractmethod
-    async def prepare_for_flatfield(self):
+    async def monitor_position(self, check=None):
+        """Monitor and log the position of the telescope and the dome.
+
+        Parameters
+        ----------
+        check : `types.SimpleNamespace` or `None`
+            Override `self.check` for defining which resources are used.
+        """
+        raise NotImplementedError()
+
+    @abc.abstractmethod
+    async def slew_dome_to(self, az, check=None):
+        """Utility method to slew dome to a specified position.
+
+        Parameters
+        ----------
+        az : `float` or `str`
+            Azimuth angle for the dome (in deg).
+        check : `types.SimpleNamespace` or `None`
+            Override `self.check` for defining which resources are used.
+        """
+        raise NotImplementedError()
+
+    @abc.abstractmethod
+    async def prepare_for_flatfield(self, check=None):
         """A high level method to position the telescope and dome for flat
         field operations.
+
+        Parameters
+        ----------
+        check : `types.SimpleNamespace` or `None`
+            Override `self.check` for defining which resources are used.
         """
         raise NotImplementedError()
 
@@ -592,11 +627,7 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
 
     @abc.abstractmethod
     async def prepare_for_onsky(self, settings=None):
-        """Prepare Auxiliary Telescope for on-sky operations.
-
-        This method will perform the start of the night procedure for the
-        ATCS component. It will enable all components, open the dome slit,
-        open the telescope covers and activate AOS open loop corrections.
+        """Prepare telescope for on-sky operations.
 
         Parameters
         ----------
@@ -650,37 +681,83 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
 
         Parameters
         ----------
-        slew_cmd : `coro`
+        slew_cmd: `coro`
             One of the slew commands from the atptg remote. Command need to be
             setup before calling this method.
+        slew_time: `float`
+            Expected slew time in seconds.
+        stop_before_slew: `bool`
+            Stop tracking before slewing?
+        wait_settle: `bool`
+            After slew complets, add an addional settle wait before returning.
         """
         raise NotImplementedError()
 
     @abc.abstractmethod
-    async def wait_for_inposition(self, timeout, cmd_ack=None, wait_settle=True):
+    async def wait_for_inposition(
+        self, timeout, cmd_ack=None, wait_settle=True, check=None
+    ):
         """Wait for both the ATMCS and ATDome to be in position.
 
         Parameters
         ----------
         timeout: `float`
-        How long should it wait before timing out.
+            How long should it wait before timing out.
+        cmd_ack: `CmdAck` or `None`
+            CmdAck from the command that started the slew process. This is an
+            experimental feature to discard events that where sent before the
+            slew starts.
+        wait_settle: `bool`
+            After slew complets, add an addional settle wait before returning.
+        check : `types.SimpleNamespace` or `None`
+            Override `self.check` for defining which resources are used.
 
         Returns
         -------
         status: `str`
-        String with final status.
+            String with final status.
         """
         raise NotImplementedError
 
     @abc.abstractmethod
     def set_azel_slew_checks(self, wait_dome):
         """Abstract method to handle azEl slew to wait or not for the dome.
+
+        Parameters
+        ----------
+        wait_dome: `bool`
+            Should point_azel wait for the dome?
         """
         raise NotImplementedError()
 
     @abc.abstractmethod
     def unset_azel_slew_checks(self, checks):
         """Abstract method to handle azEl slew to wait or not for the dome.
+
+        Parameters
+        ----------
+        checks: `types.SimpleNamespace`
+            Namespace with the same structure of `self.check` with values
+            as before `set_azel_slew_checks` is called.
+        """
+        raise NotImplementedError()
+
+    @abc.abstractmethod
+    def flush_offset_events(self):
+        """Abstract method to flush events before and offset is performed.
+        """
+        raise NotImplementedError()
+
+    @abc.abstractmethod
+    async def offset_done(self):
+        """Wait for offset events.
+        """
+        raise NotImplementedError()
+
+    @abc.abstractmethod
+    async def get_bore_sight_angle(self):
+        """Get the instrument bore sight angle with respect to the telescope
+        axis.
         """
         raise NotImplementedError()
 
