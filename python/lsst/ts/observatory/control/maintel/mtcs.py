@@ -20,6 +20,7 @@
 
 __all__ = ["MTCS"]
 
+import copy
 import types
 import asyncio
 
@@ -172,7 +173,11 @@ class MTCS(BaseTCS):
 
         self.log.debug("Sending slew command.")
 
-        ack = await slew_cmd.start(timeout=slew_timeout)
+        if stop_before_slew:
+            self.rem.newmtmount.evt_axesInPosition.flush()
+            self.rem.rotator.evt_inPosition.flush()
+
+        await slew_cmd.start(timeout=slew_timeout)
         self._dome_az_in_position.clear()
 
         self.log.debug("Scheduling check coroutines")
@@ -182,7 +187,7 @@ class MTCS(BaseTCS):
                 self.wait_for_inposition(timeout=slew_timeout, wait_settle=wait_settle)
             )
         )
-        self.scheduled_coro.append(asyncio.create_task(self.monitor_position(ack)))
+        self.scheduled_coro.append(asyncio.create_task(self.monitor_position()))
 
         for comp in self.components:
             if getattr(self.check, comp):
@@ -193,22 +198,36 @@ class MTCS(BaseTCS):
 
         await self.process_as_completed(self.scheduled_coro)
 
-    async def wait_for_inposition(self, timeout, cmd_ack=None, wait_settle=True):
-        """Wait for both the ATMCS and ATDome to be in position.
+    async def wait_for_inposition(
+        self, timeout, cmd_ack=None, wait_settle=True, check=None
+    ):
+        """Wait for Mount, Dome and Rotator to be in position.
 
         Parameters
         ----------
         timeout: `float`
             How long should it wait before timing out.
+        cmd_ack: `CmdAck` or `None`
+            CmdAck from the command that started the slew process. This is an
+            experimental feature to discard events that where sent before the
+            slew starts.
+        wait_settle: `bool`
+            After slew complets, add an addional settle wait before returning.
+        check : `types.SimpleNamespace` or `None`
+            Override `self.check` for defining which resources are used.
 
         Returns
         -------
         status: `str`
             String with final status.
         """
+        # Creates a copy of check so it can be freely modified to control what
+        # needs to be verified at each stage of the process.
+        _check = copy.copy(self.check) if check is None else copy.copy(check)
+
         status = list()
 
-        if self.check.newmtmount:
+        if _check.newmtmount:
             # Note that this event comes from MTMount not NewMTMount,
             # but it is actually started by MTMount. For now MTMount should
             # always be unchecked and we will use NewMTMount to manage that.
@@ -218,12 +237,12 @@ class MTCS(BaseTCS):
                 )
             )
 
-        if self.check.dome:
+        if _check.dome:
             status.append(
                 asyncio.create_task(self.wait_for_dome_inposition(timeout, cmd_ack))
             )
 
-        if self.check.rotator:
+        if _check.rotator:
             status.append(
                 asyncio.create_task(self.wait_for_rotator_inposition(timeout, cmd_ack))
             )
@@ -234,22 +253,32 @@ class MTCS(BaseTCS):
 
         return ret_val
 
-    async def monitor_position(self, ack):
+    async def monitor_position(self, check=None):
         """Monitor MTCS axis position.
 
-        Monitor/log a selected set of axis from the main
-        telescope. This is useful during slew activities to
-        make sure everything is going as expected.
+        Monitor/log a selected set of axis from the main telescope. This is
+        useful during slew activities to make sure everything is going as
+        expected.
+
+        Parameters
+        ----------
+        check : `types.SimpleNamespace` or `None`
+            Override `self.check` for defining which resources are used.
+
         """
+        # Creates a copy of check so it can be freely modified to control what
+        # needs to be verified at each stage of the process.
+        _check = copy.copy(self.check) if check is None else copy.copy(check)
+
         self.log.debug("Monitor position started.")
 
-        if self.check.newmtmount:
+        if _check.newmtmount:
             self.log.debug("Waiting for Target event from newmtmount.")
             try:
                 target = await self.rem.newmtmount.evt_target.next(
                     flush=True, timeout=self.long_timeout
                 )
-                self.log.debug(f"Got {target}")
+                self.log.debug(f"Mount target: {target}")
             except asyncio.TimeoutError:
                 raise RuntimeError(
                     "Not receiving target events from the NewMTMount. "
@@ -260,36 +289,48 @@ class MTCS(BaseTCS):
 
             status = ""
 
-            if self.check.newmtmount:
-                tel_az = await self.rem.mtmount.tel_Azimuth.next(
-                    flush=True, timeout=self.fast_timeout
+            if _check.newmtmount:
+                target, tel_az, tel_el = await asyncio.gather(
+                    self.rem.newmtmount.evt_target.next(
+                        flush=True, timeout=self.long_timeout
+                    ),
+                    self.rem.mtmount.tel_Azimuth.next(
+                        flush=True, timeout=self.fast_timeout
+                    ),
+                    self.rem.mtmount.tel_Elevation.next(
+                        flush=True, timeout=self.fast_timeout
+                    ),
                 )
-                tel_el = await self.rem.mtmount.tel_Elevation.next(
-                    flush=True, timeout=self.fast_timeout
+                distance_az = salobj.angle_diff(
+                    target.azimuth, tel_az.Azimuth_Angle_Actual
+                )
+                distance_el = salobj.angle_diff(
+                    target.elevation, tel_el.Elevation_Angle_Actual
                 )
                 status += (
-                    f"[Tel]: Az = {tel_az.Azimuth_Angle_Actual:+08.3f}; "
-                    f"El = {tel_el.Elevation_Angle_Actual:+08.3f} "
+                    f"[Tel]: Az = {tel_az.Azimuth_Angle_Actual:+08.3f}[{distance_az.deg:+6.1f}]; "
+                    f"El = {tel_el.Elevation_Angle_Actual:+08.3f}[{distance_el.deg:+6.1f}] "
                 )
 
-            if self.check.rotator:
+            if _check.rotator:
                 rotator = await self.rem.rotator.tel_Application.next(
                     flush=True, timeout=self.fast_timeout
                 )
-                status += f"[Rot]: {rotator.Position:+08.3f} "
+                distance_rot = salobj.angle_diff(rotator.Demand, rotator.Position)
+                status += f"[Rot]: {rotator.Position:+08.3f}[{distance_rot.deg:+6.1f}] "
 
-            if self.check.dome:
-                dome_az = await self.rem.dome.tel_domeADB_status.next(
+            if _check.dome:
+                dome_az = await self.rem.dome.tel_azimuth.next(
                     flush=True, timeout=self.fast_timeout
                 )
-                dome_el = await self.rem.dome.tel_domeAPS_status.next(
+                dome_el = await self.rem.dome.tel_lightWindScreen.next(
                     flush=True, timeout=self.fast_timeout
                 )
                 dome_az_diff = salobj.angle_diff(
-                    dome_az.positionActual, dome_az.positionCmd
+                    dome_az.positionActual, dome_az.positionCommanded
                 )
                 dome_el_diff = salobj.angle_diff(
-                    dome_el.positionActual, dome_el.positionCmd
+                    dome_el.positionActual, dome_el.positionCommanded
                 )
                 if np.abs(dome_az_diff) < self.dome_slew_tolerance:
                     self._dome_az_in_position.set()
@@ -328,7 +369,7 @@ class MTCS(BaseTCS):
 
         while True:
 
-            in_position = await self.rem.mtmount.evt_mountInPosition.next(
+            in_position = await self.rem.newmtmount.evt_axesInPosition.next(
                 flush=False, timeout=timeout
             )
 
@@ -339,15 +380,17 @@ class MTCS(BaseTCS):
             ):
                 self.log.debug("Received old event. Ignoring.")
             else:
-                self.log.info(f"Got {in_position.inposition}")
-                if in_position.inposition:
+                self.log.debug(
+                    "MTMount axesInPosition got: "
+                    f"elevation {in_position.elevation}, "
+                    f"azimuth {in_position.azimuth}."
+                )
+                if in_position.elevation and in_position.azimuth:
                     if wait_settle:
                         self.log.info("Waiting for telescope to settle.")
                         await asyncio.sleep(self.tel_settle_time)
                     self.log.info("Telescope in position.")
                     return "Telescope in position."
-                else:
-                    self.log.debug("Telescope not in position")
 
     async def wait_for_dome_inposition(self, timeout, cmd_ack=None, wait_settle=True):
         """Wait for the Dome to be in position.
@@ -452,41 +495,77 @@ class MTCS(BaseTCS):
         # TODO: Finish implementation of this method (DM-24488).
         pass
 
+    async def slew_dome_to(self, az, check=None):
+        """Utility method to slew dome to a specified position.
+
+        Parameters
+        ----------
+        az : `float` or `str`
+            Azimuth angle for the dome (in deg).
+        check : `types.SimpleNamespace` or `None`
+            Override `self.check` for defining which resources are used.
+
+        """
+        # TODO: Implement (DM-21336).
+        raise NotImplementedError("# TODO: Implement (DM-21336).")
+
     def close_dome(self):
         # TODO: Implement (DM-21336).
-        pass
+        raise NotImplementedError("# TODO: Implement (DM-21336).")
 
     def close_m1_cover(self):
         # TODO: Implement (DM-21336).
-        pass
+        raise NotImplementedError("# TODO: Implement (DM-21336).")
 
     def home_dome(self):
         # TODO: Implement (DM-21336).
-        pass
+        raise NotImplementedError("# TODO: Implement (DM-21336).")
 
     def open_dome_shutter(self):
         # TODO: Implement (DM-21336).
-        pass
+        raise NotImplementedError("# TODO: Implement (DM-21336).")
 
     def open_m1_cover(self):
         # TODO: Implement (DM-21336).
-        pass
+        raise NotImplementedError("# TODO: Implement (DM-21336).")
 
     def prepare_for_flatfield(self):
         # TODO: Implement (DM-21336).
-        pass
+        raise NotImplementedError("# TODO: Implement (DM-21336).")
 
     def prepare_for_onsky(self, settings=None):
         # TODO: Implement (DM-21336).
-        pass
+        raise NotImplementedError("# TODO: Implement (DM-21336).")
 
     def shutdown(self):
         # TODO: Implement (DM-21336).
-        pass
+        raise NotImplementedError("# TODO: Implement (DM-21336).")
 
     def stop_all(self):
         # TODO: Implement (DM-21336).
-        pass
+        raise NotImplementedError("# TODO: Implement (DM-21336).")
+
+    def flush_offset_events(self):
+        """Abstract method to flush events before and offset is performed.
+        """
+        self.rem.newmtmount.evt_axesInPosition.flush()
+
+    async def offset_done(self):
+        """Wait for offset events.
+        """
+        await self.wait_for_mtmount_inposition(timeout=self.tel_settle_time)
+
+    async def get_bore_sight_angle(self):
+        """Get the instrument bore sight angle with respect to the telescope
+        axis.
+        """
+
+        el = await self.rem.mtmount.tel_Elevation.aget(timeout=self.fast_timeout)
+
+        rotator = await self.rem.rotator.tel_Application.aget(timeout=self.fast_timeout)
+        angle = el.Elevation_Angle_Actual - rotator.Position
+
+        return angle
 
     @property
     def ptg_name(self):
@@ -575,10 +654,10 @@ class MTCS(BaseTCS):
                 "Application",
                 "Azimuth",
                 "Elevation",
-                "mountInPosition",
+                "axesInPosition",
                 "inPosition",
-                "domeADB_status",
-                "domeAPS_status",
+                "azimuth",
+                "lightWindScreen",
             ],
         )
 

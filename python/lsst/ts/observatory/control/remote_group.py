@@ -118,6 +118,7 @@ class RemoteGroup:
     `intended_usage=BaseUsages.All`. When set to `None` the class will load all
     available resources. When set to `BaseUsages.All`, the class will load the
     resources needed for all defined operations.
+
     """
 
     def __init__(self, components, domain=None, log=None, intended_usage=None):
