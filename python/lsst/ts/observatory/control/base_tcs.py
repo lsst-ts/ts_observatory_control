@@ -20,8 +20,8 @@
 
 __all__ = ["BaseTCS"]
 
-import asyncio
 import abc
+import asyncio
 
 import numpy as np
 import astropy.units as u
@@ -36,6 +36,24 @@ from lsst.ts import salobj
 
 class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
     """Base class for Telescope Control System.
+
+    Parameters
+    ----------
+    components : `list` [`str`]
+        A list of strings with the names of the SAL components that are part
+        of the telescope control system group.
+    domain : `lsst.ts.salobj.Domain`
+        Domain for remotes. If `None` create a domain.
+    log : `logging.Logger`
+        Optional logging class to be used for logging operations. If `None`,
+        creates a new logger. Useful to use in salobj.BaseScript and allow
+        logging in the class use the script logging.
+    intended_usage: `int`
+        Optional integer that maps to a list of intended operations. This is
+        used to limit the resources allocated by the class by gathering some
+        knowledge about the usage intention. By default allocates all
+        resources.
+
     """
 
     def __init__(self, components, domain=None, log=None, intended_usage=None):

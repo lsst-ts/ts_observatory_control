@@ -13,7 +13,8 @@ v0.3.0
   This is to support the MTMount component.
 * Add `BaseGroupMock` class.
   This class will make writing of mock classes with group of CSCs slightly easier, by taking care of a the basics.
-* Add `BaseTCS` class to support generic `TCS` behavior
+* Add `BaseTCS` class to support generic `TCS` behavior.
+* Add `BaseCamera` class to support generic `Camera` behavior.
 * Modify `ATCS` and `LATISS` mock classes to use the BaseGroupMock.
 * Initial implementation of `MTCS` with mock class and unit tests.
   Currently implemented the basics and a couple of slew commands.

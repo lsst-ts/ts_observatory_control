@@ -89,6 +89,28 @@ class TestLATISS(RemoteGroupTestCase, asynctest.TestCase):
             self.assertEqual(self.latiss_mock.latiss_grating, grating_id)
             self.assertEqual(self.latiss_mock.latiss_linear_stage, linear_stage)
 
+    async def test_instrument_parameters(self):
+        async with self.make_group(usage=LATISSUsages.TakeImage):
+            valid_keywords = ["filter", "grating", "linear_stage"]
+
+            for key in valid_keywords:
+                with self.subTest(test="valid_keywords", key=key):
+                    self.latiss_remote.check_kwargs(**{key: "test"})
+
+            invalid_keyword_sample = [
+                "Filter",
+                "Grating",
+                "LinearStage",
+                "frilter",
+                "gating",
+                "linearstate",
+            ]
+
+            for key in invalid_keyword_sample:
+                with self.subTest(test="invalid_keywords", key=key):
+                    with self.assertRaises(RuntimeError):
+                        self.latiss_remote.check_kwargs(**{key: "test"})
+
 
 if __name__ == "__main__":
     unittest.main()
