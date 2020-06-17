@@ -201,7 +201,7 @@ class MTCS(BaseTCS):
     async def wait_for_inposition(
         self, timeout, cmd_ack=None, wait_settle=True, check=None
     ):
-        """Wait for both the Mount, Dome and Rotator to be in position.
+        """Wait for Mount, Dome and Rotator to be in position.
 
         Parameters
         ----------

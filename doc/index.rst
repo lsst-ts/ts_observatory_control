@@ -6,30 +6,20 @@
 lsst.ts.observatory.control
 ###########################
 
-The Vera Rubing Observatory control system is a highly distributed system
-composed of myriad of independent components that must act together to
-perform high-level operations. By high-level operations we mean actions like
-commanding the telescope to slewing to a position in the sky, wait for the
-telescope, dome and all the other components to be ready and then perform
-observations.
+The Vera Rubing Observatory control system is a highly distributed system composed of myriad of independent components that must act together to perform high-level operations.
+By high-level operations we mean actions like commanding the telescope to slewing to a position in the sky, wait for the telescope, dome and all the other components to be ready and then perform observations.
 
-Commanding and sorting out the state of each individual component can be
-valuable when it comes to performing commissioning and/or engineering
-activities but can be extremely demanding for users. To help mitigate the
-issue Telescope and Site provide this collection of high-level control
-software. The software is organized into a set of classes than combine
-functionality from a group of components. Users can use these classes
-separately to control a set of components or combine them to achieve even
-higher levels of operations.
+Commanding and sorting out the state of each individual component can be valuable when it comes to performing commissioning and/or engineering activities but can be extremely demanding for users.
+To help mitigate the issue Telescope and Site provide this collection of high-level control software.
+The software is organized into a set of classes than combine functionality from a group of components.
+Users can use these classes separately to control a set of components or combine them to achieve even higher levels of operations.
 
-For instance, the `ATCS` class combine functionality for all
-"telescope-related" components of the Vera Rubin Auxiliary Telescope. Actions
-like slewing the telescope, while making sure all involved components are in
-`ENABLED` state and wait until all components are in position is as simple as;
+For instance, the `ATCS` class combine functionality for all "telescope-related" components of the Vera Rubin Auxiliary Telescope.
+Actions like slewing the telescope, while making sure all involved components are in `ENABLED` state and wait until all components are in position is as simple as;
 
 ::
 
-   from lsst.ts.observatory.control import ATCS
+   from lsst.ts.observatory.control.auxtel import ATCS
 
    atcs = ATCS()
 
@@ -37,13 +27,44 @@ like slewing the telescope, while making sure all involved components are in
 
    await atcs.slew_object(name="Alf Pav")
 
-A set of utilities are also provided that allow users to combine component
-coordination with activities like data analysis and more.
+A set of utilities are also provided that allow users to combine component coordination with activities like data analysis and more.
+
+The repo defines the `RemoteGroup` class which represent a group of components in the control system.
+This class implements basic functionality that is common to all groups of CSCs.
+
+When using multiple classes, for instance to control telescope and instrument, it is highly recommended to share some resources, like the DDS domain.
+That can be done by creating a domain and passing them to the classes.
+
+::
+
+   from lsst.ts import salobj
+   from lsst.ts.observatory.control.auxtel import ATCS, LATISS
+
+   domain = salobj.Domain()
+
+   atcs = ATCS(domain=domain)
+   latiss = LATISS(domain=domain)
+
+   await atcs.start_task
+   await latiss.start_task
+
+When writing a `Script` for the `ScriptQueue` it is possible to use the scripts own domain.
+In addition, it is also possible to pass in the script log object so that logging from the class will also be published to SAL.
+
+::
+
+   from lsst.ts import salobj
+   from lsst.ts.observatory.control.auxtel.atcs import ATCS
 
 
-The repo defines the `RemoteGroup` class which
-represent a group of components in the control system. This class implements
-basic functionality that is common to all groups of CSCs.
+   class MyScript(salobj.BaseScript):
+
+     def __init__(self, index):
+
+         super().__init__(index=index, descr="My script for some operation.")
+
+         self.atcs = ATCS(domain=self.domain, log=self.log)
+
 
 Usages: Limiting required resources
 ===================================

@@ -46,8 +46,7 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
         Domain for remotes. If `None` create a domain.
     log : `logging.Logger`
         Optional logging class to be used for logging operations. If `None`,
-        creates a new logger. Useful to use in salobj.BaseScript and allow
-        logging in the class use the script logging.
+        creates a new logger.
     intended_usage: `int`
         Optional integer that maps to a list of intended operations. This is
         used to limit the resources allocated by the class by gathering some
@@ -452,7 +451,7 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
             Offset in dec (arcsec).
 
         """
-        self.log.debug(f"Applying RA/Dec offset: {ra}/ {dec} ")
+        self.log.debug(f"Applying RA/Dec offset: {ra}/{dec} ")
 
         await self.flush_offset_events()
 
@@ -485,7 +484,7 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
             If `True` offset is applied relative to the current position, if
             `False` (default) offset replaces any existing offsets.
         """
-        self.log.debug(f"Applying Az/El offset: {az}/ {el} ")
+        self.log.debug(f"Applying Az/El offset: {az}/{el} ")
         self.flush_offset_events()
 
         await getattr(self.rem, self.ptg_name).cmd_offsetAzEl.set_start(
@@ -517,7 +516,7 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
         If `True` offset is applied relative to the current position, if
         `False` (default) offset replaces any existing offsets.
         """
-        self.log.debug(f"Calculating x/y offset: {x}/ {y} ")
+        self.log.debug(f"Calculating x/y offset: {x}/{y} ")
 
         bore_sight_angle = await self.get_bore_sight_angle()
 

@@ -44,13 +44,13 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
         Domain for remotes. If `None` create a domain.
     log : `logging.Logger`
         Optional logging class to be used for logging operations. If `None`,
-        creates a new logger. Useful to use in salobj.BaseScript and allow
-        logging in the class use the script logging.
+        create a new logger.
     intended_usage: `int`
         Optional integer that maps to a list of intended operations. This is
         used to limit the resources allocated by the class by gathering some
         knowledge about the usage intention. By default allocates all
         resources.
+
     """
 
     def __init__(
@@ -489,7 +489,7 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
         shutter : `bool`
             Should activate the shutter? (False for bias and dark)
         image_type : `str`
-            Image type (a.k.a. IMGTYPE) (e.g. e.g. BIAS, DARK, FLAT, FE55,
+            Image type (a.k.a. IMGTYPE) (e.g. BIAS, DARK, FLAT, FE55,
             XTALK, CCOB, SPOT...)
         group_id : `str`
             Image groupId. Used to fill in FITS GROUPID header
@@ -527,7 +527,12 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
 
         Return
         ------
-        grou_id : `string`
+        group_id : `string`
         """
-        # TODO: Use static method from Scripts. (DM-21336)
+        # TODO: Use static method from QueueModel. (DM-21336)
+        # This has some consequences because ts_scriptqueue becomes a
+        # dependency of ts_observatory_control, which impacts the build
+        # environment.
+        # from lsst.ts.scriptqueue.queue_model import QueueModel
+        # QueueModel.next_group_id()
         return astropy.time.Time.now().tai.isot

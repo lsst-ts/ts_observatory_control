@@ -272,7 +272,7 @@ class ATCS(BaseTCS):
         )
 
         # This is operating in a copy of the SimpleNamespace, so it is ok to
-        # edit is here and let it as is.
+        # edit here and let it as is.
         _check.atmcs = False
         _check.atdometrajectory = False
 
@@ -552,11 +552,18 @@ class ATCS(BaseTCS):
         try:
             await self.close_m1_vent()
         except Exception:
-            self.log.info("Error closing m1 vents.")
+            self.log.exception("Error closing m1 vents.")
 
         self.log.info("Close dome.")
 
-        await self.close_dome()
+        try:
+            await self.close_dome()
+        except Exception as e:
+            self.log.error(
+                "Failed to close the dome. Cannot continue with shutdown operation. "
+                "Check system for errors and try again."
+            )
+            raise e
 
         self.log.debug("Slew dome to Park position.")
         await self.slew_dome_to(az=self.dome_park_az, check=check)
@@ -963,7 +970,7 @@ class ATCS(BaseTCS):
             experimental feature to discard events that where sent before the
             slew starts.
         wait_settle: `bool`
-            After slew complets, add an addional settle wait before returning.
+            After slew completes, add an addional settle wait before returning.
         check : `types.SimpleNamespace` or `None`
             Override `self.check` for defining which resources are used.
 
