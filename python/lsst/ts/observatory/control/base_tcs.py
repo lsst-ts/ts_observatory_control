@@ -450,6 +450,11 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
         dec : `float` or `str`
             Offset in dec (arcsec).
 
+        See Also
+        --------
+        offset_azel : Offset in local AzEl coordinates.
+        offset_xy : Offset in terms of boresight.
+
         """
         self.log.debug(f"Applying RA/Dec offset: {ra}/{dec} ")
 
@@ -471,7 +476,7 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
         await asyncio.sleep(self.tel_settle_time)
         self.log.debug("Done")
 
-    async def offset_azel(self, az, el, relative=False):
+    async def offset_azel(self, az, el, relative=False, persistent=False):
         """Offset telescope in azimuth and elevation.
 
         Parameters
@@ -483,9 +488,21 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
         relative : `bool`
             If `True` offset is applied relative to the current position, if
             `False` (default) offset replaces any existing offsets.
+        persistent : `bool`
+            Should the offset be absorbed and persisted between slews?
+
+        See Also
+        --------
+        offset_xy : Offset in terms of boresight.
+        offset_radec : Offset in sky coordinates.
+
         """
         self.log.debug(f"Applying Az/El offset: {az}/{el} ")
         self.flush_offset_events()
+
+        if persistent:
+            # TODO: Implement persistent offsets (DM-21336).
+            self.log.warning("Persistent offset is not yet implemented (DM-21336).")
 
         await getattr(self.rem, self.ptg_name).cmd_offsetAzEl.set_start(
             az=az, el=el, num=0 if not relative else 1
@@ -503,18 +520,28 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
         await asyncio.sleep(self.tel_settle_time)
         self.log.debug("Done")
 
-    async def offset_xy(self, x, y, relative=False):
+    async def offset_xy(self, x, y, relative=False, persistent=False):
         """ Offset telescope in x and y.
+
+        This will move the field in the x and y direction.
 
         Parameters
         ----------
         x : `float`
-        Offset in camera x-axis (arcsec).
+            Offset in camera x-axis (arcsec).
         y : `float`
-        Offset in camera y-axis (arcsec).
+            Offset in camera y-axis (arcsec).
         relative : `bool`
-        If `True` offset is applied relative to the current position, if
-        `False` (default) offset replaces any existing offsets.
+            If `True` offset is applied relative to the current position, if
+            `False` (default) offset replaces any existing offsets.
+        persistent : `bool`
+            Should the offset be absorbed and persisted between slews?
+
+        See Also
+        --------
+        offset_azel : Offset in local AzEl coordinates.
+        offset_radec : Offset in sky coordinates.
+
         """
         self.log.debug(f"Calculating x/y offset: {x}/{y} ")
 
