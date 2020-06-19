@@ -452,7 +452,7 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
                 )
 
     @abc.abstractmethod
-    async def setup_instrument(**kwargs):
+    async def setup_instrument(self, **kwargs):
         """Generic method called during `take_imgtype` to setup instrument.
 
         Parameters
