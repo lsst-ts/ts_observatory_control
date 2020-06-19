@@ -35,14 +35,14 @@ random.seed(42)  # for set_random_lsst_dds_domain
 
 class TestComCam(RemoteGroupTestCase, asynctest.TestCase):
     async def basic_make_group(self, usage=None):
-        self.comcam_remote = ComCam(intended_usage=usage)
+        self.comcam = ComCam(intended_usage=usage)
         self.comcam_mock = ComCamMock()
-        return (self.comcam_remote, self.comcam_mock)
+        return (self.comcam, self.comcam_mock)
 
     async def test_take_bias(self):
         async with self.make_group():
             nbias = 10
-            await self.comcam_remote.take_bias(nbias=nbias)
+            await self.comcam.take_bias(nbias=nbias)
             self.assertEqual(self.comcam_mock.nimages, nbias)
             self.assertEqual(len(self.comcam_mock.exptime_list), nbias)
             for i in range(nbias):
@@ -52,7 +52,7 @@ class TestComCam(RemoteGroupTestCase, asynctest.TestCase):
         async with self.make_group():
             ndarks = 10
             exptime = 5.0
-            await self.comcam_remote.take_darks(ndarks=ndarks, exptime=exptime)
+            await self.comcam.take_darks(ndarks=ndarks, exptime=exptime)
             self.assertEqual(self.comcam_mock.nimages, ndarks)
             self.assertEqual(len(self.comcam_mock.exptime_list), ndarks)
             for i in range(ndarks):
@@ -63,7 +63,7 @@ class TestComCam(RemoteGroupTestCase, asynctest.TestCase):
             nflats = 10
             exptime = 5.0
 
-            await self.comcam_remote.take_flats(
+            await self.comcam.take_flats(
                 nflats=nflats, exptime=exptime,
             )
             self.assertEqual(self.comcam_mock.nimages, nflats)

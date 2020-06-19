@@ -22,13 +22,14 @@ __all__ = ["ComCam"]
 
 import asyncio
 
-import numpy as np
-import astropy
+# import numpy as np
+# import astropy
 
-from ..remote_group import RemoteGroup
+# from ..remote_group import RemoteGroup
+from ..base_camera import BaseCamera
 
 
-class ComCam(RemoteGroup):
+class ComCam(BaseCamera):
     """Commissioning Camera (ComCam).
 
     ComCam encapsulates core functionality from the following CSCs CCCamera,
@@ -44,6 +45,7 @@ class ComCam(RemoteGroup):
 
         super().__init__(
             components=["CCCamera", "CCHeaderService", "CCArchiver"],
+            instrument_setup_attributes=[],
             domain=domain,
             log=log,
             intended_usage=intended_usage,
@@ -52,201 +54,19 @@ class ComCam(RemoteGroup):
         self.read_out_time = 2.0  # readout time (sec)
         self.shutter_time = 1  # time to open or close shutter (sec)
 
-        self.valid_imagetype = ["BIAS", "DARK", "FLAT", "OBJECT", "ENGTEST", "SPOT"]
+        self.valid_imagetype.append("SPOT")
 
         self.cmd_lock = asyncio.Lock()
 
-    async def take_bias(
-        self, nbias, group_id=None, sensors=None, obs_note=None, checkpoint=None
-    ):
-        """Take a series of bias images.
-
-        Parameters
-        ----------
-        nbias : `int`
-            Number of bias frames to take.
-        group_id : `str`
-            Optional group id for the data sequence. Will generate a common
-            one for all the data if none is given.
-        sensors : `str`
-            A colon delimited list of sensor names to use for the image.
-        obs_note : `str`
-            A freeform string containing small notes about the image.
-        checkpoint : `coro`
-            A optional awaitable callback that accepts one string argument
-            that is called before each bias is taken.
-
-        """
-        return await self.take_imgtype(
-            imgtype="BIAS",
-            exptime=0.0,
-            n=nbias,
-            group_id=group_id,
-            sensors=sensors,
-            obs_note=obs_note,
-            checkpoint=checkpoint,
-        )
-
-    async def take_darks(
-        self,
-        exptime,
-        ndarks,
-        group_id=None,
-        sensors=None,
-        obs_note=None,
-        checkpoint=None,
-    ):
-        """Take a series of dark images.
-
-        Parameters
-        ----------
-        exptime : `float`
-            Exposure time for darks.
-        ndarks : `int`
-            Number of dark frames to take.
-        group_id : `str`
-            Optional group id for the data sequence. Will generate a common
-            one for all the data if none is given.
-        sensors : `str`
-            A colon delimited list of sensor names to use for the image.
-        obs_note : `str`
-            A freeform string containing small notes about the image.
-        checkpoint : `coro`
-            A optional awaitable callback that accepts one string argument
-            that is called before each bias is taken.
-
-        """
-        return await self.take_imgtype(
-            imgtype="DARK",
-            exptime=exptime,
-            n=ndarks,
-            group_id=group_id,
-            sensors=sensors,
-            obs_note=obs_note,
-            checkpoint=checkpoint,
-        )
-
-    async def take_flats(
-        self,
-        exptime,
-        nflats,
-        group_id=None,
-        sensors=None,
-        obs_note=None,
-        checkpoint=None,
-    ):
-        """Take a series of flat field images.
-
-        Parameters
-        ----------
-        exptime : `float`
-            Exposure time for flats.
-        nflats : `int`
-            Number of flat frames to take.
-        group_id : `str`
-            Optional group id for the data sequence. Will generate a common
-            one for all the data if none is given.
-        sensors : `str`
-            A colon delimited list of sensor names to use for the image.
-        obs_note : `str`
-            A freeform string containing small notes about the image.
-        checkpoint : `coro`
-            A optional awaitable callback that accepts one string argument
-            that is called before each bias is taken.
-
-        """
-        return await self.take_imgtype(
-            imgtype="FLAT",
-            exptime=exptime,
-            n=nflats,
-            group_id=group_id,
-            sensors=sensors,
-            obs_note=obs_note,
-            checkpoint=checkpoint,
-        )
-
-    async def take_object(
-        self, exptime, n=1, group_id=None, sensors=None, obs_note=None, checkpoint=None
-    ):
-        """Take a series of object images.
-
-        Object images are assumed to be looking through an open dome at the
-        sky.
-
-        Parameters
-        ----------
-        exptime : `float`
-            Exposure time for flats.
-        n : `int`
-            Number of frames to take.
-        group_id : `str`
-            Optional group id for the data sequence. Will generate a common
-            one for all the data if none is given.
-        sensors : `str`
-            A colon delimited list of sensor names to use for the image.
-        obs_note : `str`
-            A freeform string containing small notes about the image.
-        checkpoint : `coro`
-            A optional awaitable callback that accepts one string argument
-            that is called before each bias is taken.
-
-        """
-        return await self.take_imgtype(
-            imgtype="OBJECT",
-            exptime=exptime,
-            n=n,
-            group_id=group_id,
-            sensors=sensors,
-            obs_note=obs_note,
-            checkpoint=checkpoint,
-        )
-
-    async def take_engtest(
+    async def take_spot(
         self,
         exptime,
         n=1,
         group_id=None,
-        test_type=None,
         sensors=None,
-        obs_note=None,
+        note=None,
         checkpoint=None,
-    ):
-        """Take a series of engineering test images.
-
-        Parameters
-        ----------
-        exptime : `float`
-            Exposure time for flats.
-        n : `int`
-            Number of frames to take.
-        group_id : `str`
-            Optional group id for the data sequence. Will generate a common
-            one for all the data if none is given.
-        test_type : `str`
-            The classifier for the testing type. Usually the same as
-            `image_type`.
-        sensors : `str`
-            A colon delimited list of sensor names to use for the image.
-        obs_note : `str`
-            A freeform string containing small notes about the image.
-        checkpoint : `coro`
-            A optional awaitable callback that accepts one string argument
-            that is called before each bias is taken.
-
-        """
-        return await self.take_imgtype(
-            imgtype="ENGTEST",
-            exptime=exptime,
-            n=n,
-            group_id=group_id,
-            test_type=test_type,
-            sensors=sensors,
-            obs_note=obs_note,
-            checkpoint=checkpoint,
-        )
-
-    async def take_spot(
-        self, exptime, n=1, group_id=None, sensors=None, obs_note=None, checkpoint=None
+        **kwargs,
     ):
         """Take a series of spot test images.
 
@@ -261,145 +81,106 @@ class ComCam(RemoteGroup):
             one for all the data if none is given.
         sensors : `str`
             A colon delimited list of sensor names to use for the image.
-        obs_note : `str`
+        note : `str`
             A freeform string containing small notes about the image.
         checkpoint : `coro`
             A optional awaitable callback that accepts one string argument
             that is called before each bias is taken.
 
         """
+        self.check_kwargs(**kwargs)
+
         return await self.take_imgtype(
             imgtype="SPOT",
             exptime=exptime,
             n=n,
             group_id=group_id,
-            sensors=sensors,
-            obs_note=obs_note,
+            # sensors=sensors,
+            note=note,
             checkpoint=checkpoint,
+            **kwargs,
         )
 
-    async def take_imgtype(
-        self,
-        imgtype,
-        exptime,
-        n,
-        group_id=None,
-        test_type=None,
-        sensors=None,
-        obs_note=None,
-        checkpoint=None,
-    ):
-        """Take a series of images of the specified image type.
+    # async def take_imgtype(
+    #     self,
+    #     imgtype,
+    #     exptime,
+    #     n,
+    #     group_id=None,
+    #     test_type=None,
+    #     sensors=None,
+    #     obs_note=None,
+    #     checkpoint=None,
+    # ):
+    #     """Take a series of images of the specified image type.
 
-        Parameters
-        ----------
-        image_type : `str`
-            Image type (a.k.a. IMGTYPE) (e.g. e.g. BIAS, DARK, FLAT, FE55,
-            XTALK, CCOB, SPOT...)
-        exptime : `float`
-            Exposure time for flats.
-        n : `int`
-            Number of frames to take.
-        group_id : `str`
-            Optional group id for the data sequence. Will generate a common
-            one for all the data if none is given.
-        test_type : `str`
-            The classifier for the testing type. Usually the same as
-            `image_type`.
-        sensors : `str`
-            A colon delimited list of sensor names to use for the image.
-        obs_note : `str`
-            A freeform string containing small notes about the image.
-        checkpoint : `coro`
-            A optional awaitable callback that accepts one string argument
-            that is called before each bias is taken.
+    #     Parameters
+    #     ----------
+    #     image_type : `str`
+    #         Image type (a.k.a. IMGTYPE) (e.g. e.g. BIAS, DARK, FLAT, FE55,
+    #         XTALK, CCOB, SPOT...)
+    #     exptime : `float`
+    #         Exposure time for flats.
+    #     n : `int`
+    #         Number of frames to take.
+    #     group_id : `str`
+    #         Optional group id for the data sequence. Will generate a common
+    #         one for all the data if none is given.
+    #     test_type : `str`
+    #         The classifier for the testing type. Usually the same as
+    #         `image_type`.
+    #     sensors : `str`
+    #         A colon delimited list of sensor names to use for the image.
+    #     obs_note : `str`
+    #         A freeform string containing small notes about the image.
+    #     checkpoint : `coro`
+    #         A optional awaitable callback that accepts one string argument
+    #         that is called before each bias is taken.
 
-        """
+    #     """
 
-        if imgtype not in self.valid_imagetype:
-            raise RuntimeError(
-                f"Invalid imgtype:{imgtype}. Must be one of "
-                f"{self.valid_imagetype!r}"
-            )
+    #     if imgtype not in self.valid_imagetype:
+    #         raise RuntimeError(
+    #             f"Invalid imgtype:{imgtype}. Must be one of "
+    #             f"{self.valid_imagetype!r}"
+    #         )
 
-        exp_ids = np.zeros(n, dtype=int)
+    #     exp_ids = np.zeros(n, dtype=int)
 
-        if group_id is None:
-            self.log.debug("Generating group_id")
-            group_id = self.next_group_id()
+    #     if group_id is None:
+    #         self.log.debug("Generating group_id")
+    #         group_id = self.next_group_id()
 
-        if imgtype == "BIAS" and exptime > 0.0:
-            self.log.warning("Image type is BIAS, ignoring exptime.")
+    #     if imgtype == "BIAS" and exptime > 0.0:
+    #         self.log.warning("Image type is BIAS, ignoring exptime.")
 
-        for i in range(n):
-            tag = f"{imgtype} {i+1:04} - {n:04}"
+    #     for i in range(n):
+    #         tag = f"{imgtype} {i+1:04} - {n:04}"
 
-            if checkpoint is not None:
-                await checkpoint(tag)
-            else:
-                self.log.debug(tag)
+    #         if checkpoint is not None:
+    #             await checkpoint(tag)
+    #         else:
+    #             self.log.debug(tag)
 
-            end_readout = await self.take_image(
-                exptime=exptime if imgtype != "BIAS" else 0.0,
-                shutter=imgtype not in ["BIAS", "DARK"],
-                image_type=imgtype,
-                group_id=group_id,
-                test_type=imgtype if test_type is None else test_type,
-                sensors="" if sensors is None else sensors,
-                obs_note="" if obs_note is None else obs_note,
-            )
+    #         end_readout = await self.take_image(
+    #             exptime=exptime if imgtype != "BIAS" else 0.0,
+    #             shutter=imgtype not in ["BIAS", "DARK"],
+    #             image_type=imgtype,
+    #             group_id=group_id,
+    #             test_type=imgtype if test_type is None else test_type,
+    #             sensors="" if sensors is None else sensors,
+    #             obs_note="" if obs_note is None else obs_note,
+    #         )
 
-            # parse out visitID from filename -
-            # (Patrick comment) this is highly annoying
-            _, _, i_prefix, i_suffix = end_readout.imageName.split("_")
+    #         # parse out visitID from filename -
+    #         # (Patrick comment) this is highly annoying
+    #         _, _, i_prefix, i_suffix = end_readout.imageName.split("_")
 
-            exp_ids[i] = int((i_prefix + i_suffix[1:]))
+    #         exp_ids[i] = int((i_prefix + i_suffix[1:]))
 
-        return exp_ids
+    #     return exp_ids
 
-    async def take_image(
-        self, exptime, shutter, image_type, group_id, test_type, sensors, obs_note
-    ):
-        """Set up the camera and take a series of images.
-
-        Parameters
-        ----------
-        exptime : `float`
-            The exposure time for the image, in seconds.
-        shutter : `bool`
-            Should activate the shutter? (False for bias and dark)
-        image_type : `str`
-            Image type (a.k.a. IMGTYPE) (e.g. e.g. BIAS, DARK, FLAT, FE55,
-            XTALK, CCOB, SPOT...)
-        group_id : `str`
-            Image groupId. Used to fill in FITS GROUPID header
-        test_type : `str`
-            The classifier for the testing type. Usually the same as
-            `image_type`.
-        sensors : `str`
-            A colon delimited list of sensor names to use for the image.
-        obs_note : `str`
-            A freeform string containing small notes about the image.
-
-        Returns
-        -------
-        endReadout : ``self.cam.evt_endReadout.DataType``
-            End readout event data.
-        """
-
-        return await self.expose(
-            exp_time=exptime,
-            shutter=shutter,
-            image_type=image_type,
-            group_id=group_id,
-            test_type=test_type,
-            sensors=sensors,
-            obs_note=obs_note,
-        )
-
-    async def expose(
-        self, exp_time, shutter, image_type, group_id, test_type, sensors, obs_note
-    ):
+    async def expose(self, exp_time, shutter, image_type, group_id, test_type, note):
         """Encapsulates the take image command.
 
         This basically consists of configuring and sending a takeImages
@@ -421,7 +202,7 @@ class ComCam(RemoteGroup):
             `image_type`.
         sensors : `str`
             A colon delimited list of sensor names to use for the image.
-        obs_note : `str`
+        note : `str`
             A freeform string containing small notes about the image.
 
         Returns
@@ -442,8 +223,8 @@ class ComCam(RemoteGroup):
                 expTime=float(exp_time),
                 shutter=bool(shutter),
                 keyValueMap=key_value_map,
-                sensors=sensors,
-                obsNote=obs_note,
+                sensors="",
+                obsNote=note,
             )
 
             timeout = self.read_out_time + self.long_timeout + self.long_long_timeout
@@ -455,12 +236,5 @@ class ComCam(RemoteGroup):
             )
             return end_readout
 
-    def next_group_id(self):
-        """Get the next group ID.
-
-        The group ID is the current TAI date and time as a string in ISO
-        format. It has T separating date and time and no time zone suffix.
-        Here is an example:
-        "2020-01-17T22:59:05.721"
-        """
-        return astropy.time.Time.now().tai.isot
+    async def setup_instrument(self, **kwargs):
+        pass

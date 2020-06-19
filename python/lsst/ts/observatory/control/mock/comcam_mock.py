@@ -26,19 +26,21 @@ import logging
 import astropy
 
 from lsst.ts import salobj
+from .base_group_mock import BaseGroupMock
 
 index_gen = salobj.index_generator()
 
 
-class ComCamMock:
+class ComCamMock(BaseGroupMock):
     """Mock the behavior of the combined components that make up ComCam.
 
     This is useful for unit testing.
     """
 
     def __init__(self):
-        self.cccamera = salobj.Controller(name="CCCamera")
-        self.ccheaderservice = salobj.Controller(name="CCHeaderService")
+        self.components = ("cccamera", "ccheaderservice", "ccarchiver")
+
+        super().__init__(["CCCamera", "CCHeaderService", "CCArchiver"])
 
         self.cccamera.cmd_takeImages.callback = self.cmd_take_images_callback
 
@@ -55,6 +57,18 @@ class ComCamMock:
         self.start_task = asyncio.gather(
             self.cccamera.start_task, self.ccheaderservice.start_task
         )
+
+    @property
+    def cccamera(self):
+        return self.controllers.cccamera
+
+    @property
+    def ccheaderservice(self):
+        return self.controllers.ccheaderservice
+
+    @property
+    def ccarchiver(self):
+        return self.controllers.ccarchiver
 
     async def cmd_take_images_callback(self, data):
         """Emulate take image command."""
