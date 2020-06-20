@@ -95,92 +95,22 @@ class ComCam(BaseCamera):
             exptime=exptime,
             n=n,
             group_id=group_id,
-            # sensors=sensors,
+            sensors=sensors,
             note=note,
             checkpoint=checkpoint,
             **kwargs,
         )
 
-    # async def take_imgtype(
-    #     self,
-    #     imgtype,
-    #     exptime,
-    #     n,
-    #     group_id=None,
-    #     test_type=None,
-    #     sensors=None,
-    #     obs_note=None,
-    #     checkpoint=None,
-    # ):
-    #     """Take a series of images of the specified image type.
-
-    #     Parameters
-    #     ----------
-    #     image_type : `str`
-    #         Image type (a.k.a. IMGTYPE) (e.g. e.g. BIAS, DARK, FLAT, FE55,
-    #         XTALK, CCOB, SPOT...)
-    #     exptime : `float`
-    #         Exposure time for flats.
-    #     n : `int`
-    #         Number of frames to take.
-    #     group_id : `str`
-    #         Optional group id for the data sequence. Will generate a common
-    #         one for all the data if none is given.
-    #     test_type : `str`
-    #         The classifier for the testing type. Usually the same as
-    #         `image_type`.
-    #     sensors : `str`
-    #         A colon delimited list of sensor names to use for the image.
-    #     obs_note : `str`
-    #         A freeform string containing small notes about the image.
-    #     checkpoint : `coro`
-    #         A optional awaitable callback that accepts one string argument
-    #         that is called before each bias is taken.
-
-    #     """
-
-    #     if imgtype not in self.valid_imagetype:
-    #         raise RuntimeError(
-    #             f"Invalid imgtype:{imgtype}. Must be one of "
-    #             f"{self.valid_imagetype!r}"
-    #         )
-
-    #     exp_ids = np.zeros(n, dtype=int)
-
-    #     if group_id is None:
-    #         self.log.debug("Generating group_id")
-    #         group_id = self.next_group_id()
-
-    #     if imgtype == "BIAS" and exptime > 0.0:
-    #         self.log.warning("Image type is BIAS, ignoring exptime.")
-
-    #     for i in range(n):
-    #         tag = f"{imgtype} {i+1:04} - {n:04}"
-
-    #         if checkpoint is not None:
-    #             await checkpoint(tag)
-    #         else:
-    #             self.log.debug(tag)
-
-    #         end_readout = await self.take_image(
-    #             exptime=exptime if imgtype != "BIAS" else 0.0,
-    #             shutter=imgtype not in ["BIAS", "DARK"],
-    #             image_type=imgtype,
-    #             group_id=group_id,
-    #             test_type=imgtype if test_type is None else test_type,
-    #             sensors="" if sensors is None else sensors,
-    #             obs_note="" if obs_note is None else obs_note,
-    #         )
-
-    #         # parse out visitID from filename -
-    #         # (Patrick comment) this is highly annoying
-    #         _, _, i_prefix, i_suffix = end_readout.imageName.split("_")
-
-    #         exp_ids[i] = int((i_prefix + i_suffix[1:]))
-
-    #     return exp_ids
-
-    async def expose(self, exp_time, shutter, image_type, group_id, test_type, note):
+    async def expose(
+        self,
+        exp_time,
+        shutter,
+        image_type,
+        group_id,
+        test_type=None,
+        sensors=None,
+        note=None,
+    ):
         """Encapsulates the take image command.
 
         This basically consists of configuring and sending a takeImages
@@ -214,8 +144,10 @@ class ComCam(BaseCamera):
             # FIXME: Current version of CCCamera software is not set up to take
             # images with numImages > 1, so this is fixed at 1 for now and we
             # loop through any set of images we want to take.
+
             key_value_map = (
-                f"imageType: {image_type}, groupId: {group_id}, testType: {test_type}"
+                f"imageType: {image_type}, groupId: {group_id}, "
+                f"testType: {image_type if test_type is None else test_type}"
             )
 
             self.rem.cccamera.cmd_takeImages.set(
@@ -223,8 +155,8 @@ class ComCam(BaseCamera):
                 expTime=float(exp_time),
                 shutter=bool(shutter),
                 keyValueMap=key_value_map,
-                sensors="",
-                obsNote=note,
+                sensors="" if sensors is None else sensors,
+                obsNote="" if note is None else note,
             )
 
             timeout = self.read_out_time + self.long_timeout + self.long_long_timeout
