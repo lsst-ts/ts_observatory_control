@@ -109,11 +109,4 @@ class ComCamMock(BaseGroupMock):
             except Exception:
                 pass
 
-        await asyncio.gather(self.cccamera.close(), self.ccheaderservice.close())
-
-    async def __aenter__(self):
-        await asyncio.gather(self.start_task)
-        return self
-
-    async def __aexit__(self, *args):
-        await self.close()
+        await super().close()
