@@ -45,7 +45,7 @@ class ComCam(BaseCamera):
 
         super().__init__(
             components=["CCCamera", "CCHeaderService", "CCArchiver"],
-            instrument_setup_attributes=[],
+            instrument_setup_attributes=["filter"],
             domain=domain,
             log=log,
             intended_usage=intended_usage,
@@ -169,4 +169,39 @@ class ComCam(BaseCamera):
             return end_readout
 
     async def setup_instrument(self, **kwargs):
-        pass
+        """Implements abstract method to setup instrument.
+
+        This method will call `setup_filter` to set the camera filter.
+
+        Parameters
+        ----------
+        **kwargs
+            Arbitrary keyword arguments.
+
+        See Also
+        --------
+        setup_filter: Setup camera filter.
+        take_bias: Take series of bias.
+        take_darks: Take series of darks.
+        take_flats: Take series of flat-field images.
+        take_object: Take series of object observations.
+        take_engtest: Take series of engineering test observations.
+        take_spot: Take series of spot images.
+        take_imgtype: Take series of images by image type.
+        expose: Low level expose method.
+        """
+        self.check_kwargs(**kwargs)
+        await self.setup_filter(filter=kwargs.get("filter", None))
+
+    async def setup_filter(self, filter):
+        """Setup the filter for the camera.
+
+        Parameters
+        ----------
+        filter : `None` or `int` or `str`
+            Filter id or name. If None, do not change the filter.
+        """
+        if filter is None:
+            return
+        else:
+            raise NotImplementedError("set_filter not available yet.")

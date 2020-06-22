@@ -22,6 +22,7 @@ import random
 import unittest
 
 import asynctest
+import pytest
 
 # from lsst.ts import salobj
 from lsst.ts.observatory.control.maintel import ComCam
@@ -47,6 +48,7 @@ class TestComCam(RemoteGroupTestCase, asynctest.TestCase):
             self.assertEqual(len(self.comcam_mock.exptime_list), nbias)
             for i in range(nbias):
                 self.assertEqual(self.comcam_mock.exptime_list[i], 0.0)
+            self.assertIsNone(self.comcam_mock.camera_filter)
 
     async def test_take_darks(self):
         async with self.make_group():
@@ -57,6 +59,7 @@ class TestComCam(RemoteGroupTestCase, asynctest.TestCase):
             self.assertEqual(len(self.comcam_mock.exptime_list), ndarks)
             for i in range(ndarks):
                 self.assertEqual(self.comcam_mock.exptime_list[i], exptime)
+            self.assertIsNone(self.comcam_mock.camera_filter)
 
     async def test_take_flats(self):
         async with self.make_group():
@@ -70,6 +73,21 @@ class TestComCam(RemoteGroupTestCase, asynctest.TestCase):
             self.assertEqual(len(self.comcam_mock.exptime_list), nflats)
             for i in range(nflats):
                 self.assertEqual(self.comcam_mock.exptime_list[i], exptime)
+            self.assertIsNone(self.comcam_mock.camera_filter)
+
+    async def test_take_flats_with_filter(self):
+        async with self.make_group():
+            nflats = 10
+            exptime = 5.0
+            camera_filter = "r"
+
+            with pytest.raises(NotImplementedError):
+                await self.comcam.take_flats(
+                    nflats=nflats, exptime=exptime, filter=camera_filter
+                )
+            self.assertEqual(self.comcam_mock.nimages, 0)
+            self.assertEqual(len(self.comcam_mock.exptime_list), 0)
+            self.assertIsNone(self.comcam_mock.camera_filter)
 
 
 if __name__ == "__main__":

@@ -54,6 +54,8 @@ class ComCamMock(BaseGroupMock):
 
         self.end_readout_task = None
 
+        self.camera_filter = None
+
         self.start_task = asyncio.gather(
             self.cccamera.start_task, self.ccheaderservice.start_task
         )
