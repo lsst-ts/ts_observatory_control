@@ -25,7 +25,7 @@ import asynctest
 import pytest
 
 # from lsst.ts import salobj
-from lsst.ts.observatory.control.maintel import ComCam
+from lsst.ts.observatory.control.maintel.comcam import ComCam, ComCamUsages
 from lsst.ts.observatory.control.mock import ComCamMock
 from lsst.ts.observatory.control.utils import RemoteGroupTestCase
 
@@ -41,7 +41,7 @@ class TestComCam(RemoteGroupTestCase, asynctest.TestCase):
         return (self.comcam, self.comcam_mock)
 
     async def test_take_bias(self):
-        async with self.make_group():
+        async with self.make_group(usage=ComCamUsages.TakeImage):
             nbias = 10
             await self.comcam.take_bias(nbias=nbias)
             self.assertEqual(self.comcam_mock.nimages, nbias)
@@ -51,7 +51,7 @@ class TestComCam(RemoteGroupTestCase, asynctest.TestCase):
             self.assertIsNone(self.comcam_mock.camera_filter)
 
     async def test_take_darks(self):
-        async with self.make_group():
+        async with self.make_group(usage=ComCamUsages.TakeImage):
             ndarks = 10
             exptime = 5.0
             await self.comcam.take_darks(ndarks=ndarks, exptime=exptime)
@@ -62,7 +62,7 @@ class TestComCam(RemoteGroupTestCase, asynctest.TestCase):
             self.assertIsNone(self.comcam_mock.camera_filter)
 
     async def test_take_flats(self):
-        async with self.make_group():
+        async with self.make_group(usage=ComCamUsages.TakeImage):
             nflats = 10
             exptime = 5.0
 
@@ -76,7 +76,7 @@ class TestComCam(RemoteGroupTestCase, asynctest.TestCase):
             self.assertIsNone(self.comcam_mock.camera_filter)
 
     async def test_take_flats_with_filter(self):
-        async with self.make_group():
+        async with self.make_group(usage=ComCamUsages.TakeImage):
             nflats = 10
             exptime = 5.0
             camera_filter = "r"

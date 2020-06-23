@@ -18,15 +18,44 @@
 #
 # You should have received a copy of the GNU General Public License
 
-__all__ = ["ComCam"]
+__all__ = ["ComCam", "ComCamUsages"]
 
 import asyncio
+import types
 
-# import numpy as np
-# import astropy
-
-# from ..remote_group import RemoteGroup
+from ..remote_group import Usages
 from ..base_camera import BaseCamera
+
+
+class ComCamUsages(Usages):
+    """ComCam usages definition.
+
+    Notes
+    -----
+
+    Additional usages definition:
+
+    * TakeImage: Enable Camera-only take image operations. Exclude
+                 HeaderService and Archiver data.
+    * TakeImageFull: Enable all take image operations with additional support
+                     events from HeaderService and Archiver
+    """
+
+    TakeImage = 1 << 3
+    TakeImageFull = 1 << 4
+
+    def __iter__(self):
+
+        return iter(
+            [
+                self.All,
+                self.StateTransition,
+                self.MonitorState,
+                self.MonitorHeartBeat,
+                self.TakeImage,
+                self.TakeImageFull,
+            ]
+        )
 
 
 class ComCam(BaseCamera):
@@ -161,7 +190,6 @@ class ComCam(BaseCamera):
 
             timeout = self.read_out_time + self.long_timeout + self.long_long_timeout
             self.rem.cccamera.evt_endReadout.flush()
-            self.rem.ccheaderservice.evt_largeFileObjectAvailable.flush()
             await self.rem.cccamera.cmd_takeImages.start(timeout=timeout + exp_time)
             end_readout = await self.rem.cccamera.evt_endReadout.next(
                 flush=False, timeout=timeout
@@ -205,3 +233,58 @@ class ComCam(BaseCamera):
             return
         else:
             raise NotImplementedError("set_filter not available yet.")
+
+    @property
+    def valid_use_cases(self):
+        """Returns valid usages.
+
+        Returns
+        -------
+        usages: enum
+
+        """
+        return ComCamUsages()
+
+    @property
+    def usages(self):
+
+        usages = super().usages
+
+        usages[self.valid_use_cases.All] = types.SimpleNamespace(
+            components=self._components,
+            readonly=False,
+            include=[
+                "start",
+                "enable",
+                "disable",
+                "standby",
+                "exitControl",
+                "enterControl",
+                "summaryState",
+                "settingVersions",
+                "heartbeat",
+                "takeImages",
+                "setFilter",
+                "endReadout",
+                "largeFileObjectAvailable",
+            ],
+        )
+
+        usages[self.valid_use_cases.TakeImage] = types.SimpleNamespace(
+            components=["CCCamera"],
+            readonly=False,
+            include=["takeImages", "setFilter", "endReadout"],
+        )
+
+        usages[self.valid_use_cases.TakeImageFull] = types.SimpleNamespace(
+            components=["CCCamera", "CCHeaderService", "CCArchiver"],
+            readonly=False,
+            include=[
+                "takeImages",
+                "setFilter",
+                "endReadout",
+                "largeFileObjectAvailable",
+            ],
+        )
+
+        return usages
