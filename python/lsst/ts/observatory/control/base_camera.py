@@ -80,7 +80,13 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
         self.cmd_lock = asyncio.Lock()
 
     async def take_bias(
-        self, nbias, group_id=None, test_type=None, note=None, checkpoint=None
+        self,
+        nbias,
+        group_id=None,
+        test_type=None,
+        sensors=None,
+        note=None,
+        checkpoint=None,
     ):
         """Take a series of bias images.
 
@@ -93,6 +99,8 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
             one for all the data if none is given.
         test_type : `str`
             Optional string to be added to the keyword testType image header.
+        sensors : `str`
+            A colon delimited list of sensor names to use for the image.
         note : `str`
             Optional observer note to be added to the image header.
         checkpoint : `coro`
@@ -116,12 +124,20 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
             n=nbias,
             group_id=group_id,
             test_type=test_type,
+            sensors=sensors,
             note=note,
             checkpoint=checkpoint,
         )
 
     async def take_darks(
-        self, exptime, ndarks, group_id=None, test_type=None, note=None, checkpoint=None
+        self,
+        exptime,
+        ndarks,
+        group_id=None,
+        test_type=None,
+        sensors=None,
+        note=None,
+        checkpoint=None,
     ):
         """Take a series of dark images.
 
@@ -136,6 +152,8 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
             one for all the data if none is given.
         test_type : `str`
             Optional string to be added to the keyword testType image header.
+        sensors : `str`
+            A colon delimited list of sensor names to use for the image.
         note : `str`
             Optional observer note to be added to the image header.
         checkpoint : `coro`
@@ -159,6 +177,7 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
             n=ndarks,
             group_id=group_id,
             test_type=test_type,
+            sensors=sensors,
             note=note,
             checkpoint=checkpoint,
         )
@@ -169,6 +188,7 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
         nflats,
         group_id=None,
         test_type=None,
+        sensors=None,
         note=None,
         checkpoint=None,
         **kwargs,
@@ -186,6 +206,8 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
             one for all the data if none is given.
         test_type : `str`
             Optional string to be added to the keyword testType image header.
+        sensors : `str`
+            A colon delimited list of sensor names to use for the image.
         note : `str`
             Optional observer note to be added to the image header.
         checkpoint : `coro`
@@ -219,6 +241,7 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
             n=nflats,
             group_id=group_id,
             test_type=test_type,
+            sensors=sensors,
             note=note,
             checkpoint=checkpoint,
             **kwargs,
@@ -230,6 +253,7 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
         n=1,
         group_id=None,
         test_type=None,
+        sensors=None,
         note=None,
         checkpoint=None,
         **kwargs,
@@ -245,17 +269,13 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
             Exposure time for flats.
         n : `int`
             Number of frames to take.
-        filter : `None` or `int` or `str`
-            Filter id or name. If None, do not change the filter.
-        grating : `None` or `int` or `str`
-            Grating id or name.  If None, do not change the grating.
-        linear_stage : `None` or `float`
-            Linear stage position.  If None, do not change the linear stage.
         group_id : `str`
             Optional group id for the data sequence. Will generate a common
             one for all the data if none is given.
         test_type : `str`
             Optional string to be added to the keyword testType image header.
+        sensors : `str`
+            A colon delimited list of sensor names to use for the image.
         note : `str`
             Optional observer note to be added to the image header.
         checkpoint : `coro`
@@ -284,6 +304,7 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
             n=n,
             group_id=group_id,
             test_type=test_type,
+            sensors=sensors,
             note=note,
             checkpoint=checkpoint,
             **kwargs,
@@ -295,6 +316,7 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
         n=1,
         group_id=None,
         test_type=None,
+        sensors=None,
         note=None,
         checkpoint=None,
         **kwargs,
@@ -312,6 +334,8 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
             one for all the data if none is given.
         test_type : `str`
             Optional string to be added to the keyword testType image header.
+        sensors : `str`
+            A colon delimited list of sensor names to use for the image.
         note : `str`
             Optional observer note to be added to the image header.
         checkpoint : `coro`
@@ -340,6 +364,7 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
             n=n,
             group_id=group_id,
             test_type=test_type,
+            sensors=sensors,
             note=note,
             checkpoint=checkpoint,
             **kwargs,
@@ -352,6 +377,7 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
         n,
         group_id=None,
         test_type=None,
+        sensors=None,
         note=None,
         checkpoint=None,
         **kwargs,
@@ -364,14 +390,10 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
             Exposure time for flats.
         n : `int`
             Number of frames to take.
-        filter : `None` or `int` or `str`
-            Filter id or name. If None, do not change the filter.
-        grating : `None` or `int` or `str`
-            Grating id or name.  If None, do not change the grating.
-        linear_stage : `None` or `float`
-            Linear stage position.  If None, do not change the linear stage.
         test_type : `str`
             Optional string to be added to the keyword testType image header.
+        sensors : `str`
+            A colon delimited list of sensor names to use for the image.
         note : `str`
             Optional observer note to be added to the image header.
         checkpoint : `coro`
@@ -423,6 +445,7 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
                 image_type=imgtype,
                 group_id=group_id,
                 test_type=test_type,
+                sensors=sensors,
                 note=note,
             )
             # parse out visitID from filename -
@@ -452,7 +475,7 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
                 )
 
     @abc.abstractmethod
-    async def setup_instrument(**kwargs):
+    async def setup_instrument(self, **kwargs):
         """Generic method called during `take_imgtype` to setup instrument.
 
         Parameters
@@ -475,7 +498,14 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
 
     @abc.abstractmethod
     async def expose(
-        self, exp_time, shutter, image_type, group_id, test_type=None, note=None,
+        self,
+        exp_time,
+        shutter,
+        image_type,
+        group_id,
+        test_type=None,
+        sensors=None,
+        note=None,
     ):
         """Encapsulates the take image command.
 
@@ -495,6 +525,8 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
             Image groupId. Used to fill in FITS GROUPID header
         test_type : `str`
             Optional string to be added to the keyword testType image header.
+        sensors : `str`
+            A colon delimited list of sensor names to use for the image.
         note : `str`
             Optional observer note to be added to the image header.
 

@@ -22,3 +22,4 @@ from .base_group_mock import *
 from .latiss_mock import *
 from .atcs_mock import *
 from .mtcs_mock import *
+from .comcam_mock import *

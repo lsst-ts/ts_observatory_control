@@ -93,7 +93,14 @@ class LATISS(BaseCamera):
         )
 
     async def expose(
-        self, exp_time, shutter, image_type, group_id, test_type=None, note=None,
+        self,
+        exp_time,
+        shutter,
+        image_type,
+        group_id,
+        test_type=None,
+        sensors=None,
+        note=None,
     ):
         """Encapsulates the take image command.
 
@@ -113,6 +120,8 @@ class LATISS(BaseCamera):
             Image groupId. Used to fill in FITS GROUPID header
         test_type : `str`
             Optional string to be added to the keyword testType image header.
+        sensors : `str`
+            A colon delimited list of sensor names to use for the image.
         note : `str`
             Optional observer note to be added to the image header.
 
