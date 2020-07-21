@@ -1,5 +1,8 @@
 pipeline {
     agent any
+    options {
+      disableConcurrentBuilds()
+    }
     environment {
         network_name = "n_${BUILD_ID}_${JENKINS_NODE_COOKIE}"
         container_name = "c_${BUILD_ID}_${JENKINS_NODE_COOKIE}"
@@ -77,11 +80,19 @@ pipeline {
             steps {
                 script {
                     sh """
-                    docker exec -u saluser \${container_name} sh -c \"source ~/.setup.sh && cd /home/saluser/repo/ && eups declare -r . -t saluser && setup ts_observatory_control -t saluser && export LSST_DDS_IP=192.168.0.1 && printenv LSST_DDS_IP && py.test --junitxml=tests/.tests/junit.xml\"
+                    docker exec -u saluser \${container_name} sh -c \"source ~/.setup.sh && cd /home/saluser/repo/ && eups declare -r . -t saluser && setup ts_observatory_control -t saluser && export LSST_DDS_IP=192.168.0.1 && printenv LSST_DDS_IP && pytest -v --color=no --junitxml=tests/.tests/junit.xml\"
                     """
                 }
             }
         }
+// This next step would start a build of ts_standardscripts. This need a bit
+// more work to sort the branches right. I will leave it here for future
+// reference.
+//         stage("Build dependency - ts_standardscripts") {
+//            steps {
+//                build job: 'LSST_Telescope-and-Site/ts_standardscripts/develop', parameters: [stringParam(name: 'CHANGE_BRANCH', value: "${work_branches}")], wait: false
+//            }
+//         }
     }
     post {
         always {

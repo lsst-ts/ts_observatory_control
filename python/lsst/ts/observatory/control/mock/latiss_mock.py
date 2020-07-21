@@ -26,12 +26,14 @@ import logging
 
 from lsst.ts import salobj
 
+from .base_group_mock import BaseGroupMock
+
 CLOSE_SLEEP = 5  # seconds
 
 index_gen = salobj.index_generator()
 
 
-class LATISSMock:
+class LATISSMock(BaseGroupMock):
     """Mock the behavior of the combined components that make out LATISS.
 
     This is useful for unit testing.
@@ -41,25 +43,14 @@ class LATISSMock:
 
         self.components = ("atspec", "atcam", "atheaderservice", "atarchiver")
 
-        self.atcam = salobj.Controller(name="ATCamera")
-        self.atspec = salobj.Controller(name="ATSpectrograph")
-        self.atheaderservice = salobj.Controller(name="ATHeaderService")
-        self.atarchiver = salobj.Controller(name="ATArchiver")
+        super().__init__(
+            ["ATSpectrograph", "ATCamera", "ATHeaderService", "ATArchiver"]
+        )
 
         self.atcam.cmd_takeImages.callback = self.cmd_take_images_callback
         self.atspec.cmd_changeFilter.callback = self.cmd_changeFilter_callback
         self.atspec.cmd_changeDisperser.callback = self.cmd_changeDisperser_callback
         self.atspec.cmd_moveLinearStage.callback = self.cmd_moveLinearStage_callback
-
-        self.setting_versions = {}
-
-        self.settings_to_apply = {}
-
-        for comp in self.components:
-            getattr(self, comp).cmd_start.callback = self.get_start_callback(comp)
-            getattr(self, comp).cmd_enable.callback = self.get_enable_callback(comp)
-            getattr(self, comp).cmd_disable.callback = self.get_disable_callback(comp)
-            getattr(self, comp).cmd_standby.callback = self.get_standby_callback(comp)
 
         self.readout_time = 1.0
         self.shutter_time = 0.5
@@ -75,78 +66,21 @@ class LATISSMock:
 
         self.log = logging.getLogger(__name__)
 
-        self.start_task = asyncio.create_task(self.start_task_publish())
+    @property
+    def atspec(self):
+        return self.controllers.atspectrograph
 
-    async def start_task_publish(self):
+    @property
+    def atcam(self):
+        return self.controllers.atcamera
 
-        await asyncio.gather(
-            self.atspec.start_task,
-            self.atcam.start_task,
-            self.atheaderservice.start_task,
-            self.atarchiver.start_task,
-        )
+    @property
+    def atheaderservice(self):
+        return self.controllers.atheaderservice
 
-        for comp in (self.atspec, self.atcam, self.atheaderservice, self.atarchiver):
-            comp.evt_summaryState.set_put(summaryState=salobj.State.STANDBY)
-
-    def get_start_callback(self, comp):
-        def callback(data):
-
-            ss = getattr(self, comp).evt_summaryState
-
-            if ss.data.summaryState != salobj.State.STANDBY:
-                raise RuntimeError(
-                    f"Current state is {salobj.State(ss.data.summaryState)}."
-                )
-
-            ss.set_put(summaryState=salobj.State.DISABLED)
-
-            self.settings_to_apply[comp] = data.settingsToApply
-
-        return callback
-
-    def get_enable_callback(self, comp):
-        def callback(data):
-
-            ss = getattr(self, comp).evt_summaryState
-
-            if ss.data.summaryState != salobj.State.DISABLED:
-                raise RuntimeError(
-                    f"Current state is {salobj.State(ss.data.summaryState)}."
-                )
-
-            ss.set_put(summaryState=salobj.State.ENABLED)
-
-        return callback
-
-    def get_disable_callback(self, comp):
-        def callback(data):
-
-            ss = getattr(self, comp).evt_summaryState
-
-            if ss.data.summaryState != salobj.State.ENABLED:
-                raise RuntimeError(
-                    f"Current state is {salobj.State(ss.data.summaryState)}."
-                )
-
-            ss.set_put(summaryState=salobj.State.DISABLED)
-
-        return callback
-
-    def get_standby_callback(self, comp):
-        def callback(data):
-
-            ss = getattr(self, comp).evt_summaryState
-
-            if ss.data.summaryState not in (salobj.State.DISABLED, salobj.State.FAULT):
-                raise RuntimeError(
-                    f"[{comp}]: Current state is {salobj.State(ss.data.summaryState)!r}. "
-                    f"Expected {salobj.State.DISABLED!r} or {salobj.State.FAULT!r}"
-                )
-
-            ss.set_put(summaryState=salobj.State.STANDBY)
-
-        return callback
+    @property
+    def atarchiver(self):
+        return self.controllers.atarchiver
 
     async def cmd_take_images_callback(self, data):
         """Emulate take image command."""
@@ -212,14 +146,4 @@ class LATISSMock:
             except Exception:
                 pass
 
-        for comp in (self.atspec, self.atcam, self.atheaderservice, self.atarchiver):
-            await comp.close()
-
-    async def __aenter__(self):
-        await asyncio.gather(self.start_task)
-        return self
-
-    async def __aexit__(self, *args):
-        await self.close()
-
-        await asyncio.sleep(CLOSE_SLEEP)
+        await super().close()

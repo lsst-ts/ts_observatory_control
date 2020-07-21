@@ -18,27 +18,45 @@
 #
 # You should have received a copy of the GNU General Public License
 
-import itertools
 import unittest
 
+import astropy.units as u
+from astropy.coordinates import ICRS, EarthLocation, Angle
+
+from lsst.ts import salobj
 from lsst.ts.observatory.control import utils
 
 
 class TestUtils(unittest.TestCase):
-    def test_subtract_angles(self):
-        for angle1, nwraps, diff in itertools.product(
-            (-90, -0.0001, 0, 0.0001, 90, 179.9999, 180, 180.0001),
-            (0, -1, 1, -5, 5),
-            (-0.00001, 0, 0.00001, -90, 90, -179.9999, 179.9999),
-        ):
-            with self.subTest(angle1=angle1, nwraps=nwraps, diff=diff):
-                angle2 = angle1 - diff
-                wrapped_angle1 = nwraps * 360 + angle1
-                wrapped_angle2 = nwraps * 360 + angle2
-                meas_diff1 = utils.subtract_angles(wrapped_angle1, angle2)
-                self.assertAlmostEqual(meas_diff1, diff)
-                meas_diff2 = utils.subtract_angles(angle1, wrapped_angle2)
-                self.assertAlmostEqual(meas_diff2, diff)
+    def test_handle_rottype(self):
+        # TODO: Implement test (DM-21336)
+
+        utils.handle_rottype()
+
+        utils.handle_rottype(rot_par=0.0)
+
+        utils.handle_rottype(rot_phys_sky=0.0)
+
+        with self.assertRaises(RuntimeError):
+            utils.handle_rottype(rot_par=0.0, rot_phys_sky=0.0)
+
+    def test_parallactic_angle(self):
+        # TODO: Implement test (DM-21336)
+        radec_icrs = ICRS(Angle(0.0, unit=u.hourangle), Angle(-80.0, unit=u.deg))
+
+        location = EarthLocation.from_geodetic(
+            lon=-70.747698 * u.deg, lat=-30.244728 * u.deg, height=2663.0 * u.m
+        )
+
+        current_time = salobj.astropy_time_from_tai_unix(salobj.current_tai())
+
+        current_time.location = location
+
+        par_angle = utils.parallactic_angle(
+            location, current_time.sidereal_time("mean"), radec_icrs,
+        )
+
+        self.assertIsNotNone(par_angle)
 
 
 if __name__ == "__main__":
