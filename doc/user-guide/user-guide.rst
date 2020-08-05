@@ -3,6 +3,7 @@
 .. _Remote: https://ts-salobj.lsst.io/py-api/lsst.ts.salobj.Remote.html#lsst.ts.salobj.Remote
 .. _salobj.State: https://ts-salobj.lsst.io/py-api/lsst.ts.salobj.State.html#lsst.ts.salobj.State
 .. _ScriptQueue: https://ts-scriptqueue.lsst.io
+.. _salobj.BaseScript: https://ts-salobj.lsst.io/py-api/lsst.ts.salobj.BaseScript.html
 
 .. _user-guide:
 
@@ -19,7 +20,7 @@ Observatory Control User Guide
 
 The Observatory Control package provides users and developers with tools to interact with the Rubin Observatory System.
 These tools are mainly Python classes/objects that represent major groups of components and encapsulate high-level operations involving those components.
-For instance, the `ATCS` class combine functionality for all "auxiliary telescope" components of the Vera Rubin Auxiliary Telescope.
+For instance, the `ATCS` class combines functionality for all telescope-operation related components for the Vera Rubin Auxiliary Telescope.
 Actions like slewing the telescope, while making sure all involved components are in `ENABLED` state and waiting until all components are in position is encapsulate in a single command;
 
 .. code:: python
@@ -32,17 +33,28 @@ Actions like slewing the telescope, while making sure all involved components ar
 
    await atcs.slew_object(name="Alf Pav")
 
-.. A set of utilities are also provided that allow users to combine component coordination with activities like data analysis and more.
+More examples for this and other CSC groups are available :ref:`furthermore <user-guide-generic-telescope-control-operations>`.
 
 In the following sections we provide some general guidance and insights in using these classes as well as a detailed description of the main operations available on each one of them.
 
-.. _user-guide-sharing-resources:
+.. _user-guide-controlling-resources:
 
-Sharing resources
-=================
+Controlling resources
+=====================
 
-When using multiple classes, for instance to control telescope and instrument, it is highly recommended to share some resources, like the DDS domain.
-This can be done by creating a `salobj.Domain`_ and passing it to the classes.
+When writing `SAL Scripts`_ and notebooks to perform high-level operations using many CSCs, one must be aware of resource consumption and allocation, as it may have substantial impact on the performance of the tasks.
+
+Both SalObj and the high-level control modules provides simple ways to control these resources, that users can employ to improve their tasks.
+There are mainly two features that can be used for this purpose; :ref:`user-guide-sharing-dds-domain` and :ref:`user-guide-limiting-resources`.
+
+.. _user-guide-sharing-dds-domain:
+
+Sharing DDS domain
+------------------
+
+When using multiple classes, for instance to control telescope and instrument, it is highly recommended to share some resources, which can reduce the overhead when running `SAL Scripts`_ and Jupyter notebooks.
+The most common shareable resource is the DDS domain.
+When running from a Jupyter notebook, this can done by creating a `salobj.Domain`_ and passing it to the classes:
 
 .. _salobj.Domain: https://ts-salobj.lsst.io/py-api/lsst.ts.salobj.Domain.html#lsst.ts.salobj.Domain
 
@@ -58,11 +70,6 @@ This can be done by creating a `salobj.Domain`_ and passing it to the classes.
 
    await atcs.start_task
    await latiss.start_task
-
-.. _user-guide-usages-in-sal-scripts:
-
-Usages in SAL Scripts
-=====================
 
 When writing a `SAL Script`_ for the `ScriptQueue`_ it is possible to use the scripts own domain.
 In addition, it is also possible to pass the script log object so that logging from the class will also be published to SAL.
@@ -80,6 +87,10 @@ In addition, it is also possible to pass the script log object so that logging f
          super().__init__(index=index, descr="My script for some operation.")
 
          self.atcs = ATCS(domain=self.domain, log=self.log)
+
+In the code above, note that ``self.log`` is not defined anywhere in the scope.
+The reason is that ``MyScript`` inherits it from `salobj.BaseScript`_.
+This is actually a custom `Python logging <https://docs.python.org/3/howto/logging-cookbook.html>`__ object that will publish log messages to DDS, allowing them to be stored in the EFD for debugging.
 
 .. _user-guide-limiting-resources:
 
@@ -141,6 +152,8 @@ It is possible to provide settings either partially of fully using the ``setting
 
 Following are a couple of examples of how to use the :py:meth:`enable <lsst.ts.observatory.control.RemoteGroup.enable>` method.
 
+.. TODO: (DM-26261) Add/Document feature to inspect all settings from all components in a group.
+
 This will inspect the ``settingVersions`` event from all CSCs in the `ATCS` group to determine the ``settingsToApply`` for each one of them.
 
 .. code:: python
@@ -177,7 +190,7 @@ Note how some of them receive an empty string, which is a way of enabling the CS
         }
     )
 
-Then, to send ``all`` components to ``STANDBY`` state;
+To send ``all`` components to ``STANDBY`` state;
 
 .. code:: python
 
@@ -255,6 +268,24 @@ In terms of setting up and shutting down the system :py:class:`BaseTCS <lsst.ts.
 The actual operation performed by each of those tasks is particular to the final implementation and is detailed in :ref:`user-guide-atcs` and :ref:`user-guide-mtcs`.
 
 Furthermore, the TCS provides a suit of useful slew operations.
+The examples bellow are equally valid for the Main and Auxiliary telescopes.
+One would simply do:
+
+.. code:: python
+
+    from lsst.ts.observatory.control.auxtel import ATCS
+
+    tcs = ATCS()
+
+to operate the Auxiliary Telescope or;
+
+.. code:: python
+
+    from lsst.ts.observatory.control.maintel import MTCS
+
+    tcs = MTCS()
+
+for the Main Telescope.
 
 To slew the telescope to an AzEl coordinate (for instance, to conduct some maintenance of calibration), it is possible to use :py:meth:`point_azel <lsst.ts.observatory.control.BaseTCS.point_azel>`.
 The method will slew to a fixed position in the local coordinate and `will not` initiate tracking.
@@ -369,7 +400,7 @@ For that, one can use the ``rot_par`` parameter;
 
 Although ``rot_par=0.`` is the most commonly used value, the user is free to select any angle.
 
-In case the user selects an angle that would cause the rotator to slew to a position outside the valid range, the task will fail and raise an exception.
+In case the user demands an angle outside the valid range, the task will fail and raise an exception and not slew to the demanded position.
 
   >>> await tcs.slew_icrs(...)
   ---------------------------------------------------------------------------
@@ -549,7 +580,7 @@ All the slew methods discussed in :ref:`user-guide-generic-telescope-control-ope
     # Minimum set of parameters.
     await atcs.slew_icrs(ra="00 42 44.330", dec="+41 16 07.50")
 
-    # Explicitly specify rot_sky and targer_name (both optional).
+    # Explicitly specify rot_sky and target_name (both optional).
     await atcs.slew_icrs(
               ra="00 42 44.330", dec="+41 16 07.50", rot_sky=0., target_name="M31"
           )

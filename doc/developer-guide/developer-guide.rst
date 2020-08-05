@@ -12,7 +12,7 @@ Observatory Control Developer Guide
 .. image:: https://img.shields.io/badge/Jira-ts_observatory_control-green.svg
     :target: https://jira.lsstcorp.org/issues/?jql=labels+%3D+ts_observatory_control
 
-The repo defines the `RemoteGroup` class which represent a group of components in the control system.
+The repo defines the `RemoteGroup` class which represent a group of `Commandable SAL Components <https://obs-controls.lsst.io/System-Architecture/CSC-Overview/index.html>`__ (CSCs) in the control system.
 This class implements basic functionality that is common to all groups of CSCs.
 
 .. _usages:

@@ -19,12 +19,12 @@ Overview
 ========
 
 The Vera Rubin Observatory control system is a highly distributed system composed of a myriad of independent components that must act together to perform high-level operations.
-By high-level operations we mean actions like commanding the telescope to slewing to a position in the sky, wait for the telescope, dome and all the other components to be ready and then perform observations.
+By high-level operations we mean actions such as commanding the telescope to slew to to a position in the sky, wait for the telescope, dome and all the other components to be ready and then perform observations.
 
-Commanding and sorting out the state of each individual component can be valuable when it comes to performing regular observations, commissioning and/or engineering activities but can be extremely taxing for users.
-To help mitigate the issue, Telescope and Site provide this collection of high-level control software.
-The software is organized into a set of classes that bundle together functionality from a group of components, emulating what a hierarchical architecture would look like.
-Users can use these classes separately to control a set of components or combine them to achieve even higher levels of operations.
+Commanding and monitoring the state and other particular events from each individual component can be valuable when it comes to performing regular observations, commissioning and/or engineering activities but can be extremely taxing for users.
+This collection of high-level control software is designed to help mitigate the issue.
+The software is organized into a set of classes that bundle together functionality from a group of components, essentially grouping the coordinated action of many CSCs into single high-level operations.
+Users can utilize these classes separately to control a set of components or combine them to achieve even higher levels of operations.
 
 .. _user-documentation:
 
@@ -48,8 +48,9 @@ Information about operating the system using the `ScriptQueue`_ can be found in 
 
 .. _development-documentation:
 
-Development Documentation
-=========================
+Developer Documentation
+=======================
+
 This area of documentation focuses on the classes used, API's, and how to participate to the development of the [CSC] software packages.
 
 .. toctree::
