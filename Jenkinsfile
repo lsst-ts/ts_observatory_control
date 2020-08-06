@@ -111,7 +111,12 @@ pipeline {
               ])
 
               sh """
-              docker exec -u saluser \${container_name} sh -c \"source ~/.setup.sh && cd /home/saluser/repo/ && setup ts_observatory_control -t saluser && package-docs build && ltd upload --product ts-observatory-control --git-ref \${GIT_BRANCH} --dir doc/_build/html\"
+              docker exec -u saluser \${container_name} sh -c \"source ~/.setup.sh
+              cd /home/saluser/repo/
+              setup ts_observatory_control -t saluser
+              pip install -r doc/requirements.txt
+              package-docs build
+              ltd upload --product ts-observatory-control --git-ref \${GIT_BRANCH} --dir doc/_build/html\"
               """
         }
         cleanup {

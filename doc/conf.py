@@ -13,3 +13,4 @@ _g.update(
     version=lsst.ts.observatory.control.__version__,
     release="",
 )
+extensions.append("sphinx-jsonschema")

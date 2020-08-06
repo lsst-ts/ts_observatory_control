@@ -83,7 +83,7 @@ class RemoteGroup:
         Optional logging class to be used for logging operations. If `None`,
         creates a new logger. Useful to use in salobj.BaseScript and allow
         logging in the class use the script logging.
-    intended_usage: `int`
+    intended_usage : `int`
         Optional bitmask that maps to a list of intended operations. This is
         used to limit the resources allocated by the class by gathering some
         knowledge about the usage intention. By default allocates all
@@ -91,12 +91,15 @@ class RemoteGroup:
 
     Attributes
     ----------
-    rem: `types.SimpleNamespace`
+    components
+    valid_use_cases
+    usages
+    rem :  `types.SimpleNamespace`
         Namespace with Remotes for all the components defined in the group.
         The name of the component is converted to all lowercase and indexed
         component have an underscore instead of a colon, e.g. MTMount ->
         mtmount, Hexapod:1 -> hexapod_1.
-    check: `types.SimpleNamespace`
+    check : `types.SimpleNamespace`
         Allow users to specify if a component should be part of operations. For
         each component in `rem`, there will be an equivalent (with same name)
         in this namespace, with a boolean value. When subclassing, users may
@@ -420,27 +423,50 @@ class RemoteGroup:
 
         return complete_settings
 
-    async def set_state(self, state, settings=None):
+    async def set_state(self, state, settings=None, components=None):
         """Set summary state for all components.
 
         Parameters
         ----------
-        state: `salobj.State`
+        state : `salobj.State`
             Desired state.
 
-        settings: `dict`
+        settings : `dict`
             Settings to apply for each component.
 
+        components : `list[`str`]`
+            List of components to set state, as they appear in
+            `self.components`.
+
+        Raises
+        ------
+        RuntimeError
+
+            * If a component in `components` is not part of the group.
+
+            * If it fails to transition one or more components.
+
         """
+
+        if components is not None:
+            work_components = set(components)
+
+            for comp in work_components:
+                if comp not in self.components:
+                    raise RuntimeError(
+                        f"Component {comp} not part of the group. Must be one of {self.components}."
+                    )
+        else:
+            work_components = set(self.components)
 
         if settings is not None:
             settings_all = settings
         else:
-            settings_all = dict([(comp, "") for comp in self.components])
+            settings_all = dict([(comp, "") for comp in work_components])
 
         set_ss_tasks = []
 
-        for comp in self.components:
+        for comp in work_components:
             if getattr(self.check, comp):
                 settingsToApply = settings_all[comp]
                 if settingsToApply is None:
@@ -461,10 +487,10 @@ class RemoteGroup:
         error_flag = False
         failed_components = []
 
-        for i in range(len(self.components)):
+        for i, comp in enumerate(work_components):
             if isinstance(ret_val[i], Exception):
                 error_flag = True
-                failed_components.append(self.components[i])
+                failed_components.append(comp)
                 err_message = (
                     f"Unable to transition {self.components[i]} to "
                     f"{salobj.State(state)!r} {traceback.format_exc()}.\n"
@@ -517,11 +543,13 @@ class RemoteGroup:
 
     @property
     def components(self):
+        """ List of components.
+        """
         return self._component_names
 
     @property
     def valid_use_cases(self):
-        """Returns valid usages.
+        """ Define valid usages.
 
         When subclassing, overwrite this method to return the proper enum.
 
