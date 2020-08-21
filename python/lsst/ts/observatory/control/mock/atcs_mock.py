@@ -191,17 +191,22 @@ class ATCSMock(BaseGroupMock):
     async def atptg_telemetry(self):
         while self.run_telemetry_loop:
             now = Time.now()
-            self.atptg.tel_timeAndDate.set_put(
-                timestamp=now.tai.mjd,
-                utc=now.utc.value.hour
+            time_and_date = self.atptg.tel_timeAndDate.DataType()
+            time_and_date.timestamp = now.tai.mjd
+            time_and_date.utc = (
+                now.utc.value.hour
                 + now.utc.value.minute / 60.0
-                + (now.utc.value.second + now.utc.value.microsecond / 1e3)
-                / 60.0
-                / 60.0,
-                lst=Angle(now.sidereal_time("mean", self.location.lon)).to_string(
-                    sep=":"
-                ),
+                + (now.utc.value.second + now.utc.value.microsecond / 1e3) / 60.0 / 60.0
             )
+            if type(time_and_date.lst) is str:
+                time_and_date.lst = Angle(
+                    now.sidereal_time("mean", self.location.lon)
+                ).to_string(sep=":")
+            else:
+                time_and_date.lst = now.sidereal_time("mean", self.location.lon).value
+
+            self.atptg.tel_timeAndDate.put(time_and_date)
+
             await asyncio.sleep(1.0)
 
     async def atmcs_wait_and_fault(self, wait_time):
