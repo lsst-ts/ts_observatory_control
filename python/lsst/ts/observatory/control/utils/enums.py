@@ -18,29 +18,54 @@
 #
 # You should have received a copy of the GNU General Public License
 
-__all__ = ["RotType"]
+__all__ = ["RotType", "InstrumentFocus"]
 
 import enum
 
 
 class RotType(enum.IntEnum):
-    """Defines the different types of rotator strategies.
+    """Available types of rotation, i.e. the meaning of the rot_angle argument
+    in slew operations.
 
-    Sky: Sky position angle strategy. The rotator is positioned with respect
-         to the North axis so rot_angle=0. means y-axis is aligned with North.
-         Angle grows clock-wise.
+    Sky: Rotate with the sky. The rotator is positioned with respect to the
+         North axis so rot_angle=0. means y-axis is aligned with North. Angle
+         grows clock-wise.
 
-    Parallactic: This strategy is required for taking optimum spectra with
-                 LATISS. If set to zero, the rotator is positioned so that the
-                 y-axis (dispersion axis) is aligned with the parallactic
-                 angle.
+    SkyAuto: Same as sky position angle but it will verify that the requested
+             angle is achievable and wrap it to a valid range.
 
-    Physical_Sky: This strategy allows users to select the **initial** position
+    ParallacticSky: This strategy is required for taking optimum spectra with
+                    LATISS. If set to zero, the rotator is positioned so that
+                    the y-axis (dispersion axis) is aligned with the
+                    parallactic angle. *IMPORTANT*: The position is set at the
+                    start of the slew operation and the rotator will then track
+                    the sky.
+
+    PhysicalSky:  This strategy allows users to select the **initial** position
                   of the rotator in terms of the physical rotator angle (in the
                   reference frame of the telescope). Note that the telescope
                   will resume tracking the sky rotation.
+
+    Physical: Select a fixed position for the rotator in the reference frame of
+              the telescope. Rotator will not track in this mode.
+
     """
 
     Sky = 0
-    Parallactic = 1
-    Physical_Sky = 2
+    SkyAuto = 1
+    Parallactic = 2
+    PhysicalSky = 3
+    Physical = 4
+
+
+class InstrumentFocus(enum.IntEnum):
+    """Defines the different types of instrument focus location.
+
+    Prime: Instrument in the prime focus.
+
+    Nasmyth: Instrument in a nasmyth focus.
+
+    """
+
+    Prime = 1
+    Nasmyth = 2

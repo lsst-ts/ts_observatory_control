@@ -185,7 +185,7 @@ class TestATTCS(RemoteGroupTestCase, asynctest.TestCase):
             with self.subTest("test::enable:settings_published"):
                 await self.attcs.enable()
 
-            for comp in self.attcs.components:
+            for comp in self.attcs.components_attr:
                 state = await self.attcs.get_state(comp)
                 while state != salobj.State.ENABLED:
                     state = await self.attcs.next_state(comp)
@@ -208,8 +208,8 @@ class TestATTCS(RemoteGroupTestCase, asynctest.TestCase):
 
             settings = dict(
                 zip(
-                    self.attcs.components,
-                    [f"setting4_{c}" for c in self.attcs.components],
+                    self.attcs.components_attr,
+                    [f"setting4_{c}" for c in self.attcs.components_attr],
                 )
             )
 

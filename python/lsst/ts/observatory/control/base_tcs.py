@@ -29,7 +29,7 @@ from astropy.coordinates import AltAz, ICRS, EarthLocation, Angle
 from astroquery.simbad import Simbad
 
 from . import RemoteGroup
-from .utils import parallactic_angle, handle_rottype, RotType
+from .utils import parallactic_angle, RotType, InstrumentFocus
 
 from lsst.ts import salobj
 
@@ -69,6 +69,12 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
         )
 
         self.track_id_gen = salobj.index_generator()
+
+        self.instrument_focus = InstrumentFocus.Prime
+
+        # FIXME: (DM-26454) Once this is published by the telescope components
+        # it should read this from events.
+        self.rotator_limits = [-90.0, +90.0]
 
     async def point_azel(
         self,
@@ -130,7 +136,7 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
         raise NotImplementedError("Start tracking not implemented yet.")
 
     async def slew_object(
-        self, name, rot_sky=0.0, rot_par=None, rot_phys_sky=None, slew_timeout=240.0,
+        self, name, rot=0.0, rot_type=RotType.SkyAuto, slew_timeout=240.0,
     ):
         """Slew to an object name.
 
@@ -140,21 +146,15 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
         ----------
         name : `str`
             Target name.
-        rot_sky : `float`, `str` or `astropy.coordinates.Angle`
-            Specify rotation in sky coordinates, clock-wise, relative to the
-            north celestial pole. Accepts float (deg), sexagesimal string
-            (DD:MM:SS.S or DD MM SS.S) coordinates or
-            `astropy.coordinates.Angle`
-        rot_par :  `float`, `str` or `astropy.coordinates.Angle`
-            Specify rotation with respect to the parallactic angle.
-            Accepts float (deg), sexagesimal string (DD:MM:SS.S or DD MM SS.S)
-            coordinates or `astropy.coordinates.Angle`
-        rot_phys_sky : `float`, `str` or `astropy.coordinates.Angle`
-            Specify rotation in mount physical coordinates.
-            Accepts float (deg), sexagesimal string
-            (DD:MM:SS.S or DD MM SS.S) coordinates or
-            `astropy.coordinates.Angle`. See `slew_icrs` for a detailed
-            explanation.
+        rot : `float`, `str` or `astropy.coordinates.Angle`
+            Specify desired rotation angle. Strategy depends on `rot_type`
+            parameter. Accepts float (deg), sexagesimal string (DD:MM:SS.S or
+            DD MM SS.S) coordinates or `astropy.coordinates.Angle`
+        rot_type :  `lsst.ts.observatory.control.utils.RotType`
+            Rotation type. This parameter defines how `rot_value` is threated.
+            Default is `SkyAuto`, the rotator is positioned with respect to the
+            North axis and is automacally wrapped if outside the limit. See
+            `RotType` for more options.
         slew_timeout : `float`
             Timeout for the slew command (second).
 
@@ -178,9 +178,8 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
         await self.slew_icrs(
             ra=object_table["RA"][0],
             dec=object_table["DEC"][0],
-            rot_sky=rot_sky,
-            rot_par=rot_par,
-            rot_phys_sky=rot_phys_sky,
+            rot=rot,
+            rot_type=rot_type,
             target_name=name,
             slew_timeout=slew_timeout,
         )
@@ -189,9 +188,8 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
         self,
         ra,
         dec,
-        rot_sky=0.0,
-        rot_par=None,
-        rot_phys_sky=None,
+        rot=0.0,
+        rot_type=RotType.SkyAuto,
         target_name="slew_icrs",
         slew_timeout=240.0,
         stop_before_slew=True,
@@ -210,20 +208,16 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
             Target Dec, either as a float (deg), a sexagesimal string
             (DD:MM:SS.S or DD MM SS.S) coordinates or
             `astropy.coordinates.Angle`.
-        rot_sky : `float`, `str` or `astropy.coordinates.Angle`
-            Specify rotation in sky coordinates, clock-wise, relative to the
-            north celestial pole. Accepts float (deg), sexagesimal string
-            (DD:MM:SS.S or DD MM SS.S) coordinates or
-            `astropy.coordinates.Angle`
-        rot_par :  `float`, `str` or `astropy.coordinates.Angle`
-            Specify rotation with respect to the parallactic angle.
+        rot : `float`, `str` or `astropy.coordinates.Angle`
+            Specify desired rotation angle. The value will have different
+            meaning depending on the choince of `rot_type` parameter.
             Accepts float (deg), sexagesimal string (DD:MM:SS.S or DD MM SS.S)
             coordinates or `astropy.coordinates.Angle`
-        rot_phys_sky : `float`, `str` or `astropy.coordinates.Angle`
-            Specify rotation in mount physical coordinates.
-            Accepts float (deg), sexagesimal string
-            (DD:MM:SS.S or DD MM SS.S) coordinates or
-            `astropy.coordinates.Angle`. See notes for some details.
+        rot_type :  `lsst.ts.observatory.control.utils.RotType`
+            Rotation type. This parameter defines how `rot_value` is threated.
+            Default is `SkyAuto`, the rotator is positioned with respect to the
+            North axis and is automatically wrapped if outside the limit. See
+            `RotType` for more options.
         target_name :  `str`
             Target name.
         slew_timeout : `float`
@@ -238,28 +232,22 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
             positioning algorithm. Otherwise the algorithm will return as soon
             as it receives `allAxesInPosition` event from the ATMCS.
 
-        Raises
-        ------
-        RuntimeError: If both `rot_par` and `rot_tel` are specified.
+        Returns
+        -------
+        radec_icrs : `astropy.coordinates.ICRS`
+            Coordinates used in slew command.
+
+        rot_angle : `astropy.coordinates.Angle`
+            Angle used in command for rotator.
 
         See Also
         --------
         slew_object : Slew to an object name.
 
-        Notes
-        -----
-        If either `rot_par` or `rot_tel` are specified, `rot_sky` is ignored.
-
-        When using `rot_phys_sky` to specify the rotator position in terms of
-        physical coordinates, the rotator will still track the sky. The
-        rotator will not be kept in a fixed position.
-
         """
         radec_icrs = ICRS(Angle(ra, unit=u.hourangle), Angle(dec, unit=u.deg))
 
-        rot, rottype = handle_rottype(
-            rot_sky=rot_sky, rot_par=rot_par, rot_phys_sky=rot_phys_sky
-        )
+        rot_angle = Angle(rot, unit=u.deg)
 
         current_time = salobj.astropy_time_from_tai_unix(salobj.current_tai())
 
@@ -273,38 +261,75 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
 
         alt_az = radec_icrs.transform_to(coord_frame_altaz)
 
-        if rottype == RotType.Sky:
-            self.log.debug(f"Setting sky angle to {rot}.")
-        elif rottype == RotType.Physical_Sky:
+        rot_frame = self.RotFrame.TARGET
 
-            self.log.debug(f"Setting rotator physical position to {rot}.")
+        # compute rotator physical position if rot_angle is sky.
+        rot_phys_val = salobj.angle_wrap_center(
+            Angle(
+                Angle(180.0, unit=u.deg)
+                + par_angle
+                - rot_angle
+                - (
+                    alt_az.alt
+                    if self.instrument_focus == InstrumentFocus.Nasmyth
+                    else 0.0
+                ),
+                unit=u.deg,
+            )
+        )
 
-            rot += par_angle + alt_az.alt
+        if rot_type == RotType.Sky:
+            self.log.debug(f"RotSky = {rot_angle}, RotPhys = {rot_phys_val}.")
+        elif rot_type == RotType.SkyAuto:
+            self.log.debug(f"Auto sky angle: {rot_angle}")
+            if not (self.rotator_limits[0] < rot_phys_val.deg < self.rotator_limits[1]):
+                self.log.debug(
+                    f"Rotator angle out of limits {rot_angle} [{self.rotator_limits}]. Wrapping."
+                )
+                rot_angle = salobj.angle_wrap_center(
+                    Angle(180.0, unit=u.deg) + rot_angle
+                )
+        elif rot_type == RotType.PhysicalSky:
+            self.log.debug(
+                f"Setting rotator physical position to {rot_angle}. Rotator will track sky."
+            )
+
+            rot_angle = rot_phys_val
 
             self.log.debug(
-                f"Parallactic angle: {par_angle.deg} | " f"Sky Angle: {rot.deg}"
+                f"Parallactic angle: {par_angle.deg} | Sky Angle: {rot_angle.deg}"
             )
-        elif rottype == RotType.Parallactic:
+        elif rot_type == RotType.Parallactic:
 
             self.log.debug(
-                f"Setting rotator position with respect to parallactic angle to {rot}."
+                f"Setting rotator position with respect to parallactic angle to {rot_angle}."
             )
 
-            rot += par_angle + 2 * alt_az.alt - 90.0
+            rot_angle = rot_phys_val + alt_az.alt - 90.0 * u.deg
 
             self.log.debug(
-                f"Parallactic angle: {par_angle.deg} | " f"Sky Angle: {rot.deg}"
+                f"Parallactic angle: {par_angle.deg} | " f"Sky Angle: {rot_angle.deg}"
             )
+        elif rot_type == RotType.Physical:
+            self.log.debug(
+                f"Setting rotator to physical fixed position {rot_angle}. Rotator will not track."
+            )
+            # FIXME: This type is not supported the way we would like by
+            # the pointing. We have to set the rot_angle in sky angle instead
+            # of physical value. Will check with pointing vendors to fix this.
+            # (DM-26457).
+            rot_angle = rot_phys_val
+            rot_frame = self.RotFrame.FIXED
         else:
-            valid_rottypes = [f"{rt!r}" for rt in RotType].__str__()
+            valid_rottypes = ", ".join(repr(rt) for rt in RotType)
             raise RuntimeError(
-                f"Unrecognized rottype {rottype}. Should be one of {valid_rottypes}"
+                f"Unrecognized rottype {rot_type}. Should be one of {valid_rottypes}"
             )
 
         await self.slew(
             radec_icrs.ra.hour,
             radec_icrs.dec.deg,
-            rotPA=rot.deg,
+            rotPA=rot_angle.deg,
             target_name=target_name,
             frame=self.CoordFrame.ICRS,
             epoch=2000,
@@ -315,12 +340,14 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
             rv=0,
             dRA=0,
             dDec=0,
-            rot_frame=self.RotFrame.TARGET,
+            rot_frame=rot_frame,
             rot_mode=self.RotMode.FIELD,
             slew_timeout=slew_timeout,
             stop_before_slew=stop_before_slew,
             wait_settle=wait_settle,
         )
+
+        return radec_icrs, rot_angle
 
     async def slew(
         self,
@@ -578,6 +605,14 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
         await getattr(self.rem, self.ptg_name).cmd_stopTracking.start(
             timeout=self.fast_timeout
         )
+
+    @property
+    def instrument_focus(self):
+        return self.__instrument_focus
+
+    @instrument_focus.setter
+    def instrument_focus(self, value):
+        self.__instrument_focus = InstrumentFocus(value)
 
     @staticmethod
     def rotation_matrix(angle):

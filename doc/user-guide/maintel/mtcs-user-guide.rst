@@ -25,5 +25,4 @@ The component CSCs that are part of this group are:
   * Hexapod
   * Rotator
   * MTM1M3
-  * M2
-
+  * MTM2
