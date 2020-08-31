@@ -30,7 +30,7 @@ from astropy.coordinates import Angle
 
 from lsst.ts import salobj
 from lsst.ts.idl.enums import MTPtg
-from ..remote_group import Usages
+from ..remote_group import Usages, UsagesResources
 from ..base_tcs import BaseTCS
 
 
@@ -189,7 +189,7 @@ class MTCS(BaseTCS):
         )
         self.scheduled_coro.append(asyncio.create_task(self.monitor_position()))
 
-        for comp in self.components:
+        for comp in self.components_attr:
             if getattr(self.check, comp):
                 getattr(self.rem, comp).evt_summaryState.flush()
                 self.scheduled_coro.append(
@@ -605,112 +605,109 @@ class MTCS(BaseTCS):
     @property
     def usages(self):
 
-        usages = super().usages
+        if self._usages is None:
+            usages = super().usages
 
-        usages[self.valid_use_cases.All] = types.SimpleNamespace(
-            components=self._components,
-            readonly=False,
-            include=[
-                "start",
-                "enable",
-                "disable",
-                "standby",
-                "exitControl",
-                "enterControl",
-                "azElTarget",
-                "raDecTarget",
-                "planetTarget",
-                "stopTracking",
-                "offsetAzEl",
-                "offsetRADec",
-                "summaryState",
-                "settingVersions",
-                "heartbeat",
-                "pointAddData",
-                "pointNewFile",
-                "pointAddData",
-                "timeAndDate",
-            ],
-        )
+            usages[self.valid_use_cases.All] = UsagesResources(
+                components_attr=self.components_attr,
+                readonly=False,
+                generics=[
+                    "start",
+                    "enable",
+                    "disable",
+                    "standby",
+                    "exitControl",
+                    "enterControl",
+                    "summaryState",
+                    "settingVersions",
+                    "heartbeat",
+                ],
+                mtptg=[
+                    "azElTarget",
+                    "raDecTarget",
+                    "planetTarget",
+                    "stopTracking",
+                    "offsetAzEl",
+                    "offsetRADec",
+                    "pointAddData",
+                    "pointNewFile",
+                    "pointAddData",
+                    "timeAndDate",
+                ],
+            )
 
-        usages[self.valid_use_cases.Slew] = types.SimpleNamespace(
-            components=self._components,
-            readonly=False,
-            include=[
-                "azElTarget",
-                "raDecTarget",
-                "planetTarget",
-                "stopTracking",
-                "offsetAzEl",
-                "offsetRADec",
-                "pointAddData",
-                "pointNewFile",
-                "pointAddData",
-                "summaryState",
-                "settingVersions",
-                "heartbeat",
-                "timeAndDate",
-                "target",
-                "Application",
-                "Azimuth",
-                "Elevation",
-                "axesInPosition",
-                "inPosition",
-                "azimuth",
-                "lightWindScreen",
-            ],
-        )
+            usages[self.valid_use_cases.Slew] = UsagesResources(
+                components_attr=self.components_attr,
+                readonly=False,
+                generics=["summaryState", "settingVersions", "heartbeat"],
+                mtptg=[
+                    "azElTarget",
+                    "raDecTarget",
+                    "planetTarget",
+                    "stopTracking",
+                    "offsetAzEl",
+                    "offsetRADec",
+                    "pointAddData",
+                    "pointNewFile",
+                    "pointAddData",
+                    "timeAndDate",
+                    "target",
+                ],
+                rotator=["Application"],
+                mtmount=["Azimuth", "Elevation", "axesInPosition", "inPosition"],
+                dome=["azimuth", "lightWindScreen"],
+            )
 
-        usages[self.valid_use_cases.StartUp] = types.SimpleNamespace(
-            components=self._components,
-            readonly=False,
-            include=[
-                "start",
-                "enable",
-                "disable",
-                "standby",
-                "exitControl",
-                "enterControl",
-                "azElTarget",
-                "stopTracking",
-                "summaryState",
-                "settingVersions",
-                "heartbeat",
-            ],
-        )
+            usages[self.valid_use_cases.StartUp] = UsagesResources(
+                components_attr=self.components_attr,
+                readonly=False,
+                generics=[
+                    "start",
+                    "enable",
+                    "disable",
+                    "standby",
+                    "exitControl",
+                    "enterControl",
+                    "summaryState",
+                    "settingVersions",
+                    "heartbeat",
+                ],
+                mtptg=["azElTarget", "stopTracking"],
+            )
 
-        usages[self.valid_use_cases.Shutdown] = types.SimpleNamespace(
-            components=self._components,
-            readonly=False,
-            include=[
-                "start",
-                "enable",
-                "disable",
-                "standby",
-                "exitControl",
-                "enterControl",
-                "azElTarget",
-                "stopTracking",
-                "summaryState",
-                "settingVersions",
-                "heartbeat",
-            ],
-        )
+            usages[self.valid_use_cases.Shutdown] = UsagesResources(
+                components_attr=self.components_attr,
+                readonly=False,
+                generics=[
+                    "start",
+                    "enable",
+                    "disable",
+                    "standby",
+                    "exitControl",
+                    "enterControl",
+                    "summaryState",
+                    "settingVersions",
+                    "heartbeat",
+                ],
+                mtptg=["azElTarget", "stopTracking"],
+            )
 
-        usages[self.valid_use_cases.PrepareForFlatfield] = types.SimpleNamespace(
-            components=self._components,
-            readonly=False,
-            include=[
-                "start",
-                "enable",
-                "disable",
-                "standby",
-                "exitControl",
-                "enterControl",
-                "summaryState",
-                "settingVersions",
-                "heartbeat",
-            ],
-        )
+            usages[self.valid_use_cases.PrepareForFlatfield] = UsagesResources(
+                components_attr=self.components_attr,
+                readonly=False,
+                generics=[
+                    "start",
+                    "enable",
+                    "disable",
+                    "standby",
+                    "exitControl",
+                    "enterControl",
+                    "summaryState",
+                    "settingVersions",
+                    "heartbeat",
+                ],
+            )
 
-        return usages
+            self._usages = usages
+
+        return self._usages

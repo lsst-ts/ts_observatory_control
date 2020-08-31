@@ -21,9 +21,8 @@
 __all__ = ["ComCam", "ComCamUsages"]
 
 import asyncio
-import types
 
-from ..remote_group import Usages
+from ..remote_group import Usages, UsagesResources
 from ..base_camera import BaseCamera
 
 
@@ -252,43 +251,41 @@ class ComCam(BaseCamera):
     @property
     def usages(self):
 
-        usages = super().usages
+        if self._usages is None:
 
-        usages[self.valid_use_cases.All] = types.SimpleNamespace(
-            components=self._components,
-            readonly=False,
-            include=[
-                "start",
-                "enable",
-                "disable",
-                "standby",
-                "exitControl",
-                "enterControl",
-                "summaryState",
-                "settingVersions",
-                "heartbeat",
-                "takeImages",
-                "setFilter",
-                "endReadout",
-                "largeFileObjectAvailable",
-            ],
-        )
+            usages = super().usages
 
-        usages[self.valid_use_cases.TakeImage] = types.SimpleNamespace(
-            components=["CCCamera"],
-            readonly=False,
-            include=["takeImages", "setFilter", "endReadout"],
-        )
+            usages[self.valid_use_cases.All] = UsagesResources(
+                components_attr=self.components_attr,
+                readonly=False,
+                generics=[
+                    "start",
+                    "enable",
+                    "disable",
+                    "standby",
+                    "exitControl",
+                    "enterControl",
+                    "summaryState",
+                    "settingVersions",
+                    "heartbeat",
+                ],
+                cccamera=["takeImages", "setFilter", "endReadout"],
+                ccheaderservice=["largeFileObjectAvailable"],
+            )
 
-        usages[self.valid_use_cases.TakeImageFull] = types.SimpleNamespace(
-            components=["CCCamera", "CCHeaderService", "CCArchiver"],
-            readonly=False,
-            include=[
-                "takeImages",
-                "setFilter",
-                "endReadout",
-                "largeFileObjectAvailable",
-            ],
-        )
+            usages[self.valid_use_cases.TakeImage] = UsagesResources(
+                components_attr=["cccamera"],
+                readonly=False,
+                cccamera=["takeImages", "setFilter", "endReadout"],
+            )
 
-        return usages
+            usages[self.valid_use_cases.TakeImageFull] = UsagesResources(
+                components_attr=["cccamera", "ccheaderservice"],
+                readonly=False,
+                cccamera=["takeImages", "setFilter", "endReadout"],
+                ccheaderservice=["largeFileObjectAvailable"],
+            )
+
+            self._usages = usages
+
+        return self._usages

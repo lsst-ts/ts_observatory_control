@@ -36,7 +36,7 @@ from lsst.ts import salobj
 
 from lsst.ts.observatory.control.mock import MTCSMock
 from lsst.ts.observatory.control.maintel.mtcs import MTCS, MTCSUsages
-from lsst.ts.observatory.control.utils import RemoteGroupTestCase
+from lsst.ts.observatory.control.utils import RemoteGroupTestCase, RotType
 
 HB_TIMEOUT = 5  # Basic timeout for heartbeats
 SLEW_TIMEOUT = 10  # Basic slewtime timeout for testing
@@ -58,7 +58,7 @@ class TestMTCS(RemoteGroupTestCase, asynctest.TestCase):
         async with self.make_group(usage=MTCSUsages.StartUp + MTCSUsages.Shutdown):
 
             #  Check that all components are in STANDBY state
-            for comp in self.mtcs.components:
+            for comp in self.mtcs.components_attr:
                 if comp not in self.mtcs_mock.output_only:
                     with self.subTest("check initial state", component=comp):
                         state = await self.mtcs.get_state(comp)
@@ -70,7 +70,7 @@ class TestMTCS(RemoteGroupTestCase, asynctest.TestCase):
             await asyncio.sleep(HB_TIMEOUT)
 
             # Check that all components are in ENABLED state
-            for comp in self.mtcs.components:
+            for comp in self.mtcs.components_attr:
                 if comp not in self.mtcs_mock.output_only:
                     with self.subTest("check enabled state", component=comp):
                         state = await self.mtcs.get_state(comp)
@@ -83,7 +83,7 @@ class TestMTCS(RemoteGroupTestCase, asynctest.TestCase):
 
             #  Check that all components are in STANDBY state
             #  Check that all components are in STANDBY state
-            for comp in self.mtcs.components:
+            for comp in self.mtcs.components_attr:
                 if comp not in self.mtcs_mock.output_only:
                     with self.subTest("check final state", component=comp):
                         state = await self.mtcs.get_state(comp)
@@ -108,7 +108,7 @@ class TestMTCS(RemoteGroupTestCase, asynctest.TestCase):
             # rotator, rando value between +/- 90.
             rot_set = ((np.random.random() - 0.5) * 2.0) * 90.0
 
-            ret_val = await self.mtcs.point_azel(
+            await self.mtcs.point_azel(
                 az=az_set,
                 el=el_set,
                 rot_tel=rot_set,
@@ -116,8 +116,6 @@ class TestMTCS(RemoteGroupTestCase, asynctest.TestCase):
                 wait_dome=False,
                 slew_timeout=SLEW_TIMEOUT,
             )
-
-            print(f"Point azel returned: {ret_val}")
 
             az_rec = await self.mtcs.rem.mtmount.tel_Azimuth.next(
                 flush=True, timeout=HB_TIMEOUT
@@ -161,6 +159,94 @@ class TestMTCS(RemoteGroupTestCase, asynctest.TestCase):
             # Test slew_icrs
             await self.mtcs.slew_icrs(
                 ra=ra, dec=dec, target_name=name, slew_timeout=SLEW_TIMEOUT
+            )
+
+            # Override self.mtcs.slew to check rottype different calls
+            self.mtcs.slew = asynctest.CoroutineMock()
+
+            radec_icrs, rot_angle = await self.mtcs.slew_icrs(
+                ra=ra, dec=dec, rot=0.0, target_name=name, rot_type=RotType.Parallactic
+            )
+
+            self.assertEqual(radec_icrs.ra, ra)
+            self.assertEqual(radec_icrs.dec, dec)
+            self.mtcs.slew.assert_awaited_with(
+                ra.value,
+                dec.value,
+                rotPA=rot_angle.deg,
+                target_name=name,
+                frame=self.mtcs.CoordFrame.ICRS,
+                epoch=2000,
+                equinox=2000,
+                parallax=0,
+                pmRA=0,
+                pmDec=0,
+                rv=0,
+                dRA=0,
+                dDec=0,
+                rot_frame=self.mtcs.RotFrame.TARGET,
+                rot_mode=self.mtcs.RotMode.FIELD,
+                stop_before_slew=True,
+                wait_settle=True,
+                slew_timeout=240.0,
+            )
+
+            self.mtcs.slew.reset_mock()
+
+            radec_icrs, rot_angle = await self.mtcs.slew_icrs(
+                ra=ra, dec=dec, rot=0.0, target_name=name, rot_type=RotType.PhysicalSky
+            )
+
+            self.assertEqual(radec_icrs.ra, ra)
+            self.assertEqual(radec_icrs.dec, dec)
+            self.mtcs.slew.assert_awaited_with(
+                ra.value,
+                dec.value,
+                rotPA=rot_angle.deg,
+                target_name=name,
+                frame=self.mtcs.CoordFrame.ICRS,
+                epoch=2000,
+                equinox=2000,
+                parallax=0,
+                pmRA=0,
+                pmDec=0,
+                rv=0,
+                dRA=0,
+                dDec=0,
+                rot_frame=self.mtcs.RotFrame.TARGET,
+                rot_mode=self.mtcs.RotMode.FIELD,
+                stop_before_slew=True,
+                wait_settle=True,
+                slew_timeout=240.0,
+            )
+
+            self.mtcs.slew.reset_mock()
+
+            radec_icrs, rot_angle = await self.mtcs.slew_icrs(
+                ra=ra, dec=dec, rot=0.0, target_name=name, rot_type=RotType.Physical
+            )
+
+            self.assertEqual(radec_icrs.ra, ra)
+            self.assertEqual(radec_icrs.dec, dec)
+            self.mtcs.slew.assert_awaited_with(
+                ra.value,
+                dec.value,
+                rotPA=rot_angle.deg,
+                target_name=name,
+                frame=self.mtcs.CoordFrame.ICRS,
+                epoch=2000,
+                equinox=2000,
+                parallax=0,
+                pmRA=0,
+                pmDec=0,
+                rv=0,
+                dRA=0,
+                dDec=0,
+                rot_frame=self.mtcs.RotFrame.FIXED,
+                rot_mode=self.mtcs.RotMode.FIELD,
+                stop_before_slew=True,
+                wait_settle=True,
+                slew_timeout=240.0,
             )
 
             # TODO: (DM-21336) Test a couple of failure situations.

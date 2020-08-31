@@ -140,15 +140,15 @@ All the slew methods discussed in :ref:`user-guide-generic-telescope-control-ope
     # Minimum set of parameters.
     await atcs.slew_icrs(ra="00 42 44.330", dec="+41 16 07.50")
 
-    # Explicitly specify rot_sky and target_name (both optional).
+    # Explicitly specify rot and target_name (both optional).
     await atcs.slew_icrs(
-              ra="00 42 44.330", dec="+41 16 07.50", rot_sky=0., target_name="M31"
+              ra="00 42 44.330", dec="+41 16 07.50", rot=0, target_name="M31"
           )
 
     # Minimum set of parameters.
     await atcs.slew_object("M31")
 
-    # Explicitly specify rot_sky (optional).
-    await atcs.slew_object("M31", rot_sky=0.)
+    # Explicitly specify position angle (optional).
+    await atcs.slew_object("M31", rot=0)
 
 For shutting down the observatory :py:meth:`shutdown <lsst.ts.observatory.control.BaseTCS.shutdown>`

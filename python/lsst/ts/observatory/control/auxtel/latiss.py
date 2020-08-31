@@ -20,10 +20,9 @@
 
 __all__ = ["LATISS", "LATISSUsages"]
 
-import types
 import asyncio
 
-from ..remote_group import Usages
+from ..remote_group import Usages, UsagesResources
 from ..base_camera import BaseCamera
 
 
@@ -281,45 +280,37 @@ class LATISS(BaseCamera):
     @property
     def usages(self):
 
-        usages = super().usages
+        if self._usages is None:
+            usages = super().usages
 
-        usages[self.valid_use_cases.All] = types.SimpleNamespace(
-            components=self._components,
-            readonly=False,
-            include=[
-                "takeImages",
-                "changeFilter",
-                "changeDisperser",
-                "moveLinearStage",
-                "summaryState",
-                "endReadout",
-                "largeFileObjectAvailable",
-            ],
-        )
-        usages[self.valid_use_cases.TakeImage] = types.SimpleNamespace(
-            components=["ATCamera"],
-            readonly=False,
-            include=["takeImages", "summaryState", "endReadout"],
-        )
-        usages[self.valid_use_cases.Setup] = types.SimpleNamespace(
-            components=["ATSpectrograph"],
-            readonly=False,
-            include=[
-                "changeFilter",
-                "changeDisperser",
-                "moveLinearStage",
-                "summaryState",
-            ],
-        )
-        usages[self.valid_use_cases.TakeImageFull] = types.SimpleNamespace(
-            components=["ATCamera", "ATSpectrograph", "ATArchiver"],
-            readonly=False,
-            include=[
-                "takeImages",
-                "summaryState",
-                "endReadout",
-                "largeFileObjectAvailable",
-            ],
-        )
+            usages[self.valid_use_cases.All] = UsagesResources(
+                components_attr=self.components_attr,
+                readonly=False,
+                generics=["summaryState"],
+                atcamera=["takeImages", "endReadout"],
+                atspectrograph=["changeFilter", "changeDisperser", "moveLinearStage"],
+                atheaderservice=["largeFileObjectAvailable"],
+            )
+            usages[self.valid_use_cases.TakeImage] = UsagesResources(
+                components_attr=["atcamera"],
+                readonly=False,
+                generics=["summaryState"],
+                atcamera=["takeImages", "endReadout"],
+            )
+            usages[self.valid_use_cases.Setup] = UsagesResources(
+                components_attr=["atspectrograph"],
+                readonly=False,
+                generics=["summaryState"],
+                atspectrograph=["changeFilter", "changeDisperser", "moveLinearStage"],
+            )
+            usages[self.valid_use_cases.TakeImageFull] = UsagesResources(
+                components_attr=["atcamera", "atspectrograph", "atheaderservice"],
+                readonly=False,
+                generics=["summaryState"],
+                atcamera=["takeImages", "endReadout"],
+                atheaderservice=["largeFileObjectAvailable"],
+            )
 
-        return usages
+            self._usages = usages
+
+        return self._usages

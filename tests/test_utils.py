@@ -28,18 +28,6 @@ from lsst.ts.observatory.control import utils
 
 
 class TestUtils(unittest.TestCase):
-    def test_handle_rottype(self):
-        # TODO: Implement test (DM-21336)
-
-        utils.handle_rottype()
-
-        utils.handle_rottype(rot_par=0.0)
-
-        utils.handle_rottype(rot_phys_sky=0.0)
-
-        with self.assertRaises(RuntimeError):
-            utils.handle_rottype(rot_par=0.0, rot_phys_sky=0.0)
-
     def test_parallactic_angle(self):
         # TODO: Implement test (DM-21336)
         radec_icrs = ICRS(Angle(0.0, unit=u.hourangle), Angle(-80.0, unit=u.deg))
