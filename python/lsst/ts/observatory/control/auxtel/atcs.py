@@ -28,8 +28,9 @@ import numpy as np
 import astropy.units as u
 from astropy.coordinates import Angle
 
-from ..remote_group import Usages
+from ..remote_group import Usages, UsagesResources
 from ..base_tcs import BaseTCS
+from ..utils import InstrumentFocus
 
 from lsst.ts import salobj
 from lsst.ts.idl.enums import ATPtg, ATDome, ATPneumatics, ATMCS
@@ -122,6 +123,12 @@ class ATCS(BaseTCS):
             log=log,
             intended_usage=intended_usage,
         )
+
+        self.instrument_focus = InstrumentFocus.Nasmyth
+
+        # FIXME: (DM-26454) Once this is published by the telescope components
+        # it should read this from events.
+        self.rotator_limits = [-270.0, +270.0]
 
         self.open_dome_shutter_time = 600.0
 
@@ -429,7 +436,7 @@ class ATCS(BaseTCS):
         if track_duration is not None and track_duration > 0.0:
             task_list.append(asyncio.ensure_future(asyncio.sleep(track_duration)))
 
-        for cmp in self.components:
+        for cmp in self.components_attr:
             if getattr(self.check, cmp):
                 self.log.debug(f"Adding {cmp} to check list")
                 task_list.append(asyncio.ensure_future(self.check_component_state(cmp)))
@@ -918,7 +925,7 @@ class ATCS(BaseTCS):
         )
         self.scheduled_coro.append(asyncio.ensure_future(self.monitor_position()))
 
-        for comp in self.components:
+        for comp in self.components_attr:
             if getattr(self.check, comp):
                 getattr(self.rem, comp).evt_summaryState.flush()
                 self.scheduled_coro.append(
@@ -1285,238 +1292,253 @@ class ATCS(BaseTCS):
     @property
     def usages(self):
 
-        usages = super().usages
+        if self._usages is None:
+            usages = super().usages
 
-        usages[self.valid_use_cases.All] = types.SimpleNamespace(
-            components=self._components,
-            readonly=False,
-            include=[
-                "start",
-                "enable",
-                "disable",
-                "standby",
-                "exitControl",
-                "enterControl",
-                "azElTarget",
-                "raDecTarget",
-                "planetTarget",
-                "moveAzimuth",
-                "stopTracking",
-                "stopMotion",
-                "enableCorrection",
-                "disableCorrection",
-                "moveShutterMainDoor",
-                "homeAzimuth",
-                "closeShutter",
-                "openM1Cover",
-                "closeM1Cover",
-                "openM1CellVents",
-                "closeM1CellVents",
-                "offsetAzEl",
-                "offsetRADec",
-                "summaryState",
-                "settingVersions",
-                "heartbeat",
-                "applyFocusOffset",
-                "pointAddData",
-                "pointNewFile",
-                "pointAddData",
-                "allAxesInPosition",
-                "atMountState",
-                "azimuthCommandedState",
-                "azimuthInPosition",
-                "azimuthState",
-                "m1CoverState",
-                "m1VentsPosition",
-                "mainDoorState",
-                "positionUpdate",
-                "scbLink",
-                "target",
-                "mount_AzEl_Encoders",
-                "position",
-                "mount_Nasmyth_Encoders",
-                "timeAndDate",
-            ],
-        )
+            usages[self.valid_use_cases.All] = UsagesResources(
+                components_attr=self.components_attr,
+                readonly=False,
+                generics=[
+                    "start",
+                    "enable",
+                    "disable",
+                    "standby",
+                    "exitControl",
+                    "enterControl",
+                    "summaryState",
+                    "settingVersions",
+                    "heartbeat",
+                ],
+                atmcs=[
+                    "allAxesInPosition",
+                    "atMountState",
+                    "azimuthCommandedState",
+                    "azimuthInPosition",
+                    "azimuthState",
+                    "target",
+                    "mount_AzEl_Encoders",
+                    "position",
+                    "mount_Nasmyth_Encoders",
+                ],
+                atptg=[
+                    "azElTarget",
+                    "raDecTarget",
+                    "planetTarget",
+                    "stopTracking",
+                    "offsetAzEl",
+                    "offsetRADec",
+                    "pointAddData",
+                    "pointNewFile",
+                    "pointAddData",
+                    "timeAndDate",
+                ],
+                ataos=["enableCorrection", "disableCorrection", "applyFocusOffset"],
+                atpneumatics=[
+                    "openM1Cover",
+                    "closeM1Cover",
+                    "openM1CellVents",
+                    "closeM1CellVents",
+                    "m1CoverState",
+                    "m1VentsPosition",
+                ],
+                athexapod=["positionUpdate"],
+                atdome=[
+                    "moveAzimuth",
+                    "stopMotion",
+                    "moveShutterMainDoor",
+                    "homeAzimuth",
+                    "closeShutter",
+                    "mainDoorState",
+                    "scbLink",
+                ],
+            )
 
-        usages[self.valid_use_cases.Slew] = types.SimpleNamespace(
-            components=self._components,
-            readonly=False,
-            include=[
-                "azElTarget",
-                "raDecTarget",
-                "planetTarget",
-                "stopTracking",
-                "stopMotion",
-                "offsetAzEl",
-                "offsetRADec",
-                "applyFocusOffset",
-                "pointAddData",
-                "pointNewFile",
-                "pointAddData",
-                "allAxesInPosition",
-                "atMountState",
-                "azimuthCommandedState",
-                "azimuthInPosition",
-                "azimuthState",
-                "positionUpdate",
-                "shutterInPosition",
-                "summaryState",
-                "settingVersions",
-                "heartbeat",
-                "target",
-                "mount_AzEl_Encoders",
-                "position",
-                "mount_Nasmyth_Encoders",
-                "timeAndDate",
-            ],
-        )
+            usages[self.valid_use_cases.Slew] = UsagesResources(
+                components_attr=self.components_attr,
+                readonly=False,
+                generics=["summaryState", "settingVersions", "heartbeat"],
+                atmcs=[
+                    "allAxesInPosition",
+                    "atMountState",
+                    "azimuthCommandedState",
+                    "azimuthInPosition",
+                    "azimuthState",
+                    "target",
+                    "mount_AzEl_Encoders",
+                    "position",
+                    "mount_Nasmyth_Encoders",
+                ],
+                atptg=[
+                    "azElTarget",
+                    "raDecTarget",
+                    "planetTarget",
+                    "stopTracking",
+                    "offsetAzEl",
+                    "offsetRADec",
+                    "pointAddData",
+                    "pointNewFile",
+                    "pointAddData",
+                    "timeAndDate",
+                ],
+                atdome=["stopMotion", "shutterInPosition"],
+                athexapod=["positionUpdate"],
+                ataos=["applyFocusOffset"],
+            )
+            usages[self.valid_use_cases.StartUp] = UsagesResources(
+                components_attr=self.components_attr,
+                readonly=False,
+                generics=[
+                    "start",
+                    "enable",
+                    "disable",
+                    "standby",
+                    "exitControl",
+                    "enterControl",
+                    "summaryState",
+                    "settingVersions",
+                    "heartbeat",
+                ],
+                atmcs=[
+                    "allAxesInPosition",
+                    "atMountState",
+                    "azimuthCommandedState",
+                    "azimuthInPosition",
+                    "azimuthState",
+                    "mount_AzEl_Encoders",
+                    "position",
+                    "mount_Nasmyth_Encoders",
+                ],
+                atptg=["azElTarget", "stopTracking", "target"],
+                atdome=[
+                    "moveAzimuth",
+                    "stopMotion",
+                    "moveShutterMainDoor",
+                    "homeAzimuth",
+                    "shutterInPosition",
+                    "scbLink",
+                ],
+                ataos=["enableCorrection"],
+                atpneumatics=[
+                    "openM1Cover",
+                    "closeM1Cover",
+                    "openM1CellVents",
+                    "m1CoverState",
+                    "m1VentsPosition",
+                    "mainDoorState",
+                ],
+                athexapod=["positionUpdate"],
+            )
 
-        usages[self.valid_use_cases.StartUp] = types.SimpleNamespace(
-            components=self._components,
-            readonly=False,
-            include=[
-                "start",
-                "enable",
-                "disable",
-                "standby",
-                "exitControl",
-                "enterControl",
-                "azElTarget",
-                "moveAzimuth",
-                "stopTracking",
-                "stopMotion",
-                "enableCorrection",
-                "moveShutterMainDoor",
-                "homeAzimuth",
-                "openM1Cover",
-                "closeM1Cover",
-                "openM1CellVents",
-                "allAxesInPosition",
-                "atMountState",
-                "azimuthCommandedState",
-                "azimuthInPosition",
-                "azimuthState",
-                "m1CoverState",
-                "m1VentsPosition",
-                "mainDoorState",
-                "positionUpdate",
-                "shutterInPosition",
-                "scbLink",
-                "summaryState",
-                "settingVersions",
-                "heartbeat",
-                "target",
-                "mount_AzEl_Encoders",
-                "position",
-                "mount_Nasmyth_Encoders",
-            ],
-        )
+            usages[self.valid_use_cases.Shutdown] = UsagesResources(
+                components_attr=self.components_attr,
+                readonly=False,
+                generics=[
+                    "start",
+                    "enable",
+                    "disable",
+                    "standby",
+                    "exitControl",
+                    "enterControl",
+                    "summaryState",
+                    "settingVersions",
+                    "heartbeat",
+                ],
+                atmcs=[
+                    "allAxesInPosition",
+                    "atMountState",
+                    "azimuthCommandedState",
+                    "azimuthInPosition",
+                    "azimuthState",
+                    "target",
+                    "mount_AzEl_Encoders",
+                    "position",
+                    "mount_Nasmyth_Encoders",
+                ],
+                atptg=["azElTarget", "moveAzimuth", "stopTracking"],
+                atdome=[
+                    "stopMotion",
+                    "moveShutterMainDoor",
+                    "closeShutter",
+                    "mainDoorState",
+                    "scbLink",
+                ],
+                ataos=["disableCorrection"],
+                atpneumatics=[
+                    "closeM1Cover",
+                    "closeM1CellVents",
+                    "m1CoverState",
+                    "m1VentsPosition",
+                ],
+                athexapod=["positionUpdate"],
+            )
 
-        usages[self.valid_use_cases.Shutdown] = types.SimpleNamespace(
-            components=self._components,
-            readonly=False,
-            include=[
-                "start",
-                "enable",
-                "disable",
-                "standby",
-                "exitControl",
-                "enterControl",
-                "azElTarget",
-                "moveAzimuth",
-                "stopTracking",
-                "stopMotion",
-                "disableCorrection",
-                "moveShutterMainDoor",
-                "closeShutter",
-                "closeM1Cover",
-                "closeM1CellVents",
-                "allAxesInPosition",
-                "atMountState",
-                "azimuthCommandedState",
-                "azimuthInPosition",
-                "azimuthState",
-                "m1CoverState",
-                "m1VentsPosition",
-                "mainDoorState",
-                "positionUpdate",
-                "scbLink",
-                "summaryState",
-                "settingVersions",
-                "heartbeat",
-                "target",
-                "mount_AzEl_Encoders",
-                "position",
-                "mount_Nasmyth_Encoders",
-            ],
-        )
+            usages[self.valid_use_cases.PrepareForFlatfield] = UsagesResources(
+                components_attr=self.components_attr,
+                readonly=False,
+                generics=[
+                    "start",
+                    "enable",
+                    "disable",
+                    "standby",
+                    "exitControl",
+                    "enterControl",
+                    "summaryState",
+                    "settingVersions",
+                    "heartbeat",
+                ],
+                atmcs=[
+                    "allAxesInPosition",
+                    "atMountState",
+                    "azimuthCommandedState",
+                    "azimuthInPosition",
+                    "azimuthState",
+                    "target",
+                    "mount_AzEl_Encoders",
+                    "position",
+                    "mount_Nasmyth_Encoders",
+                ],
+                atptg=["azElTarget", "moveAzimuth", "stopTracking"],
+                atdome=["stopMotion", "homeAzimuth"],
+                atpneumatics=[
+                    "openM1Cover",
+                    "openM1CellVents",
+                    "m1CoverState",
+                    "m1VentsPosition",
+                ],
+                athexapod=["positionUpdate"],
+            )
 
-        usages[self.valid_use_cases.PrepareForFlatfield] = types.SimpleNamespace(
-            components=self._components,
-            readonly=False,
-            include=[
-                "start",
-                "enable",
-                "disable",
-                "standby",
-                "exitControl",
-                "enterControl",
-                "azElTarget",
-                "moveAzimuth",
-                "stopTracking",
-                "stopMotion",
-                "homeAzimuth",
-                "openM1Cover",
-                "openM1CellVents",
-                "allAxesInPosition",
-                "atMountState",
-                "azimuthCommandedState",
-                "azimuthInPosition",
-                "azimuthState",
-                "m1CoverState",
-                "m1VentsPosition",
-                "positionUpdate",
-                "summaryState",
-                "settingVersions",
-                "heartbeat",
-                "target",
-                "mount_AzEl_Encoders",
-                "position",
-                "mount_Nasmyth_Encoders",
-            ],
-        )
+            usages[self.valid_use_cases.OffsettingForATAOS] = UsagesResources(
+                components_attr=["atmcs", "atptg", "atpneumatics", "athexapod"],
+                readonly=False,
+                generics=["summaryState"],
+                atmcs=[
+                    "allAxesInPosition",
+                    "target",
+                    "mount_AzEl_Encoders",
+                    "position",
+                    "mount_Nasmyth_Encoders",
+                ],
+                atptg=["offsetAzEl", "offsetRADec", "timeAndDate"],
+                atpneumatics=[
+                    "m1SetPressure",
+                    "m2SetPressure",
+                    "m1OpenAirValve",
+                    "m2OpenAirValve",
+                    "m1CloseAirValve",
+                    "m2CloseAirValve",
+                    "openMasterAirSupply",
+                    "openInstrumentAirValve",
+                    "m1State",
+                    "m2State",
+                    "instrumentState",
+                    "mainValveState",
+                    "m1AirPressure",
+                    "m2AirPressure",
+                ],
+                athexapod=["positionUpdate", "moveToPosition"],
+            )
 
-        usages[self.valid_use_cases.OffsettingForATAOS] = types.SimpleNamespace(
-            components=["ATMCS", "ATPtg", "ATPneumatics", "ATHexapod"],
-            readonly=False,
-            include=[
-                "offsetAzEl",
-                "offsetRADec",
-                "allAxesInPosition",
-                "positionUpdate",
-                "moveToPosition",
-                "target",
-                "mount_AzEl_Encoders",
-                "position",
-                "mount_Nasmyth_Encoders",
-                "timeAndDate",
-                "m1SetPressure",
-                "m2SetPressure",
-                "m1OpenAirValve",
-                "m2OpenAirValve",
-                "m1CloseAirValve",
-                "m2CloseAirValve",
-                "openMasterAirSupply",
-                "openInstrumentAirValve",
-                "m1State",
-                "m2State",
-                "instrumentState",
-                "mainValveState",
-                "summaryState",
-                "m1AirPressure",
-                "m2AirPressure",
-            ],
-        )
+            self._usages = usages
 
-        return usages
+        return self._usages

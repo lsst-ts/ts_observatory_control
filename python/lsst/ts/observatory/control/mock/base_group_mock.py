@@ -242,10 +242,11 @@ class BaseGroupMock:
         for name in self.component_names:
             close_tasks.append(getattr(self.controllers, name).close())
 
-        await asyncio.gather(*close_tasks)
+        await asyncio.gather(*close_tasks, return_exceptions=True)
 
         for task in task_list:
             if isinstance(task, Exception):
+                self.log.error("Exception in task.")
                 raise task
 
     async def __aenter__(self):

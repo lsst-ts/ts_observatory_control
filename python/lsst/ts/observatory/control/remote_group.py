@@ -25,7 +25,7 @@ import traceback
 
 from lsst.ts import salobj
 
-__all__ = ["Usages", "RemoteGroup"]
+__all__ = ["Usages", "UsagesResources", "RemoteGroup"]
 
 
 class Usages:
@@ -61,6 +61,95 @@ class Usages:
         )
 
 
+class UsagesResources:
+    """Represent the resources needed for `Usages`.
+
+    When defining `Usages` for a `RemoteGroup` of CSCs one need to specify what
+    CSCs and topics are required. For instance, take the generic usage
+    `Usages.StateTransition`. It is relevant to all CSCs in the group,
+    requires the generic state transition commands (`start`, `enable`,
+    `disable`, `standby`) and the generic events `summaryState` and
+    `settingVersions`. To represent these resources for
+    `Usages.StateTransition` we create a `UsagesResources` with those
+    requirements, e.g.::
+
+        UsagesResources(
+            components_attr = self.components_attr,
+            readonly = False,
+            generics = [
+                        "start",
+                        "enable",
+                        "disable",
+                        "standby",
+                        "summaryState",
+                        "settingVersions"
+                       ]
+            )
+
+    Parameters
+    ----------
+    components_attr : `list` of `str`
+        Name of the components required for this use case. Names must follow
+        the same format as that of the `components_attr` attribute in
+        `RemoteGroup`, which is the name of the CSC in lowercase replacing the
+        ":" by "_", e.g. Hexapod:1 is hexapod_1 and MTDomeTrajectory is
+        mtdometrajectory.
+    readonly : `bool`
+        Should the remotes be readonly? That means no command can be sent to
+        any component.
+    generics : `list` of `str`
+        List of generic topics (common to all components) required for this use
+        case.
+    **kwargs
+        Used to specify list of topics for individual components. See Notes
+        section bellow.
+
+    Notes
+    -----
+
+    The kwargs argument can contain attributes with the name of the CSC, as it
+    appears in the ``components_attr`` parameter list. They must be a list of
+    strings with the name of the topics for the individual CSC. For example,::
+
+        UsagesResources(
+            components=["atcamera", "atarchiver", "atheaderservice"],
+            readonly=False,
+            generics=["summaryState"],
+            atcamera=["takeImages", "endReadout"],
+            atheaderservice=["largeFileObjectAvailable"],
+        )
+
+    Will include the `summaryState` event for ATCamera, ATArchiver and
+    ATHeaderService components, plus `takeImages` and `endReadout` from
+    ATCamera and `largeFileObjectAvailable` from ATHeaderService. No particular
+    topic for ATArchiver would be included.
+
+    Raises
+    ------
+
+    TypeError
+        If `kwargs` argument is not in the `components` list.
+
+    """
+
+    def __init__(self, components_attr, readonly, generics=(), **kwargs):
+
+        self.components_attr = frozenset(components_attr)
+
+        self.readonly = readonly
+
+        self.include = set(generics)
+
+        for component in kwargs:
+            if component in self.components_attr:
+                self.include.update(kwargs[component])
+            else:
+                raise TypeError(
+                    f"Unexpected keyword argument {component}. "
+                    f"Valid additional arguments are {self.components_attr}."
+                )
+
+
 class RemoteGroup:
     """High-level abstraction of a collection of `salobj.Remote`.
 
@@ -91,7 +180,15 @@ class RemoteGroup:
 
     Attributes
     ----------
-    components
+    components : `list` of `str`
+        List with the names of the CSCs that are part of the group. Format is
+        the same as that used to initialize the `salobj.Remotes`, e.g.;
+        "MTMount" or "Hexapod:1".
+    components_attr : `list` of `str`
+        List with the names of the `salobj.Remotes` for the CSCs that are part
+        of the group. The name of the component is converted to all lowercase
+        and indexed component have an underscore instead of a colon, e.g.
+        MTMount -> mtmount, Hexapod:1 -> hexapod_1.
     valid_use_cases
     usages
     rem :  `types.SimpleNamespace`
@@ -135,43 +232,55 @@ class RemoteGroup:
         self.long_timeout = 30.0
         self.long_long_timeout = 120.0
 
-        self._components = components
-        self._component_names = []
+        self._components = dict(
+            [
+                (component, component.lower().replace(":", "_"))
+                for component in components
+            ]
+        )
 
         self.domain = domain if domain is not None else salobj.Domain()
 
-        _remotes = {}
+        self._usages = None
 
-        for i, component in enumerate(self._components):
+        self.rem = types.SimpleNamespace()
+
+        for component in self._components:
             name, index = salobj.name_to_name_index(component)
-            resources = self.get_required_resources(component, intended_usage)
-            rname = component.lower().replace(":", "_")
-            self._component_names.append(rname)
+            rname = self._components[component]
+            resources = self.get_required_resources(rname, intended_usage)
+
             if resources.add_this:
-                _remotes[rname] = salobj.Remote(
-                    domain=self.domain,
-                    name=name,
-                    index=index,
-                    readonly=resources.readonly,
-                    include=resources.include,
+                setattr(
+                    self.rem,
+                    rname,
+                    salobj.Remote(
+                        domain=self.domain,
+                        name=name,
+                        index=index,
+                        readonly=resources.readonly,
+                        include=resources.include,
+                    ),
                 )
             else:
-                _remotes[rname] = None
-
-        self.rem = types.SimpleNamespace(**_remotes)
+                setattr(self.rem, rname, None)
 
         self.scheduled_coro = []
 
+        # Dict of component attribute name: remote, if present, else None
+        attr_remotes = {attr: getattr(self.rem, attr) for attr in self.components_attr}
+
+        # Mark components that were excluded from the resources to not be
+        # checked.
         self.check = types.SimpleNamespace(
-            **{component: True for component in self._component_names}
+            **{c: remote is not None for c, remote in attr_remotes.items()}
         )
 
         self.start_task = asyncio.gather(
             *[
-                getattr(self.rem, c).start_task
-                if getattr(self.rem, c) is not None
-                else asyncio.sleep(0.0)
-                for c in self._component_names
+                remote.start_task
+                for remote in attr_remotes.values()
+                if remote is not None
             ]
         )
 
@@ -185,8 +294,9 @@ class RemoteGroup:
         Parameters
         ----------
         component: `str`
-            Name of the component, with index (e.g. Test:1).
-
+            Name of the component, with index as it appears in
+            `components_attr` attribute (e.g. test_1 for the Test component
+            with index 1).
         intended_usage: `int`
             An integer constructed from the `self.valid_use_cases`. Usages can
             be combined to enable combined operations (see base class
@@ -212,10 +322,10 @@ class RemoteGroup:
 
         """
 
-        if component not in self._components:
+        if component not in self.components_attr:
             raise KeyError(
                 f"Component {component} not in the list of components. "
-                f"Must be one of {self._components}."
+                f"Must be one of {self.components_attr}."
             )
 
         if intended_usage is None:
@@ -242,7 +352,7 @@ class RemoteGroup:
                 continue
             elif usage & intended_usage != 0:
                 resources.add_this = resources.add_this or (
-                    component in self.usages[usage].components
+                    component in self.usages[usage].components_attr
                 )
                 resources.readonly = resources.readonly and self.usages[usage].readonly
                 for topic in self.usages[usage].include:
@@ -359,9 +469,9 @@ class RemoteGroup:
         Parameters
         ----------
         component : `str`
-            Name of the component to follow. Must be one of:
-            atmcs, atptg, ataos, atpneumatics, athexapod, atdome,
-            atdometrajectory
+            Name of the component to follow. The name of the CSC follow the
+            format CSCName or CSCName:index (for indexed components), e.g.
+            "Hexapod:1" (for Hexapod with index=1) or "ATHexapod".
 
         Raises
         ------
@@ -372,9 +482,73 @@ class RemoteGroup:
         """
 
         while True:
-            await getattr(self.rem, component).evt_heartbeat.next(
+            await getattr(self.rem, self._components[component]).evt_heartbeat.next(
                 flush=True, timeout=self.fast_timeout
             )
+
+    async def inspect_settings(self, components_attr=None):
+        """Return available settings.
+
+        Inspect `settingVersions` from CSCs and return dictionary with all the
+        available settings.
+
+        Parameters
+        ----------
+        components_attr : `list` of `str` or `None`
+            List of CSC names from the group to inspect settings. If `None`
+            inspect all components in the group. The name of the CSC must be as
+            it appears in the `components_attr` attribute, which is the name of
+            the CSC in lowercase, replacing ":" by "_" for indexed components,
+            e.g. "Hexapod:1" -> "hexapod_1" or "ATHexapod" -> "athexapod".
+
+        Returns
+        -------
+        settings : `dict`
+            Dictionary with valid settings. The dictionary key will be the csc
+            name and the value a list of strings. The name of the CSC as it
+            appears in the `components_attr` attribute, which is the name of
+            the CSC in lowercase, replacing ":" by "_" for indexed components,
+            e.g. "Hexapod:1" -> "hexapod_1" or "ATHexapod" -> "athexapod".
+
+        Raises
+        ------
+        RuntimeError
+            If an item in the parameter `components` list is not a CSC in the
+            group.
+
+        """
+
+        settings = dict()
+
+        for comp in (
+            self.components_attr if components_attr is None else components_attr
+        ):
+            if comp not in self.components_attr:
+                raise RuntimeError(
+                    f"{comp} not in group. Must be one of {self.components_attr}."
+                )
+            elif getattr(self.check, comp):
+                settings[comp] = None
+            else:
+                self.log.info(f"{comp} check is disabled, skipping.")
+
+        for comp in settings:
+            try:
+                sv = await getattr(self.rem, comp).evt_settingVersions.aget(
+                    timeout=self.fast_timeout
+                )
+            except asyncio.TimeoutError:
+                sv = None
+
+            if sv is not None:
+                settings[comp] = sv.recommendedSettingsLabels.split(",")
+            else:
+                self.log.debug(
+                    "Couldn't get settingVersions event. Using empty settings."
+                )
+                settings[comp] = [""]
+
+        return settings
 
     async def expand_settings(self, settings=None):
         """Take an incomplete settings dict and fills it out according to
@@ -382,13 +556,23 @@ class RemoteGroup:
 
         Parameters
         ----------
-        settings : `dict`
-            A dictionary with component name, setting name pair or `None`.
+        settings : `dict` or `None`
+            A dictionary with (name, settings) pair or `None`. The name of the
+            as it appears in the `components_attr` attribute, which is the name
+            of the CSC in lowercase, replacing ":" by "_" for indexed
+            components, e.g. "Hexapod:1" -> "hexapod_1" or "ATHexapod" ->
+            "athexapod".
 
         Returns
         -------
         complete_settings : `dict`
             Dictionary with complete settings.
+
+        Raises
+        ------
+        RuntimeError
+            If an item in the parameter `settings` dictionary is not a CSC in
+            the group.
 
         """
         self.log.debug("Gathering settings.")
@@ -397,27 +581,21 @@ class RemoteGroup:
         if settings is not None:
             self.log.debug(f"Received settings from users.: {settings}")
             complete_settings = settings.copy()
+            for comp in complete_settings:
+                if comp not in self.components_attr:
+                    raise RuntimeError(
+                        f"{comp} not in group. Must be one of {self.components_attr}."
+                    )
 
-        for comp in self.components:
-            if comp not in complete_settings:
-                self.log.debug(f"No settings for {comp}.")
-                try:
-                    sv = await getattr(self.rem, comp).evt_settingVersions.aget(
-                        timeout=self.fast_timeout
-                    )
-                except asyncio.TimeoutError:
-                    sv = None
+        incomplete_settings = await self.inspect_settings(
+            components_attr=[
+                comp for comp in self.components_attr if comp not in complete_settings
+            ]
+        )
 
-                if sv is not None:
-                    complete_settings[comp] = sv.recommendedSettingsLabels.split(",")[0]
-                    self.log.debug(
-                        f"Using {complete_settings[comp]} from settingVersions event."
-                    )
-                else:
-                    self.log.debug(
-                        "Couldn't get settingVersions event. Using empty settings."
-                    )
-                    complete_settings[comp] = ""
+        for comp in incomplete_settings:
+            self.log.debug(f"Complete settings for {comp}.")
+            complete_settings[comp] = incomplete_settings[comp][0]
 
         self.log.debug(f"Settings versions: {complete_settings}")
 
@@ -436,7 +614,7 @@ class RemoteGroup:
 
         components : `list[`str`]`
             List of components to set state, as they appear in
-            `self.components`.
+            `self.components_attr`.
 
         Raises
         ------
@@ -449,15 +627,15 @@ class RemoteGroup:
         """
 
         if components is not None:
-            work_components = set(components)
+            work_components = list(components)
 
             for comp in work_components:
-                if comp not in self.components:
+                if comp not in self.components_attr:
                     raise RuntimeError(
-                        f"Component {comp} not part of the group. Must be one of {self.components}."
+                        f"Component {comp} not part of the group. Must be one of {self.components_attr}."
                     )
         else:
-            work_components = set(self.components)
+            work_components = list(self.components_attr)
 
         if settings is not None:
             settings_all = settings
@@ -492,7 +670,7 @@ class RemoteGroup:
                 error_flag = True
                 failed_components.append(comp)
                 err_message = (
-                    f"Unable to transition {self.components[i]} to "
+                    f"Unable to transition {comp} to "
                     f"{salobj.State(state)!r} {traceback.format_exc()}.\n"
                 )
                 err_traceback = traceback.format_exception(
@@ -504,7 +682,7 @@ class RemoteGroup:
                     err_message += trace
                 self.log.error(err_message)
             else:
-                self.log.debug(f"[{self.components[i]}]::{ret_val[i]!r}")
+                self.log.debug(f"[{comp}]::{ret_val[i]!r}")
 
         if error_flag:
             raise RuntimeError(
@@ -543,9 +721,36 @@ class RemoteGroup:
 
     @property
     def components(self):
-        """ List of components.
+        """ List of components names.
+
+        The name of the CSC follow the format used in the class constructor,
+        e.g. CSCName or CSCName:index (for indexed components), e.g.
+        "Hexapod:1" (for Hexapod with index=1) or "ATHexapod".
+
+        Returns
+        -------
+        components : `list` of `str`
+            List of CSCs names.
+
         """
-        return self._component_names
+        return list(self._components.keys())
+
+    @property
+    def components_attr(self):
+        """ List of remotes names.
+
+        The remotes names are reformatted to fit the requirements for object
+        attributes. It will be the name of the CSC (as in ``components``) in
+        lowercase, replacing the colon by an underscore, e.g. "Hexapod:1" ->
+        "hexapod_1" or "ATHexapod" -> "athexapod".
+
+        Returns
+        -------
+        components_attr : `list` of `str`
+            List of remotes attribute names.
+
+        """
+        return list(self._components.values())
 
     @property
     def valid_use_cases(self):
@@ -577,43 +782,50 @@ class RemoteGroup:
 
         """
 
-        return {
-            self.valid_use_cases.All: types.SimpleNamespace(
-                components=self._components,
-                readonly=False,
-                include=[
-                    "start",
-                    "enable",
-                    "disable",
-                    "standby",
-                    "exitControl",
-                    "enterControl",
-                    "summaryState",
-                    "settingVersions",
-                    "heartbeat",
-                ],
-            ),
-            self.valid_use_cases.StateTransition: types.SimpleNamespace(
-                components=self._components,
-                readonly=False,
-                include=[
-                    "start",
-                    "enable",
-                    "disable",
-                    "standby",
-                    "exitControl",
-                    "enterControl",
-                    "summaryState",
-                    "settingVersions",
-                ],
-            ),
-            self.valid_use_cases.MonitorState: types.SimpleNamespace(
-                components=self._components, readonly=True, include=["summaryState"],
-            ),
-            self.valid_use_cases.MonitorHeartBeat: types.SimpleNamespace(
-                components=self._components, readonly=True, include=["heartbeat"],
-            ),
-        }
+        if self._usages is None:
+            self._usages = {
+                self.valid_use_cases.All: UsagesResources(
+                    components_attr=self.components_attr,
+                    readonly=False,
+                    generics=[
+                        "start",
+                        "enable",
+                        "disable",
+                        "standby",
+                        "exitControl",
+                        "enterControl",
+                        "summaryState",
+                        "settingVersions",
+                        "heartbeat",
+                    ],
+                ),
+                self.valid_use_cases.StateTransition: UsagesResources(
+                    components_attr=self.components_attr,
+                    readonly=False,
+                    generics=[
+                        "start",
+                        "enable",
+                        "disable",
+                        "standby",
+                        "exitControl",
+                        "enterControl",
+                        "summaryState",
+                        "settingVersions",
+                    ],
+                ),
+                self.valid_use_cases.MonitorState: UsagesResources(
+                    components_attr=self.components_attr,
+                    readonly=True,
+                    generics=["summaryState"],
+                ),
+                self.valid_use_cases.MonitorHeartBeat: UsagesResources(
+                    components_attr=self.components_attr,
+                    readonly=True,
+                    generics=["heartbeat"],
+                ),
+            }
+
+        return self._usages
 
     async def process_as_completed(self, tasks):
         """ Process tasks are they complete.
@@ -661,9 +873,8 @@ class RemoteGroup:
         await asyncio.gather(
             *[
                 getattr(self.rem, c).close()
+                for c in self.components_attr
                 if getattr(self.rem, c) is not None
-                else asyncio.sleep(0.0)
-                for c in self._component_names
             ]
         )
         await self.domain.close()

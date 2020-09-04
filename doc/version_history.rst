@@ -6,6 +6,22 @@
 Version History
 ###############
 
+v0.4.0
+======
+
+* Add ``UsagesResources`` class.
+  The class provides a better interface for developers to encode use case information to control/reduce resources needed for operating with the control classes.
+  Implement new ``UsagesResources`` class on existing classes: ``ATCS``, ``LATISS``, ``ComCam``, ``MTCS``.
+* In ``RemoteGroup``, add ``components_attr``, which has a list of remotes names and make ``components`` return a list of CSC names.
+  CSC names are the string used to create the Remotes (e.g., ``MTMount`` or ``Hexapod:1``) whereas remote names are the name of the CSC in lowercase, replacing the colon by and underscore (e.g., ``mtmount`` or ``hexapod_1``).
+
+Requirements:
+
+* ts_salobj >= 5.6.0
+* ts_xml >= 6.1.0
+* ts_idl >= 1.3.0
+* IDL files for all components, e.g. built with ``make_idl_files.py``
+
 v0.3.0
 ======
 
