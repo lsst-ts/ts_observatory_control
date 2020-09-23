@@ -491,10 +491,6 @@ class MTCS(BaseTCS):
         self.check.dome = checks.dome
         self.check.mtdometrajectory = checks.mtdometrajectory
 
-    def check_tracking(self, track_duration=None):
-        # TODO: Finish implementation of this method (DM-24488).
-        pass
-
     async def slew_dome_to(self, az, check=None):
         """Utility method to slew dome to a specified position.
 

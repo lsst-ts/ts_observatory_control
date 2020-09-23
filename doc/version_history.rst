@@ -6,6 +6,21 @@
 Version History
 ###############
 
+v0.4.1
+======
+
+Changes:
+
+* Move ``check_tracking`` to ``base_tcs``.
+* Test ``check_tracking`` in ``test_mtcs``.
+
+Requirements:
+
+* ts_salobj >= 5.6.0
+* ts_xml >= 6.1.0
+* ts_idl >= 1.3.0
+* IDL files for all components, e.g. built with ``make_idl_files.py``
+
 v0.4.0
 ======
 

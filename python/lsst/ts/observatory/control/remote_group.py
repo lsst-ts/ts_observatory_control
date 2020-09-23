@@ -482,7 +482,7 @@ class RemoteGroup:
         """
 
         while True:
-            await getattr(self.rem, self._components[component]).evt_heartbeat.next(
+            await getattr(self.rem, component).evt_heartbeat.next(
                 flush=True, timeout=self.fast_timeout
             )
 
