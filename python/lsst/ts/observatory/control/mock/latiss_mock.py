@@ -59,7 +59,9 @@ class LATISSMock(BaseGroupMock):
         self.exptime_list = []
 
         self.latiss_filter = None
+        self.latiss_filter_name = None
         self.latiss_grating = None
+        self.latiss_grating_name = None
         self.latiss_linear_stage = None
 
         self.end_readout_task = None
@@ -115,6 +117,9 @@ class LATISSMock(BaseGroupMock):
         await asyncio.sleep(0.1)
         self.atspec.evt_filterInPosition.put()
         self.atspec.evt_reportedFilterPosition.put()
+        self.atspec.evt_reportedFilterPosition.set_put(
+            position=data.filter, name=f"filter{data.filter}"
+        )
         self.latiss_filter = data.filter
 
     async def cmd_changeDisperser_callback(self, data):
@@ -122,13 +127,18 @@ class LATISSMock(BaseGroupMock):
         await asyncio.sleep(0.1)
         self.atspec.evt_disperserInPosition.put()
         self.atspec.evt_reportedDisperserPosition.put()
+        self.atspec.evt_reportedDisperserPosition.set_put(
+            position=data.disperser, name=f"grating{data.disperser}"
+        )
         self.latiss_grating = data.disperser
 
     async def cmd_moveLinearStage_callback(self, data):
         """Emulate change filter command"""
         await asyncio.sleep(0.1)
         self.atspec.evt_linearStageInPosition.put()
-        self.atspec.evt_reportedLinearStagePosition.put()
+        self.atspec.evt_reportedLinearStagePosition.set_put(
+            position=data.distanceFromHome
+        ),
         self.latiss_linear_stage = data.distanceFromHome
 
     async def close(self):

@@ -266,6 +266,32 @@ class LATISS(BaseCamera):
             async with self.cmd_lock:
                 return await asyncio.gather(*setup_coroutines)
 
+    async def get_setup(self):
+        """Get the current filter, grating and stage position
+
+        Returns
+        -------
+        string
+            Name of filter currently in the beam
+        string
+            Name of disperser currently in the beam
+        float
+            Position of linear stage holding the dispersers
+
+        """
+
+        filter_pos = await self.rem.atspectrograph.evt_reportedFilterPosition.aget(
+            timeout=self.fast_timeout
+        )
+        grating_pos = await self.rem.atspectrograph.evt_reportedDisperserPosition.aget(
+            timeout=self.fast_timeout
+        )
+        stage_pos = await self.rem.atspectrograph.evt_reportedLinearStagePosition.aget(
+            timeout=self.fast_timeout
+        )
+
+        return filter_pos.name, grating_pos.name, stage_pos.position
+
     @property
     def valid_use_cases(self):
         """Returns valid usages.
@@ -288,7 +314,14 @@ class LATISS(BaseCamera):
                 readonly=False,
                 generics=["summaryState"],
                 atcamera=["takeImages", "endReadout"],
-                atspectrograph=["changeFilter", "changeDisperser", "moveLinearStage"],
+                atspectrograph=[
+                    "changeFilter",
+                    "changeDisperser",
+                    "moveLinearStage",
+                    "reportedFilterPosition",
+                    "reportedDisperserPosition",
+                    "reportedLinearStagePosition",
+                ],
                 atheaderservice=["largeFileObjectAvailable"],
             )
             usages[self.valid_use_cases.TakeImage] = UsagesResources(
@@ -301,7 +334,14 @@ class LATISS(BaseCamera):
                 components_attr=["atspectrograph"],
                 readonly=False,
                 generics=["summaryState"],
-                atspectrograph=["changeFilter", "changeDisperser", "moveLinearStage"],
+                atspectrograph=[
+                    "changeFilter",
+                    "changeDisperser",
+                    "moveLinearStage",
+                    "reportedFilterPosition",
+                    "reportedDisperserPosition",
+                    "reportedLinearStagePosition",
+                ],
             )
             usages[self.valid_use_cases.TakeImageFull] = UsagesResources(
                 components_attr=["atcamera", "atspectrograph", "atheaderservice"],
@@ -309,6 +349,14 @@ class LATISS(BaseCamera):
                 generics=["summaryState"],
                 atcamera=["takeImages", "endReadout"],
                 atheaderservice=["largeFileObjectAvailable"],
+                atspectrograph=[
+                    "changeFilter",
+                    "changeDisperser",
+                    "moveLinearStage",
+                    "reportedFilterPosition",
+                    "reportedDisperserPosition",
+                    "reportedLinearStagePosition",
+                ],
             )
 
             self._usages = usages
