@@ -153,6 +153,13 @@ class TestMTCS(RemoteGroupTestCase, asynctest.TestCase):
             # degrees), so need to get the value of Angle.
             await self.mtcs.slew(ra.value, dec.value, slew_timeout=SLEW_TIMEOUT)
 
+            # Test check_tracking; should not take longer than duration
+            await asyncio.wait_for(self.mtcs.check_tracking(5), timeout=5.5)
+
+            # Test check_tracking; should not less than duration
+            with self.assertRaises(asyncio.TimeoutError):
+                await asyncio.wait_for(self.mtcs.check_tracking(5), timeout=4.5)
+
             # Test slew_object
             await self.mtcs.slew_object(name=name, slew_timeout=SLEW_TIMEOUT)
 
