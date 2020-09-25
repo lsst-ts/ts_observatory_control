@@ -71,7 +71,9 @@ class TestLATISS(RemoteGroupTestCase, asynctest.TestCase):
             nflats = 4
             exptime = 1.0
             filter_id = 1
+            filter_name = f"filter{filter_id}"
             grating_id = 1
+            grating_name = f"grating{grating_id}"
             linear_stage = 100.0
 
             await self.latiss_remote.take_flats(
@@ -81,6 +83,13 @@ class TestLATISS(RemoteGroupTestCase, asynctest.TestCase):
                 grating=grating_id,
                 linear_stage=linear_stage,
             )
+
+            (
+                current_filter,
+                current_grating,
+                current_stage_pos,
+            ) = await self.latiss_remote.get_setup()
+
             self.assertEqual(self.latiss_mock.nimages, nflats)
             self.assertEqual(len(self.latiss_mock.exptime_list), nflats)
             for i in range(nflats):
@@ -88,6 +97,10 @@ class TestLATISS(RemoteGroupTestCase, asynctest.TestCase):
             self.assertEqual(self.latiss_mock.latiss_filter, filter_id)
             self.assertEqual(self.latiss_mock.latiss_grating, grating_id)
             self.assertEqual(self.latiss_mock.latiss_linear_stage, linear_stage)
+
+            self.assertEqual(current_filter, filter_name)
+            self.assertEqual(current_grating, grating_name)
+            self.assertEqual(current_stage_pos, linear_stage)
 
     async def test_instrument_parameters(self):
         async with self.make_group(usage=LATISSUsages.TakeImage):

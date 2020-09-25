@@ -606,6 +606,57 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
             timeout=self.fast_timeout
         )
 
+    async def check_tracking(self, track_duration=None):
+        """Check tracking state.
+
+        This method monitors all the required parameters for tracking a target;
+        from telescope and pointing component to the dome.
+
+        If any of those conditions fails, raise an exception.
+
+        This method is useful in case an operation required tracking to be
+        active and be interrupted in case tracking stops. One can start
+        this method concurrently and monitor it for any exception. If an
+        exception is raise, the concurrent task can be interrupted or marked
+        as failed as appropriately.
+
+        If a `track_duration` is specified, the method will return after the
+        time has passed. Otherwise it will just check forever.
+
+        Parameters
+        ----------
+        track_duration : `float` or `None`
+            How long should tracking be checked for (second)? Must be a
+            positive `float` or `None` (default).
+
+        Returns
+        -------
+        done : `bool`
+            True if tracking was successful.
+
+        Raises
+        ------
+        RuntimeError
+
+            If any of the conditions required for tracking is not met.
+        """
+        # TODO: Finish implementation of this method (DM-24488).
+
+        task_list = []
+
+        if track_duration is not None and track_duration > 0.0:
+            task_list.append(asyncio.ensure_future(asyncio.sleep(track_duration)))
+
+        for cmp in self.components_attr:
+            if getattr(self.check, cmp):
+                self.log.debug(f"Adding {cmp} to check list")
+                task_list.append(asyncio.ensure_future(self.check_component_state(cmp)))
+                task_list.append(asyncio.ensure_future(self.check_comp_heartbeat(cmp)))
+            else:
+                self.log.debug(f"Skipping {cmp}")
+
+        await self.process_as_completed(task_list)
+
     @property
     def instrument_focus(self):
         return self.__instrument_focus
@@ -665,43 +716,6 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
     @abc.abstractmethod
     async def stop_all(self):
         """Stop telescope and dome."""
-        raise NotImplementedError()
-
-    @abc.abstractmethod
-    async def check_tracking(self, track_duration=None):
-        """Check tracking state.
-
-        This method monitors all the required parameters for tracking a target;
-        from telescope and pointing component to the dome.
-
-        If any of those conditions fails, raise an exception.
-
-        This method is useful in case an operation required tracking to be
-        active and be interrupted in case tracking stops. One can start
-        this method concurrently and monitor it for any exception. If an
-        exception is raise, the concurrent task can be interrupted or marked
-        as failed as appropriately.
-
-        If a `track_duration` is specified, the method will return after the
-        time has passed. Otherwise it will just check forever.
-
-        Parameters
-        ----------
-        track_duration : `float` or `None`
-            How long should tracking be checked for (second)? Must be a
-            positive `float` or `None` (default).
-
-        Returns
-        -------
-        done : `bool`
-            True if tracking was successful.
-
-        Raises
-        ------
-        RuntimeError
-
-            If any of the conditions required for tracking is not met.
-        """
         raise NotImplementedError()
 
     @abc.abstractmethod
