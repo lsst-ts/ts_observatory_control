@@ -12,26 +12,13 @@ build:
     - PATH
     - PYTHONPATH
     - LD_LIBRARY_PATH
-    - OSPL_HOME
-    - PYTHON_BUILD_VERSION
-    - PYTHON_BUILD_LOCATION
-    - LSST_DDS_DOMAIN
     - TS_CONFIG_OCS_DIR
+    - OSPL_HOME
 
 test:
   requires:
-    - pytest
-    - pytest-flake8
-    - pytest-cov
-    - asynctest
-    - pytest-tornasync
-    - numpy
-    - astropy
+    - ts-conda-build
     - astroquery
-    - jsonschema
-    - pyyaml
-    - boto3
-    - moto
     - ts-idl
     - ts-salobj
   source_files:

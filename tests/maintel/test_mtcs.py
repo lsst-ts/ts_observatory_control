@@ -1,4 +1,4 @@
-# This file is part of ts_standardscripts
+# This file is part of ts_observatory_control
 #
 # Developed for the LSST Data Management System.
 # This product includes software developed by the LSST Project
@@ -17,10 +17,8 @@
 # GNU General Public License for more details.
 #
 # You should have received a copy of the GNU General Public License
-
 import asyncio
 
-import random
 import unittest
 
 import astropy.units as u
@@ -32,8 +30,6 @@ import asynctest
 
 from lsst.ts import salobj
 
-# from lsst.ts.idl.enums import MTPtg
-
 from lsst.ts.observatory.control.mock import MTCSMock
 from lsst.ts.observatory.control.maintel.mtcs import MTCS, MTCSUsages
 from lsst.ts.observatory.control.utils import RemoteGroupTestCase, RotType
@@ -42,7 +38,7 @@ HB_TIMEOUT = 5  # Basic timeout for heartbeats
 SLEW_TIMEOUT = 10  # Basic slewtime timeout for testing
 MAKE_TIMEOUT = 60  # Timeout for make_script (sec)
 
-random.seed(47)  # for set_random_lsst_dds_domain
+np.random.seed(47)
 
 
 class TestMTCS(RemoteGroupTestCase, asynctest.TestCase):
@@ -92,7 +88,8 @@ class TestMTCS(RemoteGroupTestCase, asynctest.TestCase):
     async def test_point_azel(self):
 
         async with self.make_group(
-            usage=MTCSUsages.StartUp + MTCSUsages.Shutdown + MTCSUsages.Slew
+            usage=MTCSUsages.StartUp + MTCSUsages.Shutdown + MTCSUsages.Slew,
+            verbose=True,
         ):
 
             # enable all components
