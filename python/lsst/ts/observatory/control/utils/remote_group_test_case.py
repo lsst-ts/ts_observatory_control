@@ -1,4 +1,4 @@
-# This file is part of ts_standardscripts.
+# This file is part of ts_observatory_control.
 #
 # Developed for the LSST Telescope and Site Systems.
 # This product includes software developed by the LSST Project
@@ -24,11 +24,14 @@ __all__ = ["RemoteGroupTestCase"]
 import abc
 import asyncio
 import contextlib
+import random
 import time
 
 from lsst.ts import salobj
 
 MAKE_TIMEOUT = 30  # Default time for make_script (seconds)
+
+random.seed(47)  # for set_random_lsst_dds_domain
 
 
 class RemoteGroupTestCase(metaclass=abc.ABCMeta):
@@ -92,7 +95,7 @@ class RemoteGroupTestCase(metaclass=abc.ABCMeta):
         verbose : `bool`
             Log data? This can be helpful for setting ``timeout``.
         """
-        salobj.set_random_lsst_dds_domain()
+        salobj.set_random_lsst_dds_partition_prefix()
 
         items_to_await = await self.wait_for(
             self.basic_make_group(usage),

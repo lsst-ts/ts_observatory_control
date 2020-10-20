@@ -17,21 +17,14 @@
 # GNU General Public License for more details.
 #
 # You should have received a copy of the GNU General Public License
-# import logging
-import random
 import unittest
 
 import asynctest
 import pytest
 
-# from lsst.ts import salobj
 from lsst.ts.observatory.control.maintel.comcam import ComCam, ComCamUsages
 from lsst.ts.observatory.control.mock import ComCamMock
 from lsst.ts.observatory.control.utils import RemoteGroupTestCase
-
-random.seed(42)  # for set_random_lsst_dds_domain
-
-# logging.basicConfig(level=logging.DEBUG)
 
 
 class TestComCam(RemoteGroupTestCase, asynctest.TestCase):
