@@ -6,6 +6,22 @@
 Version History
 ###############
 
+v0.4.2
+======
+
+Changes:
+
+* Remove use of features marked for deprecation in salobj 6.
+* Fix copyright messages that mentioned ts_standardscripts as the source package.
+* Use ts-conda-build metapackage to build conda packages.
+
+Requirements:
+
+* ts_salobj >= 5.6.0
+* ts_xml >= 6.1.0
+* ts_idl >= 1.3.0
+* IDL files for all components, e.g. built with ``make_idl_files.py``
+
 v0.4.1
 ======
 

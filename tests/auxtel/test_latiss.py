@@ -1,4 +1,4 @@
-# This file is part of ts_standardscripts
+# This file is part of ts_observatory_control
 #
 # Developed for the LSST Data Management System.
 # This product includes software developed by the LSST Project
@@ -17,9 +17,6 @@
 # GNU General Public License for more details.
 #
 # You should have received a copy of the GNU General Public License
-
-import logging
-import random
 import unittest
 
 import asynctest
@@ -27,10 +24,6 @@ import asynctest
 from lsst.ts.observatory.control.mock import LATISSMock
 from lsst.ts.observatory.control.auxtel.latiss import LATISS, LATISSUsages
 from lsst.ts.observatory.control.utils import RemoteGroupTestCase
-
-random.seed(47)  # for set_random_lsst_dds_domain
-
-logging.basicConfig(level=logging.DEBUG)
 
 
 class TestLATISS(RemoteGroupTestCase, asynctest.TestCase):
