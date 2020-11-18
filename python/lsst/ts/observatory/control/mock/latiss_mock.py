@@ -116,9 +116,8 @@ class LATISSMock(BaseGroupMock):
         """Emulate change filter command"""
         await asyncio.sleep(0.1)
         self.atspec.evt_filterInPosition.put()
-        self.atspec.evt_reportedFilterPosition.put()
         self.atspec.evt_reportedFilterPosition.set_put(
-            position=data.filter, name=f"filter{data.filter}"
+            slot=data.filter, name=f"filter{data.filter}", band="r"
         )
         self.latiss_filter = data.filter
 
@@ -128,7 +127,7 @@ class LATISSMock(BaseGroupMock):
         self.atspec.evt_disperserInPosition.put()
         self.atspec.evt_reportedDisperserPosition.put()
         self.atspec.evt_reportedDisperserPosition.set_put(
-            position=data.disperser, name=f"grating{data.disperser}"
+            slot=data.disperser, name=f"grating{data.disperser}", band="R100"
         )
         self.latiss_grating = data.disperser
 

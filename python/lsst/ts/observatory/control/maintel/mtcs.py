@@ -95,10 +95,10 @@ class MTCS(BaseTCS):
                 "MTAOS",
                 "MTM1M3",
                 "MTM2",
-                "Hexapod:1",
-                "Hexapod:2",
-                "Rotator",
-                "Dome",
+                "MTHexapod:1",
+                "MTHexapod:2",
+                "MTRotator",
+                "MTDome",
                 "MTDomeTrajectory",
             ],
             domain=domain,
@@ -175,7 +175,7 @@ class MTCS(BaseTCS):
 
         if stop_before_slew:
             self.rem.newmtmount.evt_axesInPosition.flush()
-            self.rem.rotator.evt_inPosition.flush()
+            self.rem.mtrotator.evt_inPosition.flush()
 
         await slew_cmd.start(timeout=slew_timeout)
         self._dome_az_in_position.clear()
@@ -237,12 +237,12 @@ class MTCS(BaseTCS):
                 )
             )
 
-        if _check.dome:
+        if _check.mtdome:
             status.append(
                 asyncio.create_task(self.wait_for_dome_inposition(timeout, cmd_ack))
             )
 
-        if _check.rotator:
+        if _check.mtrotator:
             status.append(
                 asyncio.create_task(self.wait_for_rotator_inposition(timeout, cmd_ack))
             )
@@ -312,18 +312,18 @@ class MTCS(BaseTCS):
                     f"El = {tel_el.Elevation_Angle_Actual:+08.3f}[{distance_el.deg:+6.1f}] "
                 )
 
-            if _check.rotator:
-                rotator = await self.rem.rotator.tel_Application.next(
+            if _check.mtrotator:
+                rotator = await self.rem.mtrotator.tel_application.next(
                     flush=True, timeout=self.fast_timeout
                 )
-                distance_rot = salobj.angle_diff(rotator.Demand, rotator.Position)
-                status += f"[Rot]: {rotator.Position:+08.3f}[{distance_rot.deg:+6.1f}] "
+                distance_rot = salobj.angle_diff(rotator.demand, rotator.position)
+                status += f"[Rot]: {rotator.position:+08.3f}[{distance_rot.deg:+6.1f}] "
 
-            if _check.dome:
-                dome_az = await self.rem.dome.tel_azimuth.next(
+            if _check.mtdome:
+                dome_az = await self.rem.mtdome.tel_azimuth.next(
                     flush=True, timeout=self.fast_timeout
                 )
-                dome_el = await self.rem.dome.tel_lightWindScreen.next(
+                dome_el = await self.rem.mtdome.tel_lightWindScreen.next(
                     flush=True, timeout=self.fast_timeout
                 )
                 dome_az_diff = salobj.angle_diff(
@@ -443,7 +443,7 @@ class MTCS(BaseTCS):
 
         while True:
 
-            in_position = await self.rem.rotator.evt_inPosition.next(
+            in_position = await self.rem.mtrotator.evt_inPosition.next(
                 flush=False, timeout=timeout
             )
 
@@ -479,16 +479,16 @@ class MTCS(BaseTCS):
         """Handle azEl slew to wait or not for the dome.
         """
         check = types.SimpleNamespace(
-            dome=self.check.dome, mtdometrajectory=self.check.mtdometrajectory,
+            dome=self.check.mtdome, mtdometrajectory=self.check.mtdometrajectory,
         )
-        self.check.dome = wait_dome
+        self.check.mtdome = wait_dome
         self.check.mtdometrajectory = wait_dome
         return check
 
     def unset_azel_slew_checks(self, checks):
         """Handle azEl slew to wait or not for the dome.
         """
-        self.check.dome = checks.dome
+        self.check.mtdome = checks.dome
         self.check.mtdometrajectory = checks.mtdometrajectory
 
     async def slew_dome_to(self, az, check=None):
@@ -558,8 +558,10 @@ class MTCS(BaseTCS):
 
         el = await self.rem.mtmount.tel_Elevation.aget(timeout=self.fast_timeout)
 
-        rotator = await self.rem.rotator.tel_Application.aget(timeout=self.fast_timeout)
-        angle = el.Elevation_Angle_Actual - rotator.Position
+        rotator = await self.rem.mtrotator.tel_application.aget(
+            timeout=self.fast_timeout
+        )
+        angle = el.Elevation_Angle_Actual - rotator.position
 
         return angle
 
@@ -649,9 +651,9 @@ class MTCS(BaseTCS):
                     "timeAndDate",
                     "target",
                 ],
-                rotator=["Application"],
+                mtrotator=["application"],
                 mtmount=["Azimuth", "Elevation", "axesInPosition", "inPosition"],
-                dome=["azimuth", "lightWindScreen"],
+                mtdome=["azimuth", "lightWindScreen"],
             )
 
             usages[self.valid_use_cases.StartUp] = UsagesResources(

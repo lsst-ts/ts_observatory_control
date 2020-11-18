@@ -6,6 +6,20 @@
 Version History
 ###############
 
+v0.5.0
+======
+
+Changes:
+
+* Implement fixes required for xml 7.
+
+Requirements:
+
+* ts_salobj >= 5.6.0
+* ts_xml >= 7.0.0
+* ts_idl >= 1.3.0
+* IDL files for all components, e.g. built with ``make_idl_files.py``
+
 v0.4.2
 ======
 

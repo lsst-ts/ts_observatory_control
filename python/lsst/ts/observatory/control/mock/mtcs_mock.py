@@ -56,10 +56,10 @@ class MTCSMock(BaseGroupMock):
                 "MTAOS",
                 "MTM1M3",
                 "MTM2",
-                "Hexapod:1",
-                "Hexapod:2",
-                "Rotator",
-                "Dome",
+                "MTHexapod:1",
+                "MTHexapod:2",
+                "MTRotator",
+                "MTDome",
                 "MTDomeTrajectory",
             ],
             output_only=["MTMount"],
@@ -88,7 +88,7 @@ class MTCSMock(BaseGroupMock):
         self.controllers.newmtmount.evt_axesInPosition.set_put(
             elevation=False, azimuth=False
         )
-        self.controllers.rotator.evt_inPosition.set_put(inPosition=False)
+        self.controllers.mtrotator.evt_inPosition.set_put(inPosition=False)
 
         await asyncio.sleep(HEARTBEAT_INTERVAL)
 
@@ -114,7 +114,7 @@ class MTCSMock(BaseGroupMock):
 
         self.controllers.mtmount.tel_Elevation.set(Elevation_Angle_Set=data.elDegs)
 
-        self.controllers.rotator.tel_Application.set(Demand=data.rotPA)
+        self.controllers.mtrotator.tel_application.set(demand=data.rotPA)
 
     async def radec_target_callback(self, data):
 
@@ -194,25 +194,25 @@ class MTCSMock(BaseGroupMock):
 
         while self.run_telemetry_loop:
             if (
-                self.controllers.rotator.evt_summaryState.data.summaryState
+                self.controllers.mtrotator.evt_summaryState.data.summaryState
                 == salobj.State.ENABLED
             ):
 
                 error = np.random.normal(0.0, 1e-7)
-                demand = self.controllers.rotator.tel_Application.data.Demand
-                position = self.controllers.rotator.tel_Application.data.Position
+                demand = self.controllers.mtrotator.tel_application.data.demand
+                position = self.controllers.mtrotator.tel_application.data.position
                 dif = salobj.angle_diff(demand, position)
 
                 in_position = np.abs(dif) < 1e-1 * u.deg
 
                 if self.acting:
-                    self.controllers.rotator.evt_inPosition.set_put(
+                    self.controllers.mtrotator.evt_inPosition.set_put(
                         inPosition=in_position
                     )
 
-                self.controllers.rotator.tel_Application.set_put(
-                    Position=position + error + dif.deg / 1.1,
-                    Error=error + dif.deg / 1.1,
+                self.controllers.mtrotator.tel_application.set_put(
+                    position=position + error + dif.deg / 1.1,
+                    error=error + dif.deg / 1.1,
                 )
 
             await asyncio.sleep(HEARTBEAT_INTERVAL)
@@ -221,18 +221,18 @@ class MTCSMock(BaseGroupMock):
 
         while self.run_telemetry_loop:
             if (
-                self.controllers.dome.evt_summaryState.data.summaryState
+                self.controllers.mtdome.evt_summaryState.data.summaryState
                 == salobj.State.ENABLED
             ):
 
-                dome_az_set = self.controllers.dome.tel_azimuth.data.positionCommanded
+                dome_az_set = self.controllers.mtdome.tel_azimuth.data.positionCommanded
                 dome_el_set = (
-                    self.controllers.dome.tel_lightWindScreen.data.positionCommanded
+                    self.controllers.mtdome.tel_lightWindScreen.data.positionCommanded
                 )
 
-                dome_az_pos = self.controllers.dome.tel_azimuth.data.positionActual
+                dome_az_pos = self.controllers.mtdome.tel_azimuth.data.positionActual
                 dome_el_pos = (
-                    self.controllers.dome.tel_lightWindScreen.data.positionActual
+                    self.controllers.mtdome.tel_lightWindScreen.data.positionActual
                 )
 
                 error_az = np.random.normal(0.0, 1e-7)
@@ -253,18 +253,18 @@ class MTCSMock(BaseGroupMock):
                         self.controllers.mtmount.tel_Elevation.data.Elevation_Angle_Set
                     )
 
-                self.controllers.dome.tel_azimuth.set(
+                self.controllers.mtdome.tel_azimuth.set(
                     positionCommanded=dome_az_set,
                     positionActual=dome_az_pos + error_az + diff_az.deg / 1.1,
                 )
-                self.controllers.dome.tel_lightWindScreen.set(
+                self.controllers.mtdome.tel_lightWindScreen.set(
                     positionCommanded=dome_el_set,
                     positionActual=dome_el_pos + error_el + diff_el.deg / 1.1,
                 )
 
-                self.controllers.dome.tel_azimuth.put()
+                self.controllers.mtdome.tel_azimuth.put()
 
-                self.controllers.dome.tel_lightWindScreen.put()
+                self.controllers.mtdome.tel_lightWindScreen.put()
 
             await asyncio.sleep(HEARTBEAT_INTERVAL)
 
@@ -326,8 +326,8 @@ class MTCSMock(BaseGroupMock):
                         Elevation_Angle_Set=alt_az.alt.deg
                     )
 
-                    self.controllers.rotator.tel_Application.set(
-                        Demand=self.controllers.mtptg.evt_currentTarget.data.rotPA
+                    self.controllers.mtrotator.tel_application.set(
+                        demand=self.controllers.mtptg.evt_currentTarget.data.rotPA
                     )
 
                     self.controllers.newmtmount.evt_target.set(
