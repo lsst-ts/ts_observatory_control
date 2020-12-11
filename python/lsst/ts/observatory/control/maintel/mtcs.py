@@ -313,11 +313,13 @@ class MTCS(BaseTCS):
                 )
 
             if _check.mtrotator:
-                rotator = await self.rem.mtrotator.tel_application.next(
+                rotation_data = await self.rem.mtrotator.tel_rotation.next(
                     flush=True, timeout=self.fast_timeout
                 )
-                distance_rot = salobj.angle_diff(rotator.demand, rotator.position)
-                status += f"[Rot]: {rotator.position:+08.3f}[{distance_rot.deg:+6.1f}] "
+                distance_rot = salobj.angle_diff(
+                    rotation_data.demandPosition, rotation_data.actualPosition
+                )
+                status += f"[Rot]: {rotation_data.demandPosition:+08.3f}[{distance_rot.deg:+6.1f}] "
 
             if _check.mtdome:
                 dome_az = await self.rem.mtdome.tel_azimuth.next(
@@ -558,10 +560,10 @@ class MTCS(BaseTCS):
 
         el = await self.rem.mtmount.tel_Elevation.aget(timeout=self.fast_timeout)
 
-        rotator = await self.rem.mtrotator.tel_application.aget(
+        rotation_data = await self.rem.mtrotator.tel_rotation.aget(
             timeout=self.fast_timeout
         )
-        angle = el.Elevation_Angle_Actual - rotator.position
+        angle = el.Elevation_Angle_Actual - rotation_data.actualPosition
 
         return angle
 
@@ -651,7 +653,7 @@ class MTCS(BaseTCS):
                     "timeAndDate",
                     "target",
                 ],
-                mtrotator=["application"],
+                mtrotator=["rotation"],
                 mtmount=["Azimuth", "Elevation", "axesInPosition", "inPosition"],
                 mtdome=["azimuth", "lightWindScreen"],
             )

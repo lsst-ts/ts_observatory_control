@@ -37,6 +37,7 @@ from lsst.ts.idl.enums import MTPtg
 LONG_TIMEOUT = 30  # seconds
 HEARTBEAT_INTERVAL = 1  # seconds
 CLOSE_SLEEP = 5  # seconds
+ROT_IN_POSITION_DELTA = 1e-1 * u.deg
 
 
 class MTCSMock(BaseGroupMock):
@@ -114,7 +115,7 @@ class MTCSMock(BaseGroupMock):
 
         self.controllers.mtmount.tel_Elevation.set(Elevation_Angle_Set=data.elDegs)
 
-        self.controllers.mtrotator.tel_application.set(demand=data.rotPA)
+        self.controllers.mtrotator.tel_rotation.set(demandPosition=data.rotPA)
 
     async def radec_target_callback(self, data):
 
@@ -153,6 +154,20 @@ class MTCSMock(BaseGroupMock):
                 self.controllers.newmtmount.evt_summaryState.data.summaryState
                 == salobj.State.ENABLED
             ):
+
+                # Safely initilize data
+                if not self.controllers.mtmount.tel_Azimuth.has_data:
+                    self.controllers.mtmount.tel_Azimuth.set(
+                        Azimuth_Angle_Set=0.0, Azimuth_Angle_Actual=0.0
+                    )
+
+                if not self.controllers.mtmount.tel_Elevation.has_data:
+                    self.controllers.mtmount.tel_Elevation.set(
+                        Elevation_Angle_Set=0.0, Elevation_Angle_Actual=0.0
+                    )
+
+                if not self.controllers.newmtmount.evt_target.has_data:
+                    self.controllers.newmtmount.evt_target.set()
 
                 az_induced_error = np.random.normal(0.0, 1e-7)
                 el_induced_error = np.random.normal(0.0, 1e-7)
@@ -198,22 +213,25 @@ class MTCSMock(BaseGroupMock):
                 == salobj.State.ENABLED
             ):
 
+                # Safely initilize topic data.
+                if not self.controllers.mtrotator.tel_rotation.has_data:
+                    self.controllers.mtrotator.tel_rotation.set(
+                        demandPosition=0.0, actualPosition=0.0
+                    )
+
                 error = np.random.normal(0.0, 1e-7)
-                demand = self.controllers.mtrotator.tel_application.data.demand
-                position = self.controllers.mtrotator.tel_application.data.position
+                demand = self.controllers.mtrotator.tel_rotation.data.demandPosition
+                position = self.controllers.mtrotator.tel_rotation.data.actualPosition
                 dif = salobj.angle_diff(demand, position)
 
-                in_position = np.abs(dif) < 1e-1 * u.deg
+                self.controllers.mtrotator.tel_rotation.set_put(
+                    actualPosition=position + error + dif.deg / 1.1
+                )
 
                 if self.acting:
                     self.controllers.mtrotator.evt_inPosition.set_put(
-                        inPosition=in_position
+                        inPosition=np.abs(dif) < ROT_IN_POSITION_DELTA
                     )
-
-                self.controllers.mtrotator.tel_application.set_put(
-                    position=position + error + dif.deg / 1.1,
-                    error=error + dif.deg / 1.1,
-                )
 
             await asyncio.sleep(HEARTBEAT_INTERVAL)
 
@@ -326,8 +344,8 @@ class MTCSMock(BaseGroupMock):
                         Elevation_Angle_Set=alt_az.alt.deg
                     )
 
-                    self.controllers.mtrotator.tel_application.set(
-                        demand=self.controllers.mtptg.evt_currentTarget.data.rotPA
+                    self.controllers.mtrotator.tel_rotation.set(
+                        demandPosition=self.controllers.mtptg.evt_currentTarget.data.rotPA
                     )
 
                     self.controllers.newmtmount.evt_target.set(
