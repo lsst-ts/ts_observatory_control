@@ -6,6 +6,23 @@
 Version History
 ###############
 
+v0.5.1
+======
+
+Changes:
+
+* Stop using topic ``application`` from ``MTRotator`` which is marked for deprecation.
+* Remove git commit hooks and implement pre-commit.
+* Use pytest-black in unit test.
+* Implement Jenkins shared library for conda build.
+
+Requirements:
+
+* ts_salobj >= 5.6.0
+* ts_xml >= 7.0.0
+* ts_idl >= 2.0.0
+* IDL files for all components, e.g. built with ``make_idl_files.py``
+
 v0.5.0
 ======
 
@@ -17,7 +34,7 @@ Requirements:
 
 * ts_salobj >= 5.6.0
 * ts_xml >= 7.0.0
-* ts_idl >= 1.3.0
+* ts_idl >= 2.0.0
 * IDL files for all components, e.g. built with ``make_idl_files.py``
 
 v0.4.2
