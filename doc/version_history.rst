@@ -13,7 +13,6 @@ Changes:
 
 * Stop using topic ``application`` from ``MTRotator`` which is marked for deprecation.
 * Remove git commit hooks and implement pre-commit.
-* Use pytest-black in unit test.
 * Implement Jenkins shared library for conda build.
 
 Requirements:
