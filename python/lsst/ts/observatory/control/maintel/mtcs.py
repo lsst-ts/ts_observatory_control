@@ -89,7 +89,6 @@ class MTCS(BaseTCS):
 
         super().__init__(
             components=[
-                "NewMTMount",
                 "MTMount",
                 "MTPtg",
                 "MTAOS",
@@ -105,11 +104,6 @@ class MTCS(BaseTCS):
             log=log,
             intended_usage=intended_usage,
         )
-
-        # For now MTMount is only used for telemetry/event from the low level
-        # mount control system. This will make sure MTMount is excluded from
-        # commanding activities.
-        self.check.mtmount = False
 
         self.open_dome_shutter_time = 1200.0
 
@@ -159,7 +153,7 @@ class MTCS(BaseTCS):
         track_id = next(self.track_id_gen)
 
         try:
-            current_target = await self.rem.newmtmount.evt_target.next(
+            current_target = await self.rem.mtmount.evt_target.next(
                 flush=True, timeout=self.fast_timeout
             )
             if track_id <= current_target.trackId:
@@ -174,7 +168,7 @@ class MTCS(BaseTCS):
         self.log.debug("Sending slew command.")
 
         if stop_before_slew:
-            self.rem.newmtmount.evt_axesInPosition.flush()
+            self.rem.mtmount.evt_axesInPosition.flush()
             self.rem.mtrotator.evt_inPosition.flush()
 
         await slew_cmd.start(timeout=slew_timeout)
@@ -227,7 +221,7 @@ class MTCS(BaseTCS):
 
         status = list()
 
-        if _check.newmtmount:
+        if _check.mtmount:
             # Note that this event comes from MTMount not NewMTMount,
             # but it is actually started by MTMount. For now MTMount should
             # always be unchecked and we will use NewMTMount to manage that.
@@ -272,10 +266,10 @@ class MTCS(BaseTCS):
 
         self.log.debug("Monitor position started.")
 
-        if _check.newmtmount:
-            self.log.debug("Waiting for Target event from newmtmount.")
+        if _check.mtmount:
+            self.log.debug("Waiting for Target event from mtmount.")
             try:
-                target = await self.rem.newmtmount.evt_target.next(
+                target = await self.rem.mtmount.evt_target.next(
                     flush=True, timeout=self.long_timeout
                 )
                 self.log.debug(f"Mount target: {target}")
@@ -289,27 +283,23 @@ class MTCS(BaseTCS):
 
             status = ""
 
-            if _check.newmtmount:
+            if _check.mtmount:
                 target, tel_az, tel_el = await asyncio.gather(
-                    self.rem.newmtmount.evt_target.next(
+                    self.rem.mtmount.evt_target.next(
                         flush=True, timeout=self.long_timeout
                     ),
-                    self.rem.mtmount.tel_Azimuth.next(
+                    self.rem.mtmount.tel_azimuth.next(
                         flush=True, timeout=self.fast_timeout
                     ),
-                    self.rem.mtmount.tel_Elevation.next(
+                    self.rem.mtmount.tel_elevation.next(
                         flush=True, timeout=self.fast_timeout
                     ),
                 )
-                distance_az = salobj.angle_diff(
-                    target.azimuth, tel_az.Azimuth_Angle_Actual
-                )
-                distance_el = salobj.angle_diff(
-                    target.elevation, tel_el.Elevation_Angle_Actual
-                )
+                distance_az = salobj.angle_diff(target.azimuth, tel_az.angleActual)
+                distance_el = salobj.angle_diff(target.elevation, tel_el.angleActual)
                 status += (
-                    f"[Tel]: Az = {tel_az.Azimuth_Angle_Actual:+08.3f}[{distance_az.deg:+6.1f}]; "
-                    f"El = {tel_el.Elevation_Angle_Actual:+08.3f}[{distance_el.deg:+6.1f}] "
+                    f"[Tel]: Az = {tel_az.angleActual:+08.3f}[{distance_az.deg:+6.1f}]; "
+                    f"El = {tel_el.angleActual:+08.3f}[{distance_el.deg:+6.1f}] "
                 )
 
             if _check.mtrotator:
@@ -371,7 +361,7 @@ class MTCS(BaseTCS):
 
         while True:
 
-            in_position = await self.rem.newmtmount.evt_axesInPosition.next(
+            in_position = await self.rem.mtmount.evt_axesInPosition.next(
                 flush=False, timeout=timeout
             )
 
@@ -546,7 +536,7 @@ class MTCS(BaseTCS):
     def flush_offset_events(self):
         """Abstract method to flush events before and offset is performed.
         """
-        self.rem.newmtmount.evt_axesInPosition.flush()
+        self.rem.mtmount.evt_axesInPosition.flush()
 
     async def offset_done(self):
         """Wait for offset events.
@@ -558,12 +548,12 @@ class MTCS(BaseTCS):
         axis.
         """
 
-        el = await self.rem.mtmount.tel_Elevation.aget(timeout=self.fast_timeout)
+        el = await self.rem.mtmount.tel_elevation.aget(timeout=self.fast_timeout)
 
         rotation_data = await self.rem.mtrotator.tel_rotation.aget(
             timeout=self.fast_timeout
         )
-        angle = el.Elevation_Angle_Actual - rotation_data.actualPosition
+        angle = el.angleActual - rotation_data.actualPosition
 
         return angle
 
@@ -653,8 +643,8 @@ class MTCS(BaseTCS):
                     "timeAndDate",
                     "target",
                 ],
-                mtrotator=["rotation"],
-                mtmount=["Azimuth", "Elevation", "axesInPosition", "inPosition"],
+                mtrotator=["rotation", "inPosition"],
+                mtmount=["azimuth", "elevation", "axesInPosition"],
                 mtdome=["azimuth", "lightWindScreen"],
             )
 

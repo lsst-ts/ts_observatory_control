@@ -475,16 +475,21 @@ class RemoteGroup:
 
         Raises
         ------
-        asyncio.TimeoutError
+        RuntimeError
             If the component does not send heartbeats in `self.fast_timeout`
             seconds.
 
         """
 
         while True:
-            await getattr(self.rem, component).evt_heartbeat.next(
-                flush=True, timeout=self.fast_timeout
-            )
+            try:
+                await getattr(self.rem, component).evt_heartbeat.next(
+                    flush=True, timeout=self.fast_timeout
+                )
+            except asyncio.TimeoutError:
+                raise RuntimeError(
+                    f"No heartbeat from {component} received in {self.fast_timeout}s."
+                )
 
     async def inspect_settings(self, components_attr=None):
         """Return available settings.

@@ -146,6 +146,8 @@ class RemoteGroupTestCase(metaclass=abc.ABCMeta):
             print(f"wait for {description}")
         try:
             result = await asyncio.wait_for(coro, timeout=timeout)
+        except asyncio.CancelledError:
+            print(f"{description}: Cancelled error.")
         except asyncio.TimeoutError:
             dt = time.monotonic() - t0
             print(f"{description} timed out after {dt:0.1f} seconds")

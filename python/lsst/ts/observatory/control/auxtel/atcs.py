@@ -359,9 +359,13 @@ class ATCS(BaseTCS):
         else:
             # TODO: DM-24525 remove hard coded 8 when real ATMCS is fixed.
             while at_mount_state.state not in (8, ATMCS.AtMountState.TRACKINGDISABLED):
-                self.log.debug(
-                    f"Tracking state: {ATMCS.AtMountState(at_mount_state.state)!r}."
+                tracking_state = (
+                    ATMCS.AtMountState(at_mount_state.state)
+                    if at_mount_state.state in [value for value in ATMCS.AtMountState]
+                    else f"Unknown({at_mount_state.state})"
                 )
+
+                self.log.debug(f"Tracking state: {tracking_state!r}.")
                 at_mount_state = await self.rem.atmcs.evt_atMountState.next(
                     flush=False, timeout=self.long_timeout
                 )
