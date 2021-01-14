@@ -38,6 +38,7 @@ LONG_TIMEOUT = 30  # seconds
 HEARTBEAT_INTERVAL = 1  # seconds
 CLOSE_SLEEP = 5  # seconds
 ROT_IN_POSITION_DELTA = 1e-1 * u.deg
+STEP_FACTOR = 0.9
 
 
 class MTCSMock(BaseGroupMock):
@@ -186,11 +187,22 @@ class MTCSMock(BaseGroupMock):
                         elevation=in_position_elevation, azimuth=in_position_azimuth
                     )
 
+                # The following computation of angleActual is to emulate a
+                # trajectory. At every loop it adds three factors:
+                #   1 - the currect position
+                #   2 - a random error factor
+                #   3 - difference between the current and target positions
+                #       multiplied by a STEP_FACTOR, where
+                #       0 < STEP_FACTOR <= 1.0
+                # If STEP_FACTOR == 1 it means the target position will be
+                # achieved in one loop. By reducing STEP_FACTOR we can emulate
+                # a slew that takes a certain number of iterations to be
+                # completed.
                 self.controllers.mtmount.tel_azimuth.set_put(
-                    angleActual=az_actual + az_induced_error + az_dif.deg / 1.1
+                    angleActual=az_actual + az_induced_error + az_dif.deg * STEP_FACTOR
                 )
                 self.controllers.mtmount.tel_elevation.set_put(
-                    angleActual=el_actual + el_induced_error + el_dif.deg / 1.1
+                    angleActual=el_actual + el_induced_error + el_dif.deg * STEP_FACTOR
                 )
 
                 self.controllers.mtmount.evt_target.put()
