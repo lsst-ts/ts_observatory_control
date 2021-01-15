@@ -125,6 +125,11 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
                 getattr(self.rem, self.ptg_name).cmd_azElTarget,
                 slew_timeout=slew_timeout,
             )
+        except salobj.AckError as ack_err:
+            self.log.error(
+                f"Command to slew to azEl target rejected: {ack_err.ackcmd.result}"
+            )
+            raise ack_err
         finally:
             self.unset_azel_slew_checks(check)
 
@@ -434,12 +439,18 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
             rotMode=rot_mode if rot_mode is not None else self.RotMode.FIELD,
         )
 
-        await self._slew_to(
-            getattr(self.rem, self.ptg_name).cmd_raDecTarget,
-            slew_timeout=slew_timeout,
-            stop_before_slew=stop_before_slew,
-            wait_settle=wait_settle,
-        )
+        try:
+            await self._slew_to(
+                getattr(self.rem, self.ptg_name).cmd_raDecTarget,
+                slew_timeout=slew_timeout,
+                stop_before_slew=stop_before_slew,
+                wait_settle=wait_settle,
+            )
+        except salobj.AckError as ack_err:
+            self.log.error(
+                f"Command to track target {target_name} rejected: {ack_err.ackcmd.result}"
+            )
+            raise ack_err
 
     async def slew_to_planet(self, planet, rot_sky=0.0, slew_timeout=1200.0):
         """Slew and track a solar system body.
