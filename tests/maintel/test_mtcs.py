@@ -114,21 +114,21 @@ class TestMTCS(RemoteGroupTestCase, asynctest.TestCase):
                 slew_timeout=SLEW_TIMEOUT,
             )
 
-            az_rec = await self.mtcs.rem.mtmount.tel_Azimuth.next(
+            az_data = await self.mtcs.rem.mtmount.tel_azimuth.next(
                 flush=True, timeout=HB_TIMEOUT
             )
 
-            el_rec = await self.mtcs.rem.mtmount.tel_Elevation.next(
+            el_data = await self.mtcs.rem.mtmount.tel_elevation.next(
                 flush=True, timeout=HB_TIMEOUT
             )
 
-            rot_rec = await self.mtcs.rem.mtrotator.tel_application.next(
+            rot_data = await self.mtcs.rem.mtrotator.tel_rotation.next(
                 flush=True, timeout=HB_TIMEOUT
             )
 
-            self.assertEqual(az_rec.Azimuth_Angle_Set, az_set)
-            self.assertEqual(el_rec.Elevation_Angle_Set, el_set)
-            self.assertEqual(rot_rec.demand, rot_set)
+            self.assertEqual(az_data.angleSet, az_set)
+            self.assertEqual(el_data.angleSet, el_set)
+            self.assertEqual(rot_data.demandPosition, rot_set)
 
     async def test_slew_all(self):
 
