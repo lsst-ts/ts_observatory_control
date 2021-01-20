@@ -556,25 +556,52 @@ class ATCS(BaseTCS):
 
     async def open_dome_shutter(self):
         """Task to open dome shutter and return when it is done.
+
+        Raises
+        ------
+        RuntimeError:
+            If mainDoorState.state is neither OPENED nor CLOSED
+
         """
 
-        self.rem.atdome.evt_shutterInPosition.flush()
-
-        await self.rem.atdome.cmd_moveShutterMainDoor.set_start(
-            open=True, timeout=self.open_dome_shutter_time
+        shutter_pos = await self.rem.atdome.evt_mainDoorState.aget(
+            timeout=self.fast_timeout
         )
 
-        self.rem.atdome.evt_summaryState.flush()
-        # TODO: (2019/12) ATDome should now be returning the command only when
-        # the dome is fully open. I'll keep this here for now for backward
-        # compatibility but we should remove this later, after verifying it
-        # is working DM-24490.
-        task_list = [
-            asyncio.ensure_future(self.check_component_state("atdome")),
-            asyncio.ensure_future(self.wait_for_atdome_shutter_inposition()),
-        ]
+        if shutter_pos.state == ATDome.ShutterDoorState.CLOSED:
 
-        await self.process_as_completed(task_list)
+            self.log.debug("Opening dome shutter...")
+
+            await self.rem.atdome.cmd_moveShutterMainDoor.set_start(
+                open=True, timeout=self.open_dome_shutter_time
+            )
+
+            shutter_pos = ATDome.ShutterDoorState(
+                (
+                    await self.rem.atdome.evt_mainDoorState.aget(
+                        timeout=self.fast_timeout
+                    )
+                ).state
+            )
+
+            if shutter_pos != ATDome.ShutterDoorState.OPENED:
+                self.log.debug(
+                    f"Open shutter command returned while shutter still {shutter_pos!r}."
+                    "Waiting for shutter to open."
+                )
+                await self.wait_for_shutter_door_state(
+                    state=ATDome.ShutterDoorState.OPENED, timeout=self.long_timeout,
+                )
+
+        elif shutter_pos.state == ATDome.ShutterDoorState.OPENED:
+            self.log.info("ATDome Shutter Door is already opened. Ignoring.")
+        else:
+            raise RuntimeError(
+                f"Shutter Door state is "
+                f"{ATDome.ShutterDoorState(shutter_pos.state)}. "
+                f"expected either {ATDome.ShutterDoorState.CLOSED} or "
+                f"{ATDome.ShutterDoorState.OPENED}"
+            )
 
     async def home_dome(self):
         """ Task to execute dome home command and wait for it to complete.
@@ -597,6 +624,12 @@ class ATCS(BaseTCS):
 
     async def close_dome(self):
         """Task to close ATDome.
+
+        Raises
+        ------
+        RuntimeError:
+            If mainDoorState.state is neither OPENED nor CLOSED
+
         """
         shutter_pos = await self.rem.atdome.evt_mainDoorState.aget(
             timeout=self.fast_timeout
@@ -604,19 +637,28 @@ class ATCS(BaseTCS):
 
         if shutter_pos.state == ATDome.ShutterDoorState.OPENED:
 
-            self.rem.atdome.evt_shutterInPosition.flush()
+            self.log.debug("Closing dome shutter...")
 
             await self.rem.atdome.cmd_closeShutter.set_start(
                 timeout=self.open_dome_shutter_time
             )
 
-            self.rem.atdome.evt_summaryState.flush()
-            task_list = [
-                asyncio.create_task(self.check_component_state("atdome")),
-                asyncio.create_task(self.wait_for_atdome_shutter_inposition()),
-            ]
+            shutter_pos = ATDome.ShutterDoorState(
+                (
+                    await self.rem.atdome.evt_mainDoorState.aget(
+                        timeout=self.fast_timeout
+                    )
+                ).state
+            )
 
-            await self.process_as_completed(task_list)
+            if shutter_pos != ATDome.ShutterDoorState.CLOSED:
+                self.log.debug(
+                    f"Open shutter command returned while shutter still {shutter_pos!r}."
+                    "Waiting for shutter to close."
+                )
+                await self.wait_for_shutter_door_state(
+                    state=ATDome.ShutterDoorState.CLOSED, timeout=self.long_timeout,
+                )
 
         elif shutter_pos.state == ATDome.ShutterDoorState.CLOSED:
             self.log.info("ATDome Shutter Door is already closed. Ignoring.")
@@ -627,6 +669,45 @@ class ATCS(BaseTCS):
                 f"expected either {ATDome.ShutterDoorState.OPENED} or "
                 f"{ATDome.ShutterDoorState.CLOSED}"
             )
+
+    async def wait_for_shutter_door_state(self, state, timeout=None):
+        """ Waits for `ATDome.ShutterDoorState.state` to match a required
+        value.
+
+        Parameters
+        ----------
+        state : `ATDome.ShutterDoorState`
+            The expected shutter door state enumeration value.
+
+        timeout : `float` or `None`
+            How long to wait for state (seconds). If `None`, wait for ever.
+
+        Raises
+        ------
+        asyncio.TimeoutError
+            If `evt_mainDoorState` does not reach the expected state in the
+            expected time.
+        """
+
+        shutter_state = ATDome.ShutterDoorState(
+            (await self.rem.atdome.evt_mainDoorState.aget(timeout=timeout)).state
+        )
+
+        self.log.debug(
+            f"Waiting for ATDome mainDoorState: {state!r}. "
+            f"Current state: {shutter_state!r}."
+        )
+
+        while shutter_state != state:
+            shutter_state = ATDome.ShutterDoorState(
+                (
+                    await self.rem.atdome.evt_mainDoorState.next(
+                        flush=False, timeout=timeout
+                    )
+                ).state
+            )
+
+            self.log.info(f"ShutterDoorState: {shutter_state!r}")
 
     async def open_m1_cover(self):
         """Task to open m1 cover.
