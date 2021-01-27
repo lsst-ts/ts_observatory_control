@@ -992,9 +992,16 @@ class ATCS(BaseTCS):
     async def offset_done(self):
         """Wait for offset events.
         """
-        await self.rem.atmcs.evt_allAxesInPosition.next(
-            flush=False, timeout=self.tel_settle_time
-        )
+        while True:
+            in_position = await self.rem.atmcs.evt_allAxesInPosition.next(
+                flush=False, timeout=self.tel_settle_time
+            )
+
+            if in_position.inPosition:
+                self.log.debug("All axes in position.")
+                return in_position.inPosition
+            else:
+                self.log.debug("Telescope not in position.")
 
     async def wait_for_inposition(
         self, timeout, cmd_ack=None, wait_settle=True, check=None
