@@ -572,26 +572,32 @@ class ATCS(BaseTCS):
 
             self.log.debug("Opening dome shutter...")
 
-            await self.rem.atdome.cmd_moveShutterMainDoor.set_start(
-                open=True, timeout=self.open_dome_shutter_time
-            )
+            # Work around for a bug moveShutterMainDoor in ATDome v1.3.3.
+            # The CSC is not able to determine reliably when the slit is opened
+            # or closed. See DM-28512.
+            self.rem.atdome.evt_mainDoorState.flush()
 
-            shutter_pos = ATDome.ShutterDoorState(
-                (
-                    await self.rem.atdome.evt_mainDoorState.aget(
-                        timeout=self.fast_timeout
-                    )
-                ).state
-            )
-
-            if shutter_pos != ATDome.ShutterDoorState.OPENED:
-                self.log.debug(
-                    f"Open shutter command returned while shutter still {shutter_pos!r}."
-                    "Waiting for shutter to open."
+            open_shutter_task = asyncio.create_task(
+                self.rem.atdome.cmd_moveShutterMainDoor.set_start(
+                    open=True, timeout=self.open_dome_shutter_time
                 )
+            )
+
+            try:
                 await self.wait_for_shutter_door_state(
                     state=ATDome.ShutterDoorState.OPENED, timeout=self.long_timeout,
                 )
+            finally:
+
+                if not open_shutter_task.done():
+                    open_shutter_task.cancel()
+
+                try:
+                    await open_shutter_task
+                except asyncio.CancelledError:
+                    self.log.warning("open_shutter_task cancelled")
+                except asyncio.TimeoutError:
+                    self.log.warning("open_shutter_task timedout")
 
         elif shutter_pos.state == ATDome.ShutterDoorState.OPENED:
             self.log.info("ATDome Shutter Door is already opened. Ignoring.")
@@ -639,26 +645,34 @@ class ATCS(BaseTCS):
 
             self.log.debug("Closing dome shutter...")
 
-            await self.rem.atdome.cmd_closeShutter.set_start(
-                timeout=self.open_dome_shutter_time
-            )
+            # Work around for a bug moveShutterMainDoor in ATDome v1.3.3.
+            # The CSC is not able to determine reliably when the slit is opened
+            # or closed. See DM-28512.
 
-            shutter_pos = ATDome.ShutterDoorState(
-                (
-                    await self.rem.atdome.evt_mainDoorState.aget(
-                        timeout=self.fast_timeout
-                    )
-                ).state
-            )
+            self.rem.atdome.evt_mainDoorState.flush()
 
-            if shutter_pos != ATDome.ShutterDoorState.CLOSED:
-                self.log.debug(
-                    f"Open shutter command returned while shutter still {shutter_pos!r}."
-                    "Waiting for shutter to close."
+            close_shutter_task = asyncio.create_task(
+                self.rem.atdome.cmd_closeShutter.set_start(
+                    timeout=self.open_dome_shutter_time
                 )
+            )
+
+            self.log.debug(f"Shutter state {shutter_pos!r}.")
+            try:
                 await self.wait_for_shutter_door_state(
-                    state=ATDome.ShutterDoorState.CLOSED, timeout=self.long_timeout,
+                    state=ATDome.ShutterDoorState.CLOSED, timeout=self.long_timeout
                 )
+            finally:
+
+                if not close_shutter_task.done():
+                    close_shutter_task.cancel()
+
+                try:
+                    await close_shutter_task
+                except asyncio.CancelledError:
+                    self.log.warning("close_shutter_task cancelled")
+                except asyncio.TimeoutError:
+                    self.log.warning("close_shutter_task timedout")
 
         elif shutter_pos.state == ATDome.ShutterDoorState.CLOSED:
             self.log.info("ATDome Shutter Door is already closed. Ignoring.")
