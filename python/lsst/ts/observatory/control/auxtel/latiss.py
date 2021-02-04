@@ -157,6 +157,8 @@ class LATISS(BaseCamera):
             key_value_map = f"groupId: {group_id},imageType: {image_type}"
             if test_type is not None:
                 key_value_map += f",testType: {test_type}"
+            else:
+                key_value_map += f",testType: {image_type}"
 
             base_timeout = (
                 self.read_out_time + self.long_timeout + self.long_long_timeout
