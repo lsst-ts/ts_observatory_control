@@ -31,7 +31,7 @@ from astropy.time import Time
 from astropy.coordinates import EarthLocation, Angle
 
 from lsst.ts import salobj
-from lsst.ts.idl.enums import ATDome, ATPneumatics, ATMCS
+from lsst.ts.idl.enums import ATDome, ATPneumatics, ATMCS, ATPtg
 
 LONG_TIMEOUT = 30  # seconds
 HEARTBEAT_INTERVAL = 1  # seconds
@@ -158,6 +158,7 @@ class ATCSMock(BaseGroupMock):
         self.atmcs.evt_atMountState.set_put(state=ATMCS.AtMountState.TRACKINGDISABLED)
         self.atdome.evt_scbLink.set_put(active=True, force_output=True)
         self.atdome.evt_azimuthCommandedState.put()
+        self.atptg.evt_focusNameSelected.set_put(focus=ATPtg.Foci.NASMYTH2)
 
         self.atmcs_telemetry_task = asyncio.create_task(self.atmcs_telemetry())
         self.atdome_telemetry_task = asyncio.create_task(self.atdome_telemetry())
