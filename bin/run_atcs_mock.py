@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # This file is part of ts_observatory_control.
 #
-# Developed for the LSST Telescope and Site.
+# Developed for the Vera Rubin Observatory Telescope and Site.
 # This product includes software developed by the LSST Project
 # (https://www.lsst.org).
 # See the COPYRIGHT file at the top-level directory of this distribution

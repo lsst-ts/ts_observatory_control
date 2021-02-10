@@ -1,6 +1,6 @@
 # This file is part of ts_observatory_control.
 #
-# Developed for the LSST Telescope and Site Systems.
+# Developed for the Vera Rubin Observatory Telescope and Site Systems.
 # This product includes software developed by the LSST Project
 # (https://www.lsst.org).
 # See the COPYRIGHT file at the top-level directory of this distribution
@@ -78,7 +78,7 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
 
         # Parity of x and y axis. These can be 1 or -1 depending on how the
         # x axis in the boresight is aligned with the telescope axis. For
-        # instance, Nasmyth angle right as parity 1 and Nasmyth angle left has
+        # instance, Nasmyth angle right has parity 1 and Nasmyth angle left has
         # parity -1, because the x-axis is reversed with respect to optical
         # axis.
         self.parity_x = 1.0

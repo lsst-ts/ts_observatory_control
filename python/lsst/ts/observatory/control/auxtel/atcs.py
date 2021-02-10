@@ -1,6 +1,6 @@
 # This file is part of ts_observatory_control.
 #
-# Developed for the LSST Telescope and Site Systems.
+# Developed for the Vera Rubin Observatory Telescope and Site Systems.
 # This product includes software developed by the LSST Project
 # (https://www.lsst.org).
 # See the COPYRIGHT file at the top-level directory of this distribution
@@ -500,7 +500,7 @@ class ATCS(BaseTCS):
         self.log.info("Disabling ATAOS corrections")
 
         if check.ataos:
-            self.log.debug(f"Disabling ATAOS corrections.")
+            self.log.debug("Disabling ATAOS corrections.")
             try:
 
                 await self.rem.ataos.cmd_disableCorrection.set_start(
@@ -509,7 +509,7 @@ class ATCS(BaseTCS):
             except Exception:
                 self.log.exception("Failed to disable ATAOS corrections. Continuing...")
         else:
-            self.log.debug(f"Skip disabling ATAOS corrections.")
+            self.log.debug("Skip disabling ATAOS corrections.")
 
         if check.atpneumatics:
             self.log.debug("Closing M1 cover vent gates.")
@@ -728,8 +728,7 @@ class ATCS(BaseTCS):
             )
 
     async def _wait_for_shutter_door_state(self, state, cmd_task=None, timeout=None):
-        """Waits for `ATDome.ShutterDoorState.state` to match a required
-        value.
+        """Wait for `ATDome.ShutterDoorState.state` to match a required value.
 
         Parameters
         ----------
@@ -1086,7 +1085,7 @@ class ATCS(BaseTCS):
         return angle
 
     def flush_offset_events(self):
-        """Implement abstract method to flush events before and offset is
+        """Implement abstract method to flush events before an offset is
         performed.
 
         See Also
@@ -1100,7 +1099,7 @@ class ATCS(BaseTCS):
         self.rem.atmcs.evt_allAxesInPosition.flush()
 
     async def offset_done(self):
-        """Wait for events specifying that and offset completed.
+        """Wait for events specifying that an offset completed.
 
         Notes
         -----
