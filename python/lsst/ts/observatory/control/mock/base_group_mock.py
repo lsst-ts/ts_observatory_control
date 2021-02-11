@@ -1,6 +1,6 @@
 # This file is part of ts_observatory_control.
 #
-# Developed for the LSST Telescope and Site Systems.
+# Developed for the Vera Rubin Observatory Telescope and Site Systems.
 # This product includes software developed by the LSST Project
 # (https://www.lsst.org).
 # See the COPYRIGHT file at the top-level directory of this distribution
@@ -107,6 +107,16 @@ class BaseGroupMock:
                 ).cmd_standby.callback = functools.partial(
                     self.get_standby_callback, comp=comp
                 )
+                getattr(
+                    self.controllers, comp
+                ).cmd_exitControl.callback = functools.partial(
+                    self.get_exitControl_callback, comp=comp
+                )
+                getattr(
+                    self.controllers, comp
+                ).cmd_enterControl.callback = functools.partial(
+                    self.get_enterControl_callback, comp=comp
+                )
 
         for comp in self.output_only:
             for cmd in getattr(self.controllers, comp).salinfo.command_names:
@@ -119,6 +129,10 @@ class BaseGroupMock:
         self.run_telemetry_loop = False
 
         self.task_list = []
+
+        self.check_done_lock = asyncio.Lock()
+
+        self.done_task = asyncio.Future()
 
     async def start_task_publish(self):
 
@@ -216,6 +230,57 @@ class BaseGroupMock:
 
         await asyncio.sleep(HEARTBEAT_INTERVAL)
 
+    async def get_exitControl_callback(self, data, comp):
+
+        ss = getattr(self.controllers, comp).evt_summaryState
+
+        if ss.data.summaryState != salobj.State.STANDBY:
+            raise RuntimeError(
+                f"{comp}: Current state is {salobj.State(ss.data.summaryState)!r}. "
+                f"Expected {salobj.State.STANDBY!r}."
+            )
+
+        print(f"[{comp}] {ss.data.summaryState!r} -> {salobj.State.OFFLINE!r}")
+
+        ss.set_put(summaryState=salobj.State.OFFLINE)
+
+        await self.check_done()
+
+        await asyncio.sleep(HEARTBEAT_INTERVAL)
+
+    async def get_enterControl_callback(self, data, comp):
+
+        ss = getattr(self.controllers, comp).evt_summaryState
+
+        if ss.data.summaryState != salobj.State.OFFLINE:
+            raise RuntimeError(
+                f"{comp}: Current state is {salobj.State(ss.data.summaryState)!r}. "
+                f"Expected {salobj.State.OFFLINE!r}."
+            )
+
+        print(f"[{comp}] {ss.data.summaryState!r} -> {salobj.State.STANDBY!r}")
+
+        ss.set_put(summaryState=salobj.State.STANDBY)
+
+        await asyncio.sleep(HEARTBEAT_INTERVAL)
+
+    async def check_done(self):
+        """If all CSCs are in OFFLINE state, close group mock.
+        """
+
+        async with self.check_done_lock:
+            is_offline = []
+
+            for comp in self.component_names:
+                is_offline.append(
+                    getattr(self.controllers, comp).evt_summaryState.data.summaryState
+                    == salobj.State.OFFLINE
+                )
+
+            if all(is_offline):
+                print("Closing mock controller.")
+                self.done_task.set_result(None)
+
     @property
     def component_names(self):
         return self._component_names
@@ -254,3 +319,12 @@ class BaseGroupMock:
 
     async def __aexit__(self, *args):
         await self.close()
+
+    @classmethod
+    async def amain(cls):
+        """Make a group mock and run it.
+        """
+        print(f"Starting {cls.__name__} controller")
+        async with cls() as csc:
+            print(f"{cls.__name__} controller running.")
+            await csc.done_task

@@ -1,6 +1,6 @@
 # This file is part of ts_observatory_control.
 #
-# Developed for the LSST Telescope and Site Systems.
+# Developed for the Vera Rubin Observatory Telescope and Site Systems.
 # This product includes software developed by the LSST Project
 # (https://www.lsst.org).
 # See the COPYRIGHT file at the top-level directory of this distribution
@@ -78,8 +78,22 @@ class MTCSMock(BaseGroupMock):
         self.controllers.mtptg.cmd_azElTarget.callback = self.azel_target_callback
         self.controllers.mtptg.cmd_raDecTarget.callback = self.radec_target_callback
 
-        self.controllers.mtmount.tel_azimuth.set(angleSet=0.0)
-        self.controllers.mtmount.tel_elevation.set(angleSet=80.0)
+        # Implement xml 7.1 and 8 compatibility
+        if hasattr(self.controllers.mtmount.tel_azimuth.DataType(), "angleSet"):
+            # xml 7.1
+            self.mtmount_demand_position_name = "angleSet"
+            self.mtmount_actual_position_name = "angleActual"
+        else:
+            # xml 8
+            self.mtmount_demand_position_name = "demandPosition"
+            self.mtmount_actual_position_name = "actualPosition"
+
+        self.controllers.mtmount.tel_azimuth.set(
+            **{self.mtmount_demand_position_name: 0.0}
+        )
+        self.controllers.mtmount.tel_elevation.set(
+            **{self.mtmount_demand_position_name: 80.0}
+        )
 
     async def mtptg_stop_tracking_callback(self, data):
 
@@ -110,9 +124,13 @@ class MTCSMock(BaseGroupMock):
 
         self.acting = True
 
-        self.controllers.mtmount.tel_azimuth.set(angleSet=data.azDegs)
+        self.controllers.mtmount.tel_azimuth.set(
+            **{self.mtmount_demand_position_name: data.azDegs}
+        )
 
-        self.controllers.mtmount.tel_elevation.set(angleSet=data.elDegs)
+        self.controllers.mtmount.tel_elevation.set(
+            **{self.mtmount_demand_position_name: data.elDegs}
+        )
 
         self.controllers.mtrotator.tel_rotation.set(demandPosition=data.rotPA)
 
@@ -157,12 +175,18 @@ class MTCSMock(BaseGroupMock):
                 # Safely initilize data
                 if not self.controllers.mtmount.tel_azimuth.has_data:
                     self.controllers.mtmount.tel_azimuth.set(
-                        angleSet=0.0, angleActual=0.0
+                        **{
+                            self.mtmount_demand_position_name: 0.0,
+                            self.mtmount_actual_position_name: 0.0,
+                        }
                     )
 
                 if not self.controllers.mtmount.tel_elevation.has_data:
                     self.controllers.mtmount.tel_elevation.set(
-                        angleSet=0.0, angleActual=0.0
+                        **{
+                            self.mtmount_demand_position_name: 0.0,
+                            self.mtmount_actual_position_name: 0.0,
+                        }
                     )
 
                 if not self.controllers.mtmount.evt_target.has_data:
@@ -171,11 +195,23 @@ class MTCSMock(BaseGroupMock):
                 az_induced_error = np.random.normal(0.0, 1e-7)
                 el_induced_error = np.random.normal(0.0, 1e-7)
 
-                az_set = self.controllers.mtmount.tel_azimuth.data.angleSet
-                el_set = self.controllers.mtmount.tel_elevation.data.angleSet
+                az_set = getattr(
+                    self.controllers.mtmount.tel_azimuth.data,
+                    self.mtmount_demand_position_name,
+                )
+                el_set = getattr(
+                    self.controllers.mtmount.tel_elevation.data,
+                    self.mtmount_demand_position_name,
+                )
 
-                az_actual = self.controllers.mtmount.tel_azimuth.data.angleActual
-                el_actual = self.controllers.mtmount.tel_elevation.data.angleActual
+                az_actual = getattr(
+                    self.controllers.mtmount.tel_azimuth.data,
+                    self.mtmount_actual_position_name,
+                )
+                el_actual = getattr(
+                    self.controllers.mtmount.tel_elevation.data,
+                    self.mtmount_actual_position_name,
+                )
 
                 az_dif = salobj.angle_diff(az_set, az_actual)
                 el_dif = salobj.angle_diff(el_set, el_actual)
@@ -199,10 +235,18 @@ class MTCSMock(BaseGroupMock):
                 # a slew that takes a certain number of iterations to be
                 # completed.
                 self.controllers.mtmount.tel_azimuth.set_put(
-                    angleActual=az_actual + az_induced_error + az_dif.deg * STEP_FACTOR
+                    **{
+                        self.mtmount_actual_position_name: az_actual
+                        + az_induced_error
+                        + az_dif.deg * STEP_FACTOR
+                    }
                 )
                 self.controllers.mtmount.tel_elevation.set_put(
-                    angleActual=el_actual + el_induced_error + el_dif.deg * STEP_FACTOR
+                    **{
+                        self.mtmount_actual_position_name: el_actual
+                        + el_induced_error
+                        + el_dif.deg * STEP_FACTOR
+                    }
                 )
 
                 self.controllers.mtmount.evt_target.put()
@@ -268,8 +312,14 @@ class MTCSMock(BaseGroupMock):
                     self.controllers.mtdometrajectory.evt_summaryState.data.summaryState
                     == salobj.State.ENABLED
                 ):
-                    dome_az_set = self.controllers.mtmount.tel_azimuth.data.angleSet
-                    dome_el_set = self.controllers.mtmount.tel_elevation.data.angleSet
+                    dome_az_set = getattr(
+                        self.controllers.mtmount.tel_azimuth.data,
+                        self.mtmount_demand_position_name,
+                    )
+                    dome_el_set = getattr(
+                        self.controllers.mtmount.tel_elevation.data,
+                        self.mtmount_demand_position_name,
+                    )
 
                 self.controllers.mtdome.tel_azimuth.set(
                     positionCommanded=dome_az_set,
@@ -336,9 +386,13 @@ class MTCSMock(BaseGroupMock):
                         elDegs=alt_az.alt.deg,
                     )
 
-                    self.controllers.mtmount.tel_azimuth.set(angleSet=alt_az.az.deg)
+                    self.controllers.mtmount.tel_azimuth.set(
+                        **{self.mtmount_demand_position_name: alt_az.az.deg}
+                    )
 
-                    self.controllers.mtmount.tel_elevation.set(angleSet=alt_az.alt.deg)
+                    self.controllers.mtmount.tel_elevation.set(
+                        **{self.mtmount_demand_position_name: alt_az.alt.deg}
+                    )
 
                     self.controllers.mtrotator.tel_rotation.set(
                         demandPosition=self.controllers.mtptg.evt_currentTarget.data.rotPA

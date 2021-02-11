@@ -1,6 +1,7 @@
+#!/usr/bin/env python
 # This file is part of ts_observatory_control.
 #
-# Developed for the Vera Rubin Observatory Telescope and Site Systems.
+# Developed for the Vera Rubin Observatory Telescope and Site.
 # This product includes software developed by the LSST Project
 # (https://www.lsst.org).
 # See the COPYRIGHT file at the top-level directory of this distribution
@@ -17,9 +18,9 @@
 # GNU General Public License for more details.
 #
 # You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-from .base_group_mock import *
-from .latiss_mock import *
-from .atcs_mock import *
-from .mtcs_mock import *
-from .comcam_mock import *
+import asyncio
+from lsst.ts.observatory.control.mock import MTCSMock
+
+asyncio.run(MTCSMock.amain())

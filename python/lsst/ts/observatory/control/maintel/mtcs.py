@@ -1,6 +1,6 @@
 # This file is part of ts_observatory_control.
 #
-# Developed for the LSST Telescope and Site Systems.
+# Developed for the Vera Rubin Observatory Telescope and Site Systems.
 # This product includes software developed by the LSST Project
 # (https://www.lsst.org).
 # See the COPYRIGHT file at the top-level directory of this distribution
@@ -32,6 +32,7 @@ from lsst.ts import salobj
 from lsst.ts.idl.enums import MTPtg
 from ..remote_group import Usages, UsagesResources
 from ..base_tcs import BaseTCS
+from ..constants import mtcs_constants
 
 
 class MTCSUsages(Usages):
@@ -266,6 +267,9 @@ class MTCS(BaseTCS):
 
         self.log.debug("Monitor position started.")
 
+        # xml 7.1/8.0 backward compatibility
+        mtmount_actual_position_name = "actualPosition"
+
         if _check.mtmount:
             self.log.debug("Waiting for Target event from mtmount.")
             try:
@@ -278,6 +282,11 @@ class MTCS(BaseTCS):
                     "Not receiving target events from the NewMTMount. "
                     "Check component for errors."
                 )
+            if not hasattr(
+                self.rem.mtmount.tel_azimuth.DataType(), mtmount_actual_position_name
+            ):
+                self.log.debug("Running in xml 7.1 compatibility mode.")
+                mtmount_actual_position_name = "angleActual"
 
         while True:
 
@@ -295,11 +304,15 @@ class MTCS(BaseTCS):
                         flush=True, timeout=self.fast_timeout
                     ),
                 )
-                distance_az = salobj.angle_diff(target.azimuth, tel_az.angleActual)
-                distance_el = salobj.angle_diff(target.elevation, tel_el.angleActual)
+                tel_az_actual_position = getattr(tel_az, mtmount_actual_position_name)
+                tel_el_actual_position = getattr(tel_el, mtmount_actual_position_name)
+                distance_az = salobj.angle_diff(target.azimuth, tel_az_actual_position)
+                distance_el = salobj.angle_diff(
+                    target.elevation, tel_el_actual_position
+                )
                 status += (
-                    f"[Tel]: Az = {tel_az.angleActual:+08.3f}[{distance_az.deg:+6.1f}]; "
-                    f"El = {tel_el.angleActual:+08.3f}[{distance_el.deg:+6.1f}] "
+                    f"[Tel]: Az = {tel_az_actual_position:+08.3f}[{distance_az.deg:+6.1f}]; "
+                    f"El = {tel_el_actual_position:+08.3f}[{distance_el.deg:+6.1f}] "
                 )
 
             if _check.mtrotator:
@@ -553,9 +566,19 @@ class MTCS(BaseTCS):
         rotation_data = await self.rem.mtrotator.tel_rotation.aget(
             timeout=self.fast_timeout
         )
-        angle = el.angleActual - rotation_data.actualPosition
+        # xml 7.1/8.0 backward compatibility.
+        tel_el_actual_position = (
+            el.actualPosition if hasattr(el, "actualPosition") else el.angleActual
+        )
+        angle = tel_el_actual_position - rotation_data.actualPosition
 
         return angle
+
+    @property
+    def plate_scale(self):
+        """Plate scale in mm/arcsec.
+        """
+        return mtcs_constants.plate_scale
 
     @property
     def ptg_name(self):
