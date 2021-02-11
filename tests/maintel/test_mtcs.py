@@ -1,6 +1,6 @@
 # This file is part of ts_observatory_control
 #
-# Developed for the LSST Data Management System.
+# Developed for the Vera Rubin Observatory Data Management System.
 # This product includes software developed by the LSST Project
 # (https://www.lsst.org).
 # See the COPYRIGHT file at the top-level directory of this distribution
@@ -43,6 +43,7 @@ np.random.seed(47)
 
 class TestMTCS(RemoteGroupTestCase, asynctest.TestCase):
     async def basic_make_group(self, usage=None):
+
         self.mtcs_mock = MTCSMock()
 
         self.mtcs = MTCS(intended_usage=usage)
@@ -78,7 +79,6 @@ class TestMTCS(RemoteGroupTestCase, asynctest.TestCase):
             await asyncio.sleep(HB_TIMEOUT)
 
             #  Check that all components are in STANDBY state
-            #  Check that all components are in STANDBY state
             for comp in self.mtcs.components_attr:
                 if comp not in self.mtcs_mock.output_only:
                     with self.subTest("check final state", component=comp):
@@ -88,6 +88,7 @@ class TestMTCS(RemoteGroupTestCase, asynctest.TestCase):
     async def test_point_azel(self):
 
         async with self.make_group(
+            timeout=MAKE_TIMEOUT,
             usage=MTCSUsages.StartUp + MTCSUsages.Shutdown + MTCSUsages.Slew,
             verbose=True,
         ):
@@ -102,7 +103,7 @@ class TestMTCS(RemoteGroupTestCase, asynctest.TestCase):
             az_set = ((np.random.random() - 0.5) * 2.0) * 90.0
             # elevation, random values between 10 and 80.
             el_set = np.random.random() * 70.0 + 10.0
-            # rotator, rando value between +/- 90.
+            # rotator, random value between +/- 90.
             rot_set = ((np.random.random() - 0.5) * 2.0) * 90.0
 
             await self.mtcs.point_azel(
@@ -126,14 +127,24 @@ class TestMTCS(RemoteGroupTestCase, asynctest.TestCase):
                 flush=True, timeout=HB_TIMEOUT
             )
 
-            self.assertEqual(az_data.angleSet, az_set)
-            self.assertEqual(el_data.angleSet, el_set)
-            self.assertEqual(rot_data.demandPosition, rot_set)
+            # xml 7.1/8.0 backward compatibility
+            mtmount_actual_position_name = "actualPosition"
+            if not hasattr(az_data, mtmount_actual_position_name):
+                mtmount_actual_position_name = "angleActual"
+
+            self.assertAlmostEqual(
+                getattr(az_data, mtmount_actual_position_name), az_set, 4
+            )
+            self.assertAlmostEqual(
+                getattr(el_data, mtmount_actual_position_name), el_set, 4
+            )
+            self.assertAlmostEqual(rot_data.demandPosition, rot_set, 4)
 
     async def test_slew_all(self):
 
         async with self.make_group(
-            usage=MTCSUsages.StartUp + MTCSUsages.Shutdown + MTCSUsages.Slew
+            timeout=MAKE_TIMEOUT,
+            usage=MTCSUsages.StartUp + MTCSUsages.Shutdown + MTCSUsages.Slew,
         ):
 
             # enable all components

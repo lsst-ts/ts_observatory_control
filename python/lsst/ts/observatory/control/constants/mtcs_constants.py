@@ -18,8 +18,4 @@
 #
 # You should have received a copy of the GNU General Public License
 
-from .base_group_mock import *
-from .latiss_mock import *
-from .atcs_mock import *
-from .mtcs_mock import *
-from .comcam_mock import *
+plate_scale = 0.05  # mm/arcsecond at the telescope focal plane

@@ -6,6 +6,46 @@
 Version History
 ###############
 
+v0.7.0
+======
+
+Changes:
+
+* Implement workaround for issue with ATDome not reliably finishing open/close dome commands.
+* Fix offset_done method in ATCS, to properly wait for offset to be completed.
+* Improve handling of check.<component> in ATCS.shutdown.
+* Add boresight xy-axis parity determination in ATCS.
+* Implement xml 8 backward compatibility for MTMount in MTCS.
+* Add scripts to run mocks from the command line.
+* Add general base_tcs._offset method to manage offsets.
+* Implement persistent offsets.
+
+Requirements:
+
+* ts_salobj >= 5.6.0
+* ts_xml >= 7.1.0
+* ts_idl >= 2.0.0
+* IDL files for all components, e.g. built with ``make_idl_files.py``
+
+v0.6.0
+======
+
+Changes:
+
+* Implement changes required by xml 7.1:
+  * Removes NewMTMount (replaced by MTMount)
+  * Update MTMount topics names and attributes.
+* Improve error messages when heartbeat monitor fails.
+* Improve error messages when slew/track target commands fails.
+
+Requirements:
+
+* ts_salobj >= 5.6.0
+* ts_xml >= 7.1.0
+* ts_idl >= 2.0.0
+* IDL files for all components, e.g. built with ``make_idl_files.py``
+
+
 v0.5.1
 ======
 

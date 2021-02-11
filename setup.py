@@ -23,6 +23,12 @@ setup(
     package_data={"": ["*.rst", "*.yaml"]},
     tests_require=tests_require,
     extras_require={"dev": dev_requires},
+    scripts=[
+        "bin/run_atcs_mock.py",
+        "bin/run_comcam_mock.py",
+        "bin/run_latiss_mock.py",
+        "bin/run_mtcs_mock.py",
+    ],
     license="GPL",
     project_urls={
         "Bug Tracker": "https://jira.lsstcorp.org/secure/Dashboard.jspa",

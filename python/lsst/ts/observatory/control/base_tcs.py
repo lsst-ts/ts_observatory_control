@@ -1,6 +1,6 @@
 # This file is part of ts_observatory_control.
 #
-# Developed for the LSST Telescope and Site Systems.
+# Developed for the Vera Rubin Observatory Telescope and Site Systems.
 # This product includes software developed by the LSST Project
 # (https://www.lsst.org).
 # See the COPYRIGHT file at the top-level directory of this distribution
@@ -75,6 +75,14 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
         # FIXME: (DM-26454) Once this is published by the telescope components
         # it should read this from events.
         self.rotator_limits = [-90.0, +90.0]
+
+        # Parity of x and y axis. These can be 1 or -1 depending on how the
+        # x axis in the boresight is aligned with the telescope axis. For
+        # instance, Nasmyth angle right has parity 1 and Nasmyth angle left has
+        # parity -1, because the x-axis is reversed with respect to optical
+        # axis.
+        self.parity_x = 1.0
+        self.parity_y = 1.0
 
     async def point_azel(
         self,
@@ -496,23 +504,11 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
         """
         self.log.debug(f"Applying RA/Dec offset: {ra}/{dec} ")
 
-        await self.flush_offset_events()
-
-        await getattr(self.rem, self.ptg_name).cmd_offsetRADec.set_start(
-            type=0, off1=ra, off2=dec, num=0
+        await self._offset(
+            offset_cmd=getattr(self.rem, self.ptg_name).cmd_offsetRADec.set_start(
+                type=0, off1=ra, off2=dec, num=0
+            )
         )
-
-        try:
-
-            await self.offset_done()
-
-        except asyncio.TimeoutError:
-
-            self.log.debug("Timed out waiting for offset done events.")
-
-        self.log.debug("Waiting for telescope to settle.")
-        await asyncio.sleep(self.tel_settle_time)
-        self.log.debug("Done")
 
     async def offset_azel(self, az, el, relative=False, persistent=False):
         """Offset telescope in azimuth and elevation.
@@ -535,28 +531,25 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
         offset_radec : Offset in sky coordinates.
 
         """
-        self.log.debug(f"Applying Az/El offset: {az}/{el} ")
-        self.flush_offset_events()
 
         if persistent:
-            # TODO: Implement persistent offsets (DM-21336).
-            self.log.warning("Persistent offset is not yet implemented (DM-21336).")
+            self.log.debug(f"Calculating Az/El offset: {az}/{el} ")
 
-        await getattr(self.rem, self.ptg_name).cmd_offsetAzEl.set_start(
-            az=az, el=el, num=0 if not relative else 1
-        )
+            bore_sight_angle = await self.get_bore_sight_angle()
 
-        try:
+            x, y, _ = np.matmul(
+                [-self.parity_x * az, -self.parity_y * el, 0.0],
+                self.rotation_matrix(bore_sight_angle),
+            )
+            await self.offset_xy(x, y, relative=relative, persistent=persistent)
+        else:
+            self.log.debug(f"Applying Az/El offset: {az}/{el} ")
 
-            await self.offset_done()
-
-        except asyncio.TimeoutError:
-
-            self.log.debug("Timed out waiting for offset done events.")
-
-        self.log.debug("Waiting for telescope to settle.")
-        await asyncio.sleep(self.tel_settle_time)
-        self.log.debug("Done")
+            await self._offset(
+                offset_cmd=getattr(self.rem, self.ptg_name).cmd_offsetAzEl.set_start(
+                    az=az, el=el, num=0 if not relative else 1
+                )
+            )
 
     async def offset_xy(self, x, y, relative=False, persistent=False):
         """ Offset telescope in x and y.
@@ -581,12 +574,32 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
         offset_radec : Offset in sky coordinates.
 
         """
-        self.log.debug(f"Calculating x/y offset: {x}/{y} ")
 
-        bore_sight_angle = await self.get_bore_sight_angle()
+        if persistent:
+            # Persistent offset in the pointing are done in x/y, in mm.
+            # Need to convert inputs in arcsec to mm,
+            self.log.debug(f"Persistent x/y offset: {x}/{y}")
 
-        el, az, _ = np.matmul([x, y, 0.0], self.rotation_matrix(bore_sight_angle))
-        await self.offset_azel(az, el, relative)
+            await self._offset(
+                offoffset_cmd=getattr(
+                    self.rem, self.ptg_name
+                ).cmd_poriginOffset.set_start(
+                    dx=x * self.plate_scale,
+                    dy=y * self.plate_scale,
+                    num=0 if not relative else 1,
+                )
+            )
+        else:
+
+            self.log.debug(f"Calculating x/y offset: {x}/{y} ")
+
+            bore_sight_angle = await self.get_bore_sight_angle()
+
+            el, az, _ = np.matmul(
+                [self.parity_x * x, self.parity_y * y, 0.0],
+                self.rotation_matrix(bore_sight_angle),
+            )
+            await self.offset_azel(az, el, relative)
 
     async def add_point_data(self):
         """ Add current position to a point file. If a file is open it will
@@ -667,6 +680,38 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
                 self.log.debug(f"Skipping {cmp}")
 
         await self.process_as_completed(task_list)
+
+    async def _offset(self, offset_cmd):
+        """Execute an offset command.
+
+        Parameters
+        ----------
+        offset_cmd : `coroutine`, `asyncio.Task` or `asyncio.Future`
+            An awaitable object (coroutines, Tasks, or Futures) with the
+            offset command.
+
+        See Also
+        --------
+        offset_azel : Offset in local AzEl coordinates.
+        offset_xy : Offset in terms of boresight.
+        offset_radec : Offset in sky coordinates.
+
+        """
+        self.flush_offset_events()
+
+        await offset_cmd
+
+        try:
+
+            await self.offset_done()
+
+        except asyncio.TimeoutError:
+
+            self.log.debug("Timed out waiting for offset done events.")
+
+        self.log.debug("Waiting for telescope to settle.")
+        await asyncio.sleep(self.tel_settle_time)
+        self.log.debug("Done")
 
     @property
     def instrument_focus(self):
@@ -761,7 +806,7 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
 
     @abc.abstractmethod
     async def close_dome(self):
-        """Task to close ATDome.
+        """Task to close dome.
         """
         raise NotImplementedError()
 
@@ -862,6 +907,13 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
     async def get_bore_sight_angle(self):
         """Get the instrument bore sight angle with respect to the telescope
         axis.
+        """
+        raise NotImplementedError()
+
+    @property
+    @abc.abstractmethod
+    def plate_scale(self):
+        """Plate scale in mm/arcsec.
         """
         raise NotImplementedError()
 

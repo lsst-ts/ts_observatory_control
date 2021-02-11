@@ -6,6 +6,8 @@ setupRequired(sconsUtils)
 setupRequired(ts_salobj)
 setupRequired(ts_idl)
 
+envPrepend(PATH, ${PRODUCT_DIR}/bin)
+
 # The following is boilerplate for all packages.
 # See https://dmtn-001.lsst.io for details on LSST_LIBRARY_PATH.
 envPrepend(PYTHONPATH, ${PRODUCT_DIR}/python)

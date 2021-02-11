@@ -1,6 +1,6 @@
 # This file is part of ts_observatory_control.
 #
-# Developed for the LSST Telescope and Site Systems.
+# Developed for the Vera Rubin Observatory Telescope and Site Systems.
 # This product includes software developed by the LSST Project
 # (https://www.lsst.org).
 # See the COPYRIGHT file at the top-level directory of this distribution
@@ -30,6 +30,7 @@ from astropy.coordinates import Angle
 
 from ..remote_group import Usages, UsagesResources
 from ..base_tcs import BaseTCS
+from ..constants import atcs_constants
 from ..utils import InstrumentFocus
 
 from lsst.ts import salobj
@@ -498,59 +499,79 @@ class ATCS(BaseTCS):
 
         self.log.info("Disabling ATAOS corrections")
 
-        try:
+        if check.ataos:
+            self.log.debug("Disabling ATAOS corrections.")
+            try:
 
-            await self.rem.ataos.cmd_disableCorrection.set_start(
-                disableAll=True, timeout=self.long_timeout
+                await self.rem.ataos.cmd_disableCorrection.set_start(
+                    disableAll=True, timeout=self.long_timeout
+                )
+            except Exception:
+                self.log.exception("Failed to disable ATAOS corrections. Continuing...")
+        else:
+            self.log.debug("Skip disabling ATAOS corrections.")
+
+        if check.atpneumatics:
+            self.log.debug("Closing M1 cover vent gates.")
+
+            await self.close_m1_cover()
+
+            try:
+                await self.close_m1_vent()
+            except Exception:
+                self.log.exception("Error closing m1 vents.")
+        else:
+            self.log.warning(
+                "Skipping closing M1 cover and vent gates. If mirror is openend, "
+                "will not be able to close the dome slit."
             )
-        except Exception:
-            self.log.exception("Failed to disable ATAOS corrections. Continuing...")
 
-        await self.close_m1_cover()
+        if check.atdome:
+            self.log.info("Close dome.")
 
-        try:
-            await self.close_m1_vent()
-        except Exception:
-            self.log.exception("Error closing m1 vents.")
+            try:
+                await self.close_dome()
+            except Exception as e:
+                self.log.error(
+                    "Failed to close the dome. Cannot continue with shutdown operation. "
+                    "Check system for errors and try again."
+                )
+                raise e
 
-        self.log.info("Close dome.")
-
-        try:
-            await self.close_dome()
-        except Exception as e:
-            self.log.error(
-                "Failed to close the dome. Cannot continue with shutdown operation. "
-                "Check system for errors and try again."
+            self.log.debug("Slew dome to Park position.")
+            await self.slew_dome_to(az=self.dome_park_az, check=check)
+        else:
+            self.log.warning(
+                "Skipping closing dome shutter and slewing dome to park position."
             )
-            raise e
-
-        self.log.debug("Slew dome to Park position.")
-        await self.slew_dome_to(az=self.dome_park_az, check=check)
 
         self.log.info("Disable ATDomeTrajectory")
 
         await salobj.set_summary_state(self.rem.atdometrajectory, salobj.State.DISABLED)
 
-        self.log.debug("Slew telescope to Park position.")
+        if check.atmcs:
+            self.log.debug("Slew telescope to Park position.")
 
-        try:
-            self.check.atdometrajectory = False
-            await self.point_azel(
-                target_name="Park position",
-                az=self.tel_park_az,
-                el=self.tel_park_el,
-                wait_dome=False,
-            )
-            await self.stop_tracking()
-        except Exception:
-            self.log.exception(
-                "Failed to slew telescope to park position. Continuing..."
-            )
+            try:
+                self.check.atdometrajectory = False
+                await self.point_azel(
+                    target_name="Park position",
+                    az=self.tel_park_az,
+                    el=self.tel_park_el,
+                    wait_dome=False,
+                )
+                await self.stop_tracking()
+            except Exception:
+                self.log.exception(
+                    "Failed to slew telescope to park position. Continuing..."
+                )
+        else:
+            self.log.info("Skip slewing telescope to park position.")
 
         # restore check
         self.check = copy.copy(check)
 
-        self.log.info("Put all CSCs in standby")
+        self.log.info("Put CSCs in standby")
 
         await self.standby()
 
@@ -558,23 +579,51 @@ class ATCS(BaseTCS):
         """Task to open dome shutter and return when it is done.
         """
 
-        self.rem.atdome.evt_shutterInPosition.flush()
-
-        await self.rem.atdome.cmd_moveShutterMainDoor.set_start(
-            open=True, timeout=self.open_dome_shutter_time
+        shutter_pos = await self.rem.atdome.evt_mainDoorState.aget(
+            timeout=self.fast_timeout
         )
 
-        self.rem.atdome.evt_summaryState.flush()
-        # TODO: (2019/12) ATDome should now be returning the command only when
-        # the dome is fully open. I'll keep this here for now for backward
-        # compatibility but we should remove this later, after verifying it
-        # is working DM-24490.
-        task_list = [
-            asyncio.ensure_future(self.check_component_state("atdome")),
-            asyncio.ensure_future(self.wait_for_atdome_shutter_inposition()),
-        ]
+        if shutter_pos.state == ATDome.ShutterDoorState.CLOSED:
 
-        await self.process_as_completed(task_list)
+            self.log.debug("Opening dome shutter...")
+
+            self.rem.atdome.evt_mainDoorState.flush()
+
+            # FIXME: DM-28723: Remove workaround in ATCS class for opening/
+            # closing the dome.
+            # Work around for a problem with moveShutterMainDoor in ATDome
+            # v1.3.3. The CSC is not able to determine reliably when the slit
+            # is opened or closed. See DM-28512.
+
+            open_shutter_task = asyncio.create_task(
+                self.rem.atdome.cmd_moveShutterMainDoor.set_start(
+                    open=True, timeout=self.open_dome_shutter_time
+                )
+            )
+
+            self.rem.atdome.evt_summaryState.flush()
+            task_list = [
+                asyncio.create_task(self.check_component_state("atdome")),
+                asyncio.create_task(
+                    self._wait_for_shutter_door_state(
+                        state=ATDome.ShutterDoorState.OPENED,
+                        cmd_task=open_shutter_task,
+                        timeout=self.long_timeout,
+                    )
+                ),
+            ]
+
+            await self.process_as_completed(task_list)
+
+        elif shutter_pos.state == ATDome.ShutterDoorState.OPENED:
+            self.log.info("ATDome Shutter Door is already opened. Ignoring.")
+        else:
+            raise RuntimeError(
+                f"Shutter Door state is "
+                f"{ATDome.ShutterDoorState(shutter_pos.state)}. "
+                f"expected either {ATDome.ShutterDoorState.CLOSED} or "
+                f"{ATDome.ShutterDoorState.OPENED}"
+            )
 
     async def home_dome(self):
         """ Task to execute dome home command and wait for it to complete.
@@ -595,25 +644,75 @@ class ATCS(BaseTCS):
                 flush=False, timeout=self.open_dome_shutter_time
             )
 
-    async def close_dome(self):
+    async def close_dome(self, force=False):
         """Task to close ATDome.
+
+        Parameters
+        ----------
+        force : `bool`
+            Close the dome shutter even if the method is unable to determine
+            the state of m1 cover and/or the mirror is open.
         """
+
+        # Before closing the dome, need to make sure mirror is closed.
+        try:
+            cover_state = await self.rem.atpneumatics.evt_m1CoverState.aget(
+                timeout=self.fast_timeout
+            )
+        except asyncio.TimeoutError:
+            if not force:
+                raise RuntimeError(
+                    "Can not determine m1 cover state. It is not safe to close "
+                    "the dome shutter with the mirror cover opened. If you want "
+                    "to force this operation, run close_dome(force=True)."
+                )
+            else:
+                self.log.warning(
+                    "Forcing to close the dome shutter without information on m1 cover state."
+                )
+
+        if cover_state.state != ATPneumatics.MirrorCoverState.CLOSED and not force:
+            raise RuntimeError(
+                "M1 cover state open. Close the mirror before closing the dome shutter."
+            )
+        elif force:
+            self.log.warning(
+                f"Current M1 cover state is {ATPneumatics.MirrorCoverState(cover_state.state)!r}. "
+                "Force-closing the dome shutter anyway."
+            )
+
         shutter_pos = await self.rem.atdome.evt_mainDoorState.aget(
             timeout=self.fast_timeout
         )
 
         if shutter_pos.state == ATDome.ShutterDoorState.OPENED:
 
-            self.rem.atdome.evt_shutterInPosition.flush()
+            self.log.debug("Closing dome shutter...")
 
-            await self.rem.atdome.cmd_closeShutter.set_start(
-                timeout=self.open_dome_shutter_time
+            self.rem.atdome.evt_mainDoorState.flush()
+
+            # FIXME: DM-28723: Remove workaround in ATCS class for opening/
+            # closing the dome.
+            # Work around for a problem with moveShutterMainDoor in ATDome
+            # v1.3.3. The CSC is not able to determine reliably when the slit
+            # is opened or closed. See DM-28512.
+
+            close_shutter_task = asyncio.create_task(
+                self.rem.atdome.cmd_closeShutter.set_start(
+                    timeout=self.open_dome_shutter_time
+                )
             )
 
             self.rem.atdome.evt_summaryState.flush()
             task_list = [
                 asyncio.create_task(self.check_component_state("atdome")),
-                asyncio.create_task(self.wait_for_atdome_shutter_inposition()),
+                asyncio.create_task(
+                    self._wait_for_shutter_door_state(
+                        state=ATDome.ShutterDoorState.CLOSED,
+                        cmd_task=close_shutter_task,
+                        timeout=self.long_timeout,
+                    )
+                ),
             ]
 
             await self.process_as_completed(task_list)
@@ -627,6 +726,65 @@ class ATCS(BaseTCS):
                 f"expected either {ATDome.ShutterDoorState.OPENED} or "
                 f"{ATDome.ShutterDoorState.CLOSED}"
             )
+
+    async def _wait_for_shutter_door_state(self, state, cmd_task=None, timeout=None):
+        """Wait for `ATDome.ShutterDoorState.state` to match a required value.
+
+        Parameters
+        ----------
+        state : `ATDome.ShutterDoorState`
+            The expected shutter door state enumeration value.
+        cmd_task : `asyncio.Task` or `None`
+            Task with the command to open or close the dome.
+        timeout : `float` or `None`
+            How long to wait for state (seconds). If `None`, wait for ever.
+
+        Raises
+        ------
+        asyncio.TimeoutError
+            If `evt_mainDoorState` does not reach the expected state in the
+            expected time.
+        """
+        # FIXME: DM-28723: Remove workaround in ATCS class for opening/
+        # closing the dome.
+
+        shutter_state = ATDome.ShutterDoorState(
+            (await self.rem.atdome.evt_mainDoorState.aget(timeout=timeout)).state
+        )
+
+        self.log.debug(
+            f"Waiting for ATDome mainDoorState: {state!r}. "
+            f"Current state: {shutter_state!r}."
+        )
+
+        try:
+            while shutter_state != state:
+                shutter_state = ATDome.ShutterDoorState(
+                    (
+                        await self.rem.atdome.evt_mainDoorState.next(
+                            flush=False, timeout=timeout
+                        )
+                    ).state
+                )
+
+                self.log.info(f"mainDoorState: {shutter_state!r}")
+        finally:
+            if cmd_task is None:
+                self.log.debug(
+                    f"No shutter command task. Finished with mainDoorState: {shutter_state!r}."
+                )
+            else:
+                self.log.debug("Finishing ATDome shutter command task.")
+                if not cmd_task.done():
+                    self.log.debug("ATDome shutter command task not done. Cancelling.")
+                    cmd_task.cancel()
+
+                try:
+                    await cmd_task
+                except asyncio.CancelledError:
+                    self.log.warning("ATDome shutter command task cancelled.")
+                except asyncio.TimeoutError:
+                    self.log.warning("ATDome shutter command task timedout.")
 
     async def open_m1_cover(self):
         """Task to open m1 cover.
@@ -889,31 +1047,90 @@ class ATCS(BaseTCS):
     async def get_bore_sight_angle(self):
         """Get the instrument bore sight angle with respect to the telescope
         axis.
+
+        This method also determines the parity of the x-axis based on the
+        currently selected focus.
         """
 
+        # Determines x-axis parity.
+        try:
+            focus_name = await self.rem.atptg.evt_focusNameSelected.aget(
+                timeout=self.fast_timeout
+            )
+            self.parity_x = (
+                -1.0 if ATPtg.Foci(focus_name.focus) == ATPtg.Foci.NASMYTH2 else 1.0
+            )
+        except asyncio.TimeoutError:
+            self.log.error(
+                "Could not determine current selected focus. Using current x-axis parity = {self.parity_x}."
+            )
+
+        # Determines bore_sight_angle angle
         azel = self.telescope_position
-        nasmyth = await self.rem.atmcs.tel_mount_Nasmyth_Encoders.aget(
-            timeout=self.fast_timeout
+        try:
+            nasmyth = await self.rem.atmcs.tel_mount_Nasmyth_Encoders.aget(
+                timeout=self.fast_timeout
+            )
+        except asyncio.TimeoutError:
+            raise RuntimeError("Cannot determine nasmyth position.")
+
+        nasmyth_angle = (
+            np.mean(nasmyth.nasmyth1CalculatedAngle)
+            if self.parity_x > 0
+            else -np.mean(nasmyth.nasmyth2CalculatedAngle)
         )
-        angle = (
-            np.mean(azel.elevationCalculatedAngle)
-            - np.mean(nasmyth.nasmyth2CalculatedAngle)
-            + 90.0
-        )
+
+        angle = np.mean(azel.elevationCalculatedAngle) + nasmyth_angle + 90.0
 
         return angle
 
     def flush_offset_events(self):
-        """Abstract method to flush events before and offset is performed.
+        """Implement abstract method to flush events before an offset is
+        performed.
+
+        See Also
+        --------
+        offset_done : Wait for events that mark an offset as completed.
+        offset_azel : Offset in local AzEl coordinates.
+        offset_xy : Offset in terms of boresight.
+        offset_radec : Offset in sky coordinates.
+
         """
         self.rem.atmcs.evt_allAxesInPosition.flush()
 
     async def offset_done(self):
-        """Wait for offset events.
+        """Wait for events specifying that an offset completed.
+
+        Notes
+        -----
+
+        For ATMCS we expect the component to send
+        `allAxesInPosition.inPosition=False` at the start of an offset and then
+        `allAxesInPosition.inPosition=True` when it is done.
+
+        If the ATMCS fails to send these events in more than
+        `self.tel_settle_time` seconds, waiting for the event will timeout and
+        raise an `asyncio.Timeout` exception.
+
+        See Also
+        --------
+        flush_offset_events : Flush events before an offset.
+        offset_azel : Offset in local AzEl coordinates.
+        offset_xy : Offset in terms of boresight.
+        offset_radec : Offset in sky coordinates.
+
         """
-        await self.rem.atmcs.evt_allAxesInPosition.next(
-            flush=False, timeout=self.tel_settle_time
-        )
+
+        while True:
+            in_position = await self.rem.atmcs.evt_allAxesInPosition.next(
+                flush=False, timeout=self.tel_settle_time
+            )
+
+            if in_position.inPosition:
+                self.log.debug("All axes in position.")
+                return
+            else:
+                self.log.debug("Telescope not in position.")
 
     async def wait_for_inposition(
         self, timeout, cmd_ack=None, wait_settle=True, check=None
@@ -1205,6 +1422,12 @@ class ATCS(BaseTCS):
         self.check.atdometrajectory = checks.dometrajectory
 
     @property
+    def plate_scale(self):
+        """Plate scale in mm/arcsec.
+        """
+        return atcs_constants.plate_scale
+
+    @property
     def ptg_name(self):
         """Return name of the pointing component.
         """
@@ -1279,6 +1502,7 @@ class ATCS(BaseTCS):
                     "stopTracking",
                     "offsetAzEl",
                     "offsetRADec",
+                    "poriginOffset",
                     "pointAddData",
                     "pointNewFile",
                     "pointAddData",
@@ -1327,6 +1551,7 @@ class ATCS(BaseTCS):
                     "stopTracking",
                     "offsetAzEl",
                     "offsetRADec",
+                    "poriginOffset",
                     "pointAddData",
                     "pointNewFile",
                     "pointAddData",
@@ -1471,7 +1696,7 @@ class ATCS(BaseTCS):
                     "position",
                     "mount_Nasmyth_Encoders",
                 ],
-                atptg=["offsetAzEl", "offsetRADec", "timeAndDate"],
+                atptg=["timeAndDate", "poriginOffset"],
                 atpneumatics=[
                     "m1SetPressure",
                     "m2SetPressure",
