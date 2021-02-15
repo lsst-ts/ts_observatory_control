@@ -110,14 +110,20 @@ pipeline {
                 reportName: "Coverage Report"
               ])
 
-              sh """
-              docker exec -u saluser \${container_name} sh -c \"source ~/.setup.sh
-              cd /home/saluser/repo/
-              setup ts_observatory_control -t saluser
-              pip install -r doc/requirements.txt
-              package-docs build
-              ltd upload --product ts-observatory-control --git-ref \${GIT_BRANCH} --dir doc/_build/html\"
-              """
+              script {
+
+                  def RESULT = sh returnStatus: true, script: "docker exec -u saluser \${container_name} sh -c \"" +
+                      "source ~/.setup.sh && " +
+                      "cd /home/saluser/repo/ && " +
+                      "setup ts_observatory_control -t saluser && " +
+                      "pip install -r doc/requirements.txt && " +
+                      "package-docs build &&" +
+                      "ltd upload --product ts-observatory-control --git-ref \${GIT_BRANCH} --dir doc/_build/html\""
+
+                  if ( RESULT != 0 ) {
+                      unstable("Failed to build/push documentation.")
+                  }
+               }
         }
         cleanup {
             sh """
