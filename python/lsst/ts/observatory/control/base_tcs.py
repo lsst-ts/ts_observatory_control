@@ -581,9 +581,7 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
             self.log.debug(f"Persistent x/y offset: {x}/{y}")
 
             await self._offset(
-                offoffset_cmd=getattr(
-                    self.rem, self.ptg_name
-                ).cmd_poriginOffset.set_start(
+                offset_cmd=getattr(self.rem, self.ptg_name).cmd_poriginOffset.set_start(
                     dx=x * self.plate_scale,
                     dy=y * self.plate_scale,
                     num=0 if not relative else 1,
