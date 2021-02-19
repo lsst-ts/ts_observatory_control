@@ -616,8 +616,12 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
             await getattr(self.rem, self.ptg_name).cmd_pointAddData.start()
         except salobj.AckError:
             self.log.debug("Opening new pointing file.")
-            await getattr(self.rem, self.ptg_name).start()
-            await getattr(self.rem, self.ptg_name).start()
+            await getattr(self.rem, self.ptg_name).cmd_pointNewFile.start(
+                timeout=self.fast_timeout
+            )
+            await getattr(self.rem, self.ptg_name).cmd_pointAddData.start(
+                timeout=self.fast_timeout
+            )
 
     async def stop_tracking(self):
         """Task to stop telescope tracking."""
