@@ -378,6 +378,7 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
         dRA=0,
         dDec=0,
         rot_frame=None,
+        rot_track_frame=None,
         rot_mode=None,
         slew_timeout=1200.0,
         stop_before_slew=True,
@@ -413,9 +414,14 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
         dRA : `float`
             Differential Track Rate in RA.
         rot_frame : `enum`
-            Rotator coordinate frame (`self.RotFrame`).
-            If `self.RotFrame.TARGET` follow sky, if `self.RotFrame.FIXED`
-            keep rotator in a fixed position.
+            Rotator coordinate frame (`self.RotFrame`). Specify how to select
+            the position of the rotator. If `self.RotFrame.TARGET` uses sky
+            position angle. If `self.RotFrame.FIXED` uses rotator physical
+            position.
+        rot_track_frame : `enum`
+            Rotator track frame (`self.RotFrame`). Specify the rotator tracking
+            mode. If `self.RotFrame.TARGET`, follow sky. If
+            `self.RotFrame.FIXED` keep rotator at fixed position.
         rot_mode : `enum`
             Rotator position mode (`self.RotMode`).
             If `self.RotMode.FIELD` optimize for sky tracking, if
@@ -429,10 +435,34 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
         wait_settle : `bool`
             Wait telescope to settle before returning?
         """
+        # Compatibility between xml 7 and xml 8
+        if hasattr(
+            getattr(self.rem, self.ptg_name).cmd_raDecTarget.DataType(), "rotAngle"
+        ):
+            # xml >8
+            getattr(self.rem, self.ptg_name).cmd_raDecTarget.set(
+                rotAngle=rotPA,
+                rotStartFrame=rot_frame
+                if rot_frame is not None
+                else self.RotFrame.TARGET,
+                rotTrackFrame=rot_track_frame
+                if rot_track_frame is not None
+                else self.RotFrame.TARGET,
+            )
+        else:
+            # xml 7
+            getattr(self.rem, self.ptg_name).cmd_raDecTarget.set(
+                rotPA=rotPA,
+                rotFrame=rot_frame if rot_frame is not None else self.RotFrame.TARGET,
+            )
+            if rot_track_frame is not None:
+                self.log.warning(
+                    f"Recived {rot_track_frame!r}. Rotator tracking frame only available in xml 8 and up."
+                )
+
         getattr(self.rem, self.ptg_name).cmd_raDecTarget.set(
             ra=ra,
             declination=dec,
-            rotPA=rotPA,
             targetName=target_name,
             frame=frame if frame is not None else self.CoordFrame.ICRS,
             epoch=epoch,
@@ -443,7 +473,6 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
             rv=rv,
             dRA=dRA,
             dDec=dDec,
-            rotFrame=rot_frame if rot_frame is not None else self.RotFrame.TARGET,
             rotMode=rot_mode if rot_mode is not None else self.RotMode.FIELD,
         )
 
