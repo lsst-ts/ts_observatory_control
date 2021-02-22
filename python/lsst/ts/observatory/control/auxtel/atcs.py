@@ -483,7 +483,7 @@ class ATCS(BaseTCS):
             self.log.info("Enable ATAOS corrections.")
 
             await self.rem.ataos.cmd_enableCorrection.set_start(
-                m1=True, hexapod=True, timeout=self.long_timeout
+                m1=True, hexapod=True, atspectrograph=True, timeout=self.long_timeout
             )
 
     async def shutdown(self):
@@ -608,7 +608,7 @@ class ATCS(BaseTCS):
                     self._wait_for_shutter_door_state(
                         state=ATDome.ShutterDoorState.OPENED,
                         cmd_task=open_shutter_task,
-                        timeout=self.long_timeout,
+                        timeout=self.open_dome_shutter_time,
                     )
                 ),
             ]
@@ -710,7 +710,7 @@ class ATCS(BaseTCS):
                     self._wait_for_shutter_door_state(
                         state=ATDome.ShutterDoorState.CLOSED,
                         cmd_task=close_shutter_task,
-                        timeout=self.long_timeout,
+                        timeout=self.open_dome_shutter_time,
                     )
                 ),
             ]

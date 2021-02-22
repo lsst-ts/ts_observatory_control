@@ -1,16 +1,15 @@
 """Sphinx configuration file for an LSST stack package.
-
 This configuration only affects single-package Sphinx documentation builds.
 """
 
-from documenteer.sphinxconfig.stackconf import build_package_configs
+from documenteer.conf.pipelinespkg import *
 import lsst.ts.observatory.control
 
+project = "ts_observatory_control"
+html_theme_options["logotext"] = project
+html_title = project
+html_short_title = project
+doxylink = {}  # Avoid warning: Could not find tag file _doxygen/doxygen.tag
 
-_g = globals()
-_g.update(
-    build_package_configs(project_name="ts_observatory_control",),
-    version=lsst.ts.observatory.control.__version__,
-    release="",
-)
-extensions.append("sphinx-jsonschema")
+intersphinx_mapping["ts_xml"] = ("https://ts-xml.lsst.io", None)
+intersphinx_mapping["ts_salobj"] = ("https://ts-salobj.lsst.io", None)
