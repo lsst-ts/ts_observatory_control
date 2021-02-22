@@ -6,6 +6,23 @@
 Version History
 ###############
 
+v0.7.1
+======
+
+Changes:
+
+  * Implement xml 7/8 compatibility.
+  * Fix `add_point_data` in BaseTCS.
+  * Fix timeout in opening/closing the dome.
+  * Add enable atspectrograph ATAOS correction in `ATCS.prepare_for_onsky`.
+
+Requirements:
+
+  * ts_salobj >= 5.6.0
+  * ts_xml >= 7.1.0
+  * ts_idl >= 2.0.0
+  * IDL files for all components, e.g. built with ``make_idl_files.py``
+
 v0.7.0
 ======
 
