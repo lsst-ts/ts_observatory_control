@@ -21,7 +21,8 @@
 """Useful constants for running auxTel"""
 from lsst.geom import PointD
 
-plate_scale = 0.0957  # arcsec/pixel
+# pixel_scale was measured astrometrically in tickets/DM-24592
+pixel_scale = 0.09569  # arcsec/pixel
 
 boresight = PointD(2036.5, 2000.5)  # boreSight on detector (pixels)
 sweet_spots = {  # the sweet spots for the gratings (pixels)
