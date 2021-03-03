@@ -21,10 +21,12 @@
 """Useful constants for running auxTel"""
 from lsst.geom import PointD
 
-plate_scale = 0.1045  # arcsec/pixel
+plate_scale = 0.0957  # arcsec/pixel
 
 boresight = PointD(2036.5, 2000.5)  # boreSight on detector (pixels)
 sweet_spots = {  # the sweet spots for the gratings (pixels)
     "ronchi90lpmm": PointD(1780, 1800),
+    "ronchi170lpmm": PointD(1780, 1800),  # estimate added in DM-28818
+    "holo4_003": PointD(1750, 300),   # estimate added in DM-28818
     "empty_1": PointD(1780, 1800),
 }
