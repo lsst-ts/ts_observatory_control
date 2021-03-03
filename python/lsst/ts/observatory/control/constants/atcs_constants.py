@@ -18,4 +18,7 @@
 #
 # You should have received a copy of the GNU General Public License
 
-plate_scale = 0.0957  # mm/arcsecond at the telescope focal plane
+# Derived astrometrically in latiss_constants.py, then
+# converted to mm/arcsecond for usage here.
+
+plate_scale = 0.1045  # mm/arcsecond at the telescope focal plane
