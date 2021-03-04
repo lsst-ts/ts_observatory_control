@@ -149,7 +149,13 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
         raise NotImplementedError("Start tracking not implemented yet.")
 
     async def slew_object(
-        self, name, rot=0.0, rot_type=RotType.SkyAuto, slew_timeout=240.0,
+        self,
+        name,
+        rot=0.0,
+        rot_type=RotType.SkyAuto,
+        dra=0.0,
+        ddec=0.0,
+        slew_timeout=240.0,
     ):
         """Slew to an object name.
 
@@ -168,6 +174,10 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
             Default is `SkyAuto`, the rotator is positioned with respect to the
             North axis and is automacally wrapped if outside the limit. See
             `RotType` for more options.
+        dra : `float`
+            Differential Track Rate in RA (arcsec/second). Default is 0.
+        ddec : `float`
+            Differential Track Rate in Dec (arcsec/second). Default is 0.
         slew_timeout : `float`
             Timeout for the slew command (second).
 
@@ -194,6 +204,8 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
             rot=rot,
             rot_type=rot_type,
             target_name=name,
+            dra=dra,
+            ddec=ddec,
             slew_timeout=slew_timeout,
         )
 
@@ -204,6 +216,8 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
         rot=0.0,
         rot_type=RotType.SkyAuto,
         target_name="slew_icrs",
+        dra=0.0,
+        ddec=0.0,
         slew_timeout=240.0,
         stop_before_slew=True,
         wait_settle=True,
@@ -233,6 +247,10 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
             `RotType` for more options.
         target_name :  `str`
             Target name.
+        dra : `float`
+            Differential Track Rate in RA (arcsec/second). Default is 0.
+        ddec : `float`
+            Differential Track Rate in Dec (arcsec/second). Default is 0.
         slew_timeout : `float`
             Timeout for the slew command (second). Default is 240s.
         stop_before_slew : `bool`
@@ -351,8 +369,8 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
             pmRA=0,
             pmDec=0,
             rv=0,
-            dRA=0,
-            dDec=0,
+            dRA=dra,
+            dDec=ddec,
             rot_frame=rot_frame,
             rot_mode=self.RotMode.FIELD,
             slew_timeout=slew_timeout,
