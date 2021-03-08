@@ -469,9 +469,12 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
             )
         else:
             # xml 7
+            _rot_frame = rot_frame if rot_frame is not None else self.RotFrame.TARGET
+            self.log.debug(
+                f"xml 7 compatibility mode: rotPA={rotPA}, rotFrame={_rot_frame}"
+            )
             getattr(self.rem, self.ptg_name).cmd_raDecTarget.set(
-                rotPA=rotPA,
-                rotFrame=rot_frame if rot_frame is not None else self.RotFrame.TARGET,
+                rotPA=rotPA, rotFrame=_rot_frame,
             )
             if rot_track_frame is not None:
                 self.log.warning(
