@@ -459,6 +459,10 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
         ):
             # xml >8
             getattr(self.rem, self.ptg_name).cmd_raDecTarget.set(
+                ra=ra,
+                declination=dec,
+                targetName=target_name,
+                frame=frame if frame is not None else self.CoordFrame.ICRS,
                 rotAngle=rotPA,
                 rotStartFrame=rot_frame
                 if rot_frame is not None
@@ -466,6 +470,15 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
                 rotTrackFrame=rot_track_frame
                 if rot_track_frame is not None
                 else self.RotFrame.TARGET,
+                epoch=epoch,
+                equinox=equinox,
+                parallax=parallax,
+                pmRA=pmRA,
+                pmDec=pmDec,
+                rv=rv,
+                dRA=dRA,
+                dDec=dDec,
+                rotMode=rot_mode if rot_mode is not None else self.RotMode.FIELD,
             )
         else:
             # xml 7
@@ -474,28 +487,27 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
                 f"xml 7 compatibility mode: rotPA={rotPA}, rotFrame={_rot_frame}"
             )
             getattr(self.rem, self.ptg_name).cmd_raDecTarget.set(
-                rotPA=rotPA, rotFrame=_rot_frame,
+                ra=ra,
+                declination=dec,
+                targetName=target_name,
+                frame=frame if frame is not None else self.CoordFrame.ICRS,
+                rotPA=rotPA,
+                rotFrame=_rot_frame,
+                epoch=epoch,
+                equinox=equinox,
+                parallax=parallax,
+                pmRA=pmRA,
+                pmDec=pmDec,
+                rv=rv,
+                dRA=dRA,
+                dDec=dDec,
+                rotMode=rot_mode if rot_mode is not None else self.RotMode.FIELD,
             )
+
             if rot_track_frame is not None:
                 self.log.warning(
                     f"Recived {rot_track_frame!r}. Rotator tracking frame only available in xml 8 and up."
                 )
-
-        getattr(self.rem, self.ptg_name).cmd_raDecTarget.set(
-            ra=ra,
-            declination=dec,
-            targetName=target_name,
-            frame=frame if frame is not None else self.CoordFrame.ICRS,
-            epoch=epoch,
-            equinox=equinox,
-            parallax=parallax,
-            pmRA=pmRA,
-            pmDec=pmDec,
-            rv=rv,
-            dRA=dRA,
-            dDec=dDec,
-            rotMode=rot_mode if rot_mode is not None else self.RotMode.FIELD,
-        )
 
         try:
             await self._slew_to(
