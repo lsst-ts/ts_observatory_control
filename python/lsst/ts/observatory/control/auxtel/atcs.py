@@ -135,8 +135,10 @@ class ATCS(BaseTCS):
 
         self.tel_park_el = 80.0
         self.tel_park_az = 0.0
+        self.tel_park_rot = -110.0
         self.tel_flat_el = 39.0
         self.tel_flat_az = 205.7
+        self.tel_flat_rot = -110.0
         self.tel_el_operate_pneumatics = 70.0
         self.tel_settle_time = 3.0
 
@@ -328,6 +330,7 @@ class ATCS(BaseTCS):
                 target_name="FlatField position",
                 az=self.tel_flat_az,
                 el=self.tel_flat_el,
+                rot_tel=self.tel_flat_rot,
                 wait_dome=False,
             )
 
@@ -422,6 +425,7 @@ class ATCS(BaseTCS):
             target_name="Park position",
             az=self.tel_park_az,
             el=self.tel_park_el,
+            rot_tel=self.tel_park_rot,
             wait_dome=False,
         )
         self.check.atdome = atdome_check
@@ -558,6 +562,7 @@ class ATCS(BaseTCS):
                     target_name="Park position",
                     az=self.tel_park_az,
                     el=self.tel_park_el,
+                    rot_tel=self.tel_park_rot,
                     wait_dome=False,
                 )
                 await self.stop_tracking()
@@ -817,9 +822,20 @@ class ATCS(BaseTCS):
             tel_pos = await self.next_telescope_position(timeout=self.fast_timeout)
 
             if tel_pos.elevationCalculatedAngle[-1] < self.tel_el_operate_pneumatics:
+
+                try:
+                    nasmyth = await self.rem.atmcs.tel_mount_Nasmyth_Encoders.aget(
+                        timeout=self.fast_timeout
+                    )
+                except asyncio.TimeoutError:
+                    raise RuntimeError("Cannot determine nasmyth position.")
+
+                nasmyth_angle = np.mean(nasmyth.nasmyth2CalculatedAngle)
+
                 await self.point_azel(
                     az=tel_pos.azimuthCalculatedAngle[-1],
                     el=self.tel_el_operate_pneumatics,
+                    rot_tel=nasmyth_angle,
                     wait_dome=False,
                 )
 
@@ -874,10 +890,20 @@ class ATCS(BaseTCS):
             # before opening the mirror cover.
             tel_pos = await self.next_telescope_position(timeout=self.fast_timeout)
 
+            try:
+                nasmyth = await self.rem.atmcs.tel_mount_Nasmyth_Encoders.aget(
+                    timeout=self.fast_timeout
+                )
+            except asyncio.TimeoutError:
+                raise RuntimeError("Cannot determine nasmyth position.")
+
+            nasmyth_angle = np.mean(nasmyth.nasmyth2CalculatedAngle)
+
             if tel_pos.elevationCalculatedAngle[-1] < self.tel_el_operate_pneumatics:
                 await self.point_azel(
                     az=tel_pos.azimuthCalculatedAngle[-1],
                     el=self.tel_el_operate_pneumatics,
+                    rot_tel=nasmyth_angle,
                     wait_dome=False,
                 )
 
