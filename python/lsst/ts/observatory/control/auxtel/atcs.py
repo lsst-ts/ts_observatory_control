@@ -317,13 +317,14 @@ class ATCS(BaseTCS):
 
         # Creates a copy of check so it can modify it freely to control what
         # needs to be verified at each stage of the process.
-        _check = copy.copy(self.check) if check is None else copy.copy(check)
+        check_bckup = copy.copy(self.check) if check is None else copy.copy(check)
+        check_ops = copy.copy(self.check) if check is None else copy.copy(check)
 
         await salobj.set_summary_state(self.rem.atdometrajectory, salobj.State.DISABLED)
 
         await self.open_m1_cover()
 
-        _check.atdometrajectory = False
+        check_ops.atdometrajectory = False
 
         try:
             await self.point_azel(
@@ -339,8 +340,10 @@ class ATCS(BaseTCS):
             except asyncio.TimeoutError:
                 self.log.debug("Timeout in stopping tracking. Continuing.")
 
-            await self.slew_dome_to(self.dome_flat_az, _check)
+            await self.slew_dome_to(self.dome_flat_az, check_ops)
         finally:
+            # recover check
+            self.check = copy.copy(check_bckup)
             await salobj.set_summary_state(
                 self.rem.atdometrajectory, salobj.State.ENABLED
             )
