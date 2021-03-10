@@ -724,6 +724,20 @@ class RemoteGroup:
 
         await self.set_state(salobj.State.STANDBY)
 
+    def set_rem_loglevel(self, level):
+        """Set remotes log level.
+
+        Usefull to prevent the internal salobj warnings when read queues are
+        filled up.
+
+        Parameters
+        ----------
+        level : `int`
+            Log level.
+        """
+        for component in self.components:
+            logging.getLogger(component).setLevel(level)
+
     @property
     def components(self):
         """ List of components names.
