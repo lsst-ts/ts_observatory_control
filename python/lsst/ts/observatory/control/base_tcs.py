@@ -299,7 +299,7 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
             Angle(
                 Angle(180.0, unit=u.deg)
                 + par_angle
-                - rot_angle
+                + rot_angle
                 - (
                     alt_az.alt
                     if self.instrument_focus == InstrumentFocus.Nasmyth
