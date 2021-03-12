@@ -661,6 +661,25 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
             )
             await self.offset_azel(az, el, relative)
 
+    async def reset_offsets(self):
+        """Reset all offsets.
+        """
+        self.log.debug("Reseting all offsets.")
+        await asyncio.gather(
+            getattr(self.rem, self.ptg_name).cmd_poriginClear.set_start(
+                num=0, timeout=self.fast_timeout
+            ),
+            getattr(self.rem, self.ptg_name).cmd_poriginClear.set_start(
+                num=1, timeout=self.fast_timeout
+            ),
+            getattr(self.rem, self.ptg_name).cmd_offsetClear.set_start(
+                num=0, timeout=self.fast_timeout
+            ),
+            getattr(self.rem, self.ptg_name).cmd_offsetClear.set_start(
+                num=1, timeout=self.fast_timeout
+            ),
+        )
+
     async def add_point_data(self):
         """ Add current position to a point file. If a file is open it will
         append to that file. If no file is opened it will open a new one.
