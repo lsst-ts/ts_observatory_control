@@ -643,14 +643,57 @@ class ATCS(BaseTCS):
 
         await asyncio.sleep(self.fast_timeout)  # Give the dome time to start moving
 
-        az_state = await self.rem.atdome.evt_azimuthState.next(
-            flush=False, timeout=self.open_dome_shutter_time
+        # Work around for when the atdome is pressing the limit switch when
+        # we issue a home command.
+        # See DM-29202 for a more permanent fix.
+
+        # Check if the dome is in zero. If it is, assume dome is homed and
+        # move forward.
+        dome_pos = await self.rem.atdome.tel_position.next(
+            flush=True, timeout=self.fast_timeout
         )
+
+        az_position = Angle(dome_pos.azimuthPosition * u.deg).wrap_at("180d")
+        if az_position < 1.0e-3 * u.deg:
+            # If we get here it means the dome may potentially be perssing the
+            # limit switch, but it may also be that it was close to homing and
+            # manage to finish really quick. So, better make sure.
+            try:
+                # If dome was pressing the limit switch this event will not
+                # be published, but if it homed, it will get published.
+                # So treat a timeout as an indication that it was pressing the
+                # home switch.
+                az_state = await self.rem.atdome.evt_azimuthState.next(
+                    flush=False, timeout=self.fast_timeout
+                )
+            except asyncio.TimeoutError:
+                # The event timedout, this probably means the switch was
+                # pressed. Log a warning and move on.
+                self.log.warning(
+                    "Timeout waiting for ATDome azimuthState event. This may "
+                    "indicate that the dome is already homed and pressing the home switch."
+                )
+                return
+            else:
+                # If we got here it means we received the event.
+                # Log the condition and move forward, not that it will skip to
+                # the "while" statement bellow and check whether the dome was
+                # homing or not.
+                self.log.debug(
+                    f"ATDome azimuth position ({az_position}) too close to zero. "
+                    "Received azimuthState event. Waiting for homing to finish."
+                )
+        else:
+            az_state = await self.rem.atdome.evt_azimuthState.next(
+                flush=False, timeout=self.open_dome_shutter_time
+            )
         while az_state.homing:
             self.log.info("Dome azimuth still homing.")
             az_state = await self.rem.atdome.evt_azimuthState.next(
                 flush=False, timeout=self.open_dome_shutter_time
             )
+        else:
+            self.log.info("Dome azimuth hommed successfully.")
 
     async def close_dome(self, force=False):
         """Task to close ATDome.
