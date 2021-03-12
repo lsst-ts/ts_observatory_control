@@ -12,7 +12,7 @@ v0.7.1
 Changes:
 
   * Add workaround to edge condition while homing the ATDome.
-    If the dome is pressing the home switch and we send a home command, it will simply register the dome as homed and won't send any event to indicate the activity is complete.
+    Now if the dome is pressing the home switch and we send a home command, it will simply register the dome as homed and won't send any event to indicate the activity is complete.
   * Add method to reset all offsets in base_tcs.
   * Add set_rem_loglevel method in RemoteGroup, that allows users to set the log level for the remotes loggers.
   * Fix "restore check" feature in prepare for flats.

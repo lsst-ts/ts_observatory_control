@@ -661,24 +661,58 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
             )
             await self.offset_azel(az, el, relative)
 
-    async def reset_offsets(self):
-        """Reset all offsets.
+    async def reset_offsets(self, persistent=True, non_persistent=True):
+        """Reset offsets.
+
+        By default reset all offsets. User can specify if they want to reset
+        only persistent and non-persistent offsets as well.
+
+        Parameters
+        ----------
+        persistent : `bool`
+            Reset persistent offset? Default `True`.
+        non_persistent : `bool`
+            Reset non-persistent offset? Default `True`.
+
+        Raises
+        ------
+        RuntimeError:
+            If both persistent and non_persistent offsets are `False`.
+
         """
-        self.log.debug("Reseting all offsets.")
-        await asyncio.gather(
-            getattr(self.rem, self.ptg_name).cmd_poriginClear.set_start(
-                num=0, timeout=self.fast_timeout
-            ),
-            getattr(self.rem, self.ptg_name).cmd_poriginClear.set_start(
-                num=1, timeout=self.fast_timeout
-            ),
-            getattr(self.rem, self.ptg_name).cmd_offsetClear.set_start(
-                num=0, timeout=self.fast_timeout
-            ),
-            getattr(self.rem, self.ptg_name).cmd_offsetClear.set_start(
-                num=1, timeout=self.fast_timeout
-            ),
-        )
+
+        reset_offsets = []
+
+        if not persistent and not user:
+            raise RuntimeError("Select at least one offset to reset.")
+
+        if persistent:
+            self.log.debug("Reseting persistent offsets.")
+            reset_offsets.append(
+                getattr(self.rem, self.ptg_name).cmd_poriginClear.set_start(
+                    num=0, timeout=self.fast_timeout
+                )
+            )
+            reset_offsets.append(
+                getattr(self.rem, self.ptg_name).cmd_poriginClear.set_start(
+                    num=1, timeout=self.fast_timeout
+                )
+            )
+
+        if non_persistent:
+            self.log.debug("Reseting non-persistent offsets.")
+            reset_offsets.append(
+                getattr(self.rem, self.ptg_name).cmd_offsetClear.set_start(
+                    num=0, timeout=self.fast_timeout
+                )
+            )
+            reset_offsets.append(
+                getattr(self.rem, self.ptg_name).cmd_offsetClear.set_start(
+                    num=1, timeout=self.fast_timeout
+                )
+            )
+
+        await asyncio.gather(*reset_offsets)
 
     async def add_point_data(self):
         """ Add current position to a point file. If a file is open it will

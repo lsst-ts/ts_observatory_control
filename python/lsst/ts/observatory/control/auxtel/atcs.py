@@ -671,7 +671,7 @@ class ATCS(BaseTCS):
                 # pressed. Log a warning and move on.
                 self.log.warning(
                     "Timeout waiting for ATDome azimuthState event. This may "
-                    "indicate that the dome is already homed and pressing the home switch."
+                    "indicate that the dome is already homed and resting exactly on the home switch."
                 )
                 return
             else:
@@ -693,7 +693,7 @@ class ATCS(BaseTCS):
                 flush=False, timeout=self.open_dome_shutter_time
             )
         else:
-            self.log.info("Dome azimuth hommed successfully.")
+            self.log.info("Dome azimuth homed successfully.")
 
     async def close_dome(self, force=False):
         """Task to close ATDome.
@@ -869,14 +869,7 @@ class ATCS(BaseTCS):
 
             if tel_pos.elevationCalculatedAngle[-1] < self.tel_el_operate_pneumatics:
 
-                try:
-                    nasmyth = await self.rem.atmcs.tel_mount_Nasmyth_Encoders.aget(
-                        timeout=self.fast_timeout
-                    )
-                except asyncio.TimeoutError:
-                    raise RuntimeError("Cannot determine nasmyth position.")
-
-                nasmyth_angle = np.mean(nasmyth.nasmyth2CalculatedAngle)
+                nasmyth_angle = await self.get_selected_nasmyth_angle()
 
                 await self.point_azel(
                     az=tel_pos.azimuthCalculatedAngle[-1],
@@ -943,7 +936,7 @@ class ATCS(BaseTCS):
             except asyncio.TimeoutError:
                 raise RuntimeError("Cannot determine nasmyth position.")
 
-            nasmyth_angle = np.mean(nasmyth.nasmyth2CalculatedAngle)
+            nasmyth_angle = await self.get_selected_nasmyth_angle()
 
             if tel_pos.elevationCalculatedAngle[-1] < self.tel_el_operate_pneumatics:
                 await self.point_azel(
@@ -1155,6 +1148,57 @@ class ATCS(BaseTCS):
         angle = np.mean(azel.elevationCalculatedAngle) + nasmyth_angle + 90.0
 
         return angle
+
+    async def get_selected_nasmyth_angle(self):
+        """Get selected nasmyth angle.
+
+        Check which nasmyth port is selected and return its current position.
+        If it cannot determine the current nasmyth, issue a warning and uses
+        port 2, if `self.parity_x == -1`, or port 1, otherwise.
+
+        Returns
+        -------
+        nasmyth_angle : `float`
+            Calculated angle of the current selected nasmyth port.
+
+        Raises
+        ------
+        RuntimeError:
+            If cannot get mount_Nasmyth_Encoders.
+
+        """
+
+        try:
+            focus_name = ATPtg.Foci(
+                (
+                    await self.rem.atptg.evt_focusNameSelected.aget(
+                        timeout=self.fast_timeout
+                    )
+                ).focus
+            )
+        except asyncio.TimeoutError:
+            focus_name = (
+                ATPtg.Foci.NASMYTH2 if self.parity_x < 0.0 else ATPtg.Foci.NASMYTH1
+            )
+            self.log.warning(
+                "Could not determine current selected nasmyth port."
+                "Using {focus_name!r}."
+            )
+        else:
+            self.log.debug(f"Using nasmyth port {focus_name!r}")
+
+        try:
+            nasmyth = await self.rem.atmcs.tel_mount_Nasmyth_Encoders.aget(
+                timeout=self.fast_timeout
+            )
+        except asyncio.TimeoutError:
+            raise RuntimeError("Cannot determine nasmyth position.")
+
+        return (
+            np.mean(nasmyth.nasmyth2CalculatedAngle)
+            if focus_name == ATPtg.Foci.NASMYTH2
+            else np.mean(nasmyth.nasmyth1CalculatedAngle)
+        )
 
     def flush_offset_events(self):
         """Implement abstract method to flush events before an offset is

@@ -727,8 +727,8 @@ class RemoteGroup:
     def set_rem_loglevel(self, level):
         """Set remotes log level.
 
-        Usefull to prevent the internal salobj warnings when read queues are
-        filled up.
+        Useful to prevent the internal salobj warnings when read queues are
+        filling up.
 
         Parameters
         ----------
