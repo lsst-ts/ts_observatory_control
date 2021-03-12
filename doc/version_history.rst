@@ -11,6 +11,30 @@ v0.7.1
 
 Changes:
 
+  * Add workaround to edge condition while homing the ATDome.
+    If the dome is pressing the home switch and we send a home command, it will simply register the dome as homed and won't send any event to indicate the activity is complete.
+  * Add method to reset all offsets in base_tcs.
+  * Add set_rem_loglevel method in RemoteGroup, that allows users to set the log level for the remotes loggers.
+  * Fix "restore check" feature in prepare for flats.
+  * Fix direction of PhysicalSky rotator strategy.
+  * Update ATCS to support specifying rotator park position and flat field position.
+    When using point_azel to slew the telescope for a safe position, use the current nasmyth position.
+  * Fix setting rotFrame in xml7/8 compatibility mode.
+  * Update ronchi170lpmm sweet spot.
+  * Support differential ra/dec tracking in BaseTCS.
+
+Requirements:
+
+  * ts_salobj >= 5.6.0
+  * ts_xml >= 7.1.0
+  * ts_idl >= 2.0.0
+  * IDL files for all components, e.g. built with ``make_idl_files.py``
+
+v0.7.1
+======
+
+Changes:
+
   * Implement xml 7/8 compatibility.
   * Fix `add_point_data` in BaseTCS.
   * Fix timeout in opening/closing the dome.
