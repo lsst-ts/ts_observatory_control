@@ -929,13 +929,6 @@ class ATCS(BaseTCS):
             # before opening the mirror cover.
             tel_pos = await self.next_telescope_position(timeout=self.fast_timeout)
 
-            try:
-                nasmyth = await self.rem.atmcs.tel_mount_Nasmyth_Encoders.aget(
-                    timeout=self.fast_timeout
-                )
-            except asyncio.TimeoutError:
-                raise RuntimeError("Cannot determine nasmyth position.")
-
             nasmyth_angle = await self.get_selected_nasmyth_angle()
 
             if tel_pos.elevationCalculatedAngle[-1] < self.tel_el_operate_pneumatics:
@@ -1623,6 +1616,7 @@ class ATCS(BaseTCS):
                     "pointNewFile",
                     "pointAddData",
                     "timeAndDate",
+                    "focusNameSelected",
                 ],
                 ataos=["enableCorrection", "disableCorrection", "applyFocusOffset"],
                 atpneumatics=[
@@ -1672,6 +1666,7 @@ class ATCS(BaseTCS):
                     "pointNewFile",
                     "pointAddData",
                     "timeAndDate",
+                    "focusNameSelected",
                 ],
                 atdome=["stopMotion", "shutterInPosition"],
                 athexapod=["positionUpdate"],
@@ -1747,7 +1742,12 @@ class ATCS(BaseTCS):
                     "position",
                     "mount_Nasmyth_Encoders",
                 ],
-                atptg=["azElTarget", "moveAzimuth", "stopTracking"],
+                atptg=[
+                    "azElTarget",
+                    "moveAzimuth",
+                    "stopTracking",
+                    "focusNameSelected",
+                ],
                 atdome=[
                     "stopMotion",
                     "moveShutterMainDoor",
@@ -1790,7 +1790,12 @@ class ATCS(BaseTCS):
                     "position",
                     "mount_Nasmyth_Encoders",
                 ],
-                atptg=["azElTarget", "moveAzimuth", "stopTracking"],
+                atptg=[
+                    "azElTarget",
+                    "moveAzimuth",
+                    "stopTracking",
+                    "focusNameSelected",
+                ],
                 atdome=["stopMotion", "homeAzimuth"],
                 atpneumatics=[
                     "openM1Cover",
@@ -1812,7 +1817,7 @@ class ATCS(BaseTCS):
                     "position",
                     "mount_Nasmyth_Encoders",
                 ],
-                atptg=["timeAndDate", "poriginOffset"],
+                atptg=["timeAndDate", "poriginOffset", "focusNameSelected"],
                 atpneumatics=[
                     "m1SetPressure",
                     "m2SetPressure",

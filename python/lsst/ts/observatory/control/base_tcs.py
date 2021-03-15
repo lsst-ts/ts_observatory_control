@@ -683,7 +683,7 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
 
         reset_offsets = []
 
-        if not persistent and not user:
+        if not persistent and not non_persistent:
             raise RuntimeError("Select at least one offset to reset.")
 
         if persistent:
