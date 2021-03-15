@@ -646,6 +646,7 @@ class MTCS(BaseTCS):
                     "pointNewFile",
                     "pointAddData",
                     "timeAndDate",
+                    "focusNameSelected",
                 ],
             )
 
@@ -665,6 +666,7 @@ class MTCS(BaseTCS):
                     "pointAddData",
                     "timeAndDate",
                     "target",
+                    "focusNameSelected",
                 ],
                 mtrotator=["rotation", "inPosition"],
                 mtmount=["azimuth", "elevation", "axesInPosition"],
@@ -685,7 +687,7 @@ class MTCS(BaseTCS):
                     "settingVersions",
                     "heartbeat",
                 ],
-                mtptg=["azElTarget", "stopTracking"],
+                mtptg=["azElTarget", "stopTracking", "focusNameSelected"],
             )
 
             usages[self.valid_use_cases.Shutdown] = UsagesResources(
@@ -702,7 +704,7 @@ class MTCS(BaseTCS):
                     "settingVersions",
                     "heartbeat",
                 ],
-                mtptg=["azElTarget", "stopTracking"],
+                mtptg=["azElTarget", "stopTracking", "focusNameSelected"],
             )
 
             usages[self.valid_use_cases.PrepareForFlatfield] = UsagesResources(
