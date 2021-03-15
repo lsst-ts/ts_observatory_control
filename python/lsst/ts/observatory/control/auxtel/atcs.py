@@ -135,8 +135,10 @@ class ATCS(BaseTCS):
 
         self.tel_park_el = 80.0
         self.tel_park_az = 0.0
+        self.tel_park_rot = -110.0
         self.tel_flat_el = 39.0
         self.tel_flat_az = 205.7
+        self.tel_flat_rot = -110.0
         self.tel_el_operate_pneumatics = 70.0
         self.tel_settle_time = 3.0
 
@@ -315,19 +317,21 @@ class ATCS(BaseTCS):
 
         # Creates a copy of check so it can modify it freely to control what
         # needs to be verified at each stage of the process.
-        _check = copy.copy(self.check) if check is None else copy.copy(check)
+        check_bckup = copy.copy(self.check) if check is None else copy.copy(check)
+        check_ops = copy.copy(self.check) if check is None else copy.copy(check)
 
         await salobj.set_summary_state(self.rem.atdometrajectory, salobj.State.DISABLED)
 
         await self.open_m1_cover()
 
-        _check.atdometrajectory = False
+        check_ops.atdometrajectory = False
 
         try:
             await self.point_azel(
                 target_name="FlatField position",
                 az=self.tel_flat_az,
                 el=self.tel_flat_el,
+                rot_tel=self.tel_flat_rot,
                 wait_dome=False,
             )
 
@@ -336,8 +340,10 @@ class ATCS(BaseTCS):
             except asyncio.TimeoutError:
                 self.log.debug("Timeout in stopping tracking. Continuing.")
 
-            await self.slew_dome_to(self.dome_flat_az, _check)
+            await self.slew_dome_to(self.dome_flat_az, check_ops)
         finally:
+            # recover check
+            self.check = copy.copy(check_bckup)
             await salobj.set_summary_state(
                 self.rem.atdometrajectory, salobj.State.ENABLED
             )
@@ -422,6 +428,7 @@ class ATCS(BaseTCS):
             target_name="Park position",
             az=self.tel_park_az,
             el=self.tel_park_el,
+            rot_tel=self.tel_park_rot,
             wait_dome=False,
         )
         self.check.atdome = atdome_check
@@ -558,6 +565,7 @@ class ATCS(BaseTCS):
                     target_name="Park position",
                     az=self.tel_park_az,
                     el=self.tel_park_el,
+                    rot_tel=self.tel_park_rot,
                     wait_dome=False,
                 )
                 await self.stop_tracking()
@@ -635,14 +643,57 @@ class ATCS(BaseTCS):
 
         await asyncio.sleep(self.fast_timeout)  # Give the dome time to start moving
 
-        az_state = await self.rem.atdome.evt_azimuthState.next(
-            flush=False, timeout=self.open_dome_shutter_time
+        # Work around for when the atdome is pressing the limit switch when
+        # we issue a home command.
+        # See DM-29202 for a more permanent fix.
+
+        # Check if the dome is in zero. If it is, assume dome is homed and
+        # move forward.
+        dome_pos = await self.rem.atdome.tel_position.next(
+            flush=True, timeout=self.fast_timeout
         )
+
+        az_position = Angle(dome_pos.azimuthPosition * u.deg).wrap_at("180d")
+        if az_position < 1.0e-3 * u.deg:
+            # If we get here it means the dome may potentially be perssing the
+            # limit switch, but it may also be that it was close to homing and
+            # manage to finish really quick. So, better make sure.
+            try:
+                # If dome was pressing the limit switch this event will not
+                # be published, but if it homed, it will get published.
+                # So treat a timeout as an indication that it was pressing the
+                # home switch.
+                az_state = await self.rem.atdome.evt_azimuthState.next(
+                    flush=False, timeout=self.fast_timeout
+                )
+            except asyncio.TimeoutError:
+                # The event timedout, this probably means the switch was
+                # pressed. Log a warning and move on.
+                self.log.warning(
+                    "Timeout waiting for ATDome azimuthState event. This may "
+                    "indicate that the dome is already homed and resting exactly on the home switch."
+                )
+                return
+            else:
+                # If we got here it means we received the event.
+                # Log the condition and move forward, not that it will skip to
+                # the "while" statement bellow and check whether the dome was
+                # homing or not.
+                self.log.debug(
+                    f"ATDome azimuth position ({az_position}) too close to zero. "
+                    "Received azimuthState event. Waiting for homing to finish."
+                )
+        else:
+            az_state = await self.rem.atdome.evt_azimuthState.next(
+                flush=False, timeout=self.open_dome_shutter_time
+            )
         while az_state.homing:
             self.log.info("Dome azimuth still homing.")
             az_state = await self.rem.atdome.evt_azimuthState.next(
                 flush=False, timeout=self.open_dome_shutter_time
             )
+        else:
+            self.log.info("Dome azimuth homed successfully.")
 
     async def close_dome(self, force=False):
         """Task to close ATDome.
@@ -817,9 +868,13 @@ class ATCS(BaseTCS):
             tel_pos = await self.next_telescope_position(timeout=self.fast_timeout)
 
             if tel_pos.elevationCalculatedAngle[-1] < self.tel_el_operate_pneumatics:
+
+                nasmyth_angle = await self.get_selected_nasmyth_angle()
+
                 await self.point_azel(
                     az=tel_pos.azimuthCalculatedAngle[-1],
                     el=self.tel_el_operate_pneumatics,
+                    rot_tel=nasmyth_angle,
                     wait_dome=False,
                 )
 
@@ -874,10 +929,13 @@ class ATCS(BaseTCS):
             # before opening the mirror cover.
             tel_pos = await self.next_telescope_position(timeout=self.fast_timeout)
 
+            nasmyth_angle = await self.get_selected_nasmyth_angle()
+
             if tel_pos.elevationCalculatedAngle[-1] < self.tel_el_operate_pneumatics:
                 await self.point_azel(
                     az=tel_pos.azimuthCalculatedAngle[-1],
                     el=self.tel_el_operate_pneumatics,
+                    rot_tel=nasmyth_angle,
                     wait_dome=False,
                 )
 
@@ -1083,6 +1141,57 @@ class ATCS(BaseTCS):
         angle = np.mean(azel.elevationCalculatedAngle) + nasmyth_angle + 90.0
 
         return angle
+
+    async def get_selected_nasmyth_angle(self):
+        """Get selected nasmyth angle.
+
+        Check which nasmyth port is selected and return its current position.
+        If it cannot determine the current nasmyth, issue a warning and uses
+        port 2, if `self.parity_x == -1`, or port 1, otherwise.
+
+        Returns
+        -------
+        nasmyth_angle : `float`
+            Calculated angle of the current selected nasmyth port.
+
+        Raises
+        ------
+        RuntimeError:
+            If cannot get mount_Nasmyth_Encoders.
+
+        """
+
+        try:
+            focus_name = ATPtg.Foci(
+                (
+                    await self.rem.atptg.evt_focusNameSelected.aget(
+                        timeout=self.fast_timeout
+                    )
+                ).focus
+            )
+        except asyncio.TimeoutError:
+            focus_name = (
+                ATPtg.Foci.NASMYTH2 if self.parity_x < 0.0 else ATPtg.Foci.NASMYTH1
+            )
+            self.log.warning(
+                "Could not determine current selected nasmyth port."
+                "Using {focus_name!r}."
+            )
+        else:
+            self.log.debug(f"Using nasmyth port {focus_name!r}")
+
+        try:
+            nasmyth = await self.rem.atmcs.tel_mount_Nasmyth_Encoders.aget(
+                timeout=self.fast_timeout
+            )
+        except asyncio.TimeoutError:
+            raise RuntimeError("Cannot determine nasmyth position.")
+
+        return (
+            np.mean(nasmyth.nasmyth2CalculatedAngle)
+            if focus_name == ATPtg.Foci.NASMYTH2
+            else np.mean(nasmyth.nasmyth1CalculatedAngle)
+        )
 
     def flush_offset_events(self):
         """Implement abstract method to flush events before an offset is
@@ -1507,6 +1616,7 @@ class ATCS(BaseTCS):
                     "pointNewFile",
                     "pointAddData",
                     "timeAndDate",
+                    "focusNameSelected",
                 ],
                 ataos=["enableCorrection", "disableCorrection", "applyFocusOffset"],
                 atpneumatics=[
@@ -1556,6 +1666,7 @@ class ATCS(BaseTCS):
                     "pointNewFile",
                     "pointAddData",
                     "timeAndDate",
+                    "focusNameSelected",
                 ],
                 atdome=["stopMotion", "shutterInPosition"],
                 athexapod=["positionUpdate"],
@@ -1631,7 +1742,12 @@ class ATCS(BaseTCS):
                     "position",
                     "mount_Nasmyth_Encoders",
                 ],
-                atptg=["azElTarget", "moveAzimuth", "stopTracking"],
+                atptg=[
+                    "azElTarget",
+                    "moveAzimuth",
+                    "stopTracking",
+                    "focusNameSelected",
+                ],
                 atdome=[
                     "stopMotion",
                     "moveShutterMainDoor",
@@ -1674,7 +1790,12 @@ class ATCS(BaseTCS):
                     "position",
                     "mount_Nasmyth_Encoders",
                 ],
-                atptg=["azElTarget", "moveAzimuth", "stopTracking"],
+                atptg=[
+                    "azElTarget",
+                    "moveAzimuth",
+                    "stopTracking",
+                    "focusNameSelected",
+                ],
                 atdome=["stopMotion", "homeAzimuth"],
                 atpneumatics=[
                     "openM1Cover",
@@ -1696,7 +1817,7 @@ class ATCS(BaseTCS):
                     "position",
                     "mount_Nasmyth_Encoders",
                 ],
-                atptg=["timeAndDate", "poriginOffset"],
+                atptg=["timeAndDate", "poriginOffset", "focusNameSelected"],
                 atpneumatics=[
                     "m1SetPressure",
                     "m2SetPressure",

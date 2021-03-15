@@ -149,7 +149,13 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
         raise NotImplementedError("Start tracking not implemented yet.")
 
     async def slew_object(
-        self, name, rot=0.0, rot_type=RotType.SkyAuto, slew_timeout=240.0,
+        self,
+        name,
+        rot=0.0,
+        rot_type=RotType.SkyAuto,
+        dra=0.0,
+        ddec=0.0,
+        slew_timeout=240.0,
     ):
         """Slew to an object name.
 
@@ -168,6 +174,10 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
             Default is `SkyAuto`, the rotator is positioned with respect to the
             North axis and is automacally wrapped if outside the limit. See
             `RotType` for more options.
+        dra : `float`
+            Differential Track Rate in RA (arcsec/second). Default is 0.
+        ddec : `float`
+            Differential Track Rate in Dec (arcsec/second). Default is 0.
         slew_timeout : `float`
             Timeout for the slew command (second).
 
@@ -194,6 +204,8 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
             rot=rot,
             rot_type=rot_type,
             target_name=name,
+            dra=dra,
+            ddec=ddec,
             slew_timeout=slew_timeout,
         )
 
@@ -204,6 +216,8 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
         rot=0.0,
         rot_type=RotType.SkyAuto,
         target_name="slew_icrs",
+        dra=0.0,
+        ddec=0.0,
         slew_timeout=240.0,
         stop_before_slew=True,
         wait_settle=True,
@@ -233,6 +247,10 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
             `RotType` for more options.
         target_name :  `str`
             Target name.
+        dra : `float`
+            Differential Track Rate in RA (arcsec/second). Default is 0.
+        ddec : `float`
+            Differential Track Rate in Dec (arcsec/second). Default is 0.
         slew_timeout : `float`
             Timeout for the slew command (second). Default is 240s.
         stop_before_slew : `bool`
@@ -281,7 +299,7 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
             Angle(
                 Angle(180.0, unit=u.deg)
                 + par_angle
-                - rot_angle
+                + rot_angle
                 - (
                     alt_az.alt
                     if self.instrument_focus == InstrumentFocus.Nasmyth
@@ -351,8 +369,8 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
             pmRA=0,
             pmDec=0,
             rv=0,
-            dRA=0,
-            dDec=0,
+            dRA=dra,
+            dDec=ddec,
             rot_frame=rot_frame,
             rot_mode=self.RotMode.FIELD,
             slew_timeout=slew_timeout,
@@ -441,6 +459,10 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
         ):
             # xml >8
             getattr(self.rem, self.ptg_name).cmd_raDecTarget.set(
+                ra=ra,
+                declination=dec,
+                targetName=target_name,
+                frame=frame if frame is not None else self.CoordFrame.ICRS,
                 rotAngle=rotPA,
                 rotStartFrame=rot_frame
                 if rot_frame is not None
@@ -448,33 +470,44 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
                 rotTrackFrame=rot_track_frame
                 if rot_track_frame is not None
                 else self.RotFrame.TARGET,
+                epoch=epoch,
+                equinox=equinox,
+                parallax=parallax,
+                pmRA=pmRA,
+                pmDec=pmDec,
+                rv=rv,
+                dRA=dRA,
+                dDec=dDec,
+                rotMode=rot_mode if rot_mode is not None else self.RotMode.FIELD,
             )
         else:
             # xml 7
-            getattr(self.rem, self.ptg_name).cmd_raDecTarget.set(
-                rotPA=rotPA,
-                rotFrame=rot_frame if rot_frame is not None else self.RotFrame.TARGET,
+            _rot_frame = rot_frame if rot_frame is not None else self.RotFrame.TARGET
+            self.log.debug(
+                f"xml 7 compatibility mode: rotPA={rotPA}, rotFrame={_rot_frame}"
             )
+            getattr(self.rem, self.ptg_name).cmd_raDecTarget.set(
+                ra=ra,
+                declination=dec,
+                targetName=target_name,
+                frame=frame if frame is not None else self.CoordFrame.ICRS,
+                rotPA=rotPA,
+                rotFrame=_rot_frame,
+                epoch=epoch,
+                equinox=equinox,
+                parallax=parallax,
+                pmRA=pmRA,
+                pmDec=pmDec,
+                rv=rv,
+                dRA=dRA,
+                dDec=dDec,
+                rotMode=rot_mode if rot_mode is not None else self.RotMode.FIELD,
+            )
+
             if rot_track_frame is not None:
                 self.log.warning(
                     f"Recived {rot_track_frame!r}. Rotator tracking frame only available in xml 8 and up."
                 )
-
-        getattr(self.rem, self.ptg_name).cmd_raDecTarget.set(
-            ra=ra,
-            declination=dec,
-            targetName=target_name,
-            frame=frame if frame is not None else self.CoordFrame.ICRS,
-            epoch=epoch,
-            equinox=equinox,
-            parallax=parallax,
-            pmRA=pmRA,
-            pmDec=pmDec,
-            rv=rv,
-            dRA=dRA,
-            dDec=dDec,
-            rotMode=rot_mode if rot_mode is not None else self.RotMode.FIELD,
-        )
 
         try:
             await self._slew_to(
@@ -627,6 +660,59 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
                 self.rotation_matrix(bore_sight_angle),
             )
             await self.offset_azel(az, el, relative)
+
+    async def reset_offsets(self, persistent=True, non_persistent=True):
+        """Reset offsets.
+
+        By default reset all offsets. User can specify if they want to reset
+        only persistent and non-persistent offsets as well.
+
+        Parameters
+        ----------
+        persistent : `bool`
+            Reset persistent offset? Default `True`.
+        non_persistent : `bool`
+            Reset non-persistent offset? Default `True`.
+
+        Raises
+        ------
+        RuntimeError:
+            If both persistent and non_persistent offsets are `False`.
+
+        """
+
+        reset_offsets = []
+
+        if not persistent and not non_persistent:
+            raise RuntimeError("Select at least one offset to reset.")
+
+        if persistent:
+            self.log.debug("Reseting persistent offsets.")
+            reset_offsets.append(
+                getattr(self.rem, self.ptg_name).cmd_poriginClear.set_start(
+                    num=0, timeout=self.fast_timeout
+                )
+            )
+            reset_offsets.append(
+                getattr(self.rem, self.ptg_name).cmd_poriginClear.set_start(
+                    num=1, timeout=self.fast_timeout
+                )
+            )
+
+        if non_persistent:
+            self.log.debug("Reseting non-persistent offsets.")
+            reset_offsets.append(
+                getattr(self.rem, self.ptg_name).cmd_offsetClear.set_start(
+                    num=0, timeout=self.fast_timeout
+                )
+            )
+            reset_offsets.append(
+                getattr(self.rem, self.ptg_name).cmd_offsetClear.set_start(
+                    num=1, timeout=self.fast_timeout
+                )
+            )
+
+        await asyncio.gather(*reset_offsets)
 
     async def add_point_data(self):
         """ Add current position to a point file. If a file is open it will
