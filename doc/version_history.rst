@@ -6,7 +6,21 @@
 Version History
 ###############
 
-v0.7.1
+v0.7.5
+======
+
+Changes:
+
+  * Improve documentation on offset command relative and persistent options.
+
+Requirements:
+
+  * ts_salobj >= 5.6.0
+  * ts_xml >= 7.1.0
+  * ts_idl >= 2.0.0
+  * IDL files for all components, e.g. built with ``make_idl_files.py``
+
+v0.7.4
 ======
 
 Changes:
@@ -22,6 +36,41 @@ Changes:
   * Fix setting rotFrame in xml7/8 compatibility mode.
   * Update ronchi170lpmm sweet spot.
   * Support differential ra/dec tracking in BaseTCS.
+
+Requirements:
+
+  * ts_salobj >= 5.6.0
+  * ts_xml >= 7.1.0
+  * ts_idl >= 2.0.0
+  * IDL files for all components, e.g. built with ``make_idl_files.py``
+
+v0.7.3
+======
+
+Changes:
+
+  * Updated plate scale to correct math error.
+  * Modify latiss_constants.py to include a sweet-spot for the hologram.
+    Also to make the plate-scale consistent.
+
+Requirements:
+
+  * ts_salobj >= 5.6.0
+  * ts_xml >= 7.1.0
+  * ts_idl >= 2.0.0
+  * IDL files for all components, e.g. built with ``make_idl_files.py``
+
+v0.7.2
+======
+
+Changes:
+
+  * Update `docs/conf.py`.
+  * Update version history.
+  * Implement xml 7/8 compatibility.
+  * Fix `add_point_data` in BaseTCS.
+  * Fix timeout in opening/closing the dome.
+  * Enable atspectrograph ATAOS correction in `ATCS.prepare_for_onsky`.
 
 Requirements:
 

@@ -575,6 +575,9 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
     async def offset_azel(self, az, el, relative=False, persistent=False):
         """Offset telescope in azimuth and elevation.
 
+        For more information see the Notes section bellow or the package
+        documentation in https://ts-observatory-control.lsst.io/.
+
         Parameters
         ----------
         az : `float`
@@ -591,6 +594,82 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
         --------
         offset_xy : Offset in terms of boresight.
         offset_radec : Offset in sky coordinates.
+        reset_offsets : Reset offsets.
+
+        Notes
+        -----
+
+        There are a couple different ways users can modify how offsets are
+        treated via the input flags `relative` and `persistent`.
+
+        Basically these flags controls if the offset will persist after a new
+        slew (`persistent`) and if the offset is relative to the current
+        position or is absolute (with respect to the original position).
+
+        By default `relative=False` and `persistent=False`, which means offsets
+        will be absolute and will not persist after a slew.
+
+        The absolute offset overrides any previous (absolute) offset.
+
+        That means, the pair of commands below:
+
+        >>> await tcs.offset_azel(az=10, el=0)
+        >>> await tcs.offset_azel(az=0, el=10)
+
+        Results in only 10 arcsec offset in elevation, e.g., is equivalent to
+        just doing the second command;
+
+        >>> await tcs.offset_azel(az=0, el=10)
+
+        That is because the absolute offset requested by the second command
+        will reset the offset done on the previous command.
+
+        Instead, if you use a relative offset, they will be accumulated. For
+        instance,
+
+        >>> await tcs.offset_azel(az=10, el=0, relative=True)
+        >>> await tcs.offset_azel(az=0, el=10, relative=True)
+
+        Will result in a 10 arcsec offset in **both** azimuth and elevation.
+
+        These offsets can also be combined with one another. For instance, if
+        you do;
+
+        >>> await tcs.offset_azel(az=10, el=0, relative=True)
+        >>> await tcs.offset_azel(az=0, el=10, relative=True)
+        >>> await tcs.offset_azel(az=0, el=10)
+
+        You will get 10 arcsec offset azimuth and 20 arcsec in elevation.
+
+        Nevertheless, if after doing the above you do;
+
+        >>> await tcs.offset_azel(az=0, el=0)
+
+        It will result in a 10 arcsec offset in **both** azimuth and elevation,
+        from the relative offsets done previously.
+
+        In all cases above, the offset will be overwritten if a new target is
+        sent, e.g.;
+
+        >>> await tcs.offset_azel(az=10, el=0, relative=True)
+        >>> await tcs.offset_azel(az=0, el=10, relative=True)
+        >>> await tcs.offset_azel(az=0, el=10)
+        >>> await tcs.slew_object("HD 164461")  # reset all offsets above
+
+        Will result in a slew with no offsets.
+
+        If you want slews to persist between slews use `persistent=True`. The
+        `relative` flag applies the same way to persistent offsets.
+
+        The following sequence of commands;
+
+        >>> await tcs.offset_azel(az=10, el=0, relative=True, persistent=True)
+        >>> await tcs.offset_azel(az=0, el=10, relative=True, persistent=True)
+        >>> await tcs.offset_azel(az=0, el=10, persistent=True)
+        >>> await tcs.slew_object("HD 164461")
+
+        Will result in a slew offset by 10 arcsec in azimuth and 20 arcsec in
+        elevation.
 
         """
 
@@ -616,7 +695,7 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
     async def offset_xy(self, x, y, relative=False, persistent=False):
         """ Offset telescope in x and y.
 
-        This will move the field in the x and y direction.
+        Move the field in the x and y direction.
 
         Parameters
         ----------
@@ -634,7 +713,21 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
         --------
         offset_azel : Offset in local AzEl coordinates.
         offset_radec : Offset in sky coordinates.
+        reset_offsets : Reset offsets.
 
+        Notes
+        -----
+
+        If the image is displayed with the x-axis in horizontal position,
+        increasing from left hand to right hand, a positive x value will
+        cause the image to move from left to right on the screen.
+
+        If the image is diplayed with y-axis in vertical position, increasing
+        from bottom to top, a positive y value will cause the image to move
+        from the botoom to the top on the screen.
+
+        See the Notes section in `offset_azel` help page for more information
+        about the `relative` and `persisted` flags.
         """
 
         if persistent:

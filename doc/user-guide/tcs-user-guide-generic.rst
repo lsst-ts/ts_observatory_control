@@ -39,6 +39,11 @@ to operate the Auxiliary Telescope or;
 
 for the Main Telescope.
 
+.. _user-guide-generic-telescope-control-operations-slewing-to-fixed-positions:
+
+Slewing to fixed positions
+--------------------------
+
 To slew the telescope to an AzEl coordinate (for instance, to conduct some maintenance of calibration), it is possible to use :py:meth:`point_azel <lsst.ts.observatory.control.BaseTCS.point_azel>`.
 The method will slew to a fixed position in the local coordinate and `will not` initiate tracking.
 For instance, to slew the telescope to `azimuth=0` and `elevation=80` degrees;
@@ -54,6 +59,11 @@ In additional, it is also possible to set a name for the position.
 
     await tcs.point_azel(az = 0, el=20, rot_tel=90, target_name="maintenance xyz")
 
+
+.. _user-guide-generic-telescope-control-operations-slewing-and-tracking:
+
+Slewing and tracking
+--------------------
 
 It is possible to slew to an ``ICRS`` coordinate using :py:meth:`slew_icrs <lsst.ts.observatory.control.BaseTCS.slew_icrs>`.
 It assumes ``ra`` is in hours and ``dec`` in degrees but it also accepts values in `astropy.units` and `astropy.Angle`.
@@ -107,12 +117,21 @@ It is recommended, but not required, to set the target name.
         target_name="Test target"
     )
 
+It is also possible to slew to a target by name using :py:meth:`slew_object <lsst.ts.observatory.control.BaseTCS.slew_object>`, as long as it can be resolved via `Simbad <http://simbad.u-strasbg.fr/simbad/sim-fid>`__.
+The method is similar to :py:meth:`slew_icrs <lsst.ts.observatory.control.BaseTCS.slew_icrs>`, but receives the target name instead of the coordinates.
+
+.. code:: python
+
+    await tcs.slew_object("M31")
+
+.. _user-guide-generic-telescope-control-operations-rotator-position-and-sky-position-angle:
+
+Rotator position and Sky position angle
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
 It is important to highlight that all commands above assume "position angle" equal to zero.
 Position angle is defined as the angle between the East-axis direction (as projected on the sky) and the instrument y-axis (see :numref:`fig-position-angle`).
 In general, the instrument x-axis is defined as the readout (or serial-shift) direction and y-axis the parallel-shift direction.
-With the advent of multiple-readout sections CCDs, defining the direction of the axis can be tricky.
-In general, it is assumed that the upper part of the CCD serial and parallel readout happens in the positive x and y-directions respectively.
-This is an often overlooked parameter when slewing to a target but it is also fundamental in determining the rotator/instrument orientation.
 
 .. figure:: /_static/PositionAngle.png
    :name: fig-position-angle
@@ -121,15 +140,26 @@ This is an often overlooked parameter when slewing to a target but it is also fu
 
    Illustration of the definition of position angle.
 
+With the advent of multiple-readout sections CCDs, defining the direction of the axis can be tricky.
+In general, it is assumed that the upper part of the CCD serial and parallel readout happens in the positive x and y-directions respectively.
+
+This is an often overlooked parameter when slewing to a target but it is also fundamental in determining the rotator/instrument orientation.
+
 Users can specify the position angle for the observation as well as use a couple different strategies for dealing with the rotator/instrument position.
 This is controlled using a pair of parameters; ``rot`` and ``rot_type``, which allows the user to specify the desired value (in degrees) and rotator strategy, respectively.
 
 The available strategies (and their meaning) are listed in :py:class:`RotType <lsst.ts.observatory.control.utils.RotType>`.
 By default ``rot_type = RotType.SkyAuto``, which means ``rot`` is treated as "position angle" and that it can be adjusted to be in range, if necessary.
 The adjustment consists of adding 180 degrees to the angle; this will usually, but not always, result in a rotation angle that is in range.
-As with ``ra`` and ``dec``, ``rot`` can be specified as a float (assumed to be in degrees), as a sexagesimal string (separated by colon or space, also assumed to be in degrees), using astropy units or ``Angle``.
+As with ``ra`` and ``dec``, ``rot`` can be specified as a float (assumed to be in degrees), as a sexagesimal string (separated by colon or space, also assumed to be in degrees), using `astropy unit module`_ or `astropy Angle object`_.
+
+.. _astropy unit module: https://docs.astropy.org/en/stable/units/
+.. _astropy Angle object: https://docs.astropy.org/en/stable/api/astropy.coordinates.Angle.html
 
 .. code:: python
+
+    import astropy.units as u
+    from astropy.coordinates import Angle
 
     # Select position angle = 0. degrees, this is the default set and will
     # cause the North axis to be aligned with the y-axis of the image with East
@@ -215,6 +245,11 @@ If instead, you need the rotator to remain fixed at a set position but the teles
               target_name="Test target"
           )
 
+.. warning::
+
+    When using ``rot_type=RotType.Physical`` the rotator will remain fixed and will NOT track the sky rotation.
+    Long exposures taken while tracking with this strategy will show field rotation.
+
 When conducting spectroscopy (e.g. with the Auxiliary Telescope) it is useful to be able to position the field in terms of the parallactic angle.
 For that, one can use the ``rot_type=RotType.Parallactic`` parameter;
 
@@ -248,12 +283,9 @@ However, the important bit of information can be found in the last couple lines 
 This is also valid in case the user tries to slew to any other unreachable position (e.g. zenith blind spot, low elevation, etc.).
 In this case, the error message will vary accordingly.
 
-It is also possible to slew to a target by name using :py:meth:`slew_object <lsst.ts.observatory.control.BaseTCS.slew_object>`, as long as it can be resolved via `Simbad <http://simbad.u-strasbg.fr/simbad/sim-fid>`__.
-The method is similar to :py:meth:`slew_icrs <lsst.ts.observatory.control.BaseTCS.slew_icrs>`, but receives the target name instead of the coordinates.
+The same rotator options are available when using :py:meth:`slew_object <lsst.ts.observatory.control.BaseTCS.slew_object>`.
 
 .. code:: python
-
-    await tcs.slew_object("M31")
 
     await tcs.slew_object("M31", rot=45.)
 
@@ -262,3 +294,157 @@ The method is similar to :py:meth:`slew_icrs <lsst.ts.observatory.control.BaseTC
     await tcs.slew_object("M31", rot=0, rot_type=RotType.Physical)
 
     await tcs.slew_object("M31", rot=0, rot_type=RotType.Parallactic)
+
+.. _user-guide-generic-telescope-control-operations-offsetting:
+
+Offsetting
+----------
+
+The pointing component (and thus the :py:class:`BaseTCS <lsst.ts.observatory.control.BaseTCS>` class) support several different offset options.
+
+In terms of coordinate frames the following options are available:
+
+  :py:meth:`offset_azel <lsst.ts.observatory.control.BaseTCS.offset_azel>`
+    Offset telescope in azimuth and elevation.
+
+  :py:meth:`offset_xy <lsst.ts.observatory.control.BaseTCS.offset_xy>`
+    Offset telescope in terms of boresight.
+    This will cause the field to move in x and y.
+
+  :py:meth:`offset_radec <lsst.ts.observatory.control.BaseTCS.offset_radec>`
+    Offset telescope in RA and Dec.
+    Perform arc-length offset in sky coordinates.
+    The magnitude of the offset is :math:`\sqrt{ra^2 + dec^2}` and the angle is the usual :math:`atan2(dec, ra)`.
+
+The main distinction between the methods above is the coordinate frame they operate with.
+
+Except for :py:meth:`offset_xy <lsst.ts.observatory.control.BaseTCS.offset_xy>` the resulting image offset will heavily depend on the position on the sky and the rotator configuration.
+Therefore, when trying to position a start in a particular place of the FoV, it is highly recommended to use this method.
+
+The :py:meth:`offset_xy <lsst.ts.observatory.control.BaseTCS.offset_xy>` method is designed to perform offset in image coordinates.
+For instance;
+
+.. code:: python
+
+    await tcs.offset_xy(x=10., y=0.)
+
+Will result in a 10. arcseconds offset **of the image** in the positive x direction.
+The definition of x and y axis can be found in :numref:`user-guide-generic-telescope-control-operations-rotator-position-and-sky-position-angle` and :numref:`fig-position-angle`.
+In :numref:`fig-offset-xy-example` we show an example of the result of using :py:meth:`offset_xy <lsst.ts.observatory.control.BaseTCS.offset_xy>`.
+
+.. figure:: /_static/offset_xy_example.png
+   :name: fig-offset-xy-example
+   :target: ../_images/offset_xy_example.png
+   :alt: offset xy example
+
+   Illustration of :py:meth:`offset_xy <lsst.ts.observatory.control.BaseTCS.offset_xy>` method.
+
+In addition to the different methods shown above, users also have control of how the offsets are treated by the pointing component.
+For each command, there are two additional control flags the user can rely on to change the underlying behavior.
+
+.. _user-guide-generic-telescope-control-operations-relative-vs-absolute-offsets:
+
+Relative vs Absolute offsets
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+This option is controlled by the ``relative`` input parameter of the offset methods.
+By default offsets are absolute, e.g.; ``relative=False``.
+
+Absolute offsets overrides any previous offset of the same time.
+For instance, the following sequence of commands;
+
+.. code:: python
+
+    await tcs.offset_azel(az=10, el=0)
+    await tcs.offset_azel(az=0, el=10)
+
+Is equivalent to a 10 arcsec offset in elevation only;
+
+.. code:: python
+
+    await tcs.offset_azel(az=0, el=10)
+
+The reason is that the second offset command will override the first command.
+
+On the other hand, relative offsets will accumulate with one another, e.g.;
+
+.. code:: python
+
+    await tcs.offset_azel(az=10, el=0, relative=True)
+    await tcs.offset_azel(az=0, el=10, relative=True)
+
+Will result in an offset of 10 arcsec in azimuth **and** elevation.
+
+Relative and absolute offsets can also be combined.
+For instance, the following sequence of commands;
+
+.. code:: python
+
+    await tcs.offset_azel(az=10, el=0, relative=True)
+    await tcs.offset_azel(az=0, el=10, relative=True)
+    await tcs.offset_azel(az=0, el=10)
+
+You will result in a 10 arcsec offset in azimuth and 20 arcsec in elevation; 10 arcsec from the relative offset and 10 from the absolute offset.
+
+Furthermore, if, after doing the above, you now do;
+
+.. code:: python
+
+    await tcs.offset_azel(az=0, el=0)
+
+It will reset the absolute offset to zero in both azimuth and elevation but will retain the 10 arcsec relative offsets in azimuth and elevation.
+
+In all cases above, the offset will be overwritten if a new target is sent, e.g.;
+
+.. code:: python
+
+    await tcs.offset_azel(az=10, el=0, relative=True)
+    await tcs.offset_azel(az=0, el=10, relative=True)
+    await tcs.offset_azel(az=0, el=10)
+    await tcs.slew_object("HD 164461")  # reset all offsets above
+
+Will result in a slew with no offsets.
+
+.. _user-guide-generic-telescope-control-operations-persistent-vs-non-persistent-offsets:
+
+Persistent vs Non-Persistent offsets
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+It is possible to control whether offsets will persist between slews commands using the ``persistent`` flag.
+By default offsets are non-persistent, e.g., ``persistent=False``.
+
+Furthermore, the ``relative`` flag also applies to ``persistent`` offsets.
+
+For example, the sequence of command bellow;
+
+.. code:: python
+
+    await tcs.offset_azel(az=10, el=0, relative=True, persistent=True)
+    await tcs.offset_azel(az=0, el=10, relative=True, persistent=True)
+    await tcs.offset_azel(az=0, el=10, persistent=True)
+    await tcs.slew_object("HD 164461")
+
+Will result in a slew offset by 10 arcsec in azimuth and 20 arcsec in elevation.
+
+.. _user-guide-generic-telescope-control-operations-reseting-offsets:
+
+Reseting offsets
+^^^^^^^^^^^^^^^^
+
+In order to reset offsets, users can rely on the :py:meth:`reset_offsets <lsst.ts.observatory.control.BaseTCS.offset_xy>` method.
+
+.. code:: python
+
+    await tcs.reset_offsets()
+
+By default, the method will reset all offsets.
+
+Users can control whether to reset only the persistent or the non-persistent offsets using the ``persistent`` and ``non_persistent``.
+The relative and absolute offsets are always reseted for the selected option.
+
+For example, the commands bellow show how to reset only the persistent and non-persistent offsets, respectively.
+
+.. code:: python
+
+    await tcs.reset_offsets(persistent=True, non_persistent=False)  # reset only persistent offsets
+    await tcs.reset_offsets(persistent=False, non_persistent=True)  # reset only non-persistent offsets
