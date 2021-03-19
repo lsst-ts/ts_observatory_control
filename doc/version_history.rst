@@ -12,6 +12,7 @@ v0.7.5
 Changes:
 
   * Improve documentation on offset command relative and persistent options.
+  * Change default offset to ``relative=False``.
 
 Requirements:
 

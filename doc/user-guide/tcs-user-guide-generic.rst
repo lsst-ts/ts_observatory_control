@@ -41,10 +41,10 @@ for the Main Telescope.
 
 .. _user-guide-generic-telescope-control-operations-slewing-to-fixed-positions:
 
-Slewing to fixed positions
+Slewing To Fixed Positions
 --------------------------
 
-To slew the telescope to an AzEl coordinate (for instance, to conduct some maintenance of calibration), it is possible to use :py:meth:`point_azel <lsst.ts.observatory.control.BaseTCS.point_azel>`.
+To slew the telescope to an AzEl coordinate (for instance, to conduct some maintenance or calibrations), it is possible to use :py:meth:`point_azel <lsst.ts.observatory.control.BaseTCS.point_azel>`.
 The method will slew to a fixed position in the local coordinate and `will not` initiate tracking.
 For instance, to slew the telescope to `azimuth=0` and `elevation=80` degrees;
 
@@ -59,15 +59,16 @@ In additional, it is also possible to set a name for the position.
 
     await tcs.point_azel(az = 0, el=20, rot_tel=90, target_name="maintenance xyz")
 
+The rotator position above (``rot_tel``) is the rotator physical coordinate.
 
 .. _user-guide-generic-telescope-control-operations-slewing-and-tracking:
 
-Slewing and tracking
+Slewing And Tracking
 --------------------
 
 It is possible to slew to an ``ICRS`` coordinate using :py:meth:`slew_icrs <lsst.ts.observatory.control.BaseTCS.slew_icrs>`.
 It assumes ``ra`` is in hours and ``dec`` in degrees but it also accepts values in `astropy.units` and `astropy.Angle`.
-For instance, all the commands bellow slew to the same target.
+For instance, all the commands below slew to the same target.
 It is recommended, but not required, to set the target name.
 
 .. code:: python
@@ -126,12 +127,14 @@ The method is similar to :py:meth:`slew_icrs <lsst.ts.observatory.control.BaseTC
 
 .. _user-guide-generic-telescope-control-operations-rotator-position-and-sky-position-angle:
 
-Rotator position and Sky position angle
+Rotator Position And Sky Position Angle
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 It is important to highlight that all commands above assume "position angle" equal to zero.
-Position angle is defined as the angle between the East-axis direction (as projected on the sky) and the instrument y-axis (see :numref:`fig-position-angle`).
-In general, the instrument x-axis is defined as the readout (or serial-shift) direction and y-axis the parallel-shift direction.
+Position angle is defined as the angle measured going from North, increasing in the direction of right-ascension (Eastwards).
+
+The appearance of a field in a CCD image will highly depend on how the instrument is oriented with respect to the field-of-view.
+In general, instruments are aligned such that, when position angle is zero, the CCD x-axis is alined with East-West and y-axis is alined with South-North (See :numref:`fig-position-angle`).
 
 .. figure:: /_static/PositionAngle.png
    :name: fig-position-angle
@@ -140,17 +143,22 @@ In general, the instrument x-axis is defined as the readout (or serial-shift) di
 
    Illustration of the definition of position angle.
 
+It is common practice to assume a CCD x-axis as the readout (or serial-shift) direction and y-axis the parallel-shift direction.
+The direction of the readout is, in general, assumed to be the direction of the axis, e.g.; if the serial read is done left-to-right, the x-axis increases from left-to-right .
 With the advent of multiple-readout sections CCDs, defining the direction of the axis can be tricky.
-In general, it is assumed that the upper part of the CCD serial and parallel readout happens in the positive x and y-directions respectively.
+Again, the general approach is to assume that the upper part of the CCD serial and parallel readout happens in the positive x and y-directions, respectively.
 
-This is an often overlooked parameter when slewing to a target but it is also fundamental in determining the rotator/instrument orientation.
+As can be seen in :numref:`fig-position-angle`, if the position angle changes (e.g. ``PA=45``) the field will be rotated in the image.
+
+Position angle is an often overlooked parameter when slewing to a target but it is also fundamental in determining the rotator/instrument orientation.
 
 Users can specify the position angle for the observation as well as use a couple different strategies for dealing with the rotator/instrument position.
 This is controlled using a pair of parameters; ``rot`` and ``rot_type``, which allows the user to specify the desired value (in degrees) and rotator strategy, respectively.
 
 The available strategies (and their meaning) are listed in :py:class:`RotType <lsst.ts.observatory.control.utils.RotType>`.
 By default ``rot_type = RotType.SkyAuto``, which means ``rot`` is treated as "position angle" and that it can be adjusted to be in range, if necessary.
-The adjustment consists of adding 180 degrees to the angle; this will usually, but not always, result in a rotation angle that is in range.
+Because telescope rotators have limited range (e.g. +/- 90 degrees for the main telescope) a certain position angle may be unreachable for a target.
+In this case, the adjustment consists of adding 180 degrees to the specified position angle; which usually, but not always, result in a rotation angle that is in range.
 As with ``ra`` and ``dec``, ``rot`` can be specified as a float (assumed to be in degrees), as a sexagesimal string (separated by colon or space, also assumed to be in degrees), using `astropy unit module`_ or `astropy Angle object`_.
 
 .. _astropy unit module: https://docs.astropy.org/en/stable/units/
@@ -342,38 +350,76 @@ In :numref:`fig-offset-xy-example` we show an example of the result of using :py
 In addition to the different methods shown above, users also have control of how the offsets are treated by the pointing component.
 For each command, there are two additional control flags the user can rely on to change the underlying behavior.
 
-.. _user-guide-generic-telescope-control-operations-relative-vs-absolute-offsets:
+.. _user-guide-generic-telescope-control-operations-relative-vs-non-relative-offsets:
 
-Relative vs Absolute offsets
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Relative vs Non-Relative Offsets
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 This option is controlled by the ``relative`` input parameter of the offset methods.
-By default offsets are absolute, e.g.; ``relative=False``.
-
-Absolute offsets overrides any previous offset of the same time.
-For instance, the following sequence of commands;
+By default offsets are relative to the current telescope position, e.g.; ``relative=True``.
+Basically, these offsets will accumulate with one another, e.g.;
 
 .. code:: python
 
     await tcs.offset_azel(az=10, el=0)
     await tcs.offset_azel(az=0, el=10)
 
-Is equivalent to a 10 arcsec offset in elevation only;
+Will result in an offset of 10 arcsec in azimuth (from the first command) **and** elevation (from the second).
+Relative offsets are probably the most common and general kind of offsets used and are employed on most use cases.
+
+Non-relative offsets are performed with respect to the pointing origin.
+For instance, the following sequence of commands;
 
 .. code:: python
 
-    await tcs.offset_azel(az=0, el=10)
+    await tcs.offset_azel(az=10, el=0, relative=False)
+    await tcs.offset_azel(az=0, el=10, relative=False)
 
-The reason is that the second offset command will override the first command.
-
-On the other hand, relative offsets will accumulate with one another, e.g.;
+Is equivalent to a 10 arcsec offset in elevation only and is equivalent to performing the second command alone, e.g.;
 
 .. code:: python
 
-    await tcs.offset_azel(az=10, el=0, relative=True)
-    await tcs.offset_azel(az=0, el=10, relative=True)
+    await tcs.offset_azel(az=0, el=10, relative=False)
 
-Will result in an offset of 10 arcsec in azimuth **and** elevation.
+Non-relative offsets are useful when performing operations that may use the original position as a reference.
+For instance, when building grids of observations one may want to use non-relative offsets.
+The following command sequence will perform a square grid on the sky (see :numref:`fig-offset-azel-grid`);
+
+.. code:: python
+
+    grid_az = [-10, +10, +10, -10]
+    grid_el = [-10, -10, +10, +10]
+    for az,el in zip(grid_az, grid_el):
+      await tcs.offset_azel(az=az, el=el, relative=False)
+      # Do something here
+      ....
+
+    # Restore the original telescope position.
+    await tcs.offset_azel(az=0., el=0., relative=False)
+
+The same pattern using a relative offset would look like this:
+
+.. code:: python
+
+    grid_az = [-10, 0, 20, 0]
+    grid_el = [-10, +20, 0, -20]
+    for az,el in zip(grid_az, grid_el):
+      await tcs.offset_azel(az=az, el=el)
+      # Do something here
+      ....
+
+    # Restore the original telescope position.
+    await tcs.offset_azel(az=10., el=-10.)
+
+As you can see, not only defining the grid is easier but also, if an error occur during the ``for`` loop, it is considerably simpler to restore the telescope to its original position when using the non-relative offset.
+
+.. figure:: /_static/offset_azel_grid.png
+   :name: fig-offset-azel-grid
+   :target: ../_images/offset_azel_grid.png
+   :alt: offset xy example
+
+   Same offset pattern executed with non-relative (left hand side) and relative (right hand side) offsets.
+   The numbers on the images represent the input to the offset command on both scenarios.
 
 Relative and absolute offsets can also be combined.
 For instance, the following sequence of commands;
@@ -382,17 +428,35 @@ For instance, the following sequence of commands;
 
     await tcs.offset_azel(az=10, el=0, relative=True)
     await tcs.offset_azel(az=0, el=10, relative=True)
-    await tcs.offset_azel(az=0, el=10)
+    await tcs.offset_azel(az=0, el=10, relative=False)
 
 You will result in a 10 arcsec offset in azimuth and 20 arcsec in elevation; 10 arcsec from the relative offset and 10 from the absolute offset.
 
-Furthermore, if, after doing the above, you now do;
+Combining relative and non-relative offsets can be useful if one wants to execute a pattern as shown above but want to do it with an offset with respect to the original position.
+For instance;
 
 .. code:: python
 
-    await tcs.offset_azel(az=0, el=0)
+    grid_az = [-10, +10, +10, -10]
+    grid_el = [-10, -10, +10, +10]
 
-It will reset the absolute offset to zero in both azimuth and elevation but will retain the 10 arcsec relative offsets in azimuth and elevation.
+    # offset telescope in elevation
+    await tcs.offset_azel(az=0, el=10)
+
+    # The pattern here will be entirely offset by 10 arcsec in elevation due to
+    # the command above.
+    for az,el in zip(grid_az, grid_el):
+      await tcs.offset_azel(az=az, el=el, relative=False)
+      # Do something here
+      ....
+
+    # Restore the original telescope position.
+    # Relative offset will still be in effect.
+    await tcs.offset_azel(az=0., el=0., relative=False)
+
+    # Also remove the relative offset
+    await tcs.offset_azel(az=0, el=-10)
+
 
 In all cases above, the offset will be overwritten if a new target is sent, e.g.;
 
@@ -400,22 +464,27 @@ In all cases above, the offset will be overwritten if a new target is sent, e.g.
 
     await tcs.offset_azel(az=10, el=0, relative=True)
     await tcs.offset_azel(az=0, el=10, relative=True)
-    await tcs.offset_azel(az=0, el=10)
+    await tcs.offset_azel(az=0, el=10, relative=False)
     await tcs.slew_object("HD 164461")  # reset all offsets above
 
 Will result in a slew with no offsets.
 
 .. _user-guide-generic-telescope-control-operations-persistent-vs-non-persistent-offsets:
 
-Persistent vs Non-Persistent offsets
+Persistent vs Non-Persistent Offsets
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-It is possible to control whether offsets will persist between slews commands using the ``persistent`` flag.
+It is possible to control whether offsets will persist between slew commands using the ``persistent`` flag.
 By default offsets are non-persistent, e.g., ``persistent=False``.
+
+Persistent offsets are useful when there are offsets that need to propagate through different slews.
+
+For instance, the LATISS instrument in the Auxiliary Telescope contains a set of filters and gratings that will offset the images projected into the detector.
+In this situation we require the offset to be applied based on the instrument configuration, and this offset must persist through different slews.
 
 Furthermore, the ``relative`` flag also applies to ``persistent`` offsets.
 
-For example, the sequence of command bellow;
+For example, the sequence of command below;
 
 .. code:: python
 
@@ -428,7 +497,7 @@ Will result in a slew offset by 10 arcsec in azimuth and 20 arcsec in elevation.
 
 .. _user-guide-generic-telescope-control-operations-reseting-offsets:
 
-Reseting offsets
+Reseting Offsets
 ^^^^^^^^^^^^^^^^
 
 In order to reset offsets, users can rely on the :py:meth:`reset_offsets <lsst.ts.observatory.control.BaseTCS.offset_xy>` method.
@@ -442,7 +511,7 @@ By default, the method will reset all offsets.
 Users can control whether to reset only the persistent or the non-persistent offsets using the ``persistent`` and ``non_persistent``.
 The relative and absolute offsets are always reseted for the selected option.
 
-For example, the commands bellow show how to reset only the persistent and non-persistent offsets, respectively.
+For example, the commands below show how to reset only the persistent and non-persistent offsets, respectively.
 
 .. code:: python
 

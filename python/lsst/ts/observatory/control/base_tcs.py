@@ -561,7 +561,7 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
         See Also
         --------
         offset_azel : Offset in local AzEl coordinates.
-        offset_xy : Offset in terms of boresight.
+        offset_xy : Offsets in the detector X/Y plane.
 
         """
         self.log.debug(f"Applying RA/Dec offset: {ra}/{dec} ")
@@ -572,10 +572,10 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
             )
         )
 
-    async def offset_azel(self, az, el, relative=False, persistent=False):
+    async def offset_azel(self, az, el, relative=True, persistent=False):
         """Offset telescope in azimuth and elevation.
 
-        For more information see the Notes section bellow or the package
+        For more information see the Notes section below or the package
         documentation in https://ts-observatory-control.lsst.io/.
 
         Parameters
@@ -585,14 +585,14 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
         el : `float`
             Offset in elevation (arcsec).
         relative : `bool`
-            If `True` offset is applied relative to the current position, if
-            `False` (default) offset replaces any existing offsets.
+            If `True` (default) offset is applied relative to the current
+            position, if `False` offset replaces any existing offsets.
         persistent : `bool`
             Should the offset be absorbed and persisted between slews?
 
         See Also
         --------
-        offset_xy : Offset in terms of boresight.
+        offset_xy : Offsets in the detector X/Y plane.
         offset_radec : Offset in sky coordinates.
         reset_offsets : Reset offsets.
 
@@ -602,16 +602,28 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
         There are a couple different ways users can modify how offsets are
         treated via the input flags `relative` and `persistent`.
 
-        Basically these flags controls if the offset will persist after a new
-        slew (`persistent`) and if the offset is relative to the current
-        position or is absolute (with respect to the original position).
+        These flags allows users to control the following behavior;
 
-        By default `relative=False` and `persistent=False`, which means offsets
-        will be absolute and will not persist after a slew.
+            1 - If the offset is relative to the current position
+                (`relative=True`) or relative to the pointing origin (e.g. the
+                initial slew position).
 
-        The absolute offset overrides any previous (absolute) offset.
+            2 - If the offset will only apply only to the current target
+                (`persistent=False`) or if they will persist after a new slew
+                (`persistent=True`).
 
-        That means, the pair of commands below:
+        By default `relative=True` and `persistent=False`, which means offsets
+        will be relative to the current position and will reset after a slew.
+
+        The default relative offsets will accumulate. For instance,
+
+        >>> await tcs.offset_azel(az=10, el=0)
+        >>> await tcs.offset_azel(az=0, el=10)
+
+        Will result in a 10 arcsec offset in **both** azimuth and elevation.
+
+        Non-relative offsets will overrides any previous non-relative offset.
+        For instance, the pair of commands below:
 
         >>> await tcs.offset_azel(az=10, el=0)
         >>> await tcs.offset_azel(az=0, el=10)
@@ -619,31 +631,23 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
         Results in only 10 arcsec offset in elevation, e.g., is equivalent to
         just doing the second command;
 
-        >>> await tcs.offset_azel(az=0, el=10)
+        >>> await tcs.offset_azel(az=0, el=10, relative=True)
 
-        That is because the absolute offset requested by the second command
+        This is because the non-relative offset requested by the second command
         will reset the offset done on the previous command.
 
-        Instead, if you use a relative offset, they will be accumulated. For
-        instance,
+        It is important to keep in mind that these offsets can also be combined
+        with one another. For instance, if you do;
 
-        >>> await tcs.offset_azel(az=10, el=0, relative=True)
-        >>> await tcs.offset_azel(az=0, el=10, relative=True)
-
-        Will result in a 10 arcsec offset in **both** azimuth and elevation.
-
-        These offsets can also be combined with one another. For instance, if
-        you do;
-
-        >>> await tcs.offset_azel(az=10, el=0, relative=True)
-        >>> await tcs.offset_azel(az=0, el=10, relative=True)
+        >>> await tcs.offset_azel(az=10, el=0)
         >>> await tcs.offset_azel(az=0, el=10)
+        >>> await tcs.offset_azel(az=0, el=10, relative=False)
 
-        You will get 10 arcsec offset azimuth and 20 arcsec in elevation.
+        You will get 10 arcsec offset in azimuth and 20 arcsec in elevation.
 
         Nevertheless, if after doing the above you do;
 
-        >>> await tcs.offset_azel(az=0, el=0)
+        >>> await tcs.offset_azel(az=0, el=0, relative=False)
 
         It will result in a 10 arcsec offset in **both** azimuth and elevation,
         from the relative offsets done previously.
@@ -658,14 +662,15 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
 
         Will result in a slew with no offsets.
 
-        If you want slews to persist between slews use `persistent=True`. The
-        `relative` flag applies the same way to persistent offsets.
+        If you want offsets to persist between slews use `persistent=True`.
+
+        The `relative` flag applies the same way to persistent offsets.
 
         The following sequence of commands;
 
         >>> await tcs.offset_azel(az=10, el=0, relative=True, persistent=True)
         >>> await tcs.offset_azel(az=0, el=10, relative=True, persistent=True)
-        >>> await tcs.offset_azel(az=0, el=10, persistent=True)
+        >>> await tcs.offset_azel(az=0, el=10, relative=False, persistent=True)
         >>> await tcs.slew_object("HD 164461")
 
         Will result in a slew offset by 10 arcsec in azimuth and 20 arcsec in
@@ -692,10 +697,10 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
                 )
             )
 
-    async def offset_xy(self, x, y, relative=False, persistent=False):
-        """ Offset telescope in x and y.
+    async def offset_xy(self, x, y, relative=True, persistent=False):
+        """Offsets in the detector X/Y plane.
 
-        Move the field in the x and y direction.
+        Offset the telescope field-of-view in the x and y direction.
 
         Parameters
         ----------
@@ -719,15 +724,16 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
         -----
 
         If the image is displayed with the x-axis in horizontal position,
-        increasing from left hand to right hand, a positive x value will
-        cause the image to move from left to right on the screen.
+        increasing from left to right, a positive x-offset will result in
+        the field-of-view moving to the right, and therefore, the stellar
+        positions will move to the left.
 
         If the image is diplayed with y-axis in vertical position, increasing
-        from bottom to top, a positive y value will cause the image to move
-        from the botoom to the top on the screen.
+        from bottom to top, a positive y-offset will result in field-of-view
+        moving up, and therefore, the stellar positions will move down.
 
         See the Notes section in `offset_azel` help page for more information
-        about the `relative` and `persisted` flags.
+        about the `relative` and `persistent` flags.
         """
 
         if persistent:
