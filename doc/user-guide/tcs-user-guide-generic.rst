@@ -327,7 +327,7 @@ In terms of coordinate frames the following options are available:
 The main distinction between the methods above is the coordinate frame they operate with.
 
 Except for :py:meth:`offset_xy <lsst.ts.observatory.control.BaseTCS.offset_xy>` the resulting image offset will heavily depend on the position on the sky and the rotator configuration.
-Therefore, when trying to position a start in a particular place of the FoV, it is highly recommended to use this method.
+Therefore, when trying to position a target in a particular place of the FoV, it is highly recommended to use this method.
 
 The :py:meth:`offset_xy <lsst.ts.observatory.control.BaseTCS.offset_xy>` method is designed to perform offset in image coordinates.
 For instance;
@@ -336,8 +336,8 @@ For instance;
 
     await tcs.offset_xy(x=10., y=0.)
 
-Will result in a 10. arcseconds offset **of the image** in the positive x direction.
-The definition of x and y axis can be found in :numref:`user-guide-generic-telescope-control-operations-rotator-position-and-sky-position-angle` and :numref:`fig-position-angle`.
+Will result in a 10. arcseconds offset **of the telescope** in the positive x direction, resulting in an **image offset** in the negative direction.
+The definition of x and y axis can be found in :ref:`Rotator Position And Sky Position Angle<user-guide-generic-telescope-control-operations-rotator-position-and-sky-position-angle>` section, also see :numref:`fig-position-angle`.
 In :numref:`fig-offset-xy-example` we show an example of the result of using :py:meth:`offset_xy <lsst.ts.observatory.control.BaseTCS.offset_xy>`.
 
 .. figure:: /_static/offset_xy_example.png
@@ -354,6 +354,14 @@ For each command, there are two additional control flags the user can rely on to
 
 Relative vs Non-Relative Offsets
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. warning::
+
+	This section refers specifically to relative and non-relative offsets.
+  By default these offsets are non-persistent, meaning, they will be overwritten by a slew operation.
+  For more information about persistent offsets see :ref:`user-guide-generic-telescope-control-operations-persistent-vs-non-persistent-offsets`.
+
+  Keep in mind that these two features (relative and persistent) are orthogonal and their behavior can be combined.
 
 This option is controlled by the ``relative`` input parameter of the offset methods.
 By default offsets are relative to the current telescope position, e.g.; ``relative=True``.
@@ -411,7 +419,7 @@ The same pattern using a relative offset would look like this:
     # Restore the original telescope position.
     await tcs.offset_azel(az=10., el=-10.)
 
-As you can see, not only defining the grid is easier but also, if an error occur during the ``for`` loop, it is considerably simpler to restore the telescope to its original position when using the non-relative offset.
+As you can see, not only defining the grid is easier using non-relative offsets but also, if an error occur during the ``for`` loop, it is considerably simpler to restore the telescope to its original position.
 
 .. figure:: /_static/offset_azel_grid.png
    :name: fig-offset-azel-grid
@@ -421,7 +429,7 @@ As you can see, not only defining the grid is easier but also, if an error occur
    Same offset pattern executed with non-relative (left hand side) and relative (right hand side) offsets.
    The numbers on the images represent the input to the offset command on both scenarios.
 
-Relative and absolute offsets can also be combined.
+Relative and non-relative offsets can also be combined.
 For instance, the following sequence of commands;
 
 .. code:: python
@@ -430,7 +438,7 @@ For instance, the following sequence of commands;
     await tcs.offset_azel(az=0, el=10, relative=True)
     await tcs.offset_azel(az=0, el=10, relative=False)
 
-You will result in a 10 arcsec offset in azimuth and 20 arcsec in elevation; 10 arcsec from the relative offset and 10 from the absolute offset.
+You will result in a 10 arcsec offset in azimuth and 20 arcsec in elevation; 10 arcsec from the relative offset and 10 from the non-relative offset.
 
 Combining relative and non-relative offsets can be useful if one wants to execute a pattern as shown above but want to do it with an offset with respect to the original position.
 For instance;
@@ -458,7 +466,7 @@ For instance;
     await tcs.offset_azel(az=0, el=-10)
 
 
-In all cases above, the offset will be overwritten if a new target is sent, e.g.;
+**In all cases above, the offset will be overwritten if a new target is sent, e.g.;**
 
 .. code:: python
 
@@ -497,8 +505,8 @@ Will result in a slew offset by 10 arcsec in azimuth and 20 arcsec in elevation.
 
 .. _user-guide-generic-telescope-control-operations-reseting-offsets:
 
-Reseting Offsets
-^^^^^^^^^^^^^^^^
+Resetting Offsets
+^^^^^^^^^^^^^^^^^
 
 In order to reset offsets, users can rely on the :py:meth:`reset_offsets <lsst.ts.observatory.control.BaseTCS.offset_xy>` method.
 
@@ -509,7 +517,7 @@ In order to reset offsets, users can rely on the :py:meth:`reset_offsets <lsst.t
 By default, the method will reset all offsets.
 
 Users can control whether to reset only the persistent or the non-persistent offsets using the ``persistent`` and ``non_persistent``.
-The relative and absolute offsets are always reseted for the selected option.
+Both the relative and non-relative offsets are always reseted for the selected option.
 
 For example, the commands below show how to reset only the persistent and non-persistent offsets, respectively.
 
