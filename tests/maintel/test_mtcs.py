@@ -39,14 +39,139 @@ np.random.seed(47)
 
 
 class TestMTCS(RemoteGroupTestCase, unittest.IsolatedAsyncioTestCase):
-    async def basic_make_group(self, usage=None, mock=True):
+    async def basic_make_group(self, usage=None):
 
-        if mock:
-            self.mtcs_mock = MTCSMock()
+        self.mtcs_mock = MTCSMock()
 
         self.mtcs = MTCS(intended_usage=usage)
 
         return self.mtcs_mock, self.mtcs
+
+    async def test_offset_all(self):
+
+        async with self.make_group(usage=MTCSUsages.Slew):
+
+            # Enable all CSCs so we get telemetry output.
+            await self.mtcs.enable()
+
+            # Test offset_radec
+            ra_offset, dec_offset = 10.0, -10.0
+            await self.mtcs.offset_radec(ra=ra_offset, dec=dec_offset)
+
+            self.assertEqual(len(self.mtcs_mock.radec_offsets), 1)
+            self.assertEqual(self.mtcs_mock.radec_offsets[0].type, 0)
+            self.assertEqual(self.mtcs_mock.radec_offsets[0].off1, ra_offset)
+            self.assertEqual(self.mtcs_mock.radec_offsets[0].off2, dec_offset)
+            self.assertEqual(self.mtcs_mock.radec_offsets[0].num, 0)
+
+            az_offset, el_offset = 10.0, -10.0
+
+            # Default call should yield relative=True, absorb=False
+            await self.mtcs.offset_azel(az=az_offset, el=el_offset)
+            # Same as default but now pass the parameters
+            await self.mtcs.offset_azel(
+                az=az_offset, el=el_offset, relative=True, absorb=False
+            )
+            # Call with relative=False
+            await self.mtcs.offset_azel(
+                az=az_offset, el=el_offset, relative=False, absorb=False
+            )
+            # Call with relative=True and absorb=True
+            await self.mtcs.offset_azel(
+                az=az_offset, el=el_offset, relative=True, absorb=True
+            )
+            # Call with relative=False and absorb=True
+            await self.mtcs.offset_azel(
+                az=az_offset, el=el_offset, relative=False, absorb=True
+            )
+
+            # 3 out of 5 calls where done with absorb=False so needs 3
+            # radec_offsets
+            self.assertEqual(len(self.mtcs_mock.azel_offsets), 3)
+
+            # 2 out of 5 calls where done with absorb=True so needs 2
+            # poring_offsets
+            self.assertEqual(len(self.mtcs_mock.poring_offsets), 2)
+
+            # Check the payload passed to the underlying commands.
+            relative_flag_no_absorb = [True, True, False]
+            relative_flag_absorb = [True, False]
+
+            for i in range(len(relative_flag_no_absorb)):
+                data = self.mtcs_mock.azel_offsets[i]
+                self.assertEqual(data.az, az_offset)
+                self.assertEqual(data.el, el_offset)
+                self.assertEqual(data.num, 0 if not relative_flag_no_absorb[i] else 1)
+
+            bore_sight_angle = await self.mtcs.get_bore_sight_angle()
+
+            x_offset, y_offset, _ = np.matmul(
+                [-self.mtcs.parity_x * az_offset, -self.mtcs.parity_y * el_offset, 0.0],
+                self.mtcs.rotation_matrix(bore_sight_angle),
+            )
+
+            for i in range(len(relative_flag_absorb)):
+                data = self.mtcs_mock.poring_offsets[i]
+                self.assertAlmostEqual(data.dx, x_offset * self.mtcs.plate_scale)
+                self.assertAlmostEqual(data.dy, y_offset * self.mtcs.plate_scale)
+                self.assertEqual(data.num, 0 if not relative_flag_absorb[i] else 1)
+
+            # Clear offsets and check they where reset
+            await self.mtcs.reset_offsets()
+            self.assertEqual(len(self.mtcs_mock.azel_offsets), 0)
+            self.assertEqual(len(self.mtcs_mock.poring_offsets), 0)
+
+            x_offset, y_offset = 10.0, -10.0
+
+            # Default call should yield relative=True, absorb=False
+            await self.mtcs.offset_xy(x=x_offset, y=y_offset)
+            # Same as default but now pass the parameters
+            await self.mtcs.offset_xy(
+                x=x_offset, y=y_offset, relative=True, absorb=False
+            )
+            # Call with relative=False
+            await self.mtcs.offset_xy(
+                x=x_offset, y=y_offset, relative=False, absorb=False
+            )
+            # Call with relative=True and absorb=True
+            await self.mtcs.offset_xy(
+                x=x_offset, y=y_offset, relative=True, absorb=True
+            )
+            # Call with relative=False and absorb=True
+            await self.mtcs.offset_xy(
+                x=x_offset, y=y_offset, relative=False, absorb=True
+            )
+
+            # 3 out of 5 calls where done with absorb=False so needs 3
+            # radec_offsets
+            self.assertEqual(len(self.mtcs_mock.azel_offsets), 3)
+
+            # 2 out of 5 calls where done with absorb=True so needs 2
+            # poring_offsets
+            self.assertEqual(len(self.mtcs_mock.poring_offsets), 2)
+
+            # Check the payload passed to the underlying commands.
+            relative_flag_no_absorb = [True, True, False]
+            relative_flag_absorb = [True, False]
+
+            bore_sight_angle = await self.mtcs.get_bore_sight_angle()
+
+            el_offset, az_offset, _ = np.matmul(
+                [self.mtcs.parity_x * x_offset, self.mtcs.parity_y * y_offset, 0.0],
+                self.mtcs.rotation_matrix(bore_sight_angle),
+            )
+
+            for i in range(len(relative_flag_no_absorb)):
+                data = self.mtcs_mock.azel_offsets[i]
+                self.assertAlmostEqual(data.az, az_offset, 5)
+                self.assertAlmostEqual(data.el, el_offset, 5)
+                self.assertEqual(data.num, 0 if not relative_flag_no_absorb[i] else 1)
+
+            for i in range(len(relative_flag_absorb)):
+                data = self.mtcs_mock.poring_offsets[i]
+                self.assertAlmostEqual(data.dx, x_offset * self.mtcs.plate_scale, 5)
+                self.assertAlmostEqual(data.dy, y_offset * self.mtcs.plate_scale, 5)
+                self.assertEqual(data.num, 0 if not relative_flag_absorb[i] else 1)
 
     async def test_startup_shutdown(self):
 
