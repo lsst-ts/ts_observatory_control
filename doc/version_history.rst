@@ -11,8 +11,12 @@ v0.7.5
 
 Changes:
 
-  * Improve documentation on offset command relative and persistent options.
   * Change default offset to ``relative=False``.
+  * Deprecate use of ``persistent`` flag in offset commands.
+  * Add new ``absorb`` flag to offset commands to replace ``persistent``.
+  * Add unit tests for offset commands.
+  * Replace usage of ``asynctest.TestCase`` with ``unittest.IsolatedAsyncioTestCase``.
+  * Improve documentation on offset commands.
 
 Requirements:
 
