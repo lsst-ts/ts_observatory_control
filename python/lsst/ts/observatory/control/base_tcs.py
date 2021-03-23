@@ -22,6 +22,7 @@ __all__ = ["BaseTCS"]
 
 import abc
 import asyncio
+import warnings
 
 import numpy as np
 import astropy.units as u
@@ -572,7 +573,7 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
             )
         )
 
-    async def offset_azel(self, az, el, relative=True, persistent=False):
+    async def offset_azel(self, az, el, relative=True, persistent=None, absorb=False):
         """Offset telescope in azimuth and elevation.
 
         For more information see the Notes section below or the package
@@ -587,7 +588,10 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
         relative : `bool`
             If `True` (default) offset is applied relative to the current
             position, if `False` offset replaces any existing offsets.
-        persistent : `bool`
+        persistent : `bool` or `None`
+            (Deprecated) Should the offset be absorbed and persisted between
+            slews? Use of this parameter is deprecated. Use `absorb` instead.
+        absorb : `bool`
             Should the offset be absorbed and persisted between slews?
 
         See Also
@@ -599,8 +603,10 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
         Notes
         -----
 
+        The `persistent` flag is deprecated. Use `absorb` instead.
+
         There are a couple different ways users can modify how offsets are
-        treated via the input flags `relative` and `persistent`.
+        treated via the input flags `relative` and `absorb`.
 
         These flags allows users to control the following behavior;
 
@@ -609,10 +615,10 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
                 initial slew position).
 
             2 - If the offset will only apply only to the current target
-                (`persistent=False`) or if they will persist after a new slew
-                (`persistent=True`).
+                (`absorb=False`) or if they will be absorbed by the pointing
+                and persist after a new targets (`absorb=True`).
 
-        By default `relative=True` and `persistent=False`, which means offsets
+        By default `relative=True` and `absorb=False`, which means offsets
         will be relative to the current position and will reset after a slew.
 
         The default relative offsets will accumulate. For instance,
@@ -662,15 +668,15 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
 
         Will result in a slew with no offsets.
 
-        If you want offsets to persist between slews use `persistent=True`.
+        If you want offsets to persist between slews use `absorb=True`.
 
-        The `relative` flag applies the same way to persistent offsets.
+        The `relative` flag applies the same way to absored offsets.
 
         The following sequence of commands;
 
-        >>> await tcs.offset_azel(az=10, el=0, relative=True, persistent=True)
-        >>> await tcs.offset_azel(az=0, el=10, relative=True, persistent=True)
-        >>> await tcs.offset_azel(az=0, el=10, relative=False, persistent=True)
+        >>> await tcs.offset_azel(az=10, el=0, relative=True, absorb=True)
+        >>> await tcs.offset_azel(az=0, el=10, relative=True, absorb=True)
+        >>> await tcs.offset_azel(az=0, el=10, relative=False, absorb=True)
         >>> await tcs.slew_object("HD 164461")
 
         Will result in a slew offset by 10 arcsec in azimuth and 20 arcsec in
@@ -678,7 +684,12 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
 
         """
 
-        if persistent:
+        if persistent is not None:
+            warnings.warn(
+                "persistent flag is deprecated, use absorb instead.", DeprecationWarning
+            )
+
+        if absorb or persistent is True:
             self.log.debug(f"Calculating Az/El offset: {az}/{el} ")
 
             bore_sight_angle = await self.get_bore_sight_angle()
@@ -687,7 +698,7 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
                 [-self.parity_x * az, -self.parity_y * el, 0.0],
                 self.rotation_matrix(bore_sight_angle),
             )
-            await self.offset_xy(x, y, relative=relative, persistent=persistent)
+            await self.offset_xy(x, y, relative=relative, absorb=True)
         else:
             self.log.debug(f"Applying Az/El offset: {az}/{el} ")
 
@@ -697,7 +708,7 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
                 )
             )
 
-    async def offset_xy(self, x, y, relative=True, persistent=False):
+    async def offset_xy(self, x, y, relative=True, persistent=None, absorb=False):
         """Offsets in the detector X/Y plane.
 
         Offset the telescope field-of-view in the x and y direction.
@@ -711,7 +722,10 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
         relative : `bool`
             If `True` offset is applied relative to the current position, if
             `False` (default) offset replaces any existing offsets.
-        persistent : `bool`
+        persistent : `bool` or `None`
+            (Deprecated) Should the offset be absorbed and persisted between
+            slews? Use of this parameter is deprecated. Use `absorb` instead.
+        absorb : `bool`
             Should the offset be absorbed and persisted between slews?
 
         See Also
@@ -722,6 +736,8 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
 
         Notes
         -----
+
+        The `persistent` flag is deprecated. Use `absorb` instead.
 
         If the image is displayed with the x-axis in horizontal position,
         increasing from left to right, a positive x-offset will result in
@@ -736,7 +752,12 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
         about the `relative` and `persistent` flags.
         """
 
-        if persistent:
+        if persistent is not None:
+            warnings.warn(
+                "persistent flag is deprecated, use absorb instead.", DeprecationWarning
+            )
+
+        if absorb or persistent is True:
             # Persistent offset in the pointing are done in x/y, in mm.
             # Need to convert inputs in arcsec to mm,
             self.log.debug(f"Persistent x/y offset: {x}/{y}")
@@ -758,9 +779,9 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
                 [self.parity_x * x, self.parity_y * y, 0.0],
                 self.rotation_matrix(bore_sight_angle),
             )
-            await self.offset_azel(az, el, relative)
+            await self.offset_azel(az=az, el=el, relative=relative, absorb=False)
 
-    async def reset_offsets(self, persistent=True, non_persistent=True):
+    async def reset_offsets(self, absorbed=True, non_absorbed=True):
         """Reset offsets.
 
         By default reset all offsets. User can specify if they want to reset
@@ -768,25 +789,25 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
 
         Parameters
         ----------
-        persistent : `bool`
-            Reset persistent offset? Default `True`.
-        non_persistent : `bool`
-            Reset non-persistent offset? Default `True`.
+        absorbed : `bool`
+            Reset absorbed offset? Default `True`.
+        non_absorbed : `bool`
+            Reset non-absorbed offset? Default `True`.
 
         Raises
         ------
         RuntimeError:
-            If both persistent and non_persistent offsets are `False`.
+            If both absorbed and non_absorbed are `False`.
 
         """
 
         reset_offsets = []
 
-        if not persistent and not non_persistent:
+        if not absorbed and not non_absorbed:
             raise RuntimeError("Select at least one offset to reset.")
 
-        if persistent:
-            self.log.debug("Reseting persistent offsets.")
+        if absorbed:
+            self.log.debug("Reseting absorbed offsets.")
             reset_offsets.append(
                 getattr(self.rem, self.ptg_name).cmd_poriginClear.set_start(
                     num=0, timeout=self.fast_timeout
@@ -798,8 +819,8 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
                 )
             )
 
-        if non_persistent:
-            self.log.debug("Reseting non-persistent offsets.")
+        if non_absorbed:
+            self.log.debug("Reseting non-absorbed offsets.")
             reset_offsets.append(
                 getattr(self.rem, self.ptg_name).cmd_offsetClear.set_start(
                     num=0, timeout=self.fast_timeout
