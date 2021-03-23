@@ -782,10 +782,10 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
             await self.offset_azel(az=az, el=el, relative=relative, absorb=False)
 
     async def reset_offsets(self, absorbed=True, non_absorbed=True):
-        """Reset offsets.
+        """Reset pointing offsets.
 
-        By default reset all offsets. User can specify if they want to reset
-        only persistent and non-persistent offsets as well.
+        By default reset all pointing offsets. User can specify if they want to
+        reset only the absorbed and non-absorbed offsets as well.
 
         Parameters
         ----------

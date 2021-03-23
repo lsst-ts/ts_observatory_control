@@ -358,8 +358,8 @@ Relative vs Non-Relative Offsets
 .. warning::
 
 	This section refers specifically to relative and non-relative offsets.
-  By default these offsets are non-persistent, meaning, they will be overwritten by a slew operation.
-  For more information about persistent offsets see :ref:`user-guide-generic-telescope-control-operations-persistent-vs-non-persistent-offsets`.
+  By default these offsets are not absorbed by the system and will be overwritten by a slew operation.
+  For more information about absorbing offsets see :ref:`user-guide-generic-telescope-control-operations-persistent-vs-non-persistent-offsets`.
 
   Keep in mind that these two features (relative and persistent) are orthogonal and their behavior can be combined.
 
@@ -477,31 +477,40 @@ For instance;
 
 Will result in a slew with no offsets.
 
-.. _user-guide-generic-telescope-control-operations-persistent-vs-non-persistent-offsets:
+.. _user-guide-generic-telescope-control-operations-absorbing-offsets:
 
-Persistent vs Non-Persistent Offsets
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Absorbing Offsets
+^^^^^^^^^^^^^^^^^
 
-It is possible to control whether offsets will persist between slew commands using the ``persistent`` flag.
-By default offsets are non-persistent, e.g., ``persistent=False``.
+It is possible to control whether offsets will be absorbed by the system and persist between slew commands using the ``absorb`` flag.
+By default offsets are not absorbed by the system, e.g., ``absorb=False``.
 
-Persistent offsets are useful when there are offsets that need to propagate through different slews.
+Absorbing offsets is useful when there are offsets that need to propagate through different slews.
 
 For instance, the LATISS instrument in the Auxiliary Telescope contains a set of filters and gratings that will offset the images projected into the detector.
 In this situation we require the offset to be applied based on the instrument configuration, and this offset must persist through different slews.
 
-Furthermore, the ``relative`` flag also applies to ``persistent`` offsets.
+Furthermore, the ``relative`` flag also applies to ``absorb`` offsets.
 
 For example, the sequence of command below;
 
 .. code:: python
 
-    await tcs.offset_azel(az=10, el=0, relative=True, persistent=True)
-    await tcs.offset_azel(az=0, el=10, relative=True, persistent=True)
-    await tcs.offset_azel(az=0, el=10, persistent=True)
+    await tcs.offset_azel(az=10, el=0, relative=True, absorb=True)
+    await tcs.offset_azel(az=0, el=10, relative=True, absorb=True)
+    await tcs.offset_azel(az=0, el=10, absorb=True)
     await tcs.slew_object("HD 164461")
 
 Will result in a slew offset by 10 arcsec in azimuth and 20 arcsec in elevation.
+
+.. _user-guide-generic-telescope-control-operations-persistent-vs-non-persistent-offsets:
+
+Persistent vs Non-Persistent Offsets
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. warning::
+
+	Use of ``persistent`` flag is deprecated, use ``absorb`` instead.
 
 .. _user-guide-generic-telescope-control-operations-reseting-offsets:
 
@@ -516,12 +525,12 @@ In order to reset offsets, users can rely on the :py:meth:`reset_offsets <lsst.t
 
 By default, the method will reset all offsets.
 
-Users can control whether to reset only the persistent or the non-persistent offsets using the ``persistent`` and ``non_persistent``.
+Users can control whether to reset only offsets that where absorbed or not using the ``absorbed`` and ``non_absorbed`` flags.
 Both the relative and non-relative offsets are always reseted for the selected option.
 
-For example, the commands below show how to reset only the persistent and non-persistent offsets, respectively.
+For example, the commands below show how to reset only the absorbed and not absorbed offsets, respectively.
 
 .. code:: python
 
-    await tcs.reset_offsets(persistent=True, non_persistent=False)  # reset only persistent offsets
-    await tcs.reset_offsets(persistent=False, non_persistent=True)  # reset only non-persistent offsets
+    await tcs.reset_offsets(absorbed=True, non_absorbed=False)  # reset only absorbed offsets
+    await tcs.reset_offsets(absorbed=False, non_absorbed=True)  # reset only offsets that where not absorbed
