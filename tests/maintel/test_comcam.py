@@ -18,8 +18,6 @@
 #
 # You should have received a copy of the GNU General Public License
 import unittest
-
-import asynctest
 import pytest
 
 from lsst.ts.observatory.control.maintel.comcam import ComCam, ComCamUsages
@@ -27,7 +25,7 @@ from lsst.ts.observatory.control.mock import ComCamMock
 from lsst.ts.observatory.control.utils import RemoteGroupTestCase
 
 
-class TestComCam(RemoteGroupTestCase, asynctest.TestCase):
+class TestComCam(RemoteGroupTestCase, unittest.IsolatedAsyncioTestCase):
     async def basic_make_group(self, usage=None):
         self.comcam = ComCam(intended_usage=usage)
         self.comcam_mock = ComCamMock()

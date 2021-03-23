@@ -18,15 +18,12 @@
 #
 # You should have received a copy of the GNU General Public License
 import asyncio
-
 import unittest
 
-import astropy.units as u
 import numpy as np
 
+import astropy.units as u
 from astropy.coordinates import Angle
-
-import asynctest
 
 from lsst.ts import salobj
 
@@ -41,10 +38,11 @@ MAKE_TIMEOUT = 60  # Timeout for make_script (sec)
 np.random.seed(47)
 
 
-class TestMTCS(RemoteGroupTestCase, asynctest.TestCase):
-    async def basic_make_group(self, usage=None):
+class TestMTCS(RemoteGroupTestCase, unittest.IsolatedAsyncioTestCase):
+    async def basic_make_group(self, usage=None, mock=True):
 
-        self.mtcs_mock = MTCSMock()
+        if mock:
+            self.mtcs_mock = MTCSMock()
 
         self.mtcs = MTCS(intended_usage=usage)
 
@@ -177,7 +175,7 @@ class TestMTCS(RemoteGroupTestCase, asynctest.TestCase):
             )
 
             # Override self.mtcs.slew to check rottype different calls
-            self.mtcs.slew = asynctest.CoroutineMock()
+            self.mtcs.slew = unittest.mock.AsyncMock()
 
             radec_icrs, rot_angle = await self.mtcs.slew_icrs(
                 ra=ra, dec=dec, rot=0.0, target_name=name, rot_type=RotType.Parallactic

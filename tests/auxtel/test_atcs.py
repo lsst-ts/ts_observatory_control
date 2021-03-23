@@ -20,8 +20,6 @@
 import asyncio
 import unittest
 
-import asynctest
-
 from lsst.ts import salobj
 from lsst.ts.idl.enums import ATPtg
 
@@ -33,7 +31,7 @@ HB_TIMEOUT = 5  # Basic timeout for heartbeats
 MAKE_TIMEOUT = 60  # Timeout for make_script (sec)
 
 
-class TestATTCS(RemoteGroupTestCase, asynctest.TestCase):
+class TestATTCS(RemoteGroupTestCase, unittest.IsolatedAsyncioTestCase):
     async def basic_make_group(self, usage=None):
         self.attcs_mock = ATCSMock()
 
