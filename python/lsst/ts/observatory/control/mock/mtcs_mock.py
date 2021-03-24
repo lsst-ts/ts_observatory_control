@@ -72,11 +72,25 @@ class MTCSMock(BaseGroupMock):
         self.tracking = False
         self.acting = False
 
+        # store radec offsets
+        self.radec_offsets = []
+        # store azel offsets
+        self.azel_offsets = []
+        # store poring offsets
+        self.poring_offsets = []
+
         self.controllers.mtptg.cmd_stopTracking.callback = (
             self.mtptg_stop_tracking_callback
         )
         self.controllers.mtptg.cmd_azElTarget.callback = self.azel_target_callback
         self.controllers.mtptg.cmd_raDecTarget.callback = self.radec_target_callback
+        self.controllers.mtptg.cmd_offsetRADec.callback = self.offset_radec_callback
+        self.controllers.mtptg.cmd_offsetAzEl.callback = self.offset_azel_callback
+        self.controllers.mtptg.cmd_offsetClear.callback = self.offset_clear_callback
+        self.controllers.mtptg.cmd_poriginOffset.callback = self.offset_porigin_callback
+        self.controllers.mtptg.cmd_poriginClear.callback = (
+            self.poring_offset_clear_callback
+        )
 
         # Implement xml 7.1 and 8 compatibility
         if hasattr(self.controllers.mtmount.tel_azimuth.DataType(), "angleSet"):
@@ -94,6 +108,23 @@ class MTCSMock(BaseGroupMock):
         self.controllers.mtmount.tel_elevation.set(
             **{self.mtmount_demand_position_name: 80.0}
         )
+
+    async def offset_radec_callback(self, data):
+        self.radec_offsets.append(data)
+
+    async def offset_azel_callback(self, data):
+        self.azel_offsets.append(data)
+
+    async def offset_clear_callback(self, data):
+
+        self.azel_offsets = []
+        self.radec_offsets = []
+
+    async def offset_porigin_callback(self, data):
+        self.poring_offsets.append(data)
+
+    async def poring_offset_clear_callback(self, data):
+        self.poring_offsets = []
 
     async def mtptg_stop_tracking_callback(self, data):
 
