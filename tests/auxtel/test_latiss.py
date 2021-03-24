@@ -19,14 +19,12 @@
 # You should have received a copy of the GNU General Public License
 import unittest
 
-import asynctest
-
 from lsst.ts.observatory.control.mock import LATISSMock
 from lsst.ts.observatory.control.auxtel.latiss import LATISS, LATISSUsages
 from lsst.ts.observatory.control.utils import RemoteGroupTestCase
 
 
-class TestLATISS(RemoteGroupTestCase, asynctest.TestCase):
+class TestLATISS(RemoteGroupTestCase, unittest.IsolatedAsyncioTestCase):
     async def basic_make_group(self, usage=None):
         self.latiss_remote = LATISS(intended_usage=usage)
         self.latiss_mock = LATISSMock()

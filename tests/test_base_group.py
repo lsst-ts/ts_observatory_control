@@ -19,8 +19,6 @@
 # You should have received a copy of the GNU General Public License
 import unittest
 
-import asynctest
-
 from lsst.ts import salobj
 
 from lsst.ts.observatory.control.remote_group import (
@@ -35,7 +33,7 @@ HB_TIMEOUT = 5  # Heartbeat timeout (sec)
 MAKE_TIMEOUT = 60  # Timeout for make_script (sec)
 
 
-class TestBaseGroup(RemoteGroupTestCase, asynctest.TestCase):
+class TestBaseGroup(RemoteGroupTestCase, unittest.IsolatedAsyncioTestCase):
     async def basic_make_group(self, usage=None):
 
         ntest = 4
