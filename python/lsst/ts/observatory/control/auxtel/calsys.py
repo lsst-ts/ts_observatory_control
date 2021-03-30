@@ -26,7 +26,7 @@ from ..remote_group import RemoteGroup
 
 
 class ATCalSys(RemoteGroup):
-    """ Implement high level ATCalSys functionality.
+    """Implement high level ATCalSys functionality.
 
     Parameters
     ----------

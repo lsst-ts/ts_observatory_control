@@ -41,7 +41,9 @@ class TestUtils(unittest.TestCase):
         current_time.location = location
 
         par_angle = utils.parallactic_angle(
-            location, current_time.sidereal_time("mean"), radec_icrs,
+            location,
+            current_time.sidereal_time("mean"),
+            radec_icrs,
         )
 
         self.assertIsNotNone(par_angle)

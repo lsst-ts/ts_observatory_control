@@ -32,7 +32,7 @@ CLOSE_SLEEP = 5  # seconds
 
 
 class BaseGroupMock:
-    """ Base Mock for groups of CSCs.
+    """Base Mock for groups of CSCs.
 
     This is useful for unit testing.
 
@@ -162,7 +162,8 @@ class BaseGroupMock:
         await asyncio.sleep(HEARTBEAT_INTERVAL)
 
     async def generic_raise_callback(self, data):
-        """ A generic callback function that will raise an exception if called.
+        """A generic callback function that will raise an exception if
+        called.
         """
         raise RuntimeError("This command should not be called.")
 
@@ -265,8 +266,7 @@ class BaseGroupMock:
         await asyncio.sleep(HEARTBEAT_INTERVAL)
 
     async def check_done(self):
-        """If all CSCs are in OFFLINE state, close group mock.
-        """
+        """If all CSCs are in OFFLINE state, close group mock."""
 
         async with self.check_done_lock:
             is_offline = []
@@ -322,8 +322,7 @@ class BaseGroupMock:
 
     @classmethod
     async def amain(cls):
-        """Make a group mock and run it.
-        """
+        """Make a group mock and run it."""
         print(f"Starting {cls.__name__} controller")
         async with cls() as csc:
             print(f"{cls.__name__} controller running.")

@@ -168,14 +168,14 @@ class ATCS(BaseTCS):
         self.dome_az_in_position.clear()
 
     async def mount_AzEl_Encoders_callback(self, data):
-        """Callback function to update the telescope position telemetry topic.
+        """Callback function to update the telescope position telemetry
+        topic.
         """
         self._tel_position = data
         self._tel_position_updated.set()
 
     async def atmcs_target_callback(self, data):
-        """Callback function to update the telescope target event topic.
-        """
+        """Callback function to update the telescope target event topic."""
         self._tel_target = data
         self._tel_target_updated.set()
 
@@ -584,8 +584,7 @@ class ATCS(BaseTCS):
         await self.standby()
 
     async def open_dome_shutter(self):
-        """Task to open dome shutter and return when it is done.
-        """
+        """Task to open dome shutter and return when it is done."""
 
         shutter_pos = await self.rem.atdome.evt_mainDoorState.aget(
             timeout=self.fast_timeout
@@ -634,8 +633,7 @@ class ATCS(BaseTCS):
             )
 
     async def home_dome(self):
-        """ Task to execute dome home command and wait for it to complete.
-        """
+        """Task to execute dome home command and wait for it to complete."""
 
         self.rem.atdome.evt_azimuthState.flush()
 
@@ -967,8 +965,7 @@ class ATCS(BaseTCS):
             )
 
     async def open_m1_vent(self):
-        """Task to open m1 vents.
-        """
+        """Task to open m1 vents."""
 
         vent_state = await self.rem.atpneumatics.evt_m1VentsPosition.aget(
             timeout=self.fast_timeout
@@ -1006,8 +1003,7 @@ class ATCS(BaseTCS):
             )
 
     async def close_m1_vent(self):
-        """Task to open m1 vents.
-        """
+        """Task to open m1 vents."""
 
         vent_state = await self.rem.atpneumatics.evt_m1VentsPosition.aget(
             timeout=self.fast_timeout
@@ -1483,8 +1479,7 @@ class ATCS(BaseTCS):
             self.log.warning("Nothing to check.")
 
     async def check_target_status(self):
-        """Check the targeting status of the atmcs.
-        """
+        """Check the targeting status of the atmcs."""
         while True:
             in_position = await self.rem.atmcs.evt_allAxesInPosition.next(flush=False)
             self.log.debug(f"Got {in_position.inPosition}")
@@ -1492,7 +1487,7 @@ class ATCS(BaseTCS):
                 raise RuntimeError("ATMCS is no longer tracking.")
 
     async def focus_offset(self, offset):
-        """ Apply focus offset.
+        """Apply focus offset.
 
         Returns after offset is aplied.
 
@@ -1515,49 +1510,43 @@ class ATCS(BaseTCS):
             pass
 
     def set_azel_slew_checks(self, wait_dome):
-        """Handle azEl slew to wait or not for the dome.
-        """
+        """Handle azEl slew to wait or not for the dome."""
         check = types.SimpleNamespace(
-            dome=self.check.atdome, dometrajectory=self.check.atdometrajectory,
+            dome=self.check.atdome,
+            dometrajectory=self.check.atdometrajectory,
         )
         self.check.atdome = wait_dome
         self.check.atdometrajectory = wait_dome
         return check
 
     def unset_azel_slew_checks(self, checks):
-        """Handle azEl slew to wait or not for the dome.
-        """
+        """Handle azEl slew to wait or not for the dome."""
         self.check.adome = checks.dome
         self.check.atdometrajectory = checks.dometrajectory
 
     @property
     def plate_scale(self):
-        """Plate scale in mm/arcsec.
-        """
+        """Plate scale in mm/arcsec."""
         return atcs_constants.plate_scale
 
     @property
     def ptg_name(self):
-        """Return name of the pointing component.
-        """
+        """Return name of the pointing component."""
         return "atptg"
 
     @property
     def CoordFrame(self):
-        """Return CoordFrame enumeration.
-        """
+        """Return CoordFrame enumeration."""
         return ATPtg.CoordFrame
 
     @property
     def RotFrame(self):
-        """Return RotFrame enumeration.
-        """
+        """Return RotFrame enumeration."""
         return ATPtg.RotFrame
 
     @property
     def RotMode(self):
-        """Return RotMode enumeration.
-        """
+        """Return RotMode enumeration."""
         return ATPtg.RotMode
 
     @property
