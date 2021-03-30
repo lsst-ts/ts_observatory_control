@@ -150,7 +150,9 @@ class MTCSMock(BaseGroupMock):
         await asyncio.sleep(HEARTBEAT_INTERVAL)
 
         self.controllers.mtmount.evt_target.set(
-            elevation=data.elDegs, azimuth=data.azDegs, trackId=data.trackId,
+            elevation=data.elDegs,
+            azimuth=data.azDegs,
+            trackId=data.trackId,
         )
 
         self.acting = True
@@ -430,7 +432,8 @@ class MTCSMock(BaseGroupMock):
                     )
 
                     self.controllers.mtmount.evt_target.set(
-                        elevation=alt_az.alt.deg, azimuth=alt_az.az.deg,
+                        elevation=alt_az.alt.deg,
+                        azimuth=alt_az.az.deg,
                     )
 
             await asyncio.sleep(HEARTBEAT_INTERVAL)

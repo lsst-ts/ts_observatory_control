@@ -719,8 +719,7 @@ class RemoteGroup:
         await self.set_state(salobj.State.ENABLED, settings=settings_all)
 
     async def standby(self):
-        """ Put all CSCs in standby.
-        """
+        """Put all CSCs in standby."""
 
         await self.set_state(salobj.State.STANDBY)
 
@@ -740,7 +739,7 @@ class RemoteGroup:
 
     @property
     def components(self):
-        """ List of components names.
+        """List of components names.
 
         The name of the CSC follow the format used in the class constructor,
         e.g. CSCName or CSCName:index (for indexed components), e.g.
@@ -756,7 +755,7 @@ class RemoteGroup:
 
     @property
     def components_attr(self):
-        """ List of remotes names.
+        """List of remotes names.
 
         The remotes names are reformatted to fit the requirements for object
         attributes. It will be the name of the CSC (as in ``components``) in
@@ -773,7 +772,7 @@ class RemoteGroup:
 
     @property
     def valid_use_cases(self):
-        """ Define valid usages.
+        """Define valid usages.
 
         When subclassing, overwrite this method to return the proper enum.
 
@@ -786,7 +785,7 @@ class RemoteGroup:
 
     @property
     def usages(self):
-        """ Define class usages.
+        """Define class usages.
 
         This property defines what remote resources are needed for each class
         usages. Each item in the dictionary contain a list of components,
@@ -847,7 +846,7 @@ class RemoteGroup:
         return self._usages
 
     async def process_as_completed(self, tasks):
-        """ Process tasks are they complete.
+        """Process tasks are they complete.
 
         If the first task that finishes completes successfully, it will
         cancel all other tasks in the list, empty the input list and return the

@@ -17,7 +17,7 @@ build:
 
 test:
   requires:
-    - ts-conda-build
+    - ts-conda-build =0.3
     - astroquery
     - ts-idl {{ idl_version }}
     - ts-salobj {{ salobj_version }}

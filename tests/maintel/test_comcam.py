@@ -58,7 +58,8 @@ class TestComCam(RemoteGroupTestCase, unittest.IsolatedAsyncioTestCase):
             exptime = 5.0
 
             await self.comcam.take_flats(
-                nflats=nflats, exptime=exptime,
+                nflats=nflats,
+                exptime=exptime,
             )
             self.assertEqual(self.comcam_mock.nimages, nflats)
             self.assertEqual(len(self.comcam_mock.exptime_list), nflats)

@@ -481,18 +481,17 @@ class MTCS(BaseTCS):
         return "Dome elevation in position."
 
     def set_azel_slew_checks(self, wait_dome):
-        """Handle azEl slew to wait or not for the dome.
-        """
+        """Handle azEl slew to wait or not for the dome."""
         check = types.SimpleNamespace(
-            dome=self.check.mtdome, mtdometrajectory=self.check.mtdometrajectory,
+            dome=self.check.mtdome,
+            mtdometrajectory=self.check.mtdometrajectory,
         )
         self.check.mtdome = wait_dome
         self.check.mtdometrajectory = wait_dome
         return check
 
     def unset_azel_slew_checks(self, checks):
-        """Handle azEl slew to wait or not for the dome.
-        """
+        """Handle azEl slew to wait or not for the dome."""
         self.check.mtdome = checks.dome
         self.check.mtdometrajectory = checks.mtdometrajectory
 
@@ -547,13 +546,11 @@ class MTCS(BaseTCS):
         raise NotImplementedError("# TODO: Implement (DM-21336).")
 
     def flush_offset_events(self):
-        """Abstract method to flush events before and offset is performed.
-        """
+        """Abstract method to flush events before and offset is performed."""
         self.rem.mtmount.evt_axesInPosition.flush()
 
     async def offset_done(self):
-        """Wait for offset events.
-        """
+        """Wait for offset events."""
         await self.wait_for_mtmount_inposition(timeout=self.tel_settle_time)
 
     async def get_bore_sight_angle(self):
@@ -576,32 +573,27 @@ class MTCS(BaseTCS):
 
     @property
     def plate_scale(self):
-        """Plate scale in mm/arcsec.
-        """
+        """Plate scale in mm/arcsec."""
         return mtcs_constants.plate_scale
 
     @property
     def ptg_name(self):
-        """Return name of the pointing component.
-        """
+        """Return name of the pointing component."""
         return "mtptg"
 
     @property
     def CoordFrame(self):
-        """Return CoordFrame enumeration.
-        """
+        """Return CoordFrame enumeration."""
         return MTPtg.CoordFrame
 
     @property
     def RotFrame(self):
-        """Return RotFrame enumeration.
-        """
+        """Return RotFrame enumeration."""
         return MTPtg.RotFrame
 
     @property
     def RotMode(self):
-        """Return RotMode enumeration.
-        """
+        """Return RotMode enumeration."""
         return MTPtg.RotMode
 
     @property

@@ -39,7 +39,7 @@ CLOSE_SLEEP = 5  # seconds
 
 
 class ATCSMock(BaseGroupMock):
-    """ Mock the behavior of the combined components that make out ATTCS.
+    """Mock the behavior of the combined components that make out ATTCS.
 
     This is useful for unit testing.
 
@@ -325,7 +325,7 @@ class ATCSMock(BaseGroupMock):
 
     async def slew_callback(self, data):
         """Fake slew waits 5 seconds, then reports all axes
-           in position. Does not simulate the actual slew.
+        in position. Does not simulate the actual slew.
         """
         self.atmcs.evt_allAxesInPosition.set_put(inPosition=False, force_output=True)
         self.atdome.evt_azimuthInPosition.set_put(inPosition=False, force_output=True)
