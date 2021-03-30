@@ -286,7 +286,9 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
         current_time.location = self.location
 
         par_angle = parallactic_angle(
-            self.location, current_time.sidereal_time("mean"), radec_icrs,
+            self.location,
+            current_time.sidereal_time("mean"),
+            radec_icrs,
         )
 
         coord_frame_altaz = AltAz(location=self.location, obstime=current_time)
@@ -835,7 +837,7 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
         await asyncio.gather(*reset_offsets)
 
     async def add_point_data(self):
-        """ Add current position to a point file. If a file is open it will
+        """Add current position to a point file. If a file is open it will
         append to that file. If no file is opened it will open a new one.
 
         """
@@ -960,8 +962,7 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
 
     @staticmethod
     def rotation_matrix(angle):
-        """Rotation matrix.
-        """
+        """Rotation matrix."""
         return np.array(
             [
                 [np.cos(np.radians(angle)), -np.sin(np.radians(angle)), 0.0],
@@ -1025,38 +1026,32 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
 
     @abc.abstractmethod
     async def shutdown(self):
-        """Shutdown  components.
-        """
+        """Shutdown components."""
         raise NotImplementedError()
 
     @abc.abstractmethod
     async def open_dome_shutter(self):
-        """Task to open dome shutter and return when it is done.
-        """
+        """Task to open dome shutter and return when it is done."""
         raise NotImplementedError()
 
     @abc.abstractmethod
     async def home_dome(self):
-        """ Task to execute dome home command and wait for it to complete.
-        """
+        """Task to execute dome home command and wait for it to complete."""
         raise NotImplementedError()
 
     @abc.abstractmethod
     async def close_dome(self):
-        """Task to close dome.
-        """
+        """Task to close dome."""
         raise NotImplementedError()
 
     @abc.abstractmethod
     async def open_m1_cover(self):
-        """Task to open m1 cover.
-        """
+        """Task to open m1 cover."""
         raise NotImplementedError()
 
     @abc.abstractmethod
     async def close_m1_cover(self):
-        """Task to close m1 cover.
-        """
+        """Task to close m1 cover."""
         raise NotImplementedError()
 
     @abc.abstractmethod
@@ -1130,14 +1125,12 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
 
     @abc.abstractmethod
     def flush_offset_events(self):
-        """Abstract method to flush events before and offset is performed.
-        """
+        """Abstract method to flush events before and offset is performed."""
         raise NotImplementedError()
 
     @abc.abstractmethod
     async def offset_done(self):
-        """Wait for offset events.
-        """
+        """Wait for offset events."""
         raise NotImplementedError()
 
     @abc.abstractmethod
@@ -1150,34 +1143,29 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
     @property
     @abc.abstractmethod
     def plate_scale(self):
-        """Plate scale in mm/arcsec.
-        """
+        """Plate scale in mm/arcsec."""
         raise NotImplementedError()
 
     @property
     @abc.abstractmethod
     def ptg_name(self):
-        """Return name of the pointing component.
-        """
+        """Return name of the pointing component."""
         raise NotImplementedError()
 
     @property
     @abc.abstractmethod
     def CoordFrame(self):
-        """Return CoordFrame enumeration.
-        """
+        """Return CoordFrame enumeration."""
         raise NotImplementedError()
 
     @property
     @abc.abstractmethod
     def RotFrame(self):
-        """Return RotFrame enumeration.
-        """
+        """Return RotFrame enumeration."""
         raise NotImplementedError()
 
     @property
     @abc.abstractmethod
     def RotMode(self):
-        """Return RotMode enumeration.
-        """
+        """Return RotMode enumeration."""
         raise NotImplementedError()

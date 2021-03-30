@@ -6,6 +6,17 @@
 Version History
 ###############
 
+v0.7.6
+======
+
+Changes:
+
+  * Reformat code using black 20.
+  * Pin version of ts-conda-build to 0.3 in conda recipe.
+
+Changes:
+
+
 v0.7.5
 ======
 
