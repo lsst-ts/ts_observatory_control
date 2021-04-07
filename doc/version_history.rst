@@ -6,6 +6,15 @@
 Version History
 ###############
 
+v0.8.0
+======
+
+Changes:
+
+  * Add new feature to support synchronization between BaseTCS and BaseCamera.
+  * Implement synchronization feature in ATCS.
+  * Implement placeholder for synchronization feature in MTCS.
+
 v0.7.6
 ======
 
@@ -13,9 +22,6 @@ Changes:
 
   * Reformat code using black 20.
   * Pin version of ts-conda-build to 0.3 in conda recipe.
-
-Changes:
-
 
 v0.7.5
 ======

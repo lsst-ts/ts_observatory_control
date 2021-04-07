@@ -85,6 +85,9 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
         self.parity_x = 1.0
         self.parity_y = 1.0
 
+        self._ready_to_take_data_future = salobj.make_done_future()
+        self._ready_to_take_data_task = None
+
     async def point_azel(
         self,
         az,
@@ -952,6 +955,20 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
         await asyncio.sleep(self.tel_settle_time)
         self.log.debug("Done")
 
+    def ready_to_take_data(self):
+        """Return a future object that will be done when the ATCS is ready to
+        take data or raise an exception if something wrong happens while trying
+        to determine the condition of the system.
+        """
+        if self._ready_to_take_data_future.done():
+            self._ready_to_take_data_future = asyncio.Future()
+            self._ready_to_take_data_task = asyncio.create_task(
+                self._ready_to_take_data()
+            )
+            return self._ready_to_take_data_future
+        else:
+            return self._ready_to_take_data_future
+
     @property
     def instrument_focus(self):
         return self.__instrument_focus
@@ -1137,6 +1154,14 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
     async def get_bore_sight_angle(self):
         """Get the instrument bore sight angle with respect to the telescope
         axis.
+        """
+        raise NotImplementedError()
+
+    @abc.abstractmethod
+    async def _ready_to_take_data(self):
+        """Return a future object that will be done when the TCS is ready to
+        take data or raise an exception if something wrong happens while trying
+        to determine the condition of the system.
         """
         raise NotImplementedError()
 

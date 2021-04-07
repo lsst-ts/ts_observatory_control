@@ -67,9 +67,13 @@ class ComCam(BaseCamera):
     ----------
     domain : `lsst.ts.salobj.Domain`
         Domain for remotes. If `None` create a domain.
+    tcs_ready_to_take_data: `function`
+        A function that returns an `asyncio.Future` object.
     """
 
-    def __init__(self, domain=None, log=None, intended_usage=None):
+    def __init__(
+        self, domain=None, log=None, intended_usage=None, tcs_ready_to_take_data=None
+    ):
 
         super().__init__(
             components=["CCCamera", "CCHeaderService", "CCArchiver"],
@@ -77,6 +81,7 @@ class ComCam(BaseCamera):
             domain=domain,
             log=log,
             intended_usage=intended_usage,
+            tcs_ready_to_take_data=tcs_ready_to_take_data,
         )
 
         self.read_out_time = 2.0  # readout time (sec)

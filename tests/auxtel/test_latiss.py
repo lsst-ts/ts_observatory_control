@@ -17,16 +17,52 @@
 # GNU General Public License for more details.
 #
 # You should have received a copy of the GNU General Public License
+import asyncio
 import unittest
 
+from lsst.ts.salobj import make_done_future
 from lsst.ts.observatory.control.mock import LATISSMock
 from lsst.ts.observatory.control.auxtel.latiss import LATISS, LATISSUsages
 from lsst.ts.observatory.control.utils import RemoteGroupTestCase
 
 
+class FakeATCS:
+    """This class is used to test the the synchronization between the ATCS and
+    LATISS.
+    """
+
+    def __init__(self):
+        self._future = make_done_future()
+        self._future_task = None
+        self.fail = False
+        self.called = 0
+
+    def ready_to_take_data(self):
+        if self._future.done():
+            self.called += 1
+            self._future = asyncio.Future()
+            if self.fail:
+                self._future_task = asyncio.create_task(self.wait_and_fail_future())
+            else:
+                self._future_task = asyncio.create_task(self.wait_and_set_future())
+
+        return self._future
+
+    async def wait_and_set_future(self):
+        await asyncio.sleep(5.0)
+        self._future.set_result(True)
+
+    async def wait_and_fail_future(self):
+        await asyncio.sleep(5.0)
+        self._future.set_exception(RuntimeError("Failed."))
+
+
 class TestLATISS(RemoteGroupTestCase, unittest.IsolatedAsyncioTestCase):
     async def basic_make_group(self, usage=None):
-        self.latiss_remote = LATISS(intended_usage=usage)
+        self.atcs = FakeATCS()
+        self.latiss_remote = LATISS(
+            intended_usage=usage, tcs_ready_to_take_data=self.atcs.ready_to_take_data
+        )
         self.latiss_mock = LATISSMock()
         return self.latiss_remote, self.latiss_mock
 
@@ -92,6 +128,94 @@ class TestLATISS(RemoteGroupTestCase, unittest.IsolatedAsyncioTestCase):
             self.assertEqual(current_filter, filter_name)
             self.assertEqual(current_grating, grating_name)
             self.assertEqual(current_stage_pos, linear_stage)
+
+    async def test_take_object(self):
+        async with self.make_group(usage=LATISSUsages.TakeImage + LATISSUsages.Setup):
+
+            nobj = 4
+            exptime = 1.0
+            filter_id = 1
+            filter_name = f"filter{filter_id}"
+            grating_id = 1
+            grating_name = f"grating{grating_id}"
+            linear_stage = 100.0
+
+            await self.latiss_remote.take_object(
+                n=nobj,
+                exptime=exptime,
+                filter=filter_id,
+                grating=grating_id,
+                linear_stage=linear_stage,
+            )
+
+            (
+                current_filter,
+                current_grating,
+                current_stage_pos,
+            ) = await self.latiss_remote.get_setup()
+
+            self.assertEqual(self.latiss_mock.nimages, nobj)
+            self.assertEqual(len(self.latiss_mock.exptime_list), nobj)
+            for i in range(nobj):
+                self.assertEqual(self.latiss_mock.exptime_list[i], exptime)
+            self.assertEqual(self.latiss_mock.latiss_filter, filter_id)
+            self.assertEqual(self.latiss_mock.latiss_grating, grating_id)
+            self.assertEqual(self.latiss_mock.latiss_linear_stage, linear_stage)
+
+            self.assertEqual(current_filter, filter_name)
+            self.assertEqual(current_grating, grating_name)
+            self.assertEqual(current_stage_pos, linear_stage)
+
+            # Test case where synchronization fails
+            self.atcs.fail = True
+
+            # should raise the same exception
+            with self.assertRaises(RuntimeError):
+                await self.latiss_remote.take_object(
+                    n=nobj,
+                    exptime=exptime,
+                )
+
+            # Test case where synchronization is not setup
+            self.latiss_remote.ready_to_take_data = None
+
+            nobj_2 = 2
+            exptime = 0.5
+            filter_id = 2
+            filter_name = f"filter{filter_id}"
+            grating_id = 2
+            grating_name = f"grating{grating_id}"
+            linear_stage = 50.0
+
+            await self.latiss_remote.take_object(
+                n=nobj_2,
+                exptime=exptime,
+                filter=filter_id,
+                grating=grating_id,
+                linear_stage=linear_stage,
+            )
+
+            (
+                current_filter,
+                current_grating,
+                current_stage_pos,
+            ) = await self.latiss_remote.get_setup()
+
+            self.assertEqual(self.latiss_mock.nimages, nobj + nobj_2)
+            self.assertEqual(len(self.latiss_mock.exptime_list), nobj + nobj_2)
+            for i in range(nobj, nobj + nobj_2):
+                self.assertEqual(self.latiss_mock.exptime_list[i], exptime)
+            self.assertEqual(self.latiss_mock.latiss_filter, filter_id)
+            self.assertEqual(self.latiss_mock.latiss_grating, grating_id)
+            self.assertEqual(self.latiss_mock.latiss_linear_stage, linear_stage)
+
+            self.assertEqual(current_filter, filter_name)
+            self.assertEqual(current_grating, grating_name)
+            self.assertEqual(current_stage_pos, linear_stage)
+
+            # Check ATCS synchronization. This is called only once per
+            # take_object when synchronization is configured.
+            self.assertEqual(self.atcs.called, 2)
 
     async def test_instrument_parameters(self):
         async with self.make_group(usage=LATISSUsages.TakeImage):

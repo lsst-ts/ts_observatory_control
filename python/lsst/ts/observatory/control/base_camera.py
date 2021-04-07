@@ -50,7 +50,8 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
         used to limit the resources allocated by the class by gathering some
         knowledge about the usage intention. By default allocates all
         resources.
-
+    tcs_ready_to_take_data: `function`
+        A function that returns an `asyncio.Future` object.
     """
 
     def __init__(
@@ -60,6 +61,7 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
         domain=None,
         log=None,
         intended_usage=None,
+        tcs_ready_to_take_data=None,
     ):
 
         super().__init__(
@@ -72,12 +74,16 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
         self.read_out_time = 2.0  # readout time (sec)
         self.shutter_time = 1.0  # time to open or close shutter (sec)
         self.min_exptime = 0.1  # minimum open-shutter exposure time
+        # Maximum time to wait for the tcs to report as ready to take data
+        self.max_tcs_wait_time = 30.0
 
         self.valid_imagetype = ["BIAS", "DARK", "FLAT", "OBJECT", "ENGTEST"]
 
         self.instrument_setup_attributes = set(instrument_setup_attributes)
 
         self.cmd_lock = asyncio.Lock()
+
+        self.ready_to_take_data = tcs_ready_to_take_data
 
     async def take_bias(
         self,
@@ -412,6 +418,11 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
         setup_instrument: Set up instrument.
         expose: Low level expose method.
 
+        Raises
+        ------
+        RuntimeError
+            If TCS takes took long to report
+
         """
 
         self.check_kwargs(**kwargs)
@@ -430,6 +441,23 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
 
         if imgtype not in ["BIAS", "DARK"]:
             await self.setup_instrument(**kwargs)
+
+        if imgtype == "OBJECT" and self.ready_to_take_data is not None:
+            self.log.debug(f"imagetype: {imgtype}, wait for TCS to be ready.")
+            try:
+                await asyncio.wait_for(
+                    self.ready_to_take_data(),
+                    timeout=self.max_tcs_wait_time,
+                )
+            except asyncio.TimeoutError:
+                raise RuntimeError(
+                    "Timeout waiting for TCS to report as ready to take data "
+                    f"(timeout={self.max_tcs_wait_time})."
+                )
+        elif imgtype == "OBJECT" and self.ready_to_take_data is None:
+            self.log.debug(f"imagetype: {imgtype}, TCS synchronization not configured.")
+        else:
+            self.log.debug(f"imagetype: {imgtype}, skip TCS synchronization.")
 
         for i in range(n):
             tag = f"{imgtype} {i+1:04} - {n:04}"
