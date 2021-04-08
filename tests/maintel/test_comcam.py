@@ -32,7 +32,7 @@ class TestComCam(RemoteGroupTestCase, unittest.IsolatedAsyncioTestCase):
 
     async def test_take_bias(self):
         async with self.make_group(usage=ComCamUsages.TakeImage):
-            nbias = 10
+            nbias = 3
             await self.comcam.take_bias(nbias=nbias)
             self.assertEqual(self.comcam_mock.nimages, nbias)
             self.assertEqual(len(self.comcam_mock.exptime_list), nbias)
@@ -42,8 +42,8 @@ class TestComCam(RemoteGroupTestCase, unittest.IsolatedAsyncioTestCase):
 
     async def test_take_darks(self):
         async with self.make_group(usage=ComCamUsages.TakeImage):
-            ndarks = 10
-            exptime = 5.0
+            ndarks = 3
+            exptime = 1.0
             await self.comcam.take_darks(ndarks=ndarks, exptime=exptime)
             self.assertEqual(self.comcam_mock.nimages, ndarks)
             self.assertEqual(len(self.comcam_mock.exptime_list), ndarks)
@@ -53,8 +53,8 @@ class TestComCam(RemoteGroupTestCase, unittest.IsolatedAsyncioTestCase):
 
     async def test_take_flats(self):
         async with self.make_group(usage=ComCamUsages.TakeImage):
-            nflats = 10
-            exptime = 5.0
+            nflats = 3
+            exptime = 1.0
 
             await self.comcam.take_flats(
                 nflats=nflats,
@@ -68,8 +68,8 @@ class TestComCam(RemoteGroupTestCase, unittest.IsolatedAsyncioTestCase):
 
     async def test_take_flats_with_filter(self):
         async with self.make_group(usage=ComCamUsages.TakeImage):
-            nflats = 10
-            exptime = 5.0
+            nflats = 3
+            exptime = 1.0
             camera_filter = "r_07"
 
             await self.comcam.take_flats(
