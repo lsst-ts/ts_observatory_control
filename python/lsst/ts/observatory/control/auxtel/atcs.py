@@ -135,7 +135,7 @@ class ATCS(BaseTCS):
 
         self.tel_park_el = 80.0
         self.tel_park_az = 0.0
-        self.tel_park_rot = -110.0
+        self.tel_park_rot = 0.0
         self.tel_flat_el = 39.0
         self.tel_flat_az = 205.7
         self.tel_flat_rot = -110.0
