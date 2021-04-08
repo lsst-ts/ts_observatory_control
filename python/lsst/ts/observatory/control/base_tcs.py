@@ -965,9 +965,7 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
             self._ready_to_take_data_task = asyncio.create_task(
                 self._ready_to_take_data()
             )
-            return self._ready_to_take_data_future
-        else:
-            return self._ready_to_take_data_future
+        return self._ready_to_take_data_future
 
     @property
     def instrument_focus(self):

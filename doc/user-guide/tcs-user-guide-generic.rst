@@ -540,7 +540,7 @@ For example, the commands below show how to reset only the absorbed and not abso
 Synchronization Between TCS and Camera
 --------------------------------------
 
-One common issue when operating with a ``TCS`` class and a ``Camera`` class is that we need to be able to synchronize theirs operations in order to reliably take data.
+One common issue when operating with a ``TCS`` class and a ``Camera`` class is that we need to be able to synchronize their operations in order to reliably take data.
 This synchronization is handled using :py:meth:`ready_to_take_data <lsst.ts.observatory.control.BaseTCS.ready_to_take_data>` in :py:class:`BaseTCS <lsst.ts.observatory.control.BaseTCS>`.
 
 To use this feature the user must simply pass this method to the :py:class:`BaseCamera <lsst.ts.observatory.control.BaseCamera>` class constructor, which then allows it to wait for the ``TCS`` to be ready to take data.

@@ -1527,8 +1527,8 @@ class ATCS(BaseTCS):
     async def _ready_to_take_data(self):
         """Wait until ATCS is ready to take data.
 
-        If cancelled or some condition times out or raise an exeception it will
-        set the result of the future to the exception so it propagates to
+        If cancelled or some condition times out or raises an exeception it
+        will set the result of the future to the exception so it propagates to
         whomever is waiting on it.
         """
         # Things to check
@@ -1539,7 +1539,7 @@ class ATCS(BaseTCS):
         try:
             while not ready:
                 # This loop will run until all conditions are met. Note that it
-                # may happen that one condition will be me when we run it the
+                # may happen that one condition will be met when we run it the
                 # first time and then not when we run the second time.
                 check = await asyncio.gather(
                     self.atmcs_in_position(),
@@ -1637,7 +1637,7 @@ class ATCS(BaseTCS):
     async def atmcs_in_position(self):
         """Check if atmcs is in position.
 
-        This method will try to get the next even published after the call. If
+        This method will try to get the next event published after the call. If
         it fails, it will return the last event seen. If no event was ever
         seen, it will fail with a `TimeoutError`.
 
