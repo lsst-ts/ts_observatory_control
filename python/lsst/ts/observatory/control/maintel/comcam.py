@@ -86,6 +86,7 @@ class ComCam(BaseCamera):
 
         self.read_out_time = 2.0  # readout time (sec)
         self.shutter_time = 1  # time to open or close shutter (sec)
+        self.filter_change_timeout = 60  # time for filter to get into position (sec)
 
         self.valid_imagetype.append("SPOT")
 
@@ -240,7 +241,43 @@ class ComCam(BaseCamera):
         if filter is None:
             return
         else:
-            raise NotImplementedError("set_filter not available yet.")
+            self.rem.cccamera.cmd_setFilter.set(name=filter)
+            async with self.cmd_lock:
+                self.rem.cccamera.evt_endSetFilter.flush()
+                await self.rem.cccamera.cmd_setFilter.start(
+                    timeout=self.filter_change_timeout
+                )
+                end_setFilter = await self.rem.cccamera.evt_endSetFilter.next(
+                    flush=False, timeout=self.filter_change_timeout
+                )
+                self.log.info(f"Filter {end_setFilter.filterName} in position.")
+                return end_setFilter
+
+    async def get_current_filter(self):
+        """Get the current filter.
+
+        Returns
+        -------
+        `str`
+            The filter in the light path.
+        """
+        end_setFilter = await self.rem.cccamera.evt_endSetFilter.aget(
+            timeout=self.fast_timeout
+        )
+        return end_setFilter.filterName
+
+    async def get_available_filters(self):
+        """Get the list of available filters.
+
+        Returns
+        -------
+        `str`
+            The set of filters available (colon delimited)
+        """
+        available_filters = await self.rem.cccamera.evt_availableFilters.aget(
+            timeout=self.fast_timeout
+        )
+        return available_filters.filterNames
 
     @property
     def valid_use_cases(self):
@@ -274,20 +311,38 @@ class ComCam(BaseCamera):
                     "settingVersions",
                     "heartbeat",
                 ],
-                cccamera=["takeImages", "setFilter", "endReadout"],
+                cccamera=[
+                    "takeImages",
+                    "setFilter",
+                    "endReadout",
+                    "endSetFilter",
+                    "availableFilters",
+                ],
                 ccheaderservice=["largeFileObjectAvailable"],
             )
 
             usages[self.valid_use_cases.TakeImage] = UsagesResources(
                 components_attr=["cccamera"],
                 readonly=False,
-                cccamera=["takeImages", "setFilter", "endReadout"],
+                cccamera=[
+                    "takeImages",
+                    "setFilter",
+                    "endReadout",
+                    "endSetFilter",
+                    "availableFilters",
+                ],
             )
 
             usages[self.valid_use_cases.TakeImageFull] = UsagesResources(
                 components_attr=["cccamera", "ccheaderservice"],
                 readonly=False,
-                cccamera=["takeImages", "setFilter", "endReadout"],
+                cccamera=[
+                    "takeImages",
+                    "setFilter",
+                    "endReadout",
+                    "endSetFilter",
+                    "availableFilters",
+                ],
                 ccheaderservice=["largeFileObjectAvailable"],
             )
 

@@ -18,7 +18,6 @@
 #
 # You should have received a copy of the GNU General Public License
 import unittest
-import pytest
 
 from lsst.ts.observatory.control.maintel.comcam import ComCam, ComCamUsages
 from lsst.ts.observatory.control.mock import ComCamMock
@@ -71,15 +70,16 @@ class TestComCam(RemoteGroupTestCase, unittest.IsolatedAsyncioTestCase):
         async with self.make_group(usage=ComCamUsages.TakeImage):
             nflats = 10
             exptime = 5.0
-            camera_filter = "r"
+            camera_filter = "r_07"
 
-            with pytest.raises(NotImplementedError):
-                await self.comcam.take_flats(
-                    nflats=nflats, exptime=exptime, filter=camera_filter
-                )
-            self.assertEqual(self.comcam_mock.nimages, 0)
-            self.assertEqual(len(self.comcam_mock.exptime_list), 0)
-            self.assertIsNone(self.comcam_mock.camera_filter)
+            await self.comcam.take_flats(
+                nflats=nflats, exptime=exptime, filter=camera_filter
+            )
+            self.assertEqual(self.comcam_mock.nimages, nflats)
+            self.assertEqual(len(self.comcam_mock.exptime_list), nflats)
+            for i in range(nflats):
+                self.assertEqual(self.comcam_mock.exptime_list[i], exptime)
+            self.assertEqual(self.comcam_mock.camera_filter, camera_filter)
 
 
 if __name__ == "__main__":
