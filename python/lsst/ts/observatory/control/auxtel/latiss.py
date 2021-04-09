@@ -79,9 +79,14 @@ class LATISS(BaseCamera):
         used to limit the resources allocated by the class by gathering some
         knowledge about the usage intention. By default allocates all
         resources.
+    tcs_ready_to_take_data: `function`
+        A function that returns an `asyncio.Future` object.
+
     """
 
-    def __init__(self, domain=None, log=None, intended_usage=None):
+    def __init__(
+        self, domain=None, log=None, intended_usage=None, tcs_ready_to_take_data=None
+    ):
 
         super().__init__(
             components=["ATCamera", "ATSpectrograph", "ATHeaderService", "ATArchiver"],
@@ -89,6 +94,7 @@ class LATISS(BaseCamera):
             domain=domain,
             log=log,
             intended_usage=intended_usage,
+            tcs_ready_to_take_data=tcs_ready_to_take_data,
         )
 
     async def expose(

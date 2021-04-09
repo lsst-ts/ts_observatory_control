@@ -29,6 +29,7 @@ from lsst.ts.observatory.control.utils import RemoteGroupTestCase
 
 HB_TIMEOUT = 5  # Basic timeout for heartbeats
 MAKE_TIMEOUT = 60  # Timeout for make_script (sec)
+SYNC_TIMEOUT = 120  # timeout for testing synchronization feature (sec)
 
 
 class TestATTCS(RemoteGroupTestCase, unittest.IsolatedAsyncioTestCase):
@@ -71,6 +72,25 @@ class TestATTCS(RemoteGroupTestCase, unittest.IsolatedAsyncioTestCase):
                 await self.attcs.slew(
                     ra, dec, slew_timeout=self.attcs_mock.slew_time * 2.0
                 )
+
+            # Check synchronization mechanism
+
+            sync = self.attcs.ready_to_take_data()
+
+            await asyncio.wait_for(sync, timeout=MAKE_TIMEOUT)
+
+            self.assertTrue(sync.result())
+
+            # Enable ATAOS correction and try again
+            await self.attcs.rem.ataos.cmd_enableCorrection.set_start(
+                atspectrograph=True, timeout=HB_TIMEOUT
+            )
+
+            sync = self.attcs.ready_to_take_data()
+
+            await asyncio.wait_for(sync, timeout=SYNC_TIMEOUT)
+
+            self.assertTrue(sync.result())
 
             for planet in ATPtg.Planets:
                 with self.subTest(f"test_slew_to_planet::{planet}", planet=planet):

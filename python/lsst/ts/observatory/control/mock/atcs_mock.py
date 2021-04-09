@@ -23,6 +23,7 @@ __all__ = ["ATCSMock"]
 import asyncio
 
 import numpy as np
+from itertools import cycle
 
 from .base_group_mock import BaseGroupMock
 
@@ -82,8 +83,8 @@ class ATCSMock(BaseGroupMock):
             position=ATPneumatics.VentsPosition.CLOSED
         )
 
-        self.ataos.cmd_enableCorrection.callback = self.generic_callback
-        self.ataos.cmd_disableCorrection.callback = self.generic_callback
+        self.ataos.cmd_enableCorrection.callback = self.ataos_enable_corrections
+        self.ataos.cmd_disableCorrection.callback = self.ataos_disable_corrections
 
         self.dome_shutter_pos = 0.0
 
@@ -101,6 +102,8 @@ class ATCSMock(BaseGroupMock):
         self.atmcs_telemetry_task = None
         self.atdome_telemetry_task = None
         self.atptg_telemetry_task = None
+        self.ataos_telemetry_task = None
+
         self.run_telemetry_loop = True
 
         self.atptg.cmd_raDecTarget.callback = self.slew_callback
@@ -109,6 +112,15 @@ class ATCSMock(BaseGroupMock):
         self.atptg.cmd_stopTracking.callback = self.stop_tracking_callback
 
         self.atdome.cmd_moveAzimuth.callback = self.move_dome
+
+        self.ataos_corrections = {
+            "m1",
+            "m2",
+            "hexapod",
+            "focus",
+            "atspectrograph",
+            "moveWhileExposing",
+        }
 
     @property
     def atmcs(self):
@@ -163,6 +175,7 @@ class ATCSMock(BaseGroupMock):
         self.atmcs_telemetry_task = asyncio.create_task(self.atmcs_telemetry())
         self.atdome_telemetry_task = asyncio.create_task(self.atdome_telemetry())
         self.atptg_telemetry_task = asyncio.create_task(self.atptg_telemetry())
+        self.ataos_telemetry_task = asyncio.create_task(self.ataos_telemetry())
 
     async def atmcs_telemetry(self):
         while self.run_telemetry_loop:
@@ -209,6 +222,31 @@ class ATCSMock(BaseGroupMock):
             self.atptg.tel_timeAndDate.put(time_and_date)
 
             await asyncio.sleep(1.0)
+
+    async def ataos_telemetry(self):
+
+        self.ataos.evt_correctionEnabled.set_put()
+
+        correction_times = cycle((1, 1, 2, 4, 10))
+        while self.run_telemetry_loop:
+            if self.ataos.evt_summaryState.data.summaryState == salobj.State.ENABLED:
+
+                for correction in self.ataos_corrections:
+                    if getattr(
+                        self.ataos.evt_correctionEnabled.data, correction
+                    ) and hasattr(self.ataos, f"evt_{correction}CorrectionStarted"):
+                        getattr(
+                            self.ataos, f"evt_{correction}CorrectionStarted"
+                        ).set_put(force_output=True)
+                await asyncio.sleep(0.5)
+                for correction in self.ataos_corrections:
+                    if getattr(
+                        self.ataos.evt_correctionEnabled.data, correction
+                    ) and hasattr(self.ataos, f"evt_{correction}CorrectionCompleted"):
+                        getattr(
+                            self.ataos, f"evt_{correction}CorrectionCompleted"
+                        ).set_put(force_output=True)
+            await asyncio.sleep(next(correction_times))
 
     async def atmcs_wait_and_fault(self, wait_time):
         self.atmcs.evt_summaryState.set_put(
@@ -454,6 +492,24 @@ class ATCSMock(BaseGroupMock):
 
         await asyncio.sleep(HEARTBEAT_INTERVAL)
 
+    async def ataos_enable_corrections(self, data):
+        """"""
+        enable_corrections = dict()
+
+        for correction in self.ataos_corrections:
+            if getattr(data, correction):
+                enable_corrections[correction] = True
+        self.ataos.evt_correctionEnabled.set_put(**enable_corrections)
+
+    async def ataos_disable_corrections(self, data):
+        """"""
+        disable_corrections = dict()
+
+        for correction in self.ataos_corrections:
+            if getattr(data, correction):
+                disable_corrections[correction] = False
+        self.ataos.evt_correctionEnabled.set_put(**disable_corrections)
+
     async def close(self):
 
         # await all tasks created during runtime
@@ -465,7 +521,12 @@ class ATCSMock(BaseGroupMock):
 
             self.run_telemetry_loop = False
 
-            await asyncio.gather(self.atmcs_telemetry_task, self.atdome_telemetry_task)
+            await asyncio.gather(
+                self.atmcs_telemetry_task,
+                self.atdome_telemetry_task,
+                self.atptg_telemetry_task,
+                self.ataos_telemetry_task,
+            )
 
         except Exception:
             pass

@@ -571,6 +571,11 @@ class MTCS(BaseTCS):
 
         return angle
 
+    def _ready_to_take_data(self):
+        """Placeholder, still needs to be implemented."""
+        # TODO: Finish implementation.
+        self._ready_to_take_data_future.set_result(True)
+
     @property
     def plate_scale(self):
         """Plate scale in mm/arcsec."""
