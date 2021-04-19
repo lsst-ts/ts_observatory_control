@@ -135,7 +135,7 @@ class ATCS(BaseTCS):
 
         self.tel_park_el = 80.0
         self.tel_park_az = 0.0
-        self.tel_park_rot = -110.0
+        self.tel_park_rot = 0.0
         self.tel_flat_el = 39.0
         self.tel_flat_az = 205.7
         self.tel_flat_rot = -110.0
@@ -165,7 +165,6 @@ class ATCS(BaseTCS):
             self.rem.atmcs.evt_target.callback = self.atmcs_target_callback
 
         self.dome_az_in_position = asyncio.Event()
-        self.dome_az_in_position.clear()
 
     async def mount_AzEl_Encoders_callback(self, data):
         """Callback function to update the telescope position telemetry
@@ -1524,6 +1523,140 @@ class ATCS(BaseTCS):
         self.check.adome = checks.dome
         self.check.atdometrajectory = checks.dometrajectory
 
+    async def _ready_to_take_data(self):
+        """Wait until ATCS is ready to take data.
+
+        If cancelled or some condition times out or raises an exeception it
+        will set the result of the future to the exception so it propagates to
+        whomever is waiting on it.
+        """
+        # Things to check
+        # 1 - ATMCS evt_allAxesInPosition.inPosition == True
+        # 2 - All ATAOS corrections are applied
+        # 3 - ATMCS and ATDome positions are within specified range.
+        ready = False
+        try:
+            while not ready:
+                # This loop will run until all conditions are met. Note that it
+                # may happen that one condition will be met when we run it the
+                # first time and then not when we run the second time.
+                check = await asyncio.gather(
+                    self.atmcs_in_position(),
+                    self.ataos_corrections_completed(),
+                    self.dome_az_in_position.wait(),
+                )
+                self.log.debug(
+                    f"Ready to take data:: atmcs={check[0]}, ataos={check[1]}, atdome={check[2]}."
+                )
+                ready = all(check)
+        except asyncio.CancelledError as e:
+            self._ready_to_take_data_future.set_exception(e)
+        except asyncio.TimeoutError as e:
+            self._ready_to_take_data_future.set_exception(e)
+        except Exception as e:
+            self._ready_to_take_data_future.set_exception(e)
+        else:
+            self._ready_to_take_data_future.set_result(True)
+
+    async def ataos_corrections_completed(self):
+        """Check that all ATAOS corrections completed.
+
+        Returns
+        -------
+        corrections_completed: `bool`
+            Returns `True` when corrections are completed.
+
+        Raise
+        -----
+        RuntimeError:
+            If the last `atspectrographCorrectionCompleted` event was published
+            before the last `atspectrographCorrectionStarted` and a timeout
+            happens when waiting for a new `atspectrographCorrectionCompleted`.
+        """
+
+        ataos_enabled_corrections = await self.rem.ataos.evt_correctionEnabled.aget(
+            timeout=self.fast_timeout
+        )
+        # If the atspectrograph correction is not enabled, then nothing to wait
+        # for. Just return.
+        if not ataos_enabled_corrections.atspectrograph:
+            return True
+
+        self.log.debug(
+            "atspectrograph correction running. Trying to determine state of the corrections."
+        )
+        ret_val = await asyncio.gather(
+            self.rem.ataos.evt_atspectrographCorrectionStarted.next(
+                flush=True, timeout=self.fast_timeout
+            ),
+            self.rem.ataos.evt_atspectrographCorrectionCompleted.next(
+                flush=True, timeout=self.fast_timeout
+            ),
+            return_exceptions=True,
+        )
+        # If they are both execeptions it probably means the ATAOS got into a
+        # stable state and it is ready to take images. We need to verify now
+        # that the last completed correction was issued after the last started
+        # correction.
+        if all([isinstance(val, asyncio.TimeoutError) for val in ret_val]):
+            self.log.debug(
+                f"No correction seen in the last {self.fast_timeout} seconds. "
+                "Determining order of last corrections."
+            )
+            started, completed = await asyncio.gather(
+                self.rem.ataos.evt_atspectrographCorrectionStarted.aget(
+                    timeout=self.fast_timeout
+                ),
+                self.rem.ataos.evt_atspectrographCorrectionCompleted.aget(
+                    timeout=self.fast_timeout
+                ),
+            )
+            if started.private_sndStamp >= completed.private_sndStamp:
+                self.log.debug("Last correction still pending.")
+                # There is probably a correction going on. Still not ready.
+                return False
+            else:
+                self.log.debug("Last correction completed.")
+                # Correction completed was done after last started. It is
+                # probably ready to take data.
+                return True
+
+        else:
+            # This means we got some data. We are not in a stable state yet.
+            correction_name = ["started", "completed"]
+            correction_received = [
+                name
+                for name, corr in zip(correction_name, ret_val)
+                if not isinstance(corr, asyncio.TimeoutError)
+            ]
+
+            self.log.debug(f"Received corrections: {correction_received}.")
+            return False
+
+    async def atmcs_in_position(self):
+        """Check if atmcs is in position.
+
+        This method will try to get the next event published after the call. If
+        it fails, it will return the last event seen. If no event was ever
+        seen, it will fail with a `TimeoutError`.
+
+        Returns
+        -------
+        in_position: `bool`
+            In position flag value.
+        """
+
+        try:
+            in_position = await self.rem.atmcs.evt_allAxesInPosition.next(
+                flush=True, timeout=self.fast_timeout
+            )
+        except asyncio.TimeoutError:
+            in_position = await self.rem.atmcs.evt_allAxesInPosition.aget(
+                timeout=self.fast_timeout
+            )
+
+        return in_position.inPosition
+
     @property
     def plate_scale(self):
         """Plate scale in mm/arcsec."""
@@ -1607,7 +1740,14 @@ class ATCS(BaseTCS):
                     "timeAndDate",
                     "focusNameSelected",
                 ],
-                ataos=["enableCorrection", "disableCorrection", "applyFocusOffset"],
+                ataos=[
+                    "enableCorrection",
+                    "disableCorrection",
+                    "applyFocusOffset",
+                    "correctionEnabled",
+                    "atspectrographCorrectionStarted",
+                    "atspectrographCorrectionCompleted",
+                ],
                 atpneumatics=[
                     "openM1Cover",
                     "closeM1Cover",
@@ -1659,7 +1799,12 @@ class ATCS(BaseTCS):
                 ],
                 atdome=["stopMotion", "shutterInPosition"],
                 athexapod=["positionUpdate"],
-                ataos=["applyFocusOffset"],
+                ataos=[
+                    "applyFocusOffset",
+                    "correctionEnabled",
+                    "atspectrographCorrectionStarted",
+                    "atspectrographCorrectionCompleted",
+                ],
             )
             usages[self.valid_use_cases.StartUp] = UsagesResources(
                 components_attr=self.components_attr,

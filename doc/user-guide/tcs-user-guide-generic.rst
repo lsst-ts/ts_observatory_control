@@ -534,3 +534,31 @@ For example, the commands below show how to reset only the absorbed and not abso
 
     await tcs.reset_offsets(absorbed=True, non_absorbed=False)  # reset only absorbed offsets
     await tcs.reset_offsets(absorbed=False, non_absorbed=True)  # reset only offsets that where not absorbed
+
+.. _user-guide-generic-telescope-control-operations-synchronization-between-tcs-and-camera:
+
+Synchronization Between TCS and Camera
+--------------------------------------
+
+One common issue when operating with a ``TCS`` class and a ``Camera`` class is that we need to be able to synchronize their operations in order to reliably take data.
+This synchronization is handled using :py:meth:`ready_to_take_data <lsst.ts.observatory.control.BaseTCS.ready_to_take_data>` in :py:class:`BaseTCS <lsst.ts.observatory.control.BaseTCS>`.
+
+To use this feature the user must simply pass this method to the :py:class:`BaseCamera <lsst.ts.observatory.control.BaseCamera>` class constructor, which then allows it to wait for the ``TCS`` to be ready to take data.
+The synchronization is only used by :py:meth:`take_object <lsst.ts.observatory.control.BaseTCS.take_object>` method.
+
+The procedure, using the Auxiliary Telescope classes as an example, is as follows:
+
+.. code-block:: python
+
+  from lsst.ts import salobj
+  from lsst.ts.observatory.control.auxtel import ATCS, LATISS
+
+  domain = salobj.Domain()
+
+  atcs = ATCS(domain)
+  latiss = LATISS(domain, tcs_ready_to_take_data=atcs.ready_to_take_data)
+
+  # If we now use take_object to select the instrument configuration, the
+  # method will also wait for the atcs to finish synchronizing (ATAOS apply
+  # any telescope and focus correction)
+  await latiss.take_object(10., n=3, filter=2, grating=3)
