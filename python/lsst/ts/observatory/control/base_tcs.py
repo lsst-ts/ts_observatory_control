@@ -159,6 +159,8 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
         rot_type=RotType.SkyAuto,
         dra=0.0,
         ddec=0.0,
+        az_wrap_strategy=None,
+        time_on_target=0.0,
         slew_timeout=240.0,
     ):
         """Slew to an object name.
@@ -169,21 +171,32 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
         ----------
         name : `str`
             Target name.
-        rot : `float`, `str` or `astropy.coordinates.Angle`
+        rot : `float`, `str` or `astropy.coordinates.Angle`, optional
             Specify desired rotation angle. Strategy depends on `rot_type`
             parameter. Accepts float (deg), sexagesimal string (DD:MM:SS.S or
             DD MM SS.S) coordinates or `astropy.coordinates.Angle`
-        rot_type :  `lsst.ts.observatory.control.utils.RotType`
+        rot_type :  `lsst.ts.observatory.control.utils.RotType`, optional
             Rotation type. This parameter defines how `rot_value` is threated.
             Default is `SkyAuto`, the rotator is positioned with respect to the
             North axis and is automacally wrapped if outside the limit. See
             `RotType` for more options.
-        dra : `float`
-            Differential Track Rate in RA (arcsec/second). Default is 0.
-        ddec : `float`
+        slew_timeout : `float`, optional
+            Timeout for the slew command (second). Default is 240 seconds.
+
+        Other Parameters
+        ----------------
+        dra : `float`, optional
+            Differential Track Rate in RA (second/second). Default is 0.
+        ddec : `float`, optional
             Differential Track Rate in Dec (arcsec/second). Default is 0.
-        slew_timeout : `float`
-            Timeout for the slew command (second).
+        az_wrap_strategy : `azWrapStrategy` or `None`, optional
+            Azimuth wrap strategy. By default use `maxTimeOnTarget=3`, which
+            attempts to maximize the time on target. Other options are;
+            1-noUnWrap, 2-optimize.
+        time_on_target : `float`, optional
+            Estimated time on target, in seconds. This is used by the
+            optimize azimuth wrap algorithm to determine whether it needs to
+            unwrap or not.
 
         See Also
         --------
@@ -222,6 +235,8 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
         target_name="slew_icrs",
         dra=0.0,
         ddec=0.0,
+        az_wrap_strategy=None,
+        time_on_target=0.0,
         slew_timeout=240.0,
         stop_before_slew=True,
         wait_settle=True,
@@ -251,12 +266,23 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
             `RotType` for more options.
         target_name :  `str`
             Target name.
-        dra : `float`
-            Differential Track Rate in RA (arcsec/second). Default is 0.
-        ddec : `float`
-            Differential Track Rate in Dec (arcsec/second). Default is 0.
         slew_timeout : `float`
             Timeout for the slew command (second). Default is 240s.
+
+        Other Parameters
+        ----------------
+        dra : `float`, optional
+            Differential Track Rate in RA (second/second). Default is 0.
+        ddec : `float`, optional
+            Differential Track Rate in Dec (arcsec/second). Default is 0.
+        az_wrap_strategy : `azWrapStrategy` or `None`, optional
+            Azimuth wrap strategy. By default use `maxTimeOnTarget=3`, which
+            attempts to maximize the time on target. Other options are;
+            1-noUnWrap, 2-optimize.
+        time_on_target : `float`, optional
+            Estimated time on target, in seconds. This is used by the
+            optimize azimuth wrap algorithm to determine whether it needs to
+            unwrap or not.
         stop_before_slew : `bool`
             Stop tracking before starting the slew? This option is a
             workaround to some issues with the ATMCS not sending events
@@ -299,6 +325,7 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
         alt_az = radec_icrs.transform_to(coord_frame_altaz)
 
         rot_frame = self.RotFrame.TARGET
+        rot_track_frame = self.RotFrame.TARGET
 
         # compute rotator physical position if rot_angle is sky.
         rot_phys_val = salobj.angle_wrap_center(
@@ -330,12 +357,7 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
             self.log.debug(
                 f"Setting rotator physical position to {rot_angle}. Rotator will track sky."
             )
-
-            rot_angle = rot_phys_val
-
-            self.log.debug(
-                f"Parallactic angle: {par_angle.deg} | Sky Angle: {rot_angle.deg}"
-            )
+            rot_frame = self.RotFrame.FIXED
         elif rot_type == RotType.Parallactic:
 
             self.log.debug(
@@ -355,8 +377,8 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
             # the pointing. We have to set the rot_angle in sky angle instead
             # of physical value. Will check with pointing vendors to fix this.
             # (DM-26457).
-            rot_angle = rot_phys_val
             rot_frame = self.RotFrame.FIXED
+            rot_track_frame = self.RotFrame.FIXED
         else:
             valid_rottypes = ", ".join(repr(rt) for rt in RotType)
             raise RuntimeError(
@@ -378,6 +400,9 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
             dRA=dra,
             dDec=ddec,
             rot_frame=rot_frame,
+            rot_track_frame=rot_track_frame,
+            az_wrap_strategy=az_wrap_strategy,
+            time_on_target=time_on_target,
             rot_mode=self.RotMode.FIELD,
             slew_timeout=slew_timeout,
             stop_before_slew=stop_before_slew,
@@ -404,6 +429,8 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
         rot_frame=None,
         rot_track_frame=None,
         rot_mode=None,
+        az_wrap_strategy=None,
+        time_on_target=0.0,
         slew_timeout=1200.0,
         stop_before_slew=True,
         wait_settle=True,
@@ -476,6 +503,10 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
                 rotTrackFrame=rot_track_frame
                 if rot_track_frame is not None
                 else self.RotFrame.TARGET,
+                azWrapStrategy=self.WrapStrategy.MAXTIMEONTARGET
+                if az_wrap_strategy is None
+                else az_wrap_strategy,
+                timeOnTarget=time_on_target,
                 epoch=epoch,
                 equinox=equinox,
                 parallax=parallax,
@@ -1191,4 +1222,10 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
     @abc.abstractmethod
     def RotMode(self):
         """Return RotMode enumeration."""
+        raise NotImplementedError()
+
+    @property
+    @abc.abstractmethod
+    def WrapStrategy(self):
+        """Return WrapStrategy enumeration"""
         raise NotImplementedError()

@@ -1683,6 +1683,11 @@ class ATCS(BaseTCS):
         return ATPtg.RotMode
 
     @property
+    def WrapStrategy(self):
+        """Return WrapStrategy enumeration"""
+        return ATPtg.WrapStrategy
+
+    @property
     def valid_use_cases(self):
         """Returns valid usages.
 

@@ -602,6 +602,11 @@ class MTCS(BaseTCS):
         return MTPtg.RotMode
 
     @property
+    def WrapStrategy(self):
+        """Return WrapStrategy enumeration"""
+        return MTPtg.WrapStrategy
+
+    @property
     def valid_use_cases(self):
         """Returns valid usages.
 
