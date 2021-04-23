@@ -47,12 +47,14 @@ class MTCSUsages(Usages):
     * StartUp: Enable startup operations.
     * Shutdown: Enable shutdown operations.
     * PrepareForFlatfield: Enable preparation for flat-field.
+    * DryTest: Don't add any remote.
     """
 
     Slew = 1 << 3
     StartUp = 1 << 4
     Shutdown = 1 << 5
     PrepareForFlatfield = 1 << 6
+    DryTest = 1 << 7
 
     def __iter__(self):
 
@@ -66,6 +68,7 @@ class MTCSUsages(Usages):
                 self.StartUp,
                 self.Shutdown,
                 self.PrepareForFlatfield,
+                self.DryTest,
             ]
         )
 
@@ -723,6 +726,10 @@ class MTCS(BaseTCS):
                     "settingVersions",
                     "heartbeat",
                 ],
+            )
+
+            usages[self.valid_use_cases.DryTest] = UsagesResources(
+                components_attr=(), readonly=True
             )
 
             self._usages = usages
