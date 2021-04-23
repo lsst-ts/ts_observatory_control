@@ -39,6 +39,59 @@ to operate the Auxiliary Telescope or;
 
 for the Main Telescope.
 
+.. _user-guide-generic-telescope-control-operations-coordinate-Transformation-facility:
+
+Coordinate Transformation Facility
+----------------------------------
+
+The :py:class:`BaseTCS <lsst.ts.observatory.control.BaseTCS>` class provides utilities to transform RA/Dec coordinates to Azimuth/Elevation and vice-versa.
+These are mainly available through the methods :py:meth:`radec_from_azel <lsst.ts.observatory.control.BaseTCS.radec_from_azel>` and :py:meth:`azel_from_radec <lsst.ts.observatory.control.BaseTCS.azel_from_radec>`.
+
+The following will compute the coordinates at the current observatory time.
+
+.. code:: python
+
+    az = 45.
+    el = 75.
+
+    radec_icrs = tcs.radec_from_azel(az=az, el=el)
+
+    ra = 5.
+    dec = -40.
+
+    azel = tcs.azel_from_radec(ra=ra, dec=dec)
+
+
+It is also possible to provide a time for which the observation is intended to compute the coordinate.
+
+.. code:: python
+
+    from lsst.ts import salobj
+
+    # Compute coordinates 2 minutes (120 seconds) from now.
+
+    obs_time = salobj.astropy_time_from_tai_unix(salobj.current_tai() + 120.)
+
+    az = 45.
+    el = 75.
+
+    radec_icrs = tcs.radec_from_azel(az=az, el=el, time=obs_time)
+
+    ra = 5.
+    dec = -40.
+
+    azel = tcs.azel_from_radec(ra=ra, dec=dec, time=obs_time)
+
+Furthermore, it is also possible to estimate the parallactic angle of an Ra/Dec coordinate for the current time or by providing a time of the observation:
+
+.. code:: python
+
+    # Parallactic angle at runtime.
+    pa = tcs.parallactic_angle(az=az, el=el)
+
+    # Parallactic angle at a given time.
+    pa = tcs.parallactic_angle(az=az, el=el, time=obs_time)
+
 .. _user-guide-generic-telescope-control-operations-slewing-to-fixed-positions:
 
 Slewing To Fixed Positions
