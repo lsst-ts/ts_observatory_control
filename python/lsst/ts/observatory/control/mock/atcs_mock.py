@@ -515,18 +515,25 @@ class ATCSMock(BaseGroupMock):
         # await all tasks created during runtime
 
         try:
-            await asyncio.wait_for(
-                asyncio.gather(*self.task_list), timeout=LONG_TIMEOUT
-            )
-
             self.run_telemetry_loop = False
 
-            await asyncio.gather(
+            await asyncio.sleep(CLOSE_SLEEP)
+
+            for task in (
                 self.atmcs_telemetry_task,
                 self.atdome_telemetry_task,
                 self.atptg_telemetry_task,
                 self.ataos_telemetry_task,
-            )
+            ):
+                if not task.done():
+                    print("Task not done. Cancelling it.")
+                    task.cancel()
+                    try:
+                        await task
+                    except asyncio.CancelledError:
+                        pass
+                    except Exception as e:
+                        print(f"Unexpected exception cancelling pending task: {e}")
 
         except Exception:
             pass
