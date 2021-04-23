@@ -310,7 +310,8 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
 
         rot_angle = Angle(rot, unit=u.deg)
 
-        current_time = salobj.astropy_time_from_tai_unix(salobj.current_tai())
+        current_tai = salobj.current_tai()
+        current_time = salobj.astropy_time_from_tai_unix(current_tai)
 
         current_time.location = self.location
 
@@ -320,9 +321,9 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
             radec_icrs,
         )
 
-        coord_frame_altaz = AltAz(location=self.location, obstime=current_time)
-
-        alt_az = radec_icrs.transform_to(coord_frame_altaz)
+        alt_az = self.azel_from_radec(
+            ra=radec_icrs.ra, dec=radec_icrs.dec, time_tai=current_tai
+        )
 
         rot_frame = self.RotFrame.TARGET
         rot_track_frame = self.RotFrame.TARGET
@@ -373,10 +374,6 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
             self.log.debug(
                 f"Setting rotator to physical fixed position {rot_angle}. Rotator will not track."
             )
-            # FIXME: This type is not supported the way we would like by
-            # the pointing. We have to set the rot_angle in sky angle instead
-            # of physical value. Will check with pointing vendors to fix this.
-            # (DM-26457).
             rot_frame = self.RotFrame.FIXED
             rot_track_frame = self.RotFrame.FIXED
         else:
@@ -997,6 +994,117 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
                 self._ready_to_take_data()
             )
         return self._ready_to_take_data_future
+
+    def azel_from_radec(self, ra, dec, time=None):
+        """Calculate Az/El coordinates from RA/Dec in ICRS.
+
+        Parameters
+        ----------
+        ra : `float`, `str` or `astropy.coordinates.Angle`
+            Target RA, either as a float (hour), a sexagesimal string
+            (HH:MM:SS.S or HH MM SS.S) coordinates or
+            `astropy.coordinates.Angle`.
+        dec : `float`, `str` or `astropy.coordinates.Angle`
+            Target Dec, either as a float (deg), a sexagesimal string
+            (DD:MM:SS.S or DD MM SS.S) coordinates or
+            `astropy.coordinates.Angle`.
+        time : `astropy.time.core.Time` or `None`, optional
+            The time which the coordinate trasformation is intended for. If
+            `None` (default) use current time.
+
+        Returns
+        -------
+        azel : `astropy.coordinates.AltAz`
+            Astropy coordinates with azimuth and elevation.
+        """
+        radec_icrs = ICRS(Angle(ra, unit=u.hourangle), Angle(dec, unit=u.deg))
+
+        if time is None:
+            time = salobj.astropy_time_from_tai_unix(salobj.current_tai())
+
+        time.location = self.location
+
+        coord_frame_azel = AltAz(location=self.location, obstime=time)
+
+        azel = radec_icrs.transform_to(coord_frame_azel)
+
+        return azel
+
+    def radec_from_azel(self, az, el, time=None):
+        """Calculate Ra/Dec in ICRS coordinates from Az/El.
+
+        Parameters
+        ----------
+        az : `float`, `str` or astropy.coordinates.Angle
+            Target Azimuth (degree). Accepts float (deg), sexagesimal string
+            (DD:MM:SS.S or DD MM SS.S) coordinates or
+            `astropy.coordinates.Angle`
+        el : `float` or `str`
+            Target Elevation (degree). Accepts float (deg), sexagesimal string
+            (DD:MM:SS.S or DD MM SS.S) coordinates or
+            `astropy.coordinates.Angle`
+        time : `astropy.time.core.Time` or `None`, optional
+            The time which the coordinate trasformation is intended for. If
+            `None` (default) use current time.
+
+        Returns
+        -------
+        radec_icrs : `astropy.coordinates.ICRS`
+            Astropy coordinates with azimuth and elevation.
+        """
+
+        if time is None:
+            time = salobj.astropy_time_from_tai_unix(salobj.current_tai())
+
+        time.location = self.location
+
+        coord_frame_azel = AltAz(
+            alt=Angle(el, unit=u.deg),
+            az=Angle(az, unit=u.deg),
+            location=self.location,
+            obstime=time,
+        )
+
+        radec_icrs = coord_frame_azel.transform_to(ICRS)
+
+        return radec_icrs
+
+    def parallactic_angle(self, ra, dec, time=None):
+        """Return parallactic angle for the given Ra/Dec coordinates.
+
+        Parameters
+        ----------
+        ra : `float`, `str` or `astropy.coordinates.Angle`
+            Target RA, either as a float (hour), a sexagesimal string
+            (HH:MM:SS.S or HH MM SS.S) coordinates or
+            `astropy.coordinates.Angle`.
+        dec : `float`, `str` or `astropy.coordinates.Angle`
+            Target Dec, either as a float (deg), a sexagesimal string
+            (DD:MM:SS.S or DD MM SS.S) coordinates or
+            `astropy.coordinates.Angle`.
+        time : `astropy.time.core.Time` or `None`, optional
+            The time which the coordinate trasformation is intended for. If
+            `None` (default) use current time.
+
+        Returns
+        -------
+        pa_angle : `astropy.coordinates.Angle`
+            Parallactic angle.
+        """
+        radec_icrs = ICRS(Angle(ra, unit=u.hourangle), Angle(dec, unit=u.deg))
+
+        if time is None:
+            time = salobj.astropy_time_from_tai_unix(salobj.current_tai())
+
+        time.location = self.location
+
+        pa_angle = parallactic_angle(
+            self.location,
+            time.sidereal_time("mean"),
+            radec_icrs,
+        )
+
+        return pa_angle
 
     @property
     def instrument_focus(self):
