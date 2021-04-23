@@ -18,7 +18,7 @@
 #
 # You should have received a copy of the GNU General Public License
 
-__all__ = ["parallactic_angle"]
+__all__ = ["calculate_parallactic_angle"]
 
 import numpy as np
 
@@ -26,19 +26,19 @@ import astropy.units as u
 from astropy.coordinates import Angle
 
 
-def parallactic_angle(location, lst, target):
+def calculate_parallactic_angle(location, lst, target):
     """
     Calculate the parallactic angle.
 
     Parameters
     ----------
-    location: ``
+    location: `astropy.coordinates.EarthLocation`
         Observatory location.
 
-    lst: ``
+    lst: `astropy.coordinates.Angle`
         Local sidereal time.
 
-    target: ``
+    target: `astropy.coordinates.ICRS`
         The observing target coordinates.
 
     Returns

@@ -30,7 +30,7 @@ from astropy.coordinates import AltAz, ICRS, EarthLocation, Angle
 from astroquery.simbad import Simbad
 
 from . import RemoteGroup
-from .utils import parallactic_angle, RotType, InstrumentFocus
+from .utils import calculate_parallactic_angle, RotType, InstrumentFocus
 
 from lsst.ts import salobj
 
@@ -310,19 +310,18 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
 
         rot_angle = Angle(rot, unit=u.deg)
 
-        current_tai = salobj.current_tai()
-        current_time = salobj.astropy_time_from_tai_unix(current_tai)
+        current_time = salobj.astropy_time_from_tai_unix(salobj.current_tai())
 
         current_time.location = self.location
 
-        par_angle = parallactic_angle(
+        par_angle = calculate_parallactic_angle(
             self.location,
             current_time.sidereal_time("mean"),
             radec_icrs,
         )
 
         alt_az = self.azel_from_radec(
-            ra=radec_icrs.ra, dec=radec_icrs.dec, time_tai=current_tai
+            ra=radec_icrs.ra, dec=radec_icrs.dec, time=current_time
         )
 
         rot_frame = self.RotFrame.TARGET
@@ -1098,7 +1097,7 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
 
         time.location = self.location
 
-        pa_angle = parallactic_angle(
+        pa_angle = calculate_parallactic_angle(
             self.location,
             time.sidereal_time("mean"),
             radec_icrs,

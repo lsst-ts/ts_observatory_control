@@ -28,7 +28,7 @@ from lsst.ts.observatory.control import utils
 
 
 class TestUtils(unittest.TestCase):
-    def test_parallactic_angle(self):
+    def test_calculate_parallactic_angle(self):
         # TODO: Implement test (DM-21336)
         radec_icrs = ICRS(Angle(0.0, unit=u.hourangle), Angle(-80.0, unit=u.deg))
 
@@ -40,7 +40,7 @@ class TestUtils(unittest.TestCase):
 
         current_time.location = location
 
-        par_angle = utils.parallactic_angle(
+        par_angle = utils.calculate_parallactic_angle(
             location,
             current_time.sidereal_time("mean"),
             radec_icrs,
