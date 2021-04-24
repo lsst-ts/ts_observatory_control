@@ -157,6 +157,9 @@ class BaseGroupMock:
                 getattr(self.controllers, comp).evt_settingVersions.set_put(
                     recommendedSettingsVersion=f"{self.setting_versions[comp]},"
                 )
+                self.task_list.append(
+                    asyncio.create_task(self.publish_heartbeats_for(comp))
+                )
 
     async def generic_callback(self, data):
         await asyncio.sleep(HEARTBEAT_INTERVAL)
@@ -281,6 +284,11 @@ class BaseGroupMock:
                 print("Closing mock controller.")
                 self.done_task.set_result(None)
 
+    async def publish_heartbeats_for(self, comp):
+        while self.run_telemetry_loop:
+            getattr(self.controllers, comp).evt_heartbeat.put()
+            await asyncio.sleep(HEARTBEAT_INTERVAL)
+
     @property
     def component_names(self):
         return self._component_names
@@ -296,10 +304,17 @@ class BaseGroupMock:
         task_list = []
 
         try:
-            task_list = await asyncio.wait_for(
-                asyncio.gather(*self.task_list, return_exceptions=True),
-                timeout=CLOSE_SLEEP,
-            )
+            print(f"Closing: {len(self.task_list)} tasks to wait.")
+            await asyncio.sleep(CLOSE_SLEEP)
+            for task in [_task for _task in self.task_list if not _task.done()]:
+                task.cancel()
+                try:
+                    await task
+                except asyncio.CancelledError:
+                    pass
+                except Exception as e:
+                    print(f"Got unexpected exception cancelling task: {e}")
+
         except Exception:
             pass
 

@@ -6,6 +6,21 @@
 Version History
 ###############
 
+v0.8.1
+======
+
+* Update rotator strategies to use new pointing facility features.
+  It is now possible to keep the rotator at a fixed orientation while tracking a target in az/el.
+* Expose azimuth wrap strategy to the users.
+* Add new `DryTest` usage to `MTCS` class that allows creating the class without any remote (useful for unit testing).
+* Add Coordinate transformation functionality to `BaseTCS` class to allow transformation or Az/El to Ra/Dec and vice-versa.
+  Add method to compute parallactic angle from ra/dec to `BaseTCS`.
+* Rename `utils.parallactic_angle` method to `utils.calculate_parallactic_angle` and update docstring.
+* Implement publish heartbeat loop in `BaseGroupMock`.
+* Fix issue closing ATCSMock class.
+  Using `asyncio.wait_for` is also causing some issues at close time. Replace it with a slightly dumber but more reliable procedure in `BaseGroupMock`.
+* Add documentation about new coordinate transformation facility.
+
 v0.8.0
 ======
 

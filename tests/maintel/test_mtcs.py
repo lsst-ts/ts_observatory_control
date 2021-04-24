@@ -41,11 +41,50 @@ np.random.seed(47)
 class TestMTCS(RemoteGroupTestCase, unittest.IsolatedAsyncioTestCase):
     async def basic_make_group(self, usage=None):
 
-        self.mtcs_mock = MTCSMock()
+        if usage != MTCSUsages.DryTest:
+            self.mtcs_mock = MTCSMock()
+        else:
+            self.mtcs_mock = None
 
         self.mtcs = MTCS(intended_usage=usage)
 
-        return self.mtcs_mock, self.mtcs
+        if usage == MTCSUsages.DryTest:
+            return (self.mtcs,)
+        else:
+            return self.mtcs_mock, self.mtcs
+
+    async def test_coord_facility(self):
+        async with self.make_group(usage=MTCSUsages.DryTest):
+
+            az = 0.0
+            el = 75.0
+
+            radec = self.mtcs.radec_from_azel(az=az, el=el)
+
+            azel = self.mtcs.azel_from_radec(ra=radec.ra, dec=radec.dec)
+
+            pa = self.mtcs.parallactic_angle(ra=radec.ra, dec=radec.dec)
+
+            self.assertAlmostEqual(
+                salobj.angle_diff(az, azel.az.value).value, 0.0, places=1
+            )
+            self.assertAlmostEqual(el, azel.alt.value, places=1)
+            self.assertAlmostEqual(pa.value, 3.12, places=1)
+
+            # Test passing a time that is 60s in the future
+            obs_time = salobj.astropy_time_from_tai_unix(salobj.current_tai() + 60.0)
+
+            radec = self.mtcs.radec_from_azel(az=az, el=el, time=obs_time)
+
+            azel = self.mtcs.azel_from_radec(ra=radec.ra, dec=radec.dec, time=obs_time)
+
+            pa = self.mtcs.parallactic_angle(ra=radec.ra, dec=radec.dec, time=obs_time)
+
+            self.assertAlmostEqual(
+                salobj.angle_diff(az, azel.az.value).value, 0.0, places=5
+            )
+            self.assertAlmostEqual(el, azel.alt.value, places=5)
+            self.assertAlmostEqual(pa.value, 3.1269, places=2)
 
     async def test_offset_all(self):
 
@@ -323,7 +362,10 @@ class TestMTCS(RemoteGroupTestCase, unittest.IsolatedAsyncioTestCase):
                 dRA=0,
                 dDec=0,
                 rot_frame=self.mtcs.RotFrame.TARGET,
+                rot_track_frame=self.mtcs.RotFrame.TARGET,
                 rot_mode=self.mtcs.RotMode.FIELD,
+                az_wrap_strategy=None,
+                time_on_target=0.0,
                 stop_before_slew=True,
                 wait_settle=True,
                 slew_timeout=240.0,
@@ -351,8 +393,11 @@ class TestMTCS(RemoteGroupTestCase, unittest.IsolatedAsyncioTestCase):
                 rv=0,
                 dRA=0,
                 dDec=0,
-                rot_frame=self.mtcs.RotFrame.TARGET,
+                rot_frame=self.mtcs.RotFrame.FIXED,
+                rot_track_frame=self.mtcs.RotFrame.TARGET,
                 rot_mode=self.mtcs.RotMode.FIELD,
+                az_wrap_strategy=None,
+                time_on_target=0.0,
                 stop_before_slew=True,
                 wait_settle=True,
                 slew_timeout=240.0,
@@ -381,7 +426,10 @@ class TestMTCS(RemoteGroupTestCase, unittest.IsolatedAsyncioTestCase):
                 dRA=0,
                 dDec=0,
                 rot_frame=self.mtcs.RotFrame.FIXED,
+                rot_track_frame=self.mtcs.RotFrame.FIXED,
                 rot_mode=self.mtcs.RotMode.FIELD,
+                az_wrap_strategy=None,
+                time_on_target=0.0,
                 stop_before_slew=True,
                 wait_settle=True,
                 slew_timeout=240.0,
