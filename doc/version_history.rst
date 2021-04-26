@@ -6,6 +6,11 @@
 Version History
 ###############
 
+v0.8.2
+======
+
+* Add filter change (set/get) capability to `ComCam` class.
+
 v0.8.1
 ======
 
