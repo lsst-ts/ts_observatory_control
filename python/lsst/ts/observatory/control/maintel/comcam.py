@@ -235,23 +235,27 @@ class ComCam(BaseCamera):
 
         Parameters
         ----------
-        filter : `None` or `int` or `str`
-            Filter id or name. If None, do not change the filter.
+        filter : `str` or `None`
+            Filter name. If None, do not change the filter.
+
+        Returns
+        -------
+        `self.rem.cccamera.evt_endSetFilter.DataType` or `None`
+            End set filter event data.
         """
-        if filter is None:
-            return
-        else:
-            self.rem.cccamera.cmd_setFilter.set(name=filter)
+        if filter is not None:
             async with self.cmd_lock:
                 self.rem.cccamera.evt_endSetFilter.flush()
-                await self.rem.cccamera.cmd_setFilter.start(
-                    timeout=self.filter_change_timeout
+                await self.rem.cccamera.cmd_setFilter.set_start(
+                    name=filter, timeout=self.filter_change_timeout
                 )
                 end_setFilter = await self.rem.cccamera.evt_endSetFilter.next(
                     flush=False, timeout=self.filter_change_timeout
                 )
                 self.log.info(f"Filter {end_setFilter.filterName} in position.")
                 return end_setFilter
+        else:
+            return None
 
     async def get_current_filter(self):
         """Get the current filter.
@@ -261,23 +265,35 @@ class ComCam(BaseCamera):
         `str`
             The filter in the light path.
         """
-        end_setFilter = await self.rem.cccamera.evt_endSetFilter.aget(
-            timeout=self.fast_timeout
-        )
-        return end_setFilter.filterName
+        try:
+            end_setFilter = await self.rem.cccamera.evt_endSetFilter.aget(
+                timeout=self.fast_timeout
+            )
+            return end_setFilter.filterName
+        except asyncio.TimeoutError:
+            raise RuntimeError(
+                "Could not determine current filter. Either data was never published or historical "
+                "data is not working properly."
+            )
 
     async def get_available_filters(self):
         """Get the list of available filters.
 
         Returns
         -------
-        `str`
-            The set of filters available (colon delimited)
+        `list` of `str`
+            The set of filters available
         """
-        available_filters = await self.rem.cccamera.evt_availableFilters.aget(
-            timeout=self.fast_timeout
-        )
-        return available_filters.filterNames
+        try:
+            available_filters = await self.rem.cccamera.evt_availableFilters.aget(
+                timeout=self.fast_timeout
+            )
+            return available_filters.filterNames.split(":")
+        except asyncio.TimeoutError:
+            raise RuntimeError(
+                "Could not determine available filters. Either data was never published or historical "
+                "data is not working properly."
+            )
 
     @property
     def valid_use_cases(self):
