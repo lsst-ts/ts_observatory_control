@@ -617,14 +617,15 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
             Offset in azimuth (arcsec).
         el : `float`
             Offset in elevation (arcsec).
-        relative : `bool`
+        relative : `bool`, optional
             If `True` (default) offset is applied relative to the current
             position, if `False` offset replaces any existing offsets.
-        persistent : `bool` or `None`
+        persistent : `bool` or `None`, optional (deprecated)
             (Deprecated) Should the offset be absorbed and persisted between
             slews? Use of this parameter is deprecated. Use `absorb` instead.
-        absorb : `bool`
+        absorb : `bool`, optional
             Should the offset be absorbed and persisted between slews?
+            (default: `False`)
 
         See Also
         --------
@@ -751,14 +752,15 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
             Offset in camera x-axis (arcsec).
         y : `float`
             Offset in camera y-axis (arcsec).
-        relative : `bool`
-            If `True` offset is applied relative to the current position, if
-            `False` (default) offset replaces any existing offsets.
-        persistent : `bool` or `None`
+        relative : `bool`, optional
+            If `True` (default) offset is applied relative to the current
+            position, if `False` offset replaces any existing offsets.
+        persistent : `bool` or `None`, optional (deprecated)
             (Deprecated) Should the offset be absorbed and persisted between
             slews? Use of this parameter is deprecated. Use `absorb` instead.
-        absorb : `bool`
+        absorb : `bool`, optional
             Should the offset be absorbed and persisted between slews?
+            (default: `False`)
 
         See Also
         --------
