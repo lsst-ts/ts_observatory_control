@@ -43,6 +43,7 @@ class ComCamMock(BaseGroupMock):
         super().__init__(["CCCamera", "CCHeaderService", "CCArchiver"])
 
         self.cccamera.cmd_takeImages.callback = self.cmd_take_images_callback
+        self.cccamera.cmd_setFilter.callback = self.cmd_setFilter_callback
 
         self.readout_time = 2.0
         self.shutter_time = 1.0
@@ -93,6 +94,17 @@ class ComCamMock(BaseGroupMock):
         self.log.debug("sending LFOA")
         self.ccheaderservice.evt_largeFileObjectAvailable.put()
         self.log.debug("end_readout done")
+
+    async def cmd_setFilter_callback(self, data):
+        """Emulate the setFilter command."""
+        self.end_set_filter_task = asyncio.create_task(self.end_set_filter(data))
+
+    async def end_set_filter(self, data):
+        """Wait for the filter to change and send endSetFilter event."""
+        await asyncio.sleep(1)
+        self.cccamera.evt_endSetFilter.set_put(filterName=data.name)
+        self.log.debug("sending endSetFilter")
+        self.camera_filter = data.name
 
     async def close(self):
         if self.end_readout_task is not None:

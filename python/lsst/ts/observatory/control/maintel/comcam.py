@@ -86,6 +86,7 @@ class ComCam(BaseCamera):
 
         self.read_out_time = 2.0  # readout time (sec)
         self.shutter_time = 1  # time to open or close shutter (sec)
+        self.filter_change_timeout = 60  # time for filter to get into position (sec)
 
         self.valid_imagetype.append("SPOT")
 
@@ -234,13 +235,65 @@ class ComCam(BaseCamera):
 
         Parameters
         ----------
-        filter : `None` or `int` or `str`
-            Filter id or name. If None, do not change the filter.
+        filter : `str` or `None`
+            Filter name. If None, do not change the filter.
+
+        Returns
+        -------
+        `self.rem.cccamera.evt_endSetFilter.DataType` or `None`
+            End set filter event data.
         """
-        if filter is None:
-            return
+        if filter is not None:
+            async with self.cmd_lock:
+                self.rem.cccamera.evt_endSetFilter.flush()
+                await self.rem.cccamera.cmd_setFilter.set_start(
+                    name=filter, timeout=self.filter_change_timeout
+                )
+                end_setFilter = await self.rem.cccamera.evt_endSetFilter.next(
+                    flush=False, timeout=self.filter_change_timeout
+                )
+                self.log.info(f"Filter {end_setFilter.filterName} in position.")
+                return end_setFilter
         else:
-            raise NotImplementedError("set_filter not available yet.")
+            return None
+
+    async def get_current_filter(self):
+        """Get the current filter.
+
+        Returns
+        -------
+        `str`
+            The filter in the light path.
+        """
+        try:
+            end_setFilter = await self.rem.cccamera.evt_endSetFilter.aget(
+                timeout=self.fast_timeout
+            )
+            return end_setFilter.filterName
+        except asyncio.TimeoutError:
+            raise RuntimeError(
+                "Could not determine current filter. Either data was never published or historical "
+                "data is not working properly."
+            )
+
+    async def get_available_filters(self):
+        """Get the list of available filters.
+
+        Returns
+        -------
+        `list` of `str`
+            The set of filters available
+        """
+        try:
+            available_filters = await self.rem.cccamera.evt_availableFilters.aget(
+                timeout=self.fast_timeout
+            )
+            return available_filters.filterNames.split(":")
+        except asyncio.TimeoutError:
+            raise RuntimeError(
+                "Could not determine available filters. Either data was never published or historical "
+                "data is not working properly."
+            )
 
     @property
     def valid_use_cases(self):
@@ -274,20 +327,38 @@ class ComCam(BaseCamera):
                     "settingVersions",
                     "heartbeat",
                 ],
-                cccamera=["takeImages", "setFilter", "endReadout"],
+                cccamera=[
+                    "takeImages",
+                    "setFilter",
+                    "endReadout",
+                    "endSetFilter",
+                    "availableFilters",
+                ],
                 ccheaderservice=["largeFileObjectAvailable"],
             )
 
             usages[self.valid_use_cases.TakeImage] = UsagesResources(
                 components_attr=["cccamera"],
                 readonly=False,
-                cccamera=["takeImages", "setFilter", "endReadout"],
+                cccamera=[
+                    "takeImages",
+                    "setFilter",
+                    "endReadout",
+                    "endSetFilter",
+                    "availableFilters",
+                ],
             )
 
             usages[self.valid_use_cases.TakeImageFull] = UsagesResources(
                 components_attr=["cccamera", "ccheaderservice"],
                 readonly=False,
-                cccamera=["takeImages", "setFilter", "endReadout"],
+                cccamera=[
+                    "takeImages",
+                    "setFilter",
+                    "endReadout",
+                    "endSetFilter",
+                    "availableFilters",
+                ],
                 ccheaderservice=["largeFileObjectAvailable"],
             )
 

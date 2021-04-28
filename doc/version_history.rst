@@ -6,6 +6,15 @@
 Version History
 ###############
 
+v0.8.2
+======
+
+* Add filter change (set/get) capability to ``ComCam`` class.
+* Add offline function for ``RemoteGroup``.
+* Fix/update docstring in ``BaseTCS.offset_xy`` and ``offset_azel``.
+  Default value for relative parameter is `True` and docstring in offset_xy said it was `False`.
+
+
 v0.8.1
 ======
 
