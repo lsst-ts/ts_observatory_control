@@ -723,6 +723,11 @@ class RemoteGroup:
 
         await self.set_state(salobj.State.STANDBY)
 
+    async def offline(self):
+        """Put all CSCs in offline."""
+
+        await self.set_state(salobj.State.OFFLINE)
+
     def set_rem_loglevel(self, level):
         """Set remotes log level.
 
