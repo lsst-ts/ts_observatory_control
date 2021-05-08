@@ -6,6 +6,13 @@
 Version History
 ###############
 
+v0.8.3
+======
+
+* Update close method in ``RemoteGroup`` to only close the domain if it was not given by the user.
+* In ``ATCS.close_m1_cover``, flush ``m1CoverState`` before sending the command.
+* Update ``MTCSUsages.All`` to include missing events/telemetry.
+
 v0.8.2
 ======
 

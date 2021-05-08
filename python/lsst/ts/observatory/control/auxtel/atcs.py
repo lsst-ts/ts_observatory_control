@@ -936,6 +936,8 @@ class ATCS(BaseTCS):
                     wait_dome=False,
                 )
 
+            self.rem.atpneumatics.evt_m1CoverState.flush()
+
             await self.rem.atpneumatics.cmd_closeM1Cover.start(
                 timeout=self.long_timeout
             )
