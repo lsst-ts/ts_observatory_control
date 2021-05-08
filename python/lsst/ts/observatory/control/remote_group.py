@@ -239,7 +239,9 @@ class RemoteGroup:
             ]
         )
 
-        self.domain = domain if domain is not None else salobj.Domain()
+        self.domain, self._close_domain = (
+            (domain, False) if domain is not None else (salobj.Domain(), True)
+        )
 
         self._usages = None
 
@@ -900,7 +902,8 @@ class RemoteGroup:
                 if getattr(self.rem, c) is not None
             ]
         )
-        await self.domain.close()
+        if self._close_domain:
+            await self.domain.close()
 
     async def __aenter__(self):
         await self.start_task
