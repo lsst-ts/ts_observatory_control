@@ -642,17 +642,20 @@ class MTCS(BaseTCS):
                 ],
                 mtptg=[
                     "azElTarget",
-                    "raDecTarget",
-                    "planetTarget",
-                    "stopTracking",
+                    "focusNameSelected",
                     "offsetAzEl",
                     "offsetRADec",
+                    "planetTarget",
                     "pointAddData",
                     "pointNewFile",
-                    "pointAddData",
+                    "raDecTarget",
+                    "stopTracking",
+                    "target",
                     "timeAndDate",
-                    "focusNameSelected",
                 ],
+                mtrotator=["rotation", "inPosition"],
+                mtmount=["azimuth", "elevation", "axesInPosition"],
+                mtdome=["azimuth", "lightWindScreen"],
             )
 
             usages[self.valid_use_cases.Slew] = UsagesResources(
