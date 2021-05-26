@@ -165,6 +165,7 @@ class ATCS(BaseTCS):
             self.rem.atmcs.evt_target.callback = self.atmcs_target_callback
 
         self.dome_az_in_position = asyncio.Event()
+        self.dome_az_in_position.set()
 
     async def mount_AzEl_Encoders_callback(self, data):
         """Callback function to update the telescope position telemetry
