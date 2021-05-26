@@ -110,6 +110,7 @@ class ATCSMock(BaseGroupMock):
         self.atptg.cmd_azElTarget.callback = self.slew_callback
         self.atptg.cmd_planetTarget.callback = self.slew_callback
         self.atptg.cmd_stopTracking.callback = self.stop_tracking_callback
+        self.atptg.cmd_poriginOffset.callback = self.generic_callback
 
         self.atdome.cmd_moveAzimuth.callback = self.move_dome
 

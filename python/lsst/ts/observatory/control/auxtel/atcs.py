@@ -1044,7 +1044,12 @@ class ATCS(BaseTCS):
             )
 
     async def _slew_to(
-        self, slew_cmd, slew_timeout, stop_before_slew=True, wait_settle=True
+        self,
+        slew_cmd,
+        slew_timeout,
+        offset_cmd=None,
+        stop_before_slew=True,
+        wait_settle=True,
     ):
         """Encapsulate "slew" activities.
 
@@ -1080,6 +1085,8 @@ class ATCS(BaseTCS):
 
         await slew_cmd.start(timeout=slew_timeout)
         self.dome_az_in_position.clear()
+        if offset_cmd is not None:
+            await offset_cmd.start(timeout=self.fast_timeout)
 
         self.log.debug("Scheduling check coroutines")
 
