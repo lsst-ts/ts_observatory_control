@@ -114,6 +114,8 @@ class ATCSMock(BaseGroupMock):
 
         self.atdome.cmd_moveAzimuth.callback = self.move_dome
 
+        self.atdometrajectory.cmd_setFollowingMode.callback = self.generic_callback
+
         self.ataos_corrections = {
             "m1",
             "m2",

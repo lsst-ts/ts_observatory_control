@@ -1023,6 +1023,33 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
             )
         return self._ready_to_take_data_future
 
+    async def enable_dome_following(self):
+        """Enabled dome following mode."""
+
+        if getattr(self.check, self.dome_trajectory_name):
+            self.log.debug("Enable dome trajectory following.")
+
+            await getattr(
+                self.rem, self.dome_trajectory_name
+            ).cmd_setFollowingMode.set_start(enable=True, timeout=self.fast_timeout)
+        else:
+            self.log.warning(
+                "Dome trajectory check disable. Will not enable following."
+            )
+
+    async def disable_dome_following(self):
+        """Disable dome following mode."""
+        if getattr(self.check, self.dome_trajectory_name):
+            self.log.debug("Enable dome trajectory following.")
+
+            await getattr(
+                self.rem, self.dome_trajectory_name
+            ).cmd_setFollowingMode.set_start(enable=False, timeout=self.fast_timeout)
+        else:
+            self.log.warning(
+                "Dome trajectory check disable. Will not enable following."
+            )
+
     def azel_from_radec(self, ra, dec, time=None):
         """Calculate Az/El coordinates from RA/Dec in ICRS.
 
@@ -1348,6 +1375,12 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
     @abc.abstractmethod
     def ptg_name(self):
         """Return name of the pointing component."""
+        raise NotImplementedError()
+
+    @property
+    @abc.abstractmethod
+    def dome_trajectory_name(self):
+        """Return name of the DomeTrajectory component."""
         raise NotImplementedError()
 
     @property

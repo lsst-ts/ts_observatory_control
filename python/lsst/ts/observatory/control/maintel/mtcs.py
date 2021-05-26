@@ -597,6 +597,11 @@ class MTCS(BaseTCS):
         return "mtptg"
 
     @property
+    def dome_trajectory_name(self):
+        """Return name of the DomeTrajectory component."""
+        return "mtdometrajectory"
+
+    @property
     def CoordFrame(self):
         """Return CoordFrame enumeration."""
         return MTPtg.CoordFrame

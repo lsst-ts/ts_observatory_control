@@ -268,11 +268,7 @@ class ATCS(BaseTCS):
                 "Make sure it is clear to operate the dome before doing so."
             )
 
-        self.log.warning(
-            "Sending ATDomeTrajectory to DISABED state. Component will be left in DISABLED"
-            "state or else it may send the ATDome back to alignment with the telescope."
-        )
-        await salobj.set_summary_state(self.rem.atdometrajectory, salobj.State.DISABLED)
+        await self.disable_dome_following()
 
         self.rem.atdome.evt_azimuthInPosition.flush()
 
@@ -284,7 +280,6 @@ class ATCS(BaseTCS):
         # This is operating in a copy of the SimpleNamespace, so it is ok to
         # edit here and let it as is.
         _check.atmcs = False
-        _check.atdometrajectory = False
 
         task_list = [
             asyncio.create_task(
@@ -320,7 +315,7 @@ class ATCS(BaseTCS):
         check_bckup = copy.copy(self.check) if check is None else copy.copy(check)
         check_ops = copy.copy(self.check) if check is None else copy.copy(check)
 
-        await salobj.set_summary_state(self.rem.atdometrajectory, salobj.State.DISABLED)
+        await self.disable_dome_following()
 
         await self.open_m1_cover()
 
@@ -421,9 +416,10 @@ class ATCS(BaseTCS):
 
         await self.enable(settings=settings)
 
+        await self.disable_dome_following()
+
         self.log.debug("Slew telescope to park position.")
-        self.check.atdometrajectory = False
-        atdome_check = self.check.atdome
+
         await self.point_azel(
             target_name="Park position",
             az=self.tel_park_az,
@@ -431,7 +427,6 @@ class ATCS(BaseTCS):
             rot_tel=self.tel_park_rot,
             wait_dome=False,
         )
-        self.check.atdome = atdome_check
 
         try:
             await self.stop_tracking()
@@ -484,7 +479,7 @@ class ATCS(BaseTCS):
             await self.open_m1_cover()
             await self.open_m1_vent()
 
-        await self.enable(settings=settings)
+        await self.enable_dome_following()
 
         if self.check.ataos:
             self.log.info("Enable ATAOS corrections.")
@@ -552,15 +547,12 @@ class ATCS(BaseTCS):
                 "Skipping closing dome shutter and slewing dome to park position."
             )
 
-        self.log.info("Disable ATDomeTrajectory")
-
-        await salobj.set_summary_state(self.rem.atdometrajectory, salobj.State.DISABLED)
+        await self.disable_dome_following()
 
         if check.atmcs:
             self.log.debug("Slew telescope to Park position.")
 
             try:
-                self.check.atdometrajectory = False
                 await self.point_azel(
                     target_name="Park position",
                     az=self.tel_park_az,
@@ -1676,6 +1668,11 @@ class ATCS(BaseTCS):
     def ptg_name(self):
         """Return name of the pointing component."""
         return "atptg"
+
+    @property
+    def dome_trajectory_name(self):
+        """Return name of the DomeTrajectory component."""
+        return "atdometrajectory"
 
     @property
     def CoordFrame(self):
