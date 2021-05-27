@@ -6,6 +6,15 @@
 Version History
 ###############
 
+v0.9.0
+======
+
+* Implement general purpose utility method in ``RemoteGroup`` to get components heartbeats and check liveliness of the group.
+* Add ``enable_dome_following`` and ``disable_dome_following`` int ``BaseTCS`` to use new  ``ATDomeTrajectory`` ``setFollowingMode`` command.
+  * Implement new enable/disable dome following in ``ATCS`` class.
+* Set event specifying that dome is in position.
+* Implement offset_x/offset_y functionality in slew commands so users can specify an offset from the original slew position.
+
 v0.8.3
 ======
 

@@ -159,6 +159,8 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
         rot_type=RotType.SkyAuto,
         dra=0.0,
         ddec=0.0,
+        offset_x=0.0,
+        offset_y=0.0,
         az_wrap_strategy=None,
         time_on_target=0.0,
         slew_timeout=240.0,
@@ -189,6 +191,10 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
             Differential Track Rate in RA (second/second). Default is 0.
         ddec : `float`, optional
             Differential Track Rate in Dec (arcsec/second). Default is 0.
+        offset_x : `float`, optional
+            Apply offset to original slew position (in arcsec).
+        offset_y : `float`, optional
+            Apply offset to original slew position (in arcsec).
         az_wrap_strategy : `azWrapStrategy` or `None`, optional
             Azimuth wrap strategy. By default use `maxTimeOnTarget=3`, which
             attempts to maximize the time on target. Other options are;
@@ -223,6 +229,10 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
             target_name=name,
             dra=dra,
             ddec=ddec,
+            offset_x=offset_x,
+            offset_y=offset_y,
+            az_wrap_strategy=az_wrap_strategy,
+            time_on_target=time_on_target,
             slew_timeout=slew_timeout,
         )
 
@@ -235,6 +245,8 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
         target_name="slew_icrs",
         dra=0.0,
         ddec=0.0,
+        offset_x=0.0,
+        offset_y=0.0,
         az_wrap_strategy=None,
         time_on_target=0.0,
         slew_timeout=240.0,
@@ -275,6 +287,10 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
             Differential Track Rate in RA (second/second). Default is 0.
         ddec : `float`, optional
             Differential Track Rate in Dec (arcsec/second). Default is 0.
+        offset_x : `float`, optional
+            Apply offset to original slew position (in arcsec).
+        offset_y : `float`, optional
+            Apply offset to original slew position (in arcsec).
         az_wrap_strategy : `azWrapStrategy` or `None`, optional
             Azimuth wrap strategy. By default use `maxTimeOnTarget=3`, which
             attempts to maximize the time on target. Other options are;
@@ -403,6 +419,8 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
             slew_timeout=slew_timeout,
             stop_before_slew=stop_before_slew,
             wait_settle=wait_settle,
+            offset_x=offset_x,
+            offset_y=offset_y,
         )
 
         return radec_icrs, rot_angle
@@ -430,6 +448,8 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
         slew_timeout=1200.0,
         stop_before_slew=True,
         wait_settle=True,
+        offset_x=0.0,
+        offset_y=0.0,
     ):
         """Slew the telescope and start tracking an Ra/Dec target.
 
@@ -542,10 +562,17 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
                     f"Recived {rot_track_frame!r}. Rotator tracking frame only available in xml 8 and up."
                 )
 
+        getattr(self.rem, self.ptg_name).cmd_poriginOffset.set(
+            dx=offset_x * self.plate_scale,
+            dy=offset_y * self.plate_scale,
+            num=0,
+        )
+
         try:
             await self._slew_to(
                 getattr(self.rem, self.ptg_name).cmd_raDecTarget,
                 slew_timeout=slew_timeout,
+                offset_cmd=getattr(self.rem, self.ptg_name).cmd_poriginOffset,
                 stop_before_slew=stop_before_slew,
                 wait_settle=wait_settle,
             )
@@ -996,6 +1023,33 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
             )
         return self._ready_to_take_data_future
 
+    async def enable_dome_following(self):
+        """Enabled dome following mode."""
+
+        if getattr(self.check, self.dome_trajectory_name):
+            self.log.debug("Enable dome trajectory following.")
+
+            await getattr(
+                self.rem, self.dome_trajectory_name
+            ).cmd_setFollowingMode.set_start(enable=True, timeout=self.fast_timeout)
+        else:
+            self.log.warning(
+                "Dome trajectory check disable. Will not enable following."
+            )
+
+    async def disable_dome_following(self):
+        """Disable dome following mode."""
+        if getattr(self.check, self.dome_trajectory_name):
+            self.log.debug("Enable dome trajectory following.")
+
+            await getattr(
+                self.rem, self.dome_trajectory_name
+            ).cmd_setFollowingMode.set_start(enable=False, timeout=self.fast_timeout)
+        else:
+            self.log.warning(
+                "Dome trajectory check disable. Will not enable following."
+            )
+
     def azel_from_radec(self, ra, dec, time=None):
         """Calculate Az/El coordinates from RA/Dec in ICRS.
 
@@ -1211,17 +1265,25 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
 
     @abc.abstractmethod
     async def _slew_to(
-        self, slew_cmd, slew_timeout, stop_before_slew=True, wait_settle=True
+        self,
+        slew_cmd,
+        slew_timeout,
+        offset_cmd=None,
+        stop_before_slew=True,
+        wait_settle=True,
     ):
         """Encapsulate "slew" activities.
 
         Parameters
         ----------
         slew_cmd: `coro`
-            One of the slew commands from the atptg remote. Command need to be
+            One of the slew commands from the ptg remote. Command need to be
             setup before calling this method.
         slew_time: `float`
             Expected slew time in seconds.
+        offset_cmd: `coro`
+            One of the offset commands from the ptg remote. Command need to be
+            setup before calling this method.
         stop_before_slew: `bool`
             Stop tracking before slewing?
         wait_settle: `bool`
@@ -1313,6 +1375,12 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
     @abc.abstractmethod
     def ptg_name(self):
         """Return name of the pointing component."""
+        raise NotImplementedError()
+
+    @property
+    @abc.abstractmethod
+    def dome_trajectory_name(self):
+        """Return name of the DomeTrajectory component."""
         raise NotImplementedError()
 
     @property

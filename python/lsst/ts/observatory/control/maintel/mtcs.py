@@ -130,7 +130,12 @@ class MTCS(BaseTCS):
         self._dome_el_in_position.clear()
 
     async def _slew_to(
-        self, slew_cmd, slew_timeout, stop_before_slew=True, wait_settle=True
+        self,
+        slew_cmd,
+        slew_timeout,
+        offset_cmd=None,
+        stop_before_slew=True,
+        wait_settle=True,
     ):
         """Encapsulate "slew" activities.
 
@@ -177,6 +182,8 @@ class MTCS(BaseTCS):
 
         await slew_cmd.start(timeout=slew_timeout)
         self._dome_az_in_position.clear()
+        if offset_cmd is not None:
+            await offset_cmd.start(timeout=self.fast_timeout)
 
         self.log.debug("Scheduling check coroutines")
 
@@ -588,6 +595,11 @@ class MTCS(BaseTCS):
     def ptg_name(self):
         """Return name of the pointing component."""
         return "mtptg"
+
+    @property
+    def dome_trajectory_name(self):
+        """Return name of the DomeTrajectory component."""
+        return "mtdometrajectory"
 
     @property
     def CoordFrame(self):

@@ -124,14 +124,21 @@ class TestBaseGroup(RemoteGroupTestCase, unittest.IsolatedAsyncioTestCase):
             usage=Usages.StateTransition + Usages.MonitorHeartBeat
         ):
 
+            # Check get heartbeat
+            for comp in self.basegroup.components_attr:
+                with self.subTest(msg=f"Check get heartbeat from {comp}.", comp=comp):
+                    await self.basegroup.get_heartbeat(comp)
+
+            # Check next heartbeat
+            for comp in self.basegroup.components_attr:
+                with self.subTest(msg=f"Check next heartbeat from {comp}.", comp=comp):
+                    await self.basegroup.next_heartbeat(comp)
+
             # Check that all CSCs go to enable State
             await self.basegroup.enable({})
 
             for comp in self.basegroup.components_attr:
                 with self.subTest(msg=f"Check {comp} is enable", component=comp):
-                    await getattr(self.basegroup.rem, comp).evt_heartbeat.next(
-                        flush=True, timeout=HB_TIMEOUT
-                    )
                     ss = await self.basegroup.get_state(comp)
                     self.assertEqual(ss, salobj.State.ENABLED)
 
@@ -140,11 +147,22 @@ class TestBaseGroup(RemoteGroupTestCase, unittest.IsolatedAsyncioTestCase):
 
             for comp in self.basegroup.components_attr:
                 with self.subTest(msg=f"Check {comp} is in standby", component=comp):
-                    await getattr(self.basegroup.rem, comp).evt_heartbeat.next(
-                        flush=True, timeout=HB_TIMEOUT
-                    )
                     ss = await self.basegroup.get_state(comp)
                     self.assertEqual(ss, salobj.State.STANDBY)
+
+            # Test assert liveliness
+            await self.basegroup.assert_liveliness()
+
+            # Send one CSC to offline and make sure it raises an exception
+            await self.basegroup.set_state(salobj.State.OFFLINE, components=["test_1"])
+
+            with self.assertRaises(AssertionError):
+                await self.basegroup.assert_liveliness()
+
+            # Now check that if I ignore the offline component it works again
+            self.basegroup.check.test_1 = False
+
+            await self.basegroup.assert_liveliness()
 
 
 if __name__ == "__main__":
