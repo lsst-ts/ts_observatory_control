@@ -286,6 +286,20 @@ class RemoteGroup:
             ]
         )
 
+    def components_to_check(self):
+        """Return components for which check is enabled.
+
+        Returns
+        -------
+        `list` of `str`
+            Components to check.
+        """
+        return [
+            component
+            for component in self.components_attr
+            if getattr(self.check, component)
+        ]
+
     def get_required_resources(self, component, intended_usage):
         """Return the required resources based on the intended usage of the
         class.
@@ -460,6 +474,54 @@ class RemoteGroup:
                 self.log.debug(f"{component}: {state!r}")
             data = await state_topic.next(flush=False)
 
+    async def get_heartbeat(self, component):
+        """Get last heartbeat for component.
+
+        Parameters
+        ----------
+        component : `str`
+            Name of the component.
+
+        Returns
+        -------
+        heartbeat
+            Last component heartbeat.
+        """
+        try:
+            heartbeat = await getattr(self.rem, component).evt_heartbeat.aget(
+                timeout=self.fast_timeout
+            )
+        except asyncio.TimeoutError:
+            raise asyncio.TimeoutError(
+                "No new or historical heartbeat from {component} received."
+            )
+        else:
+            return heartbeat
+
+    async def next_heartbeat(self, component):
+        """Get next heartbeat for component.
+
+        Parameters
+        ----------
+        component : `str`
+            Name of the component.
+
+        Returns
+        -------
+        heartbeat
+            Last component heartbeat.
+        """
+        try:
+            heartbeat = await getattr(self.rem, component).evt_heartbeat.next(
+                flush=True, timeout=self.fast_timeout
+            )
+        except asyncio.TimeoutError:
+            raise asyncio.TimeoutError(
+                "No new heartbeat from {component} in the last {self.fast_timeout} seconds."
+            )
+        else:
+            return heartbeat
+
     async def check_comp_heartbeat(self, component):
         """Monitor heartbeats from the specified component and raises and
         exception if not.
@@ -492,6 +554,36 @@ class RemoteGroup:
                 raise RuntimeError(
                     f"No heartbeat from {component} received in {self.fast_timeout}s."
                 )
+
+    async def assert_liveliness(self):
+        """Assert liveliness of components belonging to the group.
+
+        The assertion is done by waiting for a new heartbeat from the
+        component. The `check` feature will apply to the assertion so
+        components marked with `check=False` will be skipped.
+
+        Raises
+        ------
+        AssertionError
+            If cannot get heartbeat for one or more components.
+        """
+
+        components_to_check = self.components_to_check()
+
+        components_heartbeat = await asyncio.gather(
+            *[self.next_heartbeat(component) for component in components_to_check],
+            return_exceptions=True,
+        )
+
+        components_liveliness = dict(zip(components_to_check, components_heartbeat))
+
+        exceptions = [
+            component
+            for component in components_liveliness
+            if isinstance(components_liveliness[component], asyncio.TimeoutError)
+        ]
+
+        assert len(exceptions) == 0, f"No heartbeat from {exceptions}."
 
     async def inspect_settings(self, components_attr=None):
         """Return available settings.

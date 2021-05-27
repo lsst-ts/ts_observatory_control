@@ -369,6 +369,8 @@ class TestMTCS(RemoteGroupTestCase, unittest.IsolatedAsyncioTestCase):
                 stop_before_slew=True,
                 wait_settle=True,
                 slew_timeout=240.0,
+                offset_x=0.0,
+                offset_y=0.0,
             )
 
             self.mtcs.slew.reset_mock()
@@ -401,6 +403,8 @@ class TestMTCS(RemoteGroupTestCase, unittest.IsolatedAsyncioTestCase):
                 stop_before_slew=True,
                 wait_settle=True,
                 slew_timeout=240.0,
+                offset_x=0.0,
+                offset_y=0.0,
             )
 
             self.mtcs.slew.reset_mock()
@@ -433,6 +437,8 @@ class TestMTCS(RemoteGroupTestCase, unittest.IsolatedAsyncioTestCase):
                 stop_before_slew=True,
                 wait_settle=True,
                 slew_timeout=240.0,
+                offset_x=0.0,
+                offset_y=0.0,
             )
 
             # TODO: (DM-21336) Test a couple of failure situations.
