@@ -22,6 +22,7 @@ __all__ = ["BaseGroupMock"]
 
 import types
 import asyncio
+import logging
 import functools
 
 from lsst.ts import salobj
@@ -54,6 +55,8 @@ class BaseGroupMock:
     """
 
     def __init__(self, components, output_only=()):
+
+        self.log = logging.getLogger(type(self).__name__)
 
         self._components = components
 
@@ -203,6 +206,8 @@ class BaseGroupMock:
 
         ss.set_put(summaryState=salobj.State.ENABLED)
 
+        self.publish_detailed_state(comp, ss.data.summaryState)
+
         await asyncio.sleep(HEARTBEAT_INTERVAL)
 
     async def get_disable_callback(self, data, comp):
@@ -216,6 +221,8 @@ class BaseGroupMock:
         print(f"[{comp}] {ss.data.summaryState!r} -> {salobj.State.DISABLED!r}")
 
         ss.set_put(summaryState=salobj.State.DISABLED)
+
+        self.publish_detailed_state(comp, ss.data.summaryState)
 
         await asyncio.sleep(HEARTBEAT_INTERVAL)
 
@@ -232,6 +239,8 @@ class BaseGroupMock:
 
         ss.set_put(summaryState=salobj.State.STANDBY)
 
+        self.publish_detailed_state(comp, ss.data.summaryState)
+
         await asyncio.sleep(HEARTBEAT_INTERVAL)
 
     async def get_exitControl_callback(self, data, comp):
@@ -247,6 +256,8 @@ class BaseGroupMock:
         print(f"[{comp}] {ss.data.summaryState!r} -> {salobj.State.OFFLINE!r}")
 
         ss.set_put(summaryState=salobj.State.OFFLINE)
+
+        self.publish_detailed_state(comp, ss.data.summaryState)
 
         await self.check_done()
 
@@ -266,7 +277,19 @@ class BaseGroupMock:
 
         ss.set_put(summaryState=salobj.State.STANDBY)
 
+        self.publish_detailed_state(comp, ss.data.summaryState)
+
         await asyncio.sleep(HEARTBEAT_INTERVAL)
+
+    def publish_detailed_state(self, component, detailed_state):
+
+        if hasattr(getattr(self.controllers, component), "evt_detailedState"):
+            try:
+                getattr(self.controllers, component).evt_detailedState.set_put(
+                    detailedState=salobj.State.ENABLED
+                )
+            except Exception:
+                self.log.exception("Cannot publish detailed state.")
 
     async def check_done(self):
         """If all CSCs are in OFFLINE state, close group mock."""
