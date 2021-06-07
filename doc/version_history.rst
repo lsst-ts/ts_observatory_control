@@ -6,6 +6,11 @@
 Version History
 ###############
 
+v0.9.1
+======
+
+* Update emulators to publish data useful for INRIA.
+
 v0.9.0
 ======
 

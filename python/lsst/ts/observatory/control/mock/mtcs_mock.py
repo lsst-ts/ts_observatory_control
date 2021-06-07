@@ -23,6 +23,7 @@ __all__ = ["MTCSMock"]
 import asyncio
 
 from .base_group_mock import BaseGroupMock
+from .m1m3_topic_samples import get_m1m3_topic_samples_data
 
 from lsst.ts import salobj
 
@@ -32,7 +33,7 @@ import numpy as np
 from astropy.time import Time
 from astropy.coordinates import AltAz, ICRS, EarthLocation, Angle
 
-from lsst.ts.idl.enums import MTPtg
+from lsst.ts.idl.enums import MTPtg, MTMount
 
 LONG_TIMEOUT = 30  # seconds
 HEARTBEAT_INTERVAL = 1  # seconds
@@ -68,6 +69,16 @@ class MTCSMock(BaseGroupMock):
         self.location = EarthLocation.from_geodetic(
             lon=-70.747698 * u.deg, lat=-30.244728 * u.deg, height=2663.0 * u.m
         )
+
+        self.m1m3_accelerometer_error = 1e-3
+        self.m1m3_breakaway_lvdt = 5.0
+        self.m1m3_displacement_lvdt = 0.0
+        self.m1m3_breakaway_pressure = 110.0
+        self.m1m3_pressure_sensor_1 = 1.0
+        self.m1m3_pressure_sensor_2 = 1.0
+        self.m1m3_pressure_sensor_3 = 1.0
+
+        self.m1m3_force_actuator_state = dict()
 
         self.tracking = False
         self.acting = False
@@ -196,8 +207,18 @@ class MTCSMock(BaseGroupMock):
         self.task_list.append(asyncio.create_task(self.rotator_telemetry()))
         self.task_list.append(asyncio.create_task(self.mtptg_telemetry()))
         self.task_list.append(asyncio.create_task(self.dome_telemetry()))
+        self.task_list.append(asyncio.create_task(self.m1m3_telemetry()))
 
     async def mount_telemetry(self):
+
+        self.controllers.mtmount.evt_axesState.set_put(
+            elevation=MTMount.AxisState.IDLE, azimuth=MTMount.AxisState.IDLE
+        )
+        self.controllers.mtmount.evt_cameraCableWrapState.set_put(
+            state=MTMount.AxisState.IDLE
+        )
+        self.controllers.mtmount.evt_cameraCableWrapFollowing.set_put(enabled=True)
+        self.controllers.mtmount.evt_connected.set_put(command=True, replies=True)
 
         while self.run_telemetry_loop:
             if (
@@ -221,6 +242,12 @@ class MTCSMock(BaseGroupMock):
                             self.mtmount_actual_position_name: 0.0,
                         }
                     )
+
+                if not self.controllers.mtmount.tel_elevationDrives.has_data:
+                    self.controllers.mtmount.tel_elevationDrives.set()
+
+                if not self.controllers.mtmount.tel_azimuthDrives.has_data:
+                    self.controllers.mtmount.tel_azimuthDrives.set()
 
                 if not self.controllers.mtmount.evt_target.has_data:
                     self.controllers.mtmount.evt_target.set()
@@ -252,10 +279,36 @@ class MTCSMock(BaseGroupMock):
                 in_position_azimuth = np.abs(az_dif) < 1e-1 * u.deg
 
                 if self.acting:
+                    self.controllers.mtmount.evt_axesState.set_put(
+                        elevation=MTMount.AxisState.TRACKING,
+                        azimuth=MTMount.AxisState.TRACKING,
+                    )
+                    self.controllers.mtmount.evt_cameraCableWrapState.set_put(
+                        state=MTMount.AxisState.TRACKING,
+                    )
+
                     self.controllers.mtmount.evt_axesInPosition.set_put(
                         elevation=in_position_elevation, azimuth=in_position_azimuth
                     )
-
+                elif (
+                    self.controllers.mtmount.evt_axesState.data.elevation
+                    == MTMount.AxisState.TRACKING
+                ):
+                    self.controllers.mtmount.evt_axesState.set_put(
+                        elevation=MTMount.AxisState.STOPPING,
+                        azimuth=MTMount.AxisState.STOPPING,
+                    )
+                    self.controllers.mtmount.evt_cameraCableWrapState.set_put(
+                        state=MTMount.AxisState.STOPPING,
+                    )
+                else:
+                    self.controllers.mtmount.evt_axesState.set_put(
+                        elevation=MTMount.AxisState.ENABLED,
+                        azimuth=MTMount.AxisState.ENABLED,
+                    )
+                    self.controllers.mtmount.evt_cameraCableWrapState.set_put(
+                        state=MTMount.AxisState.ENABLED,
+                    )
                 # The following computation of angleActual is to emulate a
                 # trajectory. At every loop it adds three factors:
                 #   1 - the currect position
@@ -282,11 +335,64 @@ class MTCSMock(BaseGroupMock):
                     }
                 )
 
+                self.controllers.mtmount.tel_azimuthDrives.set_put(
+                    current=np.random.normal(
+                        loc=0.5,
+                        scale=0.01,
+                        size=len(
+                            self.controllers.mtmount.tel_azimuthDrives.data.current
+                        ),
+                    ),
+                    timestamp=salobj.current_tai(),
+                )
+
+                self.controllers.mtmount.tel_elevationDrives.set_put(
+                    current=np.random.normal(
+                        loc=0.5,
+                        scale=0.01,
+                        size=len(
+                            self.controllers.mtmount.tel_elevationDrives.data.current
+                        ),
+                    ),
+                    timestamp=salobj.current_tai(),
+                )
+
+                self.controllers.mtmount.tel_cameraCableWrap.set_put(
+                    actualPosition=self.controllers.mtrotator.tel_rotation.data.actualPosition,
+                    timestamp=salobj.current_tai(),
+                )
+                self.controllers.mtmount.evt_cameraCableWrapTarget.set_put(
+                    position=self.controllers.mtrotator.tel_rotation.data.actualPosition,
+                    taiTime=salobj.current_tai(),
+                    force_output=True,
+                )
+
                 self.controllers.mtmount.evt_target.put()
 
             await asyncio.sleep(HEARTBEAT_INTERVAL)
 
     async def rotator_telemetry(self):
+
+        self.controllers.mtrotator.tel_electrical.set_put()
+        self.controllers.mtrotator.evt_connected.set_put(command=True, telemetry=True)
+        self.controllers.mtrotator.evt_configuration.set_put(
+            positionAngleUpperLimit=90.0,
+            velocityLimit=3.0,
+            accelerationLimit=1.0,
+            positionErrorThreshold=0.0,
+            positionAngleLowerLimit=-90.0,
+            followingErrorThreshold=0.1,
+            trackingSuccessPositionThreshold=0.01,
+            trackingLostTimeout=5.0,
+        )
+        self.controllers.mtrotator.evt_controllerState.set_put(
+            controllerState=0,
+            offlineSubstate=1,
+            enabledSubstate=0,
+            applicationStatus=1024,
+        )
+
+        self.controllers.mtrotator.evt_interlock.set_put(detail="Disengaged")
 
         while self.run_telemetry_loop:
             if (
@@ -309,10 +415,32 @@ class MTCSMock(BaseGroupMock):
                     actualPosition=position + error + dif.deg / 1.1
                 )
 
+                self.controllers.mtrotator.tel_motors.set_put(
+                    calibrated=np.zeros(2)
+                    + self.controllers.mtrotator.tel_rotation.data.actualPosition,
+                    raw=27.4e6
+                    * (
+                        np.zeros(2)
+                        + self.controllers.mtrotator.tel_rotation.data.actualPosition
+                    ),
+                )
+
+                self.controllers.mtrotator.tel_ccwFollowingError.set_put(
+                    timestamp=salobj.current_tai()
+                )
+
                 if self.acting:
+                    self.controllers.mtrotator.evt_target.set_put(
+                        position=position,
+                        velocity=0.0,
+                        tai=salobj.current_tai(),
+                    )
+                    self.controllers.mtrotator.evt_tracking.set_put(tracking=True)
                     self.controllers.mtrotator.evt_inPosition.set_put(
                         inPosition=np.abs(dif) < ROT_IN_POSITION_DELTA
                     )
+                else:
+                    self.controllers.mtrotator.evt_tracking.set_put(tracking=False)
 
             await asyncio.sleep(HEARTBEAT_INTERVAL)
 
@@ -437,3 +565,225 @@ class MTCSMock(BaseGroupMock):
                     )
 
             await asyncio.sleep(HEARTBEAT_INTERVAL)
+
+    async def m1m3_telemetry(self):
+
+        await self.publish_m1m3_topic_samples()
+
+        while self.run_telemetry_loop:
+            if (
+                self.controllers.mtm1m3.evt_summaryState.data.summaryState
+                == salobj.State.ENABLED
+            ):
+
+                accelerometer_data = (
+                    self.controllers.mtm1m3.tel_accelerometerData.DataType()
+                )
+
+                accelerometer_data.timestamp = salobj.current_tai()
+
+                raw_accelerometer = np.sin(
+                    np.radians(
+                        getattr(
+                            self.controllers.mtmount.tel_elevation.data,
+                            self.mtmount_demand_position_name,
+                        )
+                    )
+                )
+
+                accelerometer_data.rawAccelerometer = np.random.normal(
+                    loc=raw_accelerometer,
+                    scale=self.m1m3_accelerometer_error,
+                    size=len(accelerometer_data.rawAccelerometer),
+                )
+
+                accelerometer_data.accelerometer = accelerometer_data.rawAccelerometer
+
+                self.controllers.mtm1m3.tel_accelerometerData.put(accelerometer_data)
+
+                force_actuator_data = (
+                    self.controllers.mtm1m3.tel_forceActuatorData.DataType()
+                )
+
+                force_actuator_data.timestamp = salobj.current_tai()
+
+                force_actuator_data.primaryCylinderForce = np.random.rand(
+                    len(force_actuator_data.primaryCylinderForce)
+                )
+                force_actuator_data.secondaryCylinderForce = np.random.rand(
+                    len(force_actuator_data.secondaryCylinderForce)
+                )
+                force_actuator_data.xForce = np.random.rand(
+                    len(force_actuator_data.xForce)
+                )
+                force_actuator_data.yForce = np.random.rand(
+                    len(force_actuator_data.yForce)
+                )
+                force_actuator_data.zForce = np.random.rand(
+                    len(force_actuator_data.zForce)
+                )
+                force_actuator_data.fx = np.random.rand()
+                force_actuator_data.fy = np.random.rand()
+                force_actuator_data.fz = np.random.rand()
+                force_actuator_data.mx = np.random.rand()
+                force_actuator_data.my = np.random.rand()
+                force_actuator_data.mz = np.random.rand()
+
+                force_actuator_data.forceMagnitude = np.sqrt(
+                    force_actuator_data.fx ** 2
+                    + force_actuator_data.fy ** 2
+                    + force_actuator_data.fz ** 2
+                )
+
+                self.controllers.mtm1m3.tel_forceActuatorData.put(force_actuator_data)
+
+                hardpoint_actuator_data = (
+                    self.controllers.mtm1m3.tel_hardpointActuatorData.DataType()
+                )
+
+                hardpoint_actuator_data.timestamp = salobj.current_tai()
+                hardpoint_actuator_data.measuredForce = np.random.normal(
+                    size=len(hardpoint_actuator_data.measuredForce)
+                )
+                hardpoint_actuator_data.encoder = np.array(
+                    [32438, 37387, 43686, 44733, 34862, 40855], dtype=int
+                )
+                hardpoint_actuator_data.displacement = np.random.normal(
+                    size=len(hardpoint_actuator_data.displacement)
+                )
+                hardpoint_actuator_data.fx = np.random.normal()
+                hardpoint_actuator_data.fy = np.random.normal()
+                hardpoint_actuator_data.fz = np.random.normal()
+                hardpoint_actuator_data.mx = np.random.normal()
+                hardpoint_actuator_data.my = np.random.normal()
+                hardpoint_actuator_data.mz = np.random.normal()
+                hardpoint_actuator_data.forceMagnitude = np.random.normal()
+                hardpoint_actuator_data.xPosition = np.random.normal()
+                hardpoint_actuator_data.yPosition = np.random.normal()
+                hardpoint_actuator_data.zPosition = np.random.normal()
+                hardpoint_actuator_data.xRotation = np.random.normal()
+                hardpoint_actuator_data.yRotation = np.random.normal()
+                hardpoint_actuator_data.zRotation = np.random.normal()
+
+                self.controllers.mtm1m3.tel_hardpointActuatorData.put(
+                    hardpoint_actuator_data
+                )
+
+                hardpoint_monitor_data = (
+                    self.controllers.mtm1m3.tel_hardpointMonitorData.DataType()
+                )
+
+                hardpoint_monitor_data.timestamp = salobj.current_tai()
+                hardpoint_monitor_data.breakawayLVDT = np.random.normal(
+                    loc=self.m1m3_breakaway_lvdt,
+                    scale=self.m1m3_breakaway_lvdt / 10.0,
+                    size=len(hardpoint_monitor_data.breakawayLVDT),
+                )
+                hardpoint_monitor_data.displacementLVDT = np.random.normal(
+                    loc=self.m1m3_displacement_lvdt,
+                    scale=self.m1m3_displacement_lvdt / 10.0,
+                    size=len(hardpoint_monitor_data.displacementLVDT),
+                )
+                hardpoint_monitor_data.breakawayPressure = np.random.normal(
+                    loc=self.m1m3_breakaway_pressure,
+                    scale=self.m1m3_breakaway_pressure / 10.0,
+                    size=len(hardpoint_monitor_data.breakawayPressure),
+                )
+                hardpoint_monitor_data.pressureSensor1 = np.random.normal(
+                    loc=self.m1m3_pressure_sensor_1,
+                    scale=self.m1m3_pressure_sensor_1 / 10.0,
+                    size=len(hardpoint_monitor_data.pressureSensor1),
+                )
+                hardpoint_monitor_data.pressureSensor2 = np.random.normal(
+                    loc=self.m1m3_pressure_sensor_2,
+                    scale=self.m1m3_pressure_sensor_2 / 10.0,
+                    size=len(hardpoint_monitor_data.pressureSensor2),
+                )
+                hardpoint_monitor_data.pressureSensor3 = np.random.normal(
+                    loc=self.m1m3_pressure_sensor_3,
+                    scale=self.m1m3_pressure_sensor_3 / 10.0,
+                    size=len(hardpoint_monitor_data.pressureSensor3),
+                )
+
+                self.controllers.mtm1m3.tel_hardpointMonitorData.put(
+                    hardpoint_monitor_data
+                )
+
+                self.controllers.mtm1m3.evt_forceActuatorState.data.ilcState = (
+                    np.ones_like(
+                        self.controllers.mtm1m3.evt_forceActuatorState.data.ilcState,
+                        dtype=int,
+                    )
+                )
+
+                if "ilcState" in self.m1m3_force_actuator_state and np.all(
+                    self.m1m3_force_actuator_state["ilcState"] == 0
+                ):
+                    self.m1m3_force_actuator_state["timestamp"] = salobj.current_tai()
+                    self.m1m3_force_actuator_state["ilcState"] = np.ones_like(
+                        self.controllers.mtm1m3.evt_forceActuatorState.data.ilcState,
+                        dtype=int,
+                    )
+
+            else:
+                self.m1m3_force_actuator_state["timestamp"] = salobj.current_tai()
+                self.m1m3_force_actuator_state["ilcState"] = np.zeros_like(
+                    self.controllers.mtm1m3.evt_forceActuatorState.data.ilcState,
+                    dtype=int,
+                )
+            # This will only publish if there is a change in the topic.
+            self.controllers.mtm1m3.evt_forceActuatorState.set_put(
+                **self.m1m3_force_actuator_state
+            )
+
+            await asyncio.sleep(HEARTBEAT_INTERVAL)
+
+    async def publish_m1m3_topic_samples(self):
+        """Publish m1m3 topic samples."""
+
+        self.log.debug("Publishing m1m3 topic samples.")
+
+        # Load data without blocking the event loop.
+
+        loop = asyncio.get_running_loop()
+
+        m1m3_topic_samples = await loop.run_in_executor(
+            None, get_m1m3_topic_samples_data
+        )
+
+        for topic_sample in m1m3_topic_samples:
+            if "timestamp" in m1m3_topic_samples[topic_sample]:
+                m1m3_topic_samples[topic_sample]["timestamp"] = salobj.current_tai()
+
+            # Cleanup sample data in case of schema evolution
+            cleanup_topic_attr = []
+
+            for topic_attr in m1m3_topic_samples[topic_sample]:
+                if not hasattr(
+                    getattr(self.controllers.mtm1m3, f"evt_{topic_sample}").data,
+                    topic_attr,
+                ):
+                    self.log.debug(
+                        f"M1M3 topic {topic_sample} does not have attribute {topic_attr}."
+                    )
+                    cleanup_topic_attr.append(topic_attr)
+
+            if len(cleanup_topic_attr) > 0:
+                self.log.warning(
+                    f"The following topic attributes are not available in {topic_sample}: "
+                    f"{cleanup_topic_attr}. Need to update topic samples."
+                )
+            for topic_attr in cleanup_topic_attr:
+                self.log.debug(
+                    f"Removing topic {topic_attr} from {topic_sample} sample."
+                )
+                m1m3_topic_samples[topic_sample].pop(topic_attr)
+
+            try:
+                getattr(self.controllers.mtm1m3, f"evt_{topic_sample}").set_put(
+                    **m1m3_topic_samples[topic_sample]
+                )
+            except Exception:
+                self.log.exception(f"Error publishing topic {topic_sample}")
+
+        self.log.debug("Finished publishing m1m3 topic samples.")
