@@ -286,9 +286,6 @@ class ATCS(BaseTCS):
                 self.wait_for_inposition(timeout=self.long_long_timeout)
             ),
             asyncio.create_task(self.monitor_position(check=_check)),
-            asyncio.create_task(
-                self.check_component_state("atdometrajectory", salobj.State.DISABLED)
-            ),
         ]
 
         await self.process_as_completed(task_list)
