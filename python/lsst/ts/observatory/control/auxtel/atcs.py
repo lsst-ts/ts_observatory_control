@@ -21,7 +21,6 @@
 __all__ = ["ATCS", "ATCSUsages"]
 
 import copy
-import types
 import asyncio
 
 import numpy as np
@@ -424,7 +423,6 @@ class ATCS(BaseTCS):
             rot_tel=self.tel_park_rot,
             wait_dome=False,
         )
-
         try:
             await self.stop_tracking()
         except asyncio.TimeoutError:
@@ -1040,6 +1038,7 @@ class ATCS(BaseTCS):
         offset_cmd=None,
         stop_before_slew=True,
         wait_settle=True,
+        check=None,
     ):
         """Encapsulate "slew" activities.
 
@@ -1048,9 +1047,26 @@ class ATCS(BaseTCS):
         slew_cmd : `coro`
             One of the slew commands from the atptg remote. Command need to be
             setup before calling this method.
+        slew_cmd: `coro`
+            One of the slew commands from the ptg remote. Command need to be
+            setup before calling this method.
+        slew_time: `float`
+            Expected slew time in seconds.
+        offset_cmd: `coro`
+            One of the offset commands from the ptg remote. Command need to be
+            setup before calling this method.
+        stop_before_slew: `bool`
+            Stop tracking before slewing?
+        wait_settle: `bool`
+            After slew complets, add an addional settle wait before returning.
+        check : `types.SimpleNamespace` or `None`, optional
+            Override internal `check` attribute with a user-provided one.
+            By default (`None`) use internal attribute.
         """
 
         self.log.debug("Sending command")
+
+        _check = self.check if check is None else check
 
         if stop_before_slew:
             try:
@@ -1088,7 +1104,7 @@ class ATCS(BaseTCS):
         self.scheduled_coro.append(asyncio.ensure_future(self.monitor_position()))
 
         for comp in self.components_attr:
-            if getattr(self.check, comp):
+            if getattr(_check, comp):
                 getattr(self.rem, comp).evt_summaryState.flush()
                 self.scheduled_coro.append(
                     asyncio.ensure_future(self.check_component_state(comp))
@@ -1508,19 +1524,22 @@ class ATCS(BaseTCS):
             pass
 
     def set_azel_slew_checks(self, wait_dome):
-        """Handle azEl slew to wait or not for the dome."""
-        check = types.SimpleNamespace(
-            dome=self.check.atdome,
-            dometrajectory=self.check.atdometrajectory,
-        )
-        self.check.atdome = wait_dome
-        self.check.atdometrajectory = wait_dome
-        return check
+        """Handle azEl slew to wait or not for the dome.
 
-    def unset_azel_slew_checks(self, checks):
-        """Handle azEl slew to wait or not for the dome."""
-        self.check.adome = checks.dome
-        self.check.atdometrajectory = checks.dometrajectory
+        Parameters
+        ----------
+        wait_dome : `bool`
+            Should the slew wait for the dome?
+
+        Returns
+        -------
+        check : `types.SimpleNamespace`
+            Reformated check namespace.
+        """
+        check = copy.copy(self.check)
+        check.atdome = wait_dome
+        check.atdometrajectory = wait_dome
+        return check
 
     async def _ready_to_take_data(self):
         """Wait until ATCS is ready to take data.

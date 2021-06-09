@@ -136,14 +136,13 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
             await self._slew_to(
                 getattr(self.rem, self.ptg_name).cmd_azElTarget,
                 slew_timeout=slew_timeout,
+                check=check,
             )
         except salobj.AckError as ack_err:
             self.log.error(
                 f"Command to slew to azEl target rejected: {ack_err.ackcmd.result}"
             )
             raise ack_err
-        finally:
-            self.unset_azel_slew_checks(check)
 
     async def start_tracking(self):
         """Start tracking the current position of the telescope.
@@ -1271,6 +1270,7 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
         offset_cmd=None,
         stop_before_slew=True,
         wait_settle=True,
+        check=None,
     ):
         """Encapsulate "slew" activities.
 
@@ -1288,6 +1288,9 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
             Stop tracking before slewing?
         wait_settle: `bool`
             After slew complets, add an addional settle wait before returning.
+        check : `types.SimpleNamespace` or `None`, optional
+            Override internal `check` attribute with a user-provided one.
+            By default (`None`) use internal attribute.
         """
         raise NotImplementedError()
 
@@ -1325,18 +1328,6 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
         ----------
         wait_dome: `bool`
             Should point_azel wait for the dome?
-        """
-        raise NotImplementedError()
-
-    @abc.abstractmethod
-    def unset_azel_slew_checks(self, checks):
-        """Abstract method to handle azEl slew to wait or not for the dome.
-
-        Parameters
-        ----------
-        checks: `types.SimpleNamespace`
-            Namespace with the same structure of `self.check` with values
-            as before `set_azel_slew_checks` is called.
         """
         raise NotImplementedError()
 
