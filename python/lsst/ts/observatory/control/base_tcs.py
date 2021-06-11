@@ -754,7 +754,7 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
             bore_sight_angle = await self.get_bore_sight_angle()
 
             x, y, _ = np.matmul(
-                [-self.parity_x * az, -self.parity_y * el, 0.0],
+                [self.parity_x * el, self.parity_y * az, 0.0],
                 self.rotation_matrix(bore_sight_angle),
             )
             await self.offset_xy(x, y, relative=relative, absorb=True)
