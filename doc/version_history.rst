@@ -6,6 +6,15 @@
 Version History
 ###############
 
+v0.9.2
+======
+
+* Fix `absorb` option in offset_azel.
+* Update how `BaseTCS._slew_to` handle `check`.
+  This fixes an issue where calling `prepare_for_onsky` and `prepare_for_flatfield` would leave the users check attribute in a different state than that set by the user.
+  This was also causing the `prepare_for_onsky` method to not open the dome.
+* Fix checking that ATDomeTrajectory is in DISABLE while moving the dome.
+
 v0.9.1
 ======
 
