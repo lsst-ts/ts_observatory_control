@@ -247,6 +247,9 @@ class TestATTCS(RemoteGroupTestCase, unittest.IsolatedAsyncioTestCase):
             with self.subTest("test::startup::with settings", **settings):
                 await self.attcs.prepare_for_onsky(settings)
 
+            for comp in self.attcs.components_attr:
+                self.assertTrue(getattr(self.attcs.check, comp))
+
             for comp in settings:
                 with self.subTest("test::startup:settings_to_apply", comp=comp):
                     self.assertEqual(
@@ -258,6 +261,9 @@ class TestATTCS(RemoteGroupTestCase, unittest.IsolatedAsyncioTestCase):
 
             with self.subTest("test::shutdown"):
                 await self.attcs.shutdown()
+
+            for comp in self.attcs.components_attr:
+                self.assertTrue(getattr(self.attcs.check, comp))
 
 
 if __name__ == "__main__":
