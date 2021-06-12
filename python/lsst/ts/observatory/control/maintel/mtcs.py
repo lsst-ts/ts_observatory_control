@@ -21,7 +21,6 @@
 __all__ = ["MTCS"]
 
 import copy
-import types
 import asyncio
 
 import numpy as np
@@ -136,6 +135,7 @@ class MTCS(BaseTCS):
         offset_cmd=None,
         stop_before_slew=True,
         wait_settle=True,
+        check=None,
     ):
         """Encapsulate "slew" activities.
 
@@ -152,7 +152,13 @@ class MTCS(BaseTCS):
             Once the telescope report in position, add an additional wait
             before returning? The time is controlled by the internal variable
             `self.tel_settle_time`.
+        check : `types.SimpleNamespace` or `None`, optional
+            Override internal `check` attribute with a user-provided one.
+            By default (`None`) use internal attribute.
         """
+
+        _check = self.check if check is None else check
+
         if stop_before_slew:
             try:
                 await self.stop_tracking()
@@ -195,7 +201,7 @@ class MTCS(BaseTCS):
         self.scheduled_coro.append(asyncio.create_task(self.monitor_position()))
 
         for comp in self.components_attr:
-            if getattr(self.check, comp):
+            if getattr(_check, comp):
                 getattr(self.rem, comp).evt_summaryState.flush()
                 self.scheduled_coro.append(
                     asyncio.create_task(self.check_component_state(comp))
@@ -491,19 +497,22 @@ class MTCS(BaseTCS):
         return "Dome elevation in position."
 
     def set_azel_slew_checks(self, wait_dome):
-        """Handle azEl slew to wait or not for the dome."""
-        check = types.SimpleNamespace(
-            dome=self.check.mtdome,
-            mtdometrajectory=self.check.mtdometrajectory,
-        )
-        self.check.mtdome = wait_dome
-        self.check.mtdometrajectory = wait_dome
-        return check
+        """Handle azEl slew to wait or not for the dome.
 
-    def unset_azel_slew_checks(self, checks):
-        """Handle azEl slew to wait or not for the dome."""
-        self.check.mtdome = checks.dome
-        self.check.mtdometrajectory = checks.mtdometrajectory
+        Parameters
+        ----------
+        wait_dome : `bool`
+            Should the slew wait for the dome?
+
+        Returns
+        -------
+        check : `types.SimpleNamespace`
+            Reformated check namespace.
+        """
+        check = copy.copy(self.check)
+        check.mtdome = wait_dome
+        check.mtdometrajectory = wait_dome
+        return check
 
     async def slew_dome_to(self, az, check=None):
         """Utility method to slew dome to a specified position.
