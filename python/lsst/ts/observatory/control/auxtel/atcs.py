@@ -1101,7 +1101,9 @@ class ATCS(BaseTCS):
                 self.wait_for_inposition(timeout=slew_timeout, wait_settle=wait_settle)
             )
         )
-        self.scheduled_coro.append(asyncio.ensure_future(self.monitor_position()))
+        self.scheduled_coro.append(
+            asyncio.ensure_future(self.monitor_position(check=_check))
+        )
 
         for comp in self.components_attr:
             if getattr(_check, comp):
@@ -1455,7 +1457,7 @@ class ATCS(BaseTCS):
                 if dom_in_position:
                     self.dome_az_in_position.set()
 
-            if _check.atmcs and self.check.atdome:
+            if _check.atmcs and _check.atdome:
                 self.log.info(
                     f"[Telescope] delta Alt = {alt_dif:+08.3f}; delta Az = {az_dif:+08.3f}; "
                     f"delta N1 = {nasm1_dif:+08.3f}; delta N2 = {nasm2_dif:+08.3f} "
