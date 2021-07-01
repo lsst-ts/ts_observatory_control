@@ -6,6 +6,16 @@
 Version History
 ###############
 
+v0.10.0
+=======
+
+* Refactor MTCS and ATCS unit tests to use ``DryTest`` mode (no remotes) and mock the expected behavior with ``unittest.mock``. This allows the unit tests to run much more quickly and reliable. The old unit tests relying on DDS will be converted to integration tests.
+* Add support in ``RemoteGroup`` and ``BaseTCS`` to support setting up the class when there is no event loop running.
+* In ``ATCS._slew``, pass in the internal ``check`` to ``monitor_position``.
+* In ``MTCS``:
+  * Add support for enabling/disabling CCW following mode.
+  * Add check that ccw following mode is enabled when doing a slew activity.
+
 v0.9.2
 ======
 
