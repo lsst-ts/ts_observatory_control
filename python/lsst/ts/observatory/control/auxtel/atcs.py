@@ -49,6 +49,7 @@ class ATCSUsages(Usages):
     * Shutdown: Enable shutdown operations.
     * PrepareForFlatfield: Enable preparation for flat-field.
     * OffsettingForATAOS: Enable offsetting from ATAOS
+    * DryTest: Disable all CSCs. Mostly used for unit testing.
     """
 
     Slew = 1 << 3
@@ -56,6 +57,7 @@ class ATCSUsages(Usages):
     Shutdown = 1 << 5
     PrepareForFlatfield = 1 << 6
     OffsettingForATAOS = 1 << 7
+    DryTest = 1 << 8
 
     def __iter__(self):
 
@@ -70,6 +72,7 @@ class ATCSUsages(Usages):
                 self.Shutdown,
                 self.PrepareForFlatfield,
                 self.OffsettingForATAOS,
+                self.DryTest,
             ]
         )
 
@@ -149,12 +152,6 @@ class ATCS(BaseTCS):
         self.dome_flat_az = 20.0
         self.dome_slew_tolerance = Angle(5.1 * u.deg)
 
-        self._tel_position = None
-        self._tel_position_updated = asyncio.Event()
-
-        self._tel_target = None
-        self._tel_target_updated = asyncio.Event()
-
         if hasattr(self.rem.atmcs, "tel_mount_AzEl_Encoders"):
             self.rem.atmcs.tel_mount_AzEl_Encoders.callback = (
                 self.mount_AzEl_Encoders_callback
@@ -163,6 +160,28 @@ class ATCS(BaseTCS):
         if hasattr(self.rem.atmcs, "evt_target"):
             self.rem.atmcs.evt_target.callback = self.atmcs_target_callback
 
+        self._tel_position = None
+        self._tel_position_updated = None
+
+        self._tel_target = None
+        self._tel_target_updated = None
+
+        self.dome_az_in_position = None
+
+        try:
+            self._create_asyncio_events()
+        except RuntimeError:
+            self.log.error(
+                """Could not create asyncio events. Event loop is probably not running and cannot
+                create one. Class may not work. If this is a unit test call `_create_asyncio_events`
+                once an event loop is established.
+                """
+            )
+
+    def _create_asyncio_events(self):
+        """Create asyncio event loop for internal data."""
+        self._tel_position_updated = asyncio.Event()
+        self._tel_target_updated = asyncio.Event()
         self.dome_az_in_position = asyncio.Event()
         self.dome_az_in_position.set()
 
@@ -267,7 +286,7 @@ class ATCS(BaseTCS):
                 "Make sure it is clear to operate the dome before doing so."
             )
 
-        await self.disable_dome_following()
+        await self.disable_dome_following(_check)
 
         self.rem.atdome.evt_azimuthInPosition.flush()
 
@@ -311,7 +330,7 @@ class ATCS(BaseTCS):
         check_bckup = copy.copy(self.check) if check is None else copy.copy(check)
         check_ops = copy.copy(self.check) if check is None else copy.copy(check)
 
-        await self.disable_dome_following()
+        await self.disable_dome_following(check_ops)
 
         await self.open_m1_cover()
 
@@ -433,13 +452,6 @@ class ATCS(BaseTCS):
 
         if self.check.atdome:
 
-            self.log.debug("Homing dome azimuth.")
-
-            await self.home_dome()
-
-            self.log.debug("Moving dome to 90 degrees.")
-            await self.slew_dome_to(az=90.0)
-
             self.log.info(
                 "Check that dome CSC can communicate with shutter control box."
             )
@@ -465,14 +477,28 @@ class ATCS(BaseTCS):
                     "be established. Cannot continue."
                 )
 
+            self.log.debug("Homing dome azimuth.")
+
+            await self.home_dome()
+
+            self.log.debug("Moving dome to 90 degrees.")
+            await self.slew_dome_to(az=90.0)
+
             self.log.info("Opening dome.")
 
             await self.open_dome_shutter()
 
         if self.check.atpneumatics:
             self.log.info("Open telescope cover.")
-            await self.open_m1_cover()
-            await self.open_m1_vent()
+            try:
+                await self.open_m1_cover()
+            except Exception:
+                self.log.exception("Failed to open M1 cover. Continuing.")
+
+            try:
+                await self.open_m1_vent()
+            except Exception:
+                self.log.exception("Failed to open M1 vent. Continuing.")
 
         await self.enable_dome_following()
 
@@ -1999,6 +2025,10 @@ class ATCS(BaseTCS):
                     "m2AirPressure",
                 ],
                 athexapod=["positionUpdate", "moveToPosition"],
+            )
+
+            usages[self.valid_use_cases.DryTest] = UsagesResources(
+                components_attr=(), readonly=True
             )
 
             self._usages = usages
