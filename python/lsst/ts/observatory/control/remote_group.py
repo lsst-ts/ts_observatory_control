@@ -278,13 +278,14 @@ class RemoteGroup:
             **{c: remote is not None for c, remote in attr_remotes.items()}
         )
 
-        self.start_task = asyncio.gather(
-            *[
-                remote.start_task
-                for remote in attr_remotes.values()
-                if remote is not None
-            ]
-        )
+        start_task_list = [
+            remote.start_task for remote in attr_remotes.values() if remote is not None
+        ]
+
+        if len(start_task_list) > 0:
+            self.start_task = asyncio.gather(*start_task_list)
+        else:
+            self.start_task = None
 
     def components_to_check(self):
         """Return components for which check is enabled.
