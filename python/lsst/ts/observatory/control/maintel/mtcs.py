@@ -122,6 +122,21 @@ class MTCS(BaseTCS):
         self.dome_flat_el = self.dome_park_el
         self.dome_slew_tolerance = Angle(1.5 * u.deg)
 
+        self._dome_az_in_position = None
+        self._dome_el_in_position = None
+
+        try:
+            self._create_asyncio_events()
+        except RuntimeError:
+            self.log.error(
+                """Could not create asyncio events. Event loop is probably not running and cannot
+                create one. Class may not work. If this is a unit test call `_create_asyncio_events`
+                once an event loops is established.
+                """
+            )
+
+    def _create_asyncio_events(self):
+        """Create asyncio event loop for internal data."""
         self._dome_az_in_position = asyncio.Event()
         self._dome_az_in_position.clear()
 
