@@ -143,6 +143,24 @@ class MTCS(BaseTCS):
         self._dome_el_in_position = asyncio.Event()
         self._dome_el_in_position.clear()
 
+    async def enable_ccw_following(self):
+        """Enable camera cable wrap following the rotator."""
+
+        self.log.info("Enabling CCW following.")
+
+        await self.rem.mtmount.cmd_enableCameraCableWrapFollowing.start(
+            timeout=self.fast_timeout
+        )
+
+    async def disable_ccw_following(self):
+        """Disable camera cable wrap following the rotator."""
+
+        self.log.warning("Disabling CCW following, slew activities will fail.")
+
+        await self.rem.mtmount.cmd_disableCameraCableWrapFollowing.start(
+            timeout=self.fast_timeout
+        )
+
     async def _slew_to(
         self,
         slew_cmd,
@@ -690,7 +708,12 @@ class MTCS(BaseTCS):
                     "timeAndDate",
                 ],
                 mtrotator=["rotation", "inPosition"],
-                mtmount=["azimuth", "elevation", "axesInPosition"],
+                mtmount=[
+                    "azimuth",
+                    "elevation",
+                    "axesInPosition",
+                    "cameraCableWrapFollowing",
+                ],
                 mtdome=["azimuth", "lightWindScreen"],
             )
 
@@ -713,7 +736,12 @@ class MTCS(BaseTCS):
                     "focusNameSelected",
                 ],
                 mtrotator=["rotation", "inPosition"],
-                mtmount=["azimuth", "elevation", "axesInPosition"],
+                mtmount=[
+                    "azimuth",
+                    "elevation",
+                    "axesInPosition",
+                    "cameraCableWrapFollowing",
+                ],
                 mtdome=["azimuth", "lightWindScreen"],
             )
 
@@ -732,6 +760,12 @@ class MTCS(BaseTCS):
                     "heartbeat",
                 ],
                 mtptg=["azElTarget", "stopTracking", "focusNameSelected"],
+                mtmount=[
+                    "azimuth",
+                    "elevation",
+                    "axesInPosition",
+                    "cameraCableWrapFollowing",
+                ],
             )
 
             usages[self.valid_use_cases.Shutdown] = UsagesResources(
@@ -749,6 +783,12 @@ class MTCS(BaseTCS):
                     "heartbeat",
                 ],
                 mtptg=["azElTarget", "stopTracking", "focusNameSelected"],
+                mtmount=[
+                    "azimuth",
+                    "elevation",
+                    "axesInPosition",
+                    "cameraCableWrapFollowing",
+                ],
             )
 
             usages[self.valid_use_cases.PrepareForFlatfield] = UsagesResources(

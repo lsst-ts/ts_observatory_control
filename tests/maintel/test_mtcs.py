@@ -422,6 +422,24 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
         self.mtcs.rem.mtmount.evt_axesInPosition.flush.assert_called()
         self.mtcs.rem.mtrotator.evt_inPosition.flush.assert_called()
 
+    async def test_enable_ccw_following(self):
+
+        await self.mtcs.enable_ccw_following()
+
+        self.mtcs.rem.mtmount.cmd_enableCameraCableWrapFollowing.start.assert_awaited_with(
+            timeout=self.mtcs.fast_timeout
+        )
+        self.assertEqual(self._mtmount_evt_cameraCableWrapFollowing.enabled, 1)
+
+    async def test_disable_ccw_following(self):
+
+        await self.mtcs.disable_ccw_following()
+
+        self.mtcs.rem.mtmount.cmd_disableCameraCableWrapFollowing.start.assert_awaited_with(
+            timeout=self.mtcs.fast_timeout
+        )
+        self.assertEqual(self._mtmount_evt_cameraCableWrapFollowing.enabled, 0)
+
     async def test_offset_radec(self):
 
         # Test offset_radec
@@ -705,13 +723,20 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
             await self.mtcs.stop_all()
 
     def test_check_mtmount_interface(self):
-        for attribute in {"actualPosition"}:
-            self.assertTrue(
-                attribute
-                in self.components_metadata["MTMount"]
-                .topic_info["elevation"]
-                .field_info
-            )
+
+        component = "MTMount"
+
+        self.check_topic_attribute(
+            attributes={"actualPosition"}, topic="elevation", component=component
+        )
+        self.check_topic_attribute(
+            attributes={"actualPosition"}, topic="azimuth", component=component
+        )
+        self.check_topic_attribute(
+            attributes={"enabled"},
+            topic="logevent_cameraCableWrapFollowing",
+            component=component,
+        )
 
     def test_check_mtrotator_interface(self):
         for attribute in {"actualPosition"}:
@@ -792,6 +817,13 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
                 .field_info
             )
 
+    def check_topic_attribute(self, attributes, topic, component):
+        for attribute in attributes:
+            self.assertTrue(
+                attribute
+                in self.components_metadata[component].topic_info[topic].field_info
+            )
+
     @classmethod
     def setUpClass(cls):
         """This classmethod is only called once, when preparing the unit
@@ -834,6 +866,8 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
             azimuth=0.0,
             elevation=80.0,
         )
+
+        self._mtmount_evt_cameraCableWrapFollowing = types.SimpleNamespace(enabled=1)
 
         self._mtmount_tel_azimuth = types.SimpleNamespace(actualPosition=0.0)
         self._mtmount_tel_elevation = types.SimpleNamespace(actualPosition=80.0)
@@ -916,6 +950,9 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
                 "tel_elevation.next.side_effect": self.mtmount_tel_elevation_next,
                 "tel_elevation.aget.side_effect": self.mtmount_tel_elevation_next,
                 "evt_axesInPosition.next.side_effect": self.mtmount_evt_axes_in_position_next,
+                "evt_cameraCableWrapFollowing.aget.side_effect": self.mtmount_evt_cameraCableWrapFollowing,
+                "cmd_enableCameraCableWrapFollowing.start.side_effect": self.mtmout_cmd_enable_ccw_following,
+                "cmd_disableCameraCableWrapFollowing.start.side_effect": self.mtmout_cmd_disable_ccw_following,
             }
         )
 
@@ -957,6 +994,15 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
 
     async def mtmount_evt_axes_in_position_next(self, *args, **kwargs):
         return self._mtmount_evt_axes_in_position
+
+    async def mtmount_evt_cameraCableWrapFollowing(self, *args, **kwargs):
+        return self._mtmount_evt_cameraCableWrapFollowing
+
+    async def mtmout_cmd_enable_ccw_following(self, *args, **kwargs):
+        self._mtmount_evt_cameraCableWrapFollowing.enabled = 1
+
+    async def mtmout_cmd_disable_ccw_following(self, *args, **kwargs):
+        self._mtmount_evt_cameraCableWrapFollowing.enabled = 0
 
     async def mtrotator_tel_rotation_next(self, *args, **kwargs):
         return self._mtrotator_tel_rotation
