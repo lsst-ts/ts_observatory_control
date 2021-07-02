@@ -395,6 +395,23 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
             timeout=self.mtcs.fast_timeout
         )
 
+    async def test_slew_icrs_ccw_following_off(self):
+
+        name = "HD 185975"
+        ra = "20:28:18.74"
+        dec = "-87:28:19.9"
+
+        self._mtmount_evt_cameraCableWrapFollowing.enabled = 0
+
+        with self.assertRaises(RuntimeError):
+            await self.mtcs.slew_icrs(ra=ra, dec=dec, target_name=name)
+
+        self.mtcs.rem.mtptg.cmd_raDecTarget.start.assert_not_awaited()
+
+        self.mtcs.rem.mtptg.cmd_poriginOffset.start.assert_not_awaited()
+
+        self.mtcs.rem.mtptg.cmd_stopTracking.start.assert_not_awaited()
+
     async def test_point_azel(self):
 
         az = 180.0
@@ -943,18 +960,17 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
         )
 
         # Augment MTMount
-        self.mtcs.rem.mtmount.configure_mock(
-            **{
-                "evt_target.next.side_effect": self.mtmount_evt_target_next,
-                "tel_azimuth.next.side_effect": self.mtmount_tel_azimuth_next,
-                "tel_elevation.next.side_effect": self.mtmount_tel_elevation_next,
-                "tel_elevation.aget.side_effect": self.mtmount_tel_elevation_next,
-                "evt_axesInPosition.next.side_effect": self.mtmount_evt_axes_in_position_next,
-                "evt_cameraCableWrapFollowing.aget.side_effect": self.mtmount_evt_cameraCableWrapFollowing,
-                "cmd_enableCameraCableWrapFollowing.start.side_effect": self.mtmout_cmd_enable_ccw_following,
-                "cmd_disableCameraCableWrapFollowing.start.side_effect": self.mtmout_cmd_disable_ccw_following,
-            }
-        )
+        mtmount_mocks = {
+            "evt_target.next.side_effect": self.mtmount_evt_target_next,
+            "tel_azimuth.next.side_effect": self.mtmount_tel_azimuth_next,
+            "tel_elevation.next.side_effect": self.mtmount_tel_elevation_next,
+            "tel_elevation.aget.side_effect": self.mtmount_tel_elevation_next,
+            "evt_axesInPosition.next.side_effect": self.mtmount_evt_axes_in_position_next,
+            "evt_cameraCableWrapFollowing.aget.side_effect": self.mtmount_evt_cameraCableWrapFollowing,
+            "cmd_enableCameraCableWrapFollowing.start.side_effect": self.mtmout_cmd_enable_ccw_following,
+            "cmd_disableCameraCableWrapFollowing.start.side_effect": self.mtmout_cmd_disable_ccw_following,
+        }
+        self.mtcs.rem.mtmount.configure_mock(**mtmount_mocks)
 
         self.mtcs.rem.mtmount.evt_axesInPosition.attach_mock(
             unittest.mock.Mock(),

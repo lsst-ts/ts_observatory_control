@@ -131,7 +131,7 @@ class MTCS(BaseTCS):
             self.log.error(
                 """Could not create asyncio events. Event loop is probably not running and cannot
                 create one. Class may not work. If this is a unit test call `_create_asyncio_events`
-                once an event loops is established.
+                once an event loop is established.
                 """
             )
 
@@ -191,6 +191,15 @@ class MTCS(BaseTCS):
         """
 
         _check = self.check if check is None else check
+
+        ccw_following = await self.rem.mtmount.evt_cameraCableWrapFollowing.aget(
+            timeout=self.fast_timeout
+        )
+
+        if not ccw_following.enabled:
+            raise RuntimeError(
+                "Camera cable wrap following disabled in MTMount. Enable it before slewing the telescope."
+            )
 
         if stop_before_slew:
             try:
