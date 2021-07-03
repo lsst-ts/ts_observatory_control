@@ -85,7 +85,7 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
         self.parity_x = 1.0
         self.parity_y = 1.0
 
-        self._ready_to_take_data_future = salobj.make_done_future()
+        self._ready_to_take_data_future = None
         self._ready_to_take_data_task = None
 
     async def point_azel(
@@ -1015,17 +1015,20 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
         take data or raise an exception if something wrong happens while trying
         to determine the condition of the system.
         """
-        if self._ready_to_take_data_future.done():
+        if (
+            self._ready_to_take_data_future is None
+            or self._ready_to_take_data_future.done()
+        ):
             self._ready_to_take_data_future = asyncio.Future()
             self._ready_to_take_data_task = asyncio.create_task(
                 self._ready_to_take_data()
             )
         return self._ready_to_take_data_future
 
-    async def enable_dome_following(self):
+    async def enable_dome_following(self, check=None):
         """Enabled dome following mode."""
 
-        if getattr(self.check, self.dome_trajectory_name):
+        if getattr(self.check if check is None else check, self.dome_trajectory_name):
             self.log.debug("Enable dome trajectory following.")
 
             await getattr(
@@ -1036,17 +1039,17 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
                 "Dome trajectory check disable. Will not enable following."
             )
 
-    async def disable_dome_following(self):
+    async def disable_dome_following(self, check=None):
         """Disable dome following mode."""
-        if getattr(self.check, self.dome_trajectory_name):
-            self.log.debug("Enable dome trajectory following.")
+        if getattr(self.check if check is None else check, self.dome_trajectory_name):
+            self.log.debug("Disable dome trajectory following.")
 
             await getattr(
                 self.rem, self.dome_trajectory_name
             ).cmd_setFollowingMode.set_start(enable=False, timeout=self.fast_timeout)
         else:
             self.log.warning(
-                "Dome trajectory check disable. Will not enable following."
+                "Dome trajectory check disable. Will not disable following."
             )
 
     def azel_from_radec(self, ra, dec, time=None):
