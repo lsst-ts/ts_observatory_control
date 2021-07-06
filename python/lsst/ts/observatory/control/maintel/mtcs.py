@@ -122,11 +122,44 @@ class MTCS(BaseTCS):
         self.dome_flat_el = self.dome_park_el
         self.dome_slew_tolerance = Angle(1.5 * u.deg)
 
+        self._dome_az_in_position = None
+        self._dome_el_in_position = None
+
+        try:
+            self._create_asyncio_events()
+        except RuntimeError:
+            self.log.error(
+                """Could not create asyncio events. Event loop is probably not running and cannot
+                create one. Class may not work. If this is a unit test call `_create_asyncio_events`
+                once an event loop is established.
+                """
+            )
+
+    def _create_asyncio_events(self):
+        """Create asyncio event loop for internal data."""
         self._dome_az_in_position = asyncio.Event()
         self._dome_az_in_position.clear()
 
         self._dome_el_in_position = asyncio.Event()
         self._dome_el_in_position.clear()
+
+    async def enable_ccw_following(self):
+        """Enable camera cable wrap following the rotator."""
+
+        self.log.info("Enabling CCW following.")
+
+        await self.rem.mtmount.cmd_enableCameraCableWrapFollowing.start(
+            timeout=self.fast_timeout
+        )
+
+    async def disable_ccw_following(self):
+        """Disable camera cable wrap following the rotator."""
+
+        self.log.warning("Disabling CCW following, slew activities will fail.")
+
+        await self.rem.mtmount.cmd_disableCameraCableWrapFollowing.start(
+            timeout=self.fast_timeout
+        )
 
     async def _slew_to(
         self,
@@ -158,6 +191,15 @@ class MTCS(BaseTCS):
         """
 
         _check = self.check if check is None else check
+
+        ccw_following = await self.rem.mtmount.evt_cameraCableWrapFollowing.aget(
+            timeout=self.fast_timeout
+        )
+
+        if not ccw_following.enabled:
+            raise RuntimeError(
+                "Camera cable wrap following disabled in MTMount. Enable it before slewing the telescope."
+            )
 
         if stop_before_slew:
             try:
@@ -675,7 +717,12 @@ class MTCS(BaseTCS):
                     "timeAndDate",
                 ],
                 mtrotator=["rotation", "inPosition"],
-                mtmount=["azimuth", "elevation", "axesInPosition"],
+                mtmount=[
+                    "azimuth",
+                    "elevation",
+                    "axesInPosition",
+                    "cameraCableWrapFollowing",
+                ],
                 mtdome=["azimuth", "lightWindScreen"],
             )
 
@@ -698,7 +745,12 @@ class MTCS(BaseTCS):
                     "focusNameSelected",
                 ],
                 mtrotator=["rotation", "inPosition"],
-                mtmount=["azimuth", "elevation", "axesInPosition"],
+                mtmount=[
+                    "azimuth",
+                    "elevation",
+                    "axesInPosition",
+                    "cameraCableWrapFollowing",
+                ],
                 mtdome=["azimuth", "lightWindScreen"],
             )
 
@@ -717,6 +769,12 @@ class MTCS(BaseTCS):
                     "heartbeat",
                 ],
                 mtptg=["azElTarget", "stopTracking", "focusNameSelected"],
+                mtmount=[
+                    "azimuth",
+                    "elevation",
+                    "axesInPosition",
+                    "cameraCableWrapFollowing",
+                ],
             )
 
             usages[self.valid_use_cases.Shutdown] = UsagesResources(
@@ -734,6 +792,12 @@ class MTCS(BaseTCS):
                     "heartbeat",
                 ],
                 mtptg=["azElTarget", "stopTracking", "focusNameSelected"],
+                mtmount=[
+                    "azimuth",
+                    "elevation",
+                    "axesInPosition",
+                    "cameraCableWrapFollowing",
+                ],
             )
 
             usages[self.valid_use_cases.PrepareForFlatfield] = UsagesResources(
