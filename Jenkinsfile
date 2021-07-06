@@ -35,7 +35,7 @@ pipeline {
             steps {
                 script {
                     sh """
-                    docker exec -u saluser \${container_name} sh -c \"source ~/.setup.sh && cd /home/saluser/repos/ts_sal && git fetch -p && /home/saluser/.checkout_repo.sh \${work_branches} && git pull\"
+                    docker exec -u saluser \${container_name} sh -c \"source ~/.setup.sh && cd /home/saluser/repos/ts_sal && git fetch -p && git reset --hard origin/develop && /home/saluser/.checkout_repo.sh \${work_branches} && git pull\"
                     """
                 }
             }

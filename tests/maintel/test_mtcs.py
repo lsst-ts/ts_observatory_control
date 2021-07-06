@@ -89,7 +89,7 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
         ra = "20 28 18.7402"
         dec = "-87 28 19.938"
 
-        await self.mtcs.slew_object(name=name)
+        await self.mtcs.slew_object(name=name, rot_type=RotType.Sky)
 
         self.mtcs.rem.mtptg.cmd_raDecTarget.set.assert_called_with(
             ra=Angle(ra, unit=u.hourangle).hour,
@@ -131,7 +131,9 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
         ra = "20:28:18.74"
         dec = "-87:28:19.9"
 
-        await self.mtcs.slew_icrs(ra=ra, dec=dec, target_name=name)
+        await self.mtcs.slew_icrs(
+            ra=ra, dec=dec, target_name=name, rot_type=RotType.Sky
+        )
 
         self.mtcs.rem.mtptg.cmd_raDecTarget.set.assert_called_with(
             ra=Angle(ra, unit=u.hourangle).hour,
@@ -174,7 +176,11 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
         dec = "-87:28:19.9"
 
         await self.mtcs.slew_icrs(
-            ra=ra, dec=dec, target_name=name, stop_before_slew=False
+            ra=ra,
+            dec=dec,
+            target_name=name,
+            stop_before_slew=False,
+            rot_type=RotType.Sky,
         )
 
         self.mtcs.rem.mtptg.cmd_raDecTarget.set.assert_called_with(
@@ -354,7 +360,12 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
         offset_y = -10.0
 
         await self.mtcs.slew_icrs(
-            ra=ra, dec=dec, offset_x=offset_x, offset_y=offset_y, target_name=name
+            ra=ra,
+            dec=dec,
+            rot_type=RotType.Sky,
+            offset_x=offset_x,
+            offset_y=offset_y,
+            target_name=name,
         )
 
         self.mtcs.rem.mtptg.cmd_raDecTarget.set.assert_called_with(
