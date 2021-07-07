@@ -200,6 +200,16 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
 
         await self.atcs.open_m1_cover()
 
+        self.assertEqual(
+            self._atpneumatics_evt_instrument_state.state,
+            ATPneumatics.AirValveState.OPENED,
+        )
+
+        self.assertEqual(
+            self._atpneumatics_evt_main_valve_state.state,
+            ATPneumatics.AirValveState.OPENED,
+        )
+
         self.atcs.rem.atpneumatics.cmd_openM1Cover.start.assert_awaited_with(
             timeout=self.atcs.long_timeout
         )
@@ -222,6 +232,16 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
 
         await self.atcs.open_m1_cover()
 
+        self.assertEqual(
+            self._atpneumatics_evt_instrument_state.state,
+            ATPneumatics.AirValveState.OPENED,
+        )
+
+        self.assertEqual(
+            self._atpneumatics_evt_main_valve_state.state,
+            ATPneumatics.AirValveState.OPENED,
+        )
+
         self.atcs.rem.atpneumatics.cmd_openM1Cover.start.assert_awaited_with(
             timeout=self.atcs.long_timeout
         )
@@ -243,6 +263,16 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
         )
 
         await self.atcs.open_m1_cover()
+
+        self.assertEqual(
+            self._atpneumatics_evt_instrument_state.state,
+            ATPneumatics.AirValveState.OPENED,
+        )
+
+        self.assertEqual(
+            self._atpneumatics_evt_main_valve_state.state,
+            ATPneumatics.AirValveState.OPENED,
+        )
 
         # Should not be called
         self.atcs.rem.atpneumatics.cmd_openM1Cover.start.assert_not_awaited()
@@ -314,6 +344,16 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
 
         await self.atcs.open_m1_vent()
 
+        self.assertEqual(
+            self._atpneumatics_evt_instrument_state.state,
+            ATPneumatics.AirValveState.OPENED,
+        )
+
+        self.assertEqual(
+            self._atpneumatics_evt_main_valve_state.state,
+            ATPneumatics.AirValveState.OPENED,
+        )
+
         self.atcs.rem.atpneumatics.cmd_openM1CellVents.start.assert_awaited_with(
             timeout=self.atcs.long_timeout
         )
@@ -329,6 +369,16 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
         )
 
         await self.atcs.open_m1_vent()
+
+        self.assertEqual(
+            self._atpneumatics_evt_instrument_state.state,
+            ATPneumatics.AirValveState.OPENED,
+        )
+
+        self.assertEqual(
+            self._atpneumatics_evt_main_valve_state.state,
+            ATPneumatics.AirValveState.OPENED,
+        )
 
         self.atcs.rem.atpneumatics.cmd_openM1CellVents.start.assert_not_awaited()
 
@@ -447,7 +497,7 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
             m1=True, hexapod=True, atspectrograph=True, timeout=self.atcs.long_timeout
         )
         self.atcs.rem.atdometrajectory.cmd_setFollowingMode.set_start.assert_awaited_with(
-            enable=True, timeout=self.atcs.fast_timeout
+            enable=False, timeout=self.atcs.fast_timeout
         )
 
     async def test_prepare_for_onsky_no_scb_link(self):
@@ -1168,6 +1218,94 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
             num=0,
         )
 
+    async def test_open_valves(self):
+
+        await self.atcs.open_valves()
+
+        self.atcs.rem.atpneumatics.evt_instrumentState.aget.assert_awaited_with(
+            timeout=self.atcs.fast_timeout
+        )
+
+        self.atcs.rem.atpneumatics.evt_instrumentState.flush.assert_called()
+
+        self.atcs.rem.atpneumatics.cmd_m1OpenAirValve.start.assert_awaited_with(
+            timeout=self.atcs.long_timeout
+        )
+
+        self.atcs.rem.atpneumatics.evt_instrumentState.next.assert_awaited_with(
+            flush=False, timeout=self.atcs.long_timeout
+        )
+
+        self.assertEqual(
+            self._atpneumatics_evt_instrument_state.state,
+            ATPneumatics.AirValveState.OPENED,
+        )
+
+        self.atcs.rem.atpneumatics.evt_mainValveState.aget.assert_awaited_with(
+            timeout=self.atcs.fast_timeout
+        )
+
+        self.atcs.rem.atpneumatics.evt_mainValveState.flush.assert_called()
+
+        self.atcs.rem.atpneumatics.cmd_openMasterAirSupply.start.assert_awaited_with(
+            timeout=self.atcs.long_timeout
+        )
+
+        self.atcs.rem.atpneumatics.evt_mainValveState.next.assert_awaited_with(
+            flush=False, timeout=self.atcs.long_timeout
+        )
+
+        self.assertEqual(
+            self._atpneumatics_evt_main_valve_state.state,
+            ATPneumatics.AirValveState.OPENED,
+        )
+
+    async def test_open_valve_instrument(self):
+
+        await self.atcs.open_valve_instrument()
+
+        self.atcs.rem.atpneumatics.evt_instrumentState.aget.assert_awaited_with(
+            timeout=self.atcs.fast_timeout
+        )
+
+        self.atcs.rem.atpneumatics.evt_instrumentState.flush.assert_called()
+
+        self.atcs.rem.atpneumatics.cmd_m1OpenAirValve.start.assert_awaited_with(
+            timeout=self.atcs.long_timeout
+        )
+
+        self.atcs.rem.atpneumatics.evt_instrumentState.next.assert_awaited_with(
+            flush=False, timeout=self.atcs.long_timeout
+        )
+
+        self.assertEqual(
+            self._atpneumatics_evt_instrument_state.state,
+            ATPneumatics.AirValveState.OPENED,
+        )
+
+    async def test_open_valve_main(self):
+
+        await self.atcs.open_valve_main()
+
+        self.atcs.rem.atpneumatics.evt_mainValveState.aget.assert_awaited_with(
+            timeout=self.atcs.fast_timeout
+        )
+
+        self.atcs.rem.atpneumatics.evt_mainValveState.flush.assert_called()
+
+        self.atcs.rem.atpneumatics.cmd_openMasterAirSupply.start.assert_awaited_with(
+            timeout=self.atcs.long_timeout
+        )
+
+        self.atcs.rem.atpneumatics.evt_mainValveState.next.assert_awaited_with(
+            flush=False, timeout=self.atcs.long_timeout
+        )
+
+        self.assertEqual(
+            self._atpneumatics_evt_main_valve_state.state,
+            ATPneumatics.AirValveState.OPENED,
+        )
+
     def test_check_interface_atmcs(self):
         self.check_topic_attribute(
             attributes={"elevationCalculatedAngle", "azimuthCalculatedAngle"},
@@ -1375,6 +1513,81 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
             component="ATPtg",
         )
 
+    def test_check_interface_atpneumatics(self):
+        component = "ATPneumatics"
+
+        self.check_topic_attribute(
+            attributes={"state"},
+            topic="logevent_m1CoverState",
+            component=component,
+        )
+
+        self.check_topic_attribute(
+            attributes={"position"},
+            topic="logevent_m1VentsPosition",
+            component=component,
+        )
+
+        self.check_topic_attribute(
+            attributes={"state"},
+            topic="logevent_mainValveState",
+            component=component,
+        )
+
+        self.check_topic_attribute(
+            attributes={"state"},
+            topic="logevent_instrumentState",
+            component=component,
+        )
+
+        self.check_topic_attribute(
+            attributes={"private_sndStamp"},
+            topic="command_openM1Cover",
+            component=component,
+        )
+
+        self.check_topic_attribute(
+            attributes={"private_sndStamp"},
+            topic="command_closeM1Cover",
+            component=component,
+        )
+
+        self.check_topic_attribute(
+            attributes={"private_sndStamp"},
+            topic="command_openM1CellVents",
+            component=component,
+        )
+
+        self.check_topic_attribute(
+            attributes={"private_sndStamp"},
+            topic="command_closeM1CellVents",
+            component=component,
+        )
+
+        self.check_topic_attribute(
+            attributes={"private_sndStamp"},
+            topic="command_openMasterAirSupply",
+            component=component,
+        )
+
+        self.check_topic_attribute(
+            attributes={"private_sndStamp"},
+            topic="command_closeMasterAirSupply",
+            component=component,
+        )
+
+        self.check_topic_attribute(
+            attributes={"private_sndStamp"},
+            topic="command_m1OpenAirValve",
+            component=component,
+        )
+
+        self.check_topic_attribute(
+            attributes={"private_sndStamp"},
+            topic="command_m1CloseAirValve",
+            component=component,
+        )
+
     def check_topic_attribute(self, attributes, topic, component):
         for attribute in attributes:
             self.assertTrue(
@@ -1475,6 +1688,14 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
 
         self._atpneumatics_evt_m1_vents_position = types.SimpleNamespace(
             position=ATPneumatics.VentsPosition.CLOSED
+        )
+
+        self._atpneumatics_evt_instrument_state = types.SimpleNamespace(
+            state=ATPneumatics.AirValveState.CLOSED
+        )
+
+        self._atpneumatics_evt_main_valve_state = types.SimpleNamespace(
+            state=ATPneumatics.AirValveState.CLOSED
         )
 
         # Setup data to support summary state manipulation
@@ -1651,6 +1872,12 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
                 "evt_m1CoverState.next.side_effect": self.atpneumatics_evt_m1_cover_state,
                 "evt_m1VentsPosition.aget.side_effect": self.atpneumatics_evt_m1_vents_position,
                 "evt_m1VentsPosition.next.side_effect": self.atpneumatics_evt_m1_vents_position,
+                "evt_instrumentState.aget.side_effect": self.atpneumatics_evt_instrument_state,
+                "evt_instrumentState.next.side_effect": self.atpneumatics_evt_instrument_state,
+                "evt_mainValveState.aget.side_effect": self.atpneumatics_evt_main_valve_state,
+                "evt_mainValveState.next.side_effect": self.atpneumatics_evt_main_valve_state,
+                "cmd_m1OpenAirValve.start.side_effect": self.atpneumatics_open_air_valve,
+                "cmd_openMasterAirSupply.start.side_effect": self.atpneumatics_open_main_valve,
                 "cmd_closeM1Cover.start.side_effect": self.atpneumatics_close_m1_cover,
                 "cmd_openM1Cover.start.side_effect": self.atpneumatics_open_m1_cover,
                 "cmd_openM1CellVents.start.side_effect": self.atpneumatics_open_m1_cell_vents,
@@ -1664,6 +1891,16 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
         )
 
         self.atcs.rem.atpneumatics.evt_m1VentsPosition.attach_mock(
+            unittest.mock.Mock(),
+            "flush",
+        )
+
+        self.atcs.rem.atpneumatics.evt_instrumentState.attach_mock(
+            unittest.mock.Mock(),
+            "flush",
+        )
+
+        self.atcs.rem.atpneumatics.evt_mainValveState.attach_mock(
             unittest.mock.Mock(),
             "flush",
         )
@@ -1770,17 +2007,45 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
         await asyncio.sleep(0.1)
         return self._atpneumatics_evt_m1_vents_position
 
+    async def atpneumatics_evt_instrument_state(self, *args, **kwargs):
+        await asyncio.sleep(0.1)
+        return self._atpneumatics_evt_instrument_state
+
+    async def atpneumatics_evt_main_valve_state(self, *args, **kwargs):
+        await asyncio.sleep(0.1)
+        return self._atpneumatics_evt_main_valve_state
+
     async def atpneumatics_close_m1_cover(self, *args, **kwargs):
         asyncio.create_task(self._atpneumatics_close_m1_cover())
 
     async def atpneumatics_open_m1_cover(self, *args, **kwargs):
+        if (
+            self._atpneumatics_evt_main_valve_state.state
+            != ATPneumatics.AirValveState.OPENED
+            or self._atpneumatics_evt_instrument_state.state
+            != ATPneumatics.AirValveState.OPENED
+        ):
+            raise RuntimeError("Valves not opened.")
         asyncio.create_task(self._atpneumatics_open_m1_cover())
 
     async def atpneumatics_open_m1_cell_vents(self, *args, **kwargs):
+        if (
+            self._atpneumatics_evt_main_valve_state.state
+            != ATPneumatics.AirValveState.OPENED
+            or self._atpneumatics_evt_instrument_state.state
+            != ATPneumatics.AirValveState.OPENED
+        ):
+            raise RuntimeError("Valves not opened.")
         asyncio.create_task(self._atpneumatics_open_m1_cell_vents())
 
     async def atpneumatics_close_m1_cell_vents(self, *args, **kwargs):
         asyncio.create_task(self._atpneumatics_close_m1_cell_vents())
+
+    async def atpneumatics_open_air_valve(self, *args, **kwargs):
+        asyncio.create_task(self._atpneumatics_open_air_valve())
+
+    async def atpneumatics_open_main_valve(self, *args, **kwargs):
+        asyncio.create_task(self._atpneumatics_open_main_valve())
 
     async def _atpneumatics_close_m1_cover(self):
         if (
@@ -1841,6 +2106,34 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
             await asyncio.sleep(0.5)
             self._atpneumatics_evt_m1_vents_position.position = (
                 ATPneumatics.VentsPosition.OPENED
+            )
+
+    async def _atpneumatics_open_air_valve(self):
+        if (
+            self._atpneumatics_evt_instrument_state.state
+            == ATPneumatics.AirValveState.OPENED
+        ):
+            return
+        else:
+
+            await asyncio.sleep(0.5)
+
+            self._atpneumatics_evt_instrument_state.state = (
+                ATPneumatics.AirValveState.OPENED
+            )
+
+    async def _atpneumatics_open_main_valve(self):
+        if (
+            self._atpneumatics_evt_main_valve_state.state
+            == ATPneumatics.AirValveState.OPENED
+        ):
+            return
+        else:
+
+            await asyncio.sleep(0.5)
+
+            self._atpneumatics_evt_main_valve_state.state = (
+                ATPneumatics.AirValveState.OPENED
             )
 
     def get_summary_state_for(self, comp):
