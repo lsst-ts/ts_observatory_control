@@ -29,6 +29,8 @@ import numpy as np
 import astropy.units as u
 from astropy.coordinates import Angle
 
+from astroquery.simbad import Simbad
+
 from lsst.ts import idl
 from lsst.ts.idl.enums import ATMCS, ATPtg, ATPneumatics, ATDome
 from lsst.ts import salobj
@@ -44,6 +46,57 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
             setattr(check, comp, True)
 
         return check
+
+    def test_object_list_get(self):
+
+        name = "HD 185975"
+
+        object_table = self.atcs.object_list_get(name)
+
+        self.assertTrue(name in self.atcs._object_list)
+        self.assertTrue(object_table is not None)
+
+    def test_object_list_clear(self):
+
+        name = "HD 185975"
+
+        object_table = self.atcs.object_list_get(name)
+
+        self.assertTrue(name in self.atcs._object_list)
+        self.assertTrue(object_table is not None)
+
+        self.atcs.object_list_clear()
+
+        self.assertEqual(len(self.atcs._object_list), 0)
+
+    def test_object_list_remove(self):
+
+        name = "HD 185975"
+
+        object_table = self.atcs.object_list_get(name)
+
+        self.assertTrue(name in self.atcs._object_list)
+        self.assertTrue(object_table is not None)
+
+        self.atcs.object_list_remove(name)
+
+        self.assertFalse(name in self.atcs._object_list)
+
+    def test_object_list_add(self):
+
+        name = "HD 185975"
+
+        object_table = Simbad.query_object(name)
+
+        self.atcs.object_list_add(name, object_table)
+
+        self.assertTrue(name in self.atcs._object_list)
+
+    async def test_find_target(self):
+
+        name = await self.atcs.find_target(az=-180.0, el=30.0, mag_limit=9.0)
+
+        self.assertTrue(name in self.atcs._object_list)
 
     async def test_slew_dome_to_check_false(self):
 
