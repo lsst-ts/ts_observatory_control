@@ -168,6 +168,8 @@ class ATCS(BaseTCS):
 
         self.dome_az_in_position = None
 
+        self._monitor_position = True
+
         try:
             self._create_asyncio_events()
         except RuntimeError:
@@ -184,6 +186,23 @@ class ATCS(BaseTCS):
         self._tel_target_updated = asyncio.Event()
         self.dome_az_in_position = asyncio.Event()
         self.dome_az_in_position.set()
+
+    def stop_monitor(self):
+        """Stop any monitor position."""
+        self.log.warning("Setting monitor flag to false.")
+        self._monitor_position = False
+
+    def enable_monitor(self):
+        """Enable monitor."""
+        if not self._monitor_position:
+            self.log.debug("Enabling monitor.")
+            self._monitor_position = True
+        else:
+            self.log.debug("Monitor already enabled.")
+
+    def is_monitor_enabled(self):
+        """Is monitor position flag enabled?"""
+        return self._monitor_position
 
     async def mount_AzEl_Encoders_callback(self, data):
         """Callback function to update the telescope position telemetry
@@ -1549,7 +1568,11 @@ class ATCS(BaseTCS):
 
         in_position = False
 
-        while not in_position:
+        if not self.is_monitor_enabled():
+            self.log.warning("Monitor disabled. Enabling and starting monitoring loop.")
+            self.enable_monitor()
+
+        while not in_position and self.is_monitor_enabled():
             if _check.atmcs:
                 comm_pos = await self.next_telescope_target(timeout=self.long_timeout)
                 tel_pos = await self.next_telescope_position(timeout=self.fast_timeout)
