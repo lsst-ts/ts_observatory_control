@@ -6,6 +6,13 @@
 Version History
 ###############
 
+v0.10.1
+=======
+
+* In ATCS update algorithm to open m1 cover.
+* Add object storing and finding facility to BaseTCS.
+* In ATCS add functionality to stop the monitor position loop.
+
 v0.10.0
 =======
 

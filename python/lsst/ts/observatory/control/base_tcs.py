@@ -88,6 +88,85 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
         self._ready_to_take_data_future = None
         self._ready_to_take_data_task = None
 
+        # Dictionary to store name->coordinates of objects
+        self._object_list = dict()
+
+    def object_list_clear(self):
+        """Remove all objects stored in the internal object list."""
+        self.log.debug(f"Removing {len(self._object_list)} items from object list.")
+        self._object_list = dict()
+
+    def object_list_remove(self, name):
+        """Remove object from object list.
+
+        Parameters
+        ----------
+        name: `str`
+            Object name.
+
+        Raises
+        ------
+        RuntimeError
+            If input object name not in the object list.
+        """
+
+        if name not in self._object_list:
+            raise RuntimeError(f"Input object {name} not in object list.")
+        else:
+            self._object_list.pop(name)
+            self.log.debug(f"Removed {name} from object list.")
+
+    def object_list_add(self, name, object_table):
+        """Add object to object list.
+
+        Parameters
+        ----------
+        name: `str`
+            Name of the object.
+        object_table: `astropy.table.row.Row`
+            Table row with object information.
+        """
+        if name not in self._object_list:
+            self._object_list[name] = object_table
+        else:
+            self.log.warning(f"{name} already in the object list.")
+
+    def object_list_get(self, name):
+        """Get an object from the list or query Simbad and return it.
+
+        Parameters
+        ----------
+        name: `str`
+            Name of the object.
+
+        Returns
+        -------
+        object_table: `astropy.table.row.Row`
+            Table row with object information.
+
+        Raises
+        ------
+        RuntimeError
+            If no object is found.
+        """
+
+        if name not in self._object_list:
+            object_table = Simbad.query_object(name)
+
+            if object_table is None:
+                raise RuntimeError(f"Could not find {name} in Simbad database.")
+            elif len(object_table) > 1:
+                self.log.warning(
+                    f"Found more than one entry for {name}. Using first one."
+                )
+
+            self.object_list_add(name, object_table[0])
+
+        else:
+            object_table = self._object_list[name]
+
+        return object_table
+
     async def point_azel(
         self,
         az,
@@ -209,12 +288,7 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
 
         """
 
-        object_table = Simbad.query_object(name)
-
-        if object_table is None:
-            raise RuntimeError(f"Could not find {name} in Simbad database.")
-        elif len(object_table) > 1:
-            self.log.warning(f"Found more than one entry for {name}. Using first one.")
+        object_table = self.object_list_get(name)
 
         self.log.info(
             f"Slewing to {name}: {object_table['RA'][0]} {object_table['DEC'][0]}"
@@ -1162,6 +1236,57 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
         )
 
         return pa_angle
+
+    async def find_target(self, az, el, mag_limit, mag_range=2.0, radius=2.0):
+        """Make a cone search in Simbad and return a target close to the
+        specified position.
+
+        Parameters
+        ----------
+        az: `float`
+            Azimuth (in degrees).
+        el: `float`
+            Elevation (in degrees).
+        mag_limit: `float`
+            Minimum (brightest) V-magnitude limit.
+        mag_range: `float`, optional
+            Magnitude range. The maximum/faintest limit is defined as
+            mag_limit+mag_range (default=2).
+        radius: `float`, optional
+            Radius of the cone search (default=2 degrees).
+        """
+        customSimbad = Simbad()
+
+        customSimbad.add_votable_fields("distance_result", "fluxdata(V)")
+        customSimbad.TIMEOUT = self.long_timeout
+
+        radec = self.radec_from_azel(az=az, el=el)
+
+        _ra = radec.ra.to_string(u.deg, decimal=True)
+        _dec = radec.dec.to_string(u.deg, decimal=True, alwayssign=True)
+        r = Angle(radius * u.deg).to_string(u.deg, decimal=True)
+
+        criteria = (
+            f"region(circle,ICRS,{_ra} {_dec},{r}d) & "
+            f"Vmag > {mag_limit} & Vmag < {mag_limit+2} & "
+            "cat = HD"
+        )
+
+        loop = asyncio.get_event_loop()
+
+        result_table = await loop.run_in_executor(
+            None, customSimbad.query_criteria, criteria
+        )
+        if result_table is None:
+            raise RuntimeError("No result from query.")
+
+        result_table.sort("FLUX_V")
+
+        target_main_id = str(result_table["MAIN_ID"][0])
+
+        self.object_list_add(f"{target_main_id:15}", result_table[0])
+
+        return f"{target_main_id:15}"
 
     @property
     def instrument_focus(self):
