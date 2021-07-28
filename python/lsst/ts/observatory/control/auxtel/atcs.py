@@ -168,6 +168,8 @@ class ATCS(BaseTCS):
 
         self.dome_az_in_position = None
 
+        self._monitor_position = True
+
         try:
             self._create_asyncio_events()
         except RuntimeError:
@@ -184,6 +186,23 @@ class ATCS(BaseTCS):
         self._tel_target_updated = asyncio.Event()
         self.dome_az_in_position = asyncio.Event()
         self.dome_az_in_position.set()
+
+    def stop_monitor(self):
+        """Stop any monitor position."""
+        self.log.warning("Setting monitor flag to false.")
+        self._monitor_position = False
+
+    def enable_monitor(self):
+        """Enable monitor."""
+        if not self._monitor_position:
+            self.log.debug("Enabling monitor.")
+            self._monitor_position = True
+        else:
+            self.log.debug("Monitor already enabled.")
+
+    def is_monitor_enabled(self):
+        """Is monitor position flag enabled?"""
+        return self._monitor_position
 
     async def mount_AzEl_Encoders_callback(self, data):
         """Callback function to update the telescope position telemetry
@@ -499,8 +518,6 @@ class ATCS(BaseTCS):
                 await self.open_m1_vent()
             except Exception:
                 self.log.exception("Failed to open M1 vent. Continuing.")
-
-        await self.enable_dome_following()
 
         if self.check.ataos:
             self.log.info("Enable ATAOS corrections.")
@@ -861,6 +878,11 @@ class ATCS(BaseTCS):
         in that same position in the end.
         """
 
+        try:
+            await self.open_valves()
+        except Exception:
+            self.log.warning("Failed to open valves, may fail to open m1 cover.")
+
         cover_state = await self.rem.atpneumatics.evt_m1CoverState.aget(
             timeout=self.fast_timeout
         )
@@ -924,6 +946,7 @@ class ATCS(BaseTCS):
         azimuth before closing the mirror cover. The telescope will be left
         in that same position in the end.
         """
+
         cover_state = await self.rem.atpneumatics.evt_m1CoverState.aget(
             timeout=self.fast_timeout
         )
@@ -981,6 +1004,8 @@ class ATCS(BaseTCS):
 
     async def open_m1_vent(self):
         """Task to open m1 vents."""
+
+        await self.open_valves()
 
         vent_state = await self.rem.atpneumatics.evt_m1VentsPosition.aget(
             timeout=self.fast_timeout
@@ -1055,6 +1080,107 @@ class ATCS(BaseTCS):
         else:
             raise RuntimeError(
                 f"Unrecognized M1 vent position: {vent_state.position!r}"
+            )
+
+    async def open_valves(self):
+        """Open the air valve system on ATPneumatics."""
+
+        atpneumatics_state = await self.get_state("atpneumatics", ignore_timeout=True)
+
+        if atpneumatics_state != salobj.State.ENABLED:
+            raise RuntimeError(
+                f"Current ATPneumatics state is {atpneumatics_state!r}. "
+                "Need to be ENABLED to open air valves."
+            )
+
+        try:
+            await self.open_valve_main()
+        except salobj.AckError:
+            self.log.warning("Failed to open main valve.")
+
+        try:
+            await self.open_valve_instrument()
+        except salobj.AckError:
+            self.log.warning("Failed to open instrument valve.")
+
+    async def open_valve_main(self):
+        """Open ATPneumatics main valve."""
+
+        pneumatics_main_valve_state = (
+            await self.rem.atpneumatics.evt_mainValveState.aget(
+                timeout=self.fast_timeout
+            )
+        ).state
+
+        if pneumatics_main_valve_state == ATPneumatics.AirValveState.CLOSED:
+            self.log.debug("Main valve closed, opening.")
+
+            self.rem.atpneumatics.evt_mainValveState.flush()
+
+            await self.rem.atpneumatics.cmd_openMasterAirSupply.start(
+                timeout=self.long_timeout
+            )
+
+            while pneumatics_main_valve_state != ATPneumatics.AirValveState.OPENED:
+                try:
+                    pneumatics_main_valve_state = ATPneumatics.AirValveState(
+                        (
+                            await self.rem.atpneumatics.evt_mainValveState.next(
+                                flush=False, timeout=self.long_timeout
+                            )
+                        ).state
+                    )
+                except asyncio.TimeoutError:
+                    raise RuntimeError("Timeout waiting for main valve to open.")
+                self.log.debug(f"Main valve state: {pneumatics_main_valve_state!r}")
+
+        elif pneumatics_main_valve_state == ATPneumatics.AirValveState.OPENED:
+            self.log.debug("Main valve opened.")
+        else:
+            raise RuntimeError(
+                f"Main valve state is {pneumatics_main_valve_state!r}, expected "
+                f" {ATPneumatics.AirValveState.CLOSED!r} or {ATPneumatics.AirValveState.OPENED!r}."
+            )
+
+    async def open_valve_instrument(self):
+        """Open ATPneumatics instrument valve."""
+        pneumatics_instrument_valve_state = (
+            await self.rem.atpneumatics.evt_instrumentState.aget(
+                timeout=self.fast_timeout
+            )
+        ).state
+
+        if pneumatics_instrument_valve_state == ATPneumatics.AirValveState.CLOSED:
+            self.log.debug("Instrument valve closed, opening.")
+
+            self.rem.atpneumatics.evt_instrumentState.flush()
+
+            await self.rem.atpneumatics.cmd_m1OpenAirValve.start(
+                timeout=self.long_timeout
+            )
+
+            while (
+                pneumatics_instrument_valve_state != ATPneumatics.AirValveState.OPENED
+            ):
+                try:
+                    pneumatics_instrument_valve_state = ATPneumatics.AirValveState(
+                        (
+                            await self.rem.atpneumatics.evt_instrumentState.next(
+                                flush=False, timeout=self.long_timeout
+                            )
+                        ).state
+                    )
+                except asyncio.TimeoutError:
+                    raise RuntimeError("Timeout waiting for main valve to open.")
+                self.log.debug(
+                    f"Main valve state: {pneumatics_instrument_valve_state!r}"
+                )
+        elif pneumatics_instrument_valve_state == ATPneumatics.AirValveState.OPENED:
+            self.log.debug("Main valve opened.")
+        else:
+            raise RuntimeError(
+                f"Main valve state is {pneumatics_instrument_valve_state!r}, expected "
+                f" {ATPneumatics.AirValveState.CLOSED!r} or {ATPneumatics.AirValveState.OPENED!r}."
             )
 
     async def _slew_to(
@@ -1442,7 +1568,11 @@ class ATCS(BaseTCS):
 
         in_position = False
 
-        while not in_position:
+        if not self.is_monitor_enabled():
+            self.log.warning("Monitor disabled. Enabling and starting monitoring loop.")
+            self.enable_monitor()
+
+        while not in_position and self.is_monitor_enabled():
             if _check.atmcs:
                 comm_pos = await self.next_telescope_target(timeout=self.long_timeout)
                 tel_pos = await self.next_telescope_position(timeout=self.fast_timeout)
@@ -1811,6 +1941,20 @@ class ATCS(BaseTCS):
                     "closeM1CellVents",
                     "m1CoverState",
                     "m1VentsPosition",
+                    "m1SetPressure",
+                    "m2SetPressure",
+                    "m1OpenAirValve",
+                    "m2OpenAirValve",
+                    "m1CloseAirValve",
+                    "m2CloseAirValve",
+                    "openMasterAirSupply",
+                    "openInstrumentAirValve",
+                    "m1State",
+                    "m2State",
+                    "instrumentState",
+                    "mainValveState",
+                    "m1AirPressure",
+                    "m2AirPressure",
                 ],
                 athexapod=["positionUpdate"],
                 atdome=[
@@ -1900,9 +2044,23 @@ class ATCS(BaseTCS):
                     "openM1Cover",
                     "closeM1Cover",
                     "openM1CellVents",
+                    "closeM1CellVents",
                     "m1CoverState",
                     "m1VentsPosition",
-                    "mainDoorState",
+                    "m1SetPressure",
+                    "m2SetPressure",
+                    "m1OpenAirValve",
+                    "m2OpenAirValve",
+                    "m1CloseAirValve",
+                    "m2CloseAirValve",
+                    "openMasterAirSupply",
+                    "openInstrumentAirValve",
+                    "m1State",
+                    "m2State",
+                    "instrumentState",
+                    "mainValveState",
+                    "m1AirPressure",
+                    "m2AirPressure",
                 ],
                 athexapod=["positionUpdate"],
             )
@@ -1989,9 +2147,25 @@ class ATCS(BaseTCS):
                 atdome=["stopMotion", "homeAzimuth"],
                 atpneumatics=[
                     "openM1Cover",
+                    "closeM1Cover",
                     "openM1CellVents",
+                    "closeM1CellVents",
                     "m1CoverState",
                     "m1VentsPosition",
+                    "m1SetPressure",
+                    "m2SetPressure",
+                    "m1OpenAirValve",
+                    "m2OpenAirValve",
+                    "m1CloseAirValve",
+                    "m2CloseAirValve",
+                    "openMasterAirSupply",
+                    "openInstrumentAirValve",
+                    "m1State",
+                    "m2State",
+                    "instrumentState",
+                    "mainValveState",
+                    "m1AirPressure",
+                    "m2AirPressure",
                 ],
                 athexapod=["positionUpdate"],
             )
