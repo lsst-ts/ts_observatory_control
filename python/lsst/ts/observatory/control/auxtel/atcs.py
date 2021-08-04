@@ -2044,6 +2044,7 @@ class ATCS(BaseTCS):
                     "homeAzimuth",
                     "shutterInPosition",
                     "scbLink",
+                    "mainDoorState",
                 ],
                 ataos=["enableCorrection"],
                 atpneumatics=[
