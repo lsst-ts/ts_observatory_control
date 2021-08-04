@@ -344,6 +344,10 @@ class ATCS(BaseTCS):
             Override `self.check` for defining which resources are used.
         """
 
+        await self.assert_all_enabled(
+            message="All components need to be enabled to prepare for flat field."
+        )
+
         # Creates a copy of check so it can modify it freely to control what
         # needs to be verified at each stage of the process.
         check_bckup = copy.copy(self.check) if check is None else copy.copy(check)
