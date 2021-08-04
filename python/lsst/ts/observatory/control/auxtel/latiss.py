@@ -298,6 +298,44 @@ class LATISS(BaseCamera):
 
         return filter_pos.name, grating_pos.name, stage_pos.position
 
+    async def get_available_instrument_setup(self):
+        """Return available instrument setup.
+
+        Returns
+        -------
+        available_filters: `list`
+            List of available filters.
+        available_gratings: `list`
+            List of available gratings.
+        linear_state_limits: `list`
+            Min/Max values for linear state.
+
+        See Also
+        --------
+        setup_instrument: Set up instrument.
+        """
+
+        try:
+            settings_applied_values = (
+                await self.rem.atspectrograph.evt_settingsAppliedValues.aget(
+                    timeout=self.fast_timeout
+                )
+            )
+        except asyncio.TimeoutError:
+            raise RuntimeError(
+                "Could not determine instrument setup. "
+                "Make sure ATSpectrograph is running, enabled and configured."
+            )
+
+        return (
+            settings_applied_values.filterNames.split(","),
+            settings_applied_values.gratingNames.split(","),
+            [
+                settings_applied_values.linearStageMinPos,
+                settings_applied_values.linearStageMaxPos,
+            ],
+        )
+
     @property
     def valid_use_cases(self):
         """Returns valid usages.
