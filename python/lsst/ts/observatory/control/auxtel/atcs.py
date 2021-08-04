@@ -452,7 +452,9 @@ class ATCS(BaseTCS):
             settings.
         """
 
-        await self.enable(settings=settings)
+        await self.assert_all_enabled(
+            message="All components need to be enabled to prepare for sky observations."
+        )
 
         await self.disable_dome_following()
 
