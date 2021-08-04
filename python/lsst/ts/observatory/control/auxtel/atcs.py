@@ -1161,7 +1161,7 @@ class ATCS(BaseTCS):
 
             self.rem.atpneumatics.evt_instrumentState.flush()
 
-            await self.rem.atpneumatics.cmd_m1OpenAirValve.start(
+            await self.rem.atpneumatics.cmd_openInstrumentAirValve.start(
                 timeout=self.long_timeout
             )
 
