@@ -255,7 +255,7 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual(
             self._atpneumatics_evt_instrument_state.state,
-            ATPneumatics.AirValveState.OPENED,
+            ATPneumatics.AirValveState.CLOSED,
         )
 
         self.assertEqual(
@@ -287,7 +287,7 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual(
             self._atpneumatics_evt_instrument_state.state,
-            ATPneumatics.AirValveState.OPENED,
+            ATPneumatics.AirValveState.CLOSED,
         )
 
         self.assertEqual(
@@ -319,7 +319,7 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual(
             self._atpneumatics_evt_instrument_state.state,
-            ATPneumatics.AirValveState.OPENED,
+            ATPneumatics.AirValveState.CLOSED,
         )
 
         self.assertEqual(
@@ -2074,8 +2074,6 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
     async def atpneumatics_open_m1_cover(self, *args, **kwargs):
         if (
             self._atpneumatics_evt_main_valve_state.state
-            != ATPneumatics.AirValveState.OPENED
-            or self._atpneumatics_evt_instrument_state.state
             != ATPneumatics.AirValveState.OPENED
         ):
             raise RuntimeError("Valves not opened.")

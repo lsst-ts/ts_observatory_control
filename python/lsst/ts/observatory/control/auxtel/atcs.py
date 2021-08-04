@@ -885,9 +885,9 @@ class ATCS(BaseTCS):
         """
 
         try:
-            await self.open_valves()
+            await self.open_valve_main()
         except Exception:
-            self.log.warning("Failed to open valves, may fail to open m1 cover.")
+            self.log.warning("Failed to open main valve, may fail to open m1 cover.")
 
         cover_state = await self.rem.atpneumatics.evt_m1CoverState.aget(
             timeout=self.fast_timeout
