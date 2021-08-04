@@ -792,6 +792,31 @@ class RemoteGroup:
         else:
             self.log.info(f"All components in {salobj.State(state)!r}.")
 
+    async def assert_all_enabled(self, message=""):
+        """Check if all components are in the enabled state.
+
+        Parameters
+        ----------
+        message: `str`
+            Additional message to append to error.
+        """
+
+        components = self.components_to_check()
+
+        components_state = await asyncio.gather(
+            *[self.get_state(component) for component in components]
+        )
+
+        not_enabled = [
+            component
+            for component, state in zip(components, components_state)
+            if state != salobj.State.ENABLED
+        ]
+
+        assert (
+            len(not_enabled) == 0
+        ), f"The following components are not enabled: {not_enabled}. {message}"
+
     async def enable(self, settings=None):
         """Enable all components.
 
