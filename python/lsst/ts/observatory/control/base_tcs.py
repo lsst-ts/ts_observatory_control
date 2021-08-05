@@ -161,6 +161,7 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
                 )
 
             self.object_list_add(name, object_table[0])
+            object_table = object_table[0]
 
         else:
             object_table = self._object_list[name]
@@ -290,13 +291,11 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
 
         object_table = self.object_list_get(name)
 
-        self.log.info(
-            f"Slewing to {name}: {object_table['RA'][0]} {object_table['DEC'][0]}"
-        )
+        self.log.info(f"Slewing to {name}: {object_table['RA']} {object_table['DEC']}")
 
         await self.slew_icrs(
-            ra=object_table["RA"][0],
-            dec=object_table["DEC"][0],
+            ra=object_table["RA"],
+            dec=object_table["DEC"],
             rot=rot,
             rot_type=rot_type,
             target_name=name,
@@ -1237,7 +1236,7 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
 
         return pa_angle
 
-    async def find_target(self, az, el, mag_limit, mag_range=2.0, radius=2.0):
+    async def find_target(self, az, el, mag_limit, mag_range=2.0, radius=0.5):
         """Make a cone search in Simbad and return a target close to the
         specified position.
 
@@ -1284,9 +1283,9 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
 
         target_main_id = str(result_table["MAIN_ID"][0])
 
-        self.object_list_add(f"{target_main_id:15}", result_table[0])
+        self.object_list_add(f"{target_main_id}".rstrip(), result_table[0])
 
-        return f"{target_main_id:15}"
+        return f"{target_main_id}".rstrip()
 
     @property
     def instrument_focus(self):
