@@ -295,6 +295,15 @@ class ComCam(BaseCamera):
                 "data is not working properly."
             )
 
+    async def get_available_instrument_setup(self):
+        """Return available instrument setup.
+
+        See Also
+        --------
+        setup_instrument: Set up instrument.
+        """
+        return await self.get_available_filters()
+
     @property
     def valid_use_cases(self):
         """Returns valid usages.

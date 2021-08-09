@@ -164,6 +164,18 @@ class TestBaseGroup(RemoteGroupTestCase, unittest.IsolatedAsyncioTestCase):
 
             await self.basegroup.assert_liveliness()
 
+    async def test_assert_enabled(self):
+        async with self.make_group(
+            usage=Usages.StateTransition + Usages.MonitorHeartBeat
+        ):
+
+            with self.assertRaises(AssertionError):
+                await self.basegroup.assert_all_enabled()
+
+            await self.basegroup.enable()
+
+            await self.basegroup.assert_all_enabled()
+
 
 if __name__ == "__main__":
     unittest.main()
