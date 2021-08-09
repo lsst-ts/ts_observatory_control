@@ -6,6 +6,26 @@
 Version History
 ###############
 
+v0.10.2
+=======
+
+* In `ATCS`:
+  * Small fixes to find_target and object_list_get.
+    Fix `ATCS.open_valve_instrument` to call `cmd_openInstrumentAirValve` instead of `cmd_m1OpenAirValve`.
+    In `ATCS.usages`, add mainDoorState event to the list of required events on atdome.
+    In `ATCS.open_m1_cover` use `open_valve_main` instead of `open_valves`. Only main valve needs to be open to open the m1 cover.
+    In `ATCS.prepare_for_onsky`, stop enabling the components and add a check that all components are in enabled state.
+    In `ATCS.prepare_for_flats`, add a step to verify that all components are in enabled state.
+* In `RemoteGroup`:
+  * Implement `assert_all_enabled` method to verify that all components in the group are in enabled state.
+* In `ComCam`:
+  * Implement `get_available_instrument_setup`.
+* In `LATISS`:
+  * Implement `get_available_instrument_setup`.
+* In `BaseCamera`:
+  * Add new abstract method `get_available_instrument_setup`.
+
+
 v0.10.1
 =======
 

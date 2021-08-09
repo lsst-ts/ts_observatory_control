@@ -525,6 +525,16 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
         raise NotImplementedError()
 
     @abc.abstractmethod
+    async def get_available_instrument_setup(self):
+        """Return available instrument setup.
+
+        See Also
+        --------
+        setup_instrument: Set up instrument.
+        """
+        raise NotImplementedError()
+
+    @abc.abstractmethod
     async def expose(
         self,
         exp_time,

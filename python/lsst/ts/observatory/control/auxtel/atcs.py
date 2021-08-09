@@ -344,6 +344,10 @@ class ATCS(BaseTCS):
             Override `self.check` for defining which resources are used.
         """
 
+        await self.assert_all_enabled(
+            message="All components need to be enabled to prepare for flat field."
+        )
+
         # Creates a copy of check so it can modify it freely to control what
         # needs to be verified at each stage of the process.
         check_bckup = copy.copy(self.check) if check is None else copy.copy(check)
@@ -448,7 +452,9 @@ class ATCS(BaseTCS):
             settings.
         """
 
-        await self.enable(settings=settings)
+        await self.assert_all_enabled(
+            message="All components need to be enabled to prepare for sky observations."
+        )
 
         await self.disable_dome_following()
 
@@ -879,9 +885,9 @@ class ATCS(BaseTCS):
         """
 
         try:
-            await self.open_valves()
+            await self.open_valve_main()
         except Exception:
-            self.log.warning("Failed to open valves, may fail to open m1 cover.")
+            self.log.warning("Failed to open main valve, may fail to open m1 cover.")
 
         cover_state = await self.rem.atpneumatics.evt_m1CoverState.aget(
             timeout=self.fast_timeout
@@ -1155,7 +1161,7 @@ class ATCS(BaseTCS):
 
             self.rem.atpneumatics.evt_instrumentState.flush()
 
-            await self.rem.atpneumatics.cmd_m1OpenAirValve.start(
+            await self.rem.atpneumatics.cmd_openInstrumentAirValve.start(
                 timeout=self.long_timeout
             )
 
@@ -2038,6 +2044,7 @@ class ATCS(BaseTCS):
                     "homeAzimuth",
                     "shutterInPosition",
                     "scbLink",
+                    "mainDoorState",
                 ],
                 ataos=["enableCorrection"],
                 atpneumatics=[
