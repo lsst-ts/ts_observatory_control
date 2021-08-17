@@ -237,6 +237,19 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
         with self.assertRaises(RuntimeError):
             await self.atcs.close_dome()
 
+    async def test_assert_m1_correction_disable_when_off(self):
+
+        self._ataos_evt_correction_enabled.m1 = False
+
+        await self.atcs.assert_m1_correction_disabled()
+
+    async def test_assert_m1_correction_disable_when_on(self):
+
+        self._ataos_evt_correction_enabled.m1 = True
+
+        with self.assertRaises(AssertionError):
+            await self.atcs.assert_m1_correction_disabled()
+
     async def test_open_m1_cover_when_cover_closed(self):
 
         # make sure cover is closed
@@ -1690,6 +1703,16 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
         # Setup asyncio facilities that probably failed while setting up class
         self.atcs._create_asyncio_events()
 
+        # Setup required ATAOS data
+        self._ataos_evt_correction_enabled = types.SimpleNamespace(
+            m1=False,
+            hexapod=False,
+            m2=False,
+            focus=False,
+            atspectrograph=False,
+            moveWhileExposing=False,
+        )
+
         # Setup required ATPtg data
         self._atptg_evt_focus_name_selected = types.SimpleNamespace(
             focus=ATPtg.Foci.NASMYTH2
@@ -1813,6 +1836,12 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
                 "flush",
             )
 
+        # Augment ataos mock.
+        self.atcs.rem.ataos.configure_mock(
+            **{
+                "evt_correctionEnabled.aget.side_effect": self.ataos_evt_correction_enabled
+            }
+        )
         # Augment atptg mock.
         self.atcs.rem.atptg.configure_mock(
             **{
@@ -1962,6 +1991,9 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
         """Emulate heartbeat functionality."""
         await asyncio.sleep(1.0)
         return types.SimpleNamespace()
+
+    async def ataos_evt_correction_enabled(self, *args, **kwargs):
+        return self._ataos_evt_correction_enabled
 
     async def atptg_evt_focus_name_selected(self, *args, **kwargs):
         return self._atptg_evt_focus_name_selected

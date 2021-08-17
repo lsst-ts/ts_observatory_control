@@ -1839,6 +1839,16 @@ class ATCS(BaseTCS):
 
         return in_position.inPosition
 
+    async def assert_m1_correction_disabled(self, message=""):
+
+        ataos_correction_enabled = await self.rem.ataos.evt_correctionEnabled.aget(
+            timeout=self.fast_timeout
+        )
+
+        assert (
+            not ataos_correction_enabled.m1
+        ), f"ATAOS m1 correction enabled. {message}"
+
     @property
     def plate_scale(self):
         """Plate scale in mm/arcsec."""
