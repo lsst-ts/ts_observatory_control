@@ -343,6 +343,13 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
         # Should not be called
         self.atcs.rem.atpneumatics.cmd_openM1Cover.start.assert_not_awaited()
 
+    async def test_open_m1_cover_when_m1_correction_enabled(self):
+
+        self._ataos_evt_correction_enabled.m1 = True
+
+        with self.assertRaises(AssertionError):
+            await self.atcs.open_m1_cover()
+
     async def test_close_m1_cover_when_cover_opened(self):
 
         # make sure cover is opened
@@ -406,6 +413,13 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
         # Should not be called
         self.atcs.rem.atpneumatics.cmd_closeM1Cover.start.assert_not_awaited()
 
+    async def test_close_m1_cover_when_m1_correction_enabled(self):
+
+        self._ataos_evt_correction_enabled.m1 = True
+
+        with self.assertRaises(AssertionError):
+            await self.atcs.close_m1_cover()
+
     async def test_open_m1_vent_when_closed(self):
 
         await self.atcs.open_m1_vent()
@@ -460,6 +474,13 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
         )
 
         with self.assertRaises(RuntimeError):
+            await self.atcs.open_m1_vent()
+
+    async def test_open_m1_vent_when_m1_correction_enabled(self):
+
+        self._ataos_evt_correction_enabled.m1 = True
+
+        with self.assertRaises(AssertionError):
             await self.atcs.open_m1_vent()
 
     async def test_home_dome_pressing_home_switch(self):
