@@ -18,7 +18,7 @@
 #
 # You should have received a copy of the GNU General Public License
 
-__all__ = ["calculate_parallactic_angle", "handle_exception_in"]
+__all__ = ["calculate_parallactic_angle", "handle_exception_in_dict_items"]
 
 import numpy as np
 

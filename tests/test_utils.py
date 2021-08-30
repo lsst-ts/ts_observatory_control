@@ -18,6 +18,7 @@
 #
 # You should have received a copy of the GNU General Public License
 
+import asyncio
 import unittest
 
 import astropy.units as u
@@ -47,6 +48,44 @@ class TestUtils(unittest.TestCase):
         )
 
         self.assertIsNotNone(par_angle)
+
+    def test_handle_exception_in_dict_items_nothing_to_handle(self):
+
+        object_with_nothing_to_handle = dict(item1=1, item2=2, item3=3)
+
+        utils.handle_exception_in_dict_items(object_with_nothing_to_handle)
+
+    def test_handle_exception_in_dict_items_with_one_exception(self):
+
+        object_with_one_exception_to_handle = dict(
+            item1=1, item2=2, item3=TypeError("Raising some exception for testing.")
+        )
+
+        with self.assertRaises(RuntimeError):
+            utils.handle_exception_in_dict_items(object_with_one_exception_to_handle)
+
+        with self.assertRaises(RuntimeError):
+            utils.handle_exception_in_dict_items(
+                object_with_one_exception_to_handle,
+                "Proving some additional message for the exception.",
+            )
+
+    def test_handle_exception_in_dict_items_with_two_exceptions(self):
+
+        object_with_two_exceptions_to_handle = dict(
+            item1=1,
+            item2=asyncio.TimeoutError("Raising some exception for testing."),
+            item3=TypeError("Raising some exception for testing."),
+        )
+
+        with self.assertRaises(RuntimeError):
+            utils.handle_exception_in_dict_items(object_with_two_exceptions_to_handle)
+
+        with self.assertRaises(RuntimeError):
+            utils.handle_exception_in_dict_items(
+                object_with_two_exceptions_to_handle,
+                "Proving some additional message for the exception.",
+            )
 
 
 if __name__ == "__main__":
