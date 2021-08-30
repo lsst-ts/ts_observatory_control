@@ -847,6 +847,33 @@ class RemoteGroup:
 
         return simulation_mode
 
+    async def get_software_versions(self, components=None):
+        """Return a list with the software versions for components in the group.
+
+        Parameters
+        ----------
+        components : `list` of `str`, optional
+            List with the name of components to get the software versions. If
+            `None` (default) return the values for all components.
+
+        Returns
+        -------
+        software_versions: `dict`
+            Dictionary with the name of the component and the value of
+            software versions.
+        """
+
+        software_versions = await self._aget_topic_samples_for_components(
+            "evt_softwareVersions", components
+        )
+
+        handle_exception_in_dict_items(
+            software_versions,
+            "Error getting software versions for the following components",
+        )
+
+        return software_versions
+
     async def enable(self, settings=None):
         """Enable all components.
 

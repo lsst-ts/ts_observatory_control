@@ -201,6 +201,28 @@ class TestBaseGroup(RemoteGroupTestCase, unittest.IsolatedAsyncioTestCase):
 
             self.assertEqual(component_simulation_mode["test_1"].mode, 0)
 
+    async def test_get_software_versions(self):
+        async with self.make_group(usage=Usages.CheckSoftwareVersions):
+
+            software_versions = await self.basegroup.get_software_versions()
+
+            self.assertEqual(
+                len(software_versions), len(self.basegroup.components_attr)
+            )
+
+            for i, component in enumerate(software_versions):
+                self.assertEqual(
+                    software_versions[component].cscVersion, self.mock_test[i].version
+                )
+
+            software_versions = await self.basegroup.get_software_versions(["test_1"])
+
+            self.assertEqual(len(software_versions), 1)
+
+            self.assertEqual(
+                software_versions["test_1"].cscVersion, self.mock_test[0].version
+            )
+
 
 if __name__ == "__main__":
     unittest.main()
