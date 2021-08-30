@@ -191,7 +191,7 @@ class TestBaseGroup(RemoteGroupTestCase, unittest.IsolatedAsyncioTestCase):
             )
 
             for component in component_simulation_mode:
-                self.assertEqual(component_simulation_mode[component], 0)
+                self.assertEqual(component_simulation_mode[component].mode, 0)
 
             component_simulation_mode = await self.basegroup.get_simulation_mode(
                 ["test_1"]
@@ -199,7 +199,7 @@ class TestBaseGroup(RemoteGroupTestCase, unittest.IsolatedAsyncioTestCase):
 
             self.assertEqual(len(component_simulation_mode), 1)
 
-            self.assertEqual(component_simulation_mode["test_1"], 0)
+            self.assertEqual(component_simulation_mode["test_1"].mode, 0)
 
 
 if __name__ == "__main__":
