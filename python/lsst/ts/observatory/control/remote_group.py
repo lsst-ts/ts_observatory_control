@@ -726,16 +726,7 @@ class RemoteGroup:
 
         """
 
-        if components is not None:
-            work_components = list(components)
-
-            for comp in work_components:
-                if comp not in self.components_attr:
-                    raise RuntimeError(
-                        f"Component {comp} not part of the group. Must be one of {self.components_attr}."
-                    )
-        else:
-            work_components = list(self.components_attr)
+        work_components = self.get_work_components(components)
 
         if settings is not None:
             settings_all = settings
