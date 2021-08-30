@@ -223,6 +223,19 @@ class TestBaseGroup(RemoteGroupTestCase, unittest.IsolatedAsyncioTestCase):
                 software_versions["test_1"].cscVersion, self.mock_test[0].version
             )
 
+    async def test_get_work_components(self):
+        async with self.make_group(usage=Usages.DryTest):
+            work_components = self.basegroup.get_work_components()
+
+            self.assertEqual(len(work_components), self.ntest)
+
+            work_components = self.basegroup.get_work_components(["test_1"])
+
+            self.assertEqual(len(work_components), 1)
+
+            with self.assertRaises(RuntimeError):
+                self.basegroup.get_work_components(["bad_1"])
+
 
 if __name__ == "__main__":
     unittest.main()
