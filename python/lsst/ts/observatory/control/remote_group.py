@@ -862,6 +862,39 @@ class RemoteGroup:
         for component in self.components:
             logging.getLogger(component).setLevel(level)
 
+    def get_work_components(self, components):
+        """Parse input into a list of valid components from the group.
+
+        Parameters
+        ----------
+        components : `list` of `str` or `None`
+            Input list of components to process or `None`. If `None` return a
+            list with all components.
+
+        Returns
+        -------
+        work_components : `list` of `str`
+            List of valid components.
+
+        Raises
+        ------
+        RuntimeError
+            If a component in the `components` input list is not part of the
+            group.
+        """
+        if components is not None:
+            work_components = list(components)
+
+            for comp in work_components:
+                if comp not in self.components_attr:
+                    raise RuntimeError(
+                        f"Component {comp} not part of the group. Must be one of {self.components_attr}."
+                    )
+        else:
+            work_components = list(self.components_attr)
+
+        return work_components
+
     @property
     def components(self):
         """List of components names.
