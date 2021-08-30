@@ -36,14 +36,19 @@ MAKE_TIMEOUT = 60  # Timeout for make_script (sec)
 class TestBaseGroup(RemoteGroupTestCase, unittest.IsolatedAsyncioTestCase):
     async def basic_make_group(self, usage=None):
 
-        ntest = 4
+        self.ntest = 4
 
         self.basegroup = RemoteGroup(
-            components=[f"Test:{c_id+1}" for c_id in range(ntest)],
+            components=[f"Test:{c_id+1}" for c_id in range(self.ntest)],
             intended_usage=usage,
         )
 
-        self.mock_test = [salobj.TestCsc(index=c_id + 1) for c_id in range(ntest)]
+        if usage != Usages.DryTest:
+            self.mock_test = [
+                salobj.TestCsc(index=c_id + 1) for c_id in range(self.ntest)
+            ]
+        else:
+            self.mock_test = []
 
         return (self.basegroup, *self.mock_test)
 
