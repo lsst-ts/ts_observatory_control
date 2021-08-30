@@ -836,19 +836,9 @@ class RemoteGroup:
             simulation mode.
         """
 
-        work_components = self.get_work_components(components=components)
-
-        simulation_mode_data = await asyncio.gather(
-            *[
-                getattr(self.rem, component).evt_simulationMode.aget(
-                    timeout=self.fast_timeout
-                )
-                for component in work_components
-            ],
-            return_exceptions=True,
+        simulation_mode = await self._aget_topic_samples_for_components(
+            "evt_simulationMode", components
         )
-
-        simulation_mode = dict(zip(work_components, simulation_mode_data))
 
         handle_exception_in_dict_items(
             simulation_mode,
