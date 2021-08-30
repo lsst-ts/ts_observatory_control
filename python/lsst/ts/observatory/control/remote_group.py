@@ -902,7 +902,7 @@ class RemoteGroup:
         for component in self.components:
             logging.getLogger(component).setLevel(level)
 
-    def get_work_components(self, components):
+    def get_work_components(self, components=None):
         """Parse input into a list of valid components from the group.
 
         Parameters
