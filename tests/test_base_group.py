@@ -176,6 +176,26 @@ class TestBaseGroup(RemoteGroupTestCase, unittest.IsolatedAsyncioTestCase):
 
             await self.basegroup.assert_all_enabled()
 
+    async def test_get_simulation_mode(self):
+        async with self.make_group(usage=Usages.CheckSimulationMode):
+
+            component_simulation_mode = await self.basegroup.get_simulation_mode()
+
+            self.assertEqual(
+                len(component_simulation_mode), len(self.basegroup.components_attr)
+            )
+
+            for component in component_simulation_mode:
+                self.assertEqual(component_simulation_mode[component], 0)
+
+            component_simulation_mode = await self.basegroup.get_simulation_mode(
+                ["test_1"]
+            )
+
+            self.assertEqual(len(component_simulation_mode), 1)
+
+            self.assertEqual(component_simulation_mode["test_1"], 0)
+
 
 if __name__ == "__main__":
     unittest.main()

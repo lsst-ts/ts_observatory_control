@@ -24,6 +24,7 @@ import logging
 import traceback
 
 from lsst.ts import salobj
+from .utils import handle_exception_in_dict_items
 
 __all__ = ["Usages", "UsagesResources", "RemoteGroup"]
 
@@ -807,6 +808,43 @@ class RemoteGroup:
         assert (
             len(not_enabled) == 0
         ), f"The following components are not enabled: {not_enabled}. {message}"
+
+    async def get_simulation_mode(self, components=None):
+        """Return a list with the simulation mode for components in the group.
+
+        Parameters
+        ----------
+        components : `list` of `str`, optional
+            List with the name of components to get the simulation mode. If
+            `None` (default) return the values for all components.
+
+        Returns
+        -------
+        simulation_mode: `dict`
+            Dictionary with the name of the component and the value of
+            simulation mode.
+        """
+
+        work_components = self.get_work_components(components=components)
+
+        simulation_mode_data = await asyncio.gather(
+            *[
+                getattr(self.rem, component).evt_simulationMode.aget(
+                    timeout=self.fast_timeout
+                )
+                for component in work_components
+            ],
+            return_exceptions=True,
+        )
+
+        simulation_mode = dict(zip(work_components, simulation_mode_data))
+
+        handle_exception_in_dict_items(
+            simulation_mode,
+            "Error getting simulation mode for the following components",
+        )
+
+        return simulation_mode
 
     async def enable(self, settings=None):
         """Enable all components.
