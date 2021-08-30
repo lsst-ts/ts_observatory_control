@@ -44,6 +44,7 @@ class LATISSUsages(Usages):
     TakeImage = 1 << 3
     Setup = 1 << 4
     TakeImageFull = 1 << 5
+    DryTest = 1 << 6
 
     def __iter__(self):
 
@@ -56,6 +57,7 @@ class LATISSUsages(Usages):
                 self.TakeImage,
                 self.Setup,
                 self.TakeImageFull,
+                self.DryTest,
             ]
         )
 
@@ -401,6 +403,10 @@ class LATISS(BaseCamera):
                     "reportedDisperserPosition",
                     "reportedLinearStagePosition",
                 ],
+            )
+
+            usages[self.valid_use_cases.DryTest] = UsagesResources(
+                components_attr=(), readonly=True
             )
 
             self._usages = usages

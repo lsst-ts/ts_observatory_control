@@ -884,6 +884,10 @@ class ATCS(BaseTCS):
         in that same position in the end.
         """
 
+        await self.assert_m1_correction_disabled(
+            "Cannot open m1 cover. Disable ATAOS m1 correction and try again."
+        )
+
         try:
             await self.open_valve_main()
         except Exception:
@@ -953,6 +957,10 @@ class ATCS(BaseTCS):
         in that same position in the end.
         """
 
+        await self.assert_m1_correction_disabled(
+            "Cannot close m1 cover. Disable ATAOS m1 correction and try again."
+        )
+
         cover_state = await self.rem.atpneumatics.evt_m1CoverState.aget(
             timeout=self.fast_timeout
         )
@@ -1011,6 +1019,10 @@ class ATCS(BaseTCS):
     async def open_m1_vent(self):
         """Task to open m1 vents."""
 
+        await self.assert_m1_correction_disabled(
+            "Cannot open m1 vents. Disable ATAOS m1 correction and try again."
+        )
+
         await self.open_valves()
 
         vent_state = await self.rem.atpneumatics.evt_m1VentsPosition.aget(
@@ -1050,6 +1062,10 @@ class ATCS(BaseTCS):
 
     async def close_m1_vent(self):
         """Task to open m1 vents."""
+
+        await self.assert_m1_correction_disabled(
+            "Cannot close m1 vents. Disable ATAOS m1 correction and try again."
+        )
 
         vent_state = await self.rem.atpneumatics.evt_m1VentsPosition.aget(
             timeout=self.fast_timeout
@@ -1838,6 +1854,16 @@ class ATCS(BaseTCS):
             )
 
         return in_position.inPosition
+
+    async def assert_m1_correction_disabled(self, message=""):
+
+        ataos_correction_enabled = await self.rem.ataos.evt_correctionEnabled.aget(
+            timeout=self.fast_timeout
+        )
+
+        assert (
+            not ataos_correction_enabled.m1
+        ), f"ATAOS m1 correction enabled. {message}"
 
     @property
     def plate_scale(self):
