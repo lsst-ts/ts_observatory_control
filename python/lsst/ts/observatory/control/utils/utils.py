@@ -18,7 +18,7 @@
 #
 # You should have received a copy of the GNU General Public License
 
-__all__ = ["calculate_parallactic_angle"]
+__all__ = ["calculate_parallactic_angle", "handle_exception_in"]
 
 import numpy as np
 
@@ -70,3 +70,16 @@ def calculate_parallactic_angle(location, lst, target):
     )
 
     return Angle(q)
+
+
+def handle_exception_in_dict_items(
+    input_dict, message="Exceptions in the following items"
+):
+    """Handle execeptions in dictionary items."""
+
+    exception_keys = [
+        key for key in input_dict if isinstance(input_dict[key], Exception)
+    ]
+
+    if len(exception_keys) > 0:
+        raise RuntimeError(f"{message}: {exception_keys}")
