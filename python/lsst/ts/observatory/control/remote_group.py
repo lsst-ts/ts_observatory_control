@@ -1013,6 +1013,8 @@ class RemoteGroup:
                         "summaryState",
                         "settingVersions",
                         "heartbeat",
+                        "simulationMode",
+                        "softwareVersions",
                     ],
                 ),
                 self.valid_use_cases.StateTransition: UsagesResources(
