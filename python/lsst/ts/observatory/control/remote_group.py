@@ -55,10 +55,21 @@ class Usages:
     StateTransition = 1
     MonitorState = 1 << 1
     MonitorHeartBeat = 1 << 2
+    CheckSimulationMode = 1 << 3
+    CheckSoftwareVersions = 1 << 4
+    DryTest = 1 << 5
 
     def __iter__(self):
         return iter(
-            [self.All, self.StateTransition, self.MonitorState, self.MonitorHeartBeat]
+            [
+                self.All,
+                self.StateTransition,
+                self.MonitorState,
+                self.MonitorHeartBeat,
+                self.CheckSimulationMode,
+                self.CheckSoftwareVersions,
+                self.DryTest,
+            ]
         )
 
 
@@ -1027,6 +1038,20 @@ class RemoteGroup:
                     components_attr=self.components_attr,
                     readonly=True,
                     generics=["heartbeat"],
+                ),
+                self.valid_use_cases.CheckSimulationMode: UsagesResources(
+                    components_attr=self.components_attr,
+                    readonly=True,
+                    generics=["simulationMode"],
+                ),
+                self.valid_use_cases.CheckSoftwareVersions: UsagesResources(
+                    components_attr=self.components_attr,
+                    readonly=True,
+                    generics=["softwareVersions"],
+                ),
+                self.valid_use_cases.DryTest: UsagesResources(
+                    components_attr=self.components_attr,
+                    readonly=True,
                 ),
             }
 
