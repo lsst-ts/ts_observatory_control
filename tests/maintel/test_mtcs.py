@@ -1096,6 +1096,33 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
         with self.assertRaises(AssertionError):
             await self.mtcs.enable_compensation_mode(component="mtm1m3")
 
+    async def test_move_camera_hexapod(self):
+
+        hexapod_positions = dict([(axis, np.random.rand()) for axis in "xyzuv"])
+
+        await self.mtcs.move_camera_hexapod(**hexapod_positions)
+
+        for axis in hexapod_positions:
+            self.assertEqual(
+                getattr(self._mthexapod_1_evt_uncompensated_position, axis),
+                hexapod_positions[axis],
+            )
+
+        self.mtcs.rem.mthexapod_1.cmd_move.set_start.assert_awaited_with(
+            **hexapod_positions, w=0.0, sync=True, timeout=self.mtcs.long_timeout
+        )
+
+        self.assertTrue(self._mthexapod_1_evt_in_position.inPosition)
+
+        self.mtcs.rem.mthexapod_1.evt_inPosition.aget.assert_awaited_with(
+            timeout=self.mtcs.fast_timeout
+        )
+        self.mtcs.rem.mthexapod_1.evt_inPosition.flush.assert_called()
+
+        self.mtcs.rem.mthexapod_1.evt_inPosition.next.assert_awaited_with(
+            timeout=self.mtcs.long_timeout, flush=False
+        )
+
     def test_check_mtmount_interface(self):
 
         component = "MTMount"
@@ -1293,6 +1320,9 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
         self._mthexapod_1_evt_uncompensated_position = types.SimpleNamespace(
             x=0.0, y=0.0, z=0.0, u=0.0, v=0.0, w=0.0
         )
+        self._mthexapod_1_evt_in_position = types.SimpleNamespace(inPosition=True)
+        self._mthexapod_1_move_task = salobj.make_done_future()
+
         # M2 hexapod data
         self._mthexapod_2_evt_compensation_mode = types.SimpleNamespace(enabled=False)
         self._mthexapod_2_evt_uncompensated_position = types.SimpleNamespace(
@@ -1525,10 +1555,20 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
             unittest.mock.Mock(),
             "flush",
         )
+        self.mtcs.rem.mthexapod_1.evt_inPosition.attach_mock(
+            unittest.mock.Mock(),
+            "flush",
+        )
+
         hexapod_1_mocks = {
             "evt_compensationMode.aget.side_effect": self.mthexapod_1_evt_compensation_mode,
             "evt_compensationMode.next.side_effect": self.mthexapod_1_evt_compensation_mode,
+            "evt_uncompensatedPosition.aget.side_effect": self.mthexapod_1_evt_uncompensated_position,
+            "evt_uncompensatedPosition.next.side_effect": self.mthexapod_1_evt_uncompensated_position,
+            "evt_inPosition.aget.side_effect": self.mthexapod_1_evt_in_position,
+            "evt_inPosition.next.side_effect": self.mthexapod_1_evt_in_position,
             "cmd_setCompensationMode.set_start.side_effect": self.mthexapod_1_cmd_set_compensation_mode,
+            "cmd_move.set_start.side_effect": self.mthexapod_1_cmd_move,
         }
 
         self.mtcs.rem.mthexapod_1.configure_mock(**hexapod_1_mocks)
@@ -1715,12 +1755,55 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
         await asyncio.sleep(1.0)
         return self._mthexapod_2_evt_compensation_mode
 
+    async def mthexapod_1_evt_uncompensated_position(self, *args, **kwargs):
+        await asyncio.sleep(1.0)
+        return self._mthexapod_1_evt_uncompensated_position
+
+    async def mthexapod_1_evt_in_position(self, *args, **kwargs):
+        await asyncio.sleep(1.0)
+        return self._mthexapod_1_evt_in_position
+
     async def mthexapod_2_cmd_set_compensation_mode(self, *args, **kwargs):
         if self._mthexapod_2_evt_compensation_mode.enabled:
             raise RuntimeError("Hexapod 2 compensation mode already enabled.")
         else:
             await asyncio.sleep(1.0)
             self._mthexapod_2_evt_compensation_mode.enabled = True
+
+    async def mthexapod_1_cmd_move(self, *args, **kwargs):
+        self.log.debug("Move camera hexapod...")
+        await asyncio.sleep(0.5)
+        self._mthexapod_1_move_task = asyncio.create_task(
+            self.execute_hexapod_move(hexapod=1, **kwargs)
+        )
+        await asyncio.sleep(0.1)
+
+    async def execute_hexapod_move(self, hexapod, **kwargs):
+
+        self.log.debug(f"Execute hexapod {hexapod} movement.")
+        getattr(self, f"_mthexapod_{hexapod}_evt_in_position").inPosition = False
+        hexapod_positions_steps = np.array(
+            [
+                np.linspace(
+                    getattr(self._mthexapod_1_evt_uncompensated_position, axis),
+                    kwargs.get(axis, 0.0),
+                    10,
+                )
+                for axis in "xyzuvw"
+            ]
+        ).T
+
+        for x, y, z, u, v, w in hexapod_positions_steps:
+            self.log.debug(f"Hexapod {hexapod} movement: {x} {y} {z} {u} {v} {w}")
+            getattr(self, f"_mthexapod_{hexapod}_evt_uncompensated_position").x = x
+            getattr(self, f"_mthexapod_{hexapod}_evt_uncompensated_position").y = y
+            getattr(self, f"_mthexapod_{hexapod}_evt_uncompensated_position").z = z
+            getattr(self, f"_mthexapod_{hexapod}_evt_uncompensated_position").u = u
+            getattr(self, f"_mthexapod_{hexapod}_evt_uncompensated_position").v = v
+            getattr(self, f"_mthexapod_{hexapod}_evt_uncompensated_position").w = w
+            await asyncio.sleep(0.2)
+
+        getattr(self, f"_mthexapod_{hexapod}_evt_in_position").inPosition = True
 
     def get_summary_state_for(self, comp):
         async def get_summary_state(timeout=None):

@@ -1011,6 +1011,51 @@ class MTCS(BaseTCS):
             f"Choose one of {self.compensation_mode_components}."
         )
 
+    async def move_camera_hexapod(self, x, y, z, u, v, w=0.0, sync=True):
+        """Move camera hexapod.
+
+        When camera hexapod compensation mode is on move will act as offset.
+
+        Parameters
+        ----------
+        x : `float`
+            Hexapod-x position (microns).
+        y : `float`
+            Hexapod-y position (microns).
+        z : `float`
+            Hexapod-z position (microns).
+        u : `float`
+            Hexapod-u angle (degrees).
+        v : `float`
+            Hexapod-v angle (degrees).
+        w : `float`, optional
+            Hexapod-w angle (degrees). Default 0.
+        sync : `bool`, optinal
+            Should the hexapod movement be synchronized? Default True.
+        """
+
+        compensation_mode = await self.get_compensation_mode_camera_hexapod()
+
+        if compensation_mode.enabled:
+            self.log.info(
+                "Camera Hexapod compensation mode enabled. Move will offset with respect to LUT."
+            )
+
+        await self.rem.mthexapod_1.cmd_move.set_start(
+            x=x, y=y, z=z, u=u, v=v, w=w, sync=sync, timeout=self.long_timeout
+        )
+
+        await self._handle_in_position(
+            in_position_event=self.rem.mthexapod_1.evt_inPosition,
+            timeout=self.long_timeout,
+            component_name="Camera Hexapod",
+        )
+
+    async def get_compensation_mode_camera_hexapod(self):
+        return await self.rem.mthexapod_1.evt_compensationMode.aget(
+            timeout=self.fast_timeout
+        )
+
     def _ready_to_take_data(self):
         """Placeholder, still needs to be implemented."""
         # TODO: Finish implementation.
