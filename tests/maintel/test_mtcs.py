@@ -1292,6 +1292,14 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
                 .field_info
             )
 
+    def test_check_mtm1m3_interface(self):
+
+        self.check_topic_attribute(
+            attributes=["detailedState"],
+            topic="logevent_detailedState",
+            component="MTM1M3",
+        )
+
     def check_topic_attribute(self, attributes, topic, component):
         for attribute in attributes:
             self.assertTrue(
