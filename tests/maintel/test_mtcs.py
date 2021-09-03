@@ -20,6 +20,7 @@
 import copy
 import logging
 import types
+import asyncio
 import unittest
 
 import numpy as np
@@ -1185,6 +1186,11 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
         }
         self.mtcs.rem.mtm1m3.configure_mock(**m1m3_mocks)
 
+    async def get_heartbeat(self, *args, **kwargs):
+        """Emulate heartbeat functionality."""
+        await asyncio.sleep(1.0)
+        return types.SimpleNamespace()
+
     async def mtmount_evt_target_next(self, *args, **kwargs):
         return self._mtmount_evt_target
 
@@ -1262,6 +1268,34 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
         self._mtm1m3_evt_detailed_state.detailedState = (
             idl.enums.MTM1M3.DetailedState.PARKED
         )
+
+    def get_summary_state_for(self, comp):
+        async def get_summary_state(timeout=None):
+            return self.summary_state[comp]
+
+        return get_summary_state
+
+    def next_summary_state_for(self, comp):
+        async def next_summary_state(flush, timeout=None):
+            if flush or len(self.summary_state_queue[comp]) == 0:
+                self.summary_state_queue_event[comp].clear()
+                self.summary_state_queue[comp] = []
+            await asyncio.wait_for(
+                self.summary_state_queue_event[comp].wait(), timeout=timeout
+            )
+            return self.summary_state_queue[comp].pop(0)
+
+        return next_summary_state
+
+    def set_summary_state_for(self, comp, state):
+        async def set_summary_state(*args, **kwargs):
+            self.summary_state[comp].summaryState = int(state)
+            self.summary_state_queue[comp].append(
+                copy.copy(self.summary_state[comp].summaryState)
+            )
+            self.summary_state_queue_event[comp].set()
+
+        return set_summary_state
 
 
 if __name__ == "__main__":
