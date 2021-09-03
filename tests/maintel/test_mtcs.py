@@ -1037,6 +1037,65 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
             timeout=self.mtcs.long_timeout
         )
 
+    async def test_enable_compensation_mode_for_hexapod_1(self):
+
+        self._mthexapod_1_evt_compensation_mode.enabled = False
+
+        await self.mtcs.enable_compensation_mode(component="mthexapod_1")
+
+        self.assertTrue(self._mthexapod_1_evt_compensation_mode.enabled)
+        self.mtcs.rem.mthexapod_1.cmd_setCompensationMode.set_start.assert_awaited_with(
+            enable=1, timeout=self.mtcs.long_timeout
+        )
+
+    async def test_enable_compensation_mode_for_hexapod_2(self):
+
+        self._mthexapod_2_evt_compensation_mode.enabled = False
+
+        await self.mtcs.enable_compensation_mode(component="mthexapod_2")
+
+        self.assertTrue(self._mthexapod_2_evt_compensation_mode.enabled)
+        self.mtcs.rem.mthexapod_2.cmd_setCompensationMode.set_start.assert_awaited_with(
+            enable=1, timeout=self.mtcs.long_timeout
+        )
+
+    async def test_enable_compensation_mode_when_enabled(self):
+
+        self._mthexapod_1_evt_compensation_mode.enabled = True
+
+        await self.mtcs.enable_compensation_mode(component="mthexapod_1")
+
+        self.mtcs.rem.mthexapod_1.cmd_setCompensationMode.set_start.assert_not_awaited()
+
+    async def test_enable_compensation_mode_bad_component(self):
+
+        with self.assertRaises(AssertionError):
+            await self.mtcs.enable_compensation_mode(component="mtm1m3")
+
+    async def test_disable_compensation_mode_for_hexapod_1(self):
+
+        self._mthexapod_1_evt_compensation_mode.enabled = True
+
+        await self.mtcs.disable_compensation_mode(component="mthexapod_1")
+
+        self.assertFalse(self._mthexapod_1_evt_compensation_mode.enabled)
+        self.mtcs.rem.mthexapod_1.cmd_setCompensationMode.set_start.assert_awaited_with(
+            enable=0, timeout=self.mtcs.long_timeout
+        )
+
+    async def test_disable_compensation_mode_when_disabled(self):
+
+        self._mthexapod_1_evt_compensation_mode.enabled = False
+
+        await self.mtcs.disable_compensation_mode(component="mthexapod_1")
+
+        self.mtcs.rem.mthexapod_1.cmd_setCompensationMode.set_start.assert_not_awaited()
+
+    async def test_disable_compensation_mode_bad_component(self):
+
+        with self.assertRaises(AssertionError):
+            await self.mtcs.enable_compensation_mode(component="mtm1m3")
+
     def test_check_mtmount_interface(self):
 
         component = "MTMount"
@@ -1229,6 +1288,16 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
         # MTM2 data
         self._mtm2_evt_force_balance_system_status = types.SimpleNamespace(status=False)
 
+        # Camera hexapod data
+        self._mthexapod_1_evt_compensation_mode = types.SimpleNamespace(enabled=False)
+        self._mthexapod_1_evt_uncompensated_position = types.SimpleNamespace(
+            x=0.0, y=0.0, z=0.0, u=0.0, v=0.0, w=0.0
+        )
+        # M2 hexapod data
+        self._mthexapod_2_evt_compensation_mode = types.SimpleNamespace(enabled=False)
+        self._mthexapod_2_evt_uncompensated_position = types.SimpleNamespace(
+            x=0.0, y=0.0, z=0.0, u=0.0, v=0.0, w=0.0
+        )
         # Setup AsyncMock. The idea is to replace the placeholder for the
         # remotes (in mtcs.rem) by AsyncMock. The remote for each component is
         # replaced by an AsyncMock and later augmented to emulate the behavior
@@ -1450,6 +1519,33 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
 
         self.mtcs.rem.mtm2.configure_mock(**m2_mocks)
 
+        # Augment Camera Hexapod
+
+        self.mtcs.rem.mthexapod_1.evt_compensationMode.attach_mock(
+            unittest.mock.Mock(),
+            "flush",
+        )
+        hexapod_1_mocks = {
+            "evt_compensationMode.aget.side_effect": self.mthexapod_1_evt_compensation_mode,
+            "evt_compensationMode.next.side_effect": self.mthexapod_1_evt_compensation_mode,
+            "cmd_setCompensationMode.set_start.side_effect": self.mthexapod_1_cmd_set_compensation_mode,
+        }
+
+        self.mtcs.rem.mthexapod_1.configure_mock(**hexapod_1_mocks)
+
+        # Augment M2 Hexapod
+        self.mtcs.rem.mthexapod_2.evt_compensationMode.attach_mock(
+            unittest.mock.Mock(),
+            "flush",
+        )
+        hexapod_2_mocks = {
+            "evt_compensationMode.aget.side_effect": self.mthexapod_2_evt_compensation_mode,
+            "evt_compensationMode.next.side_effect": self.mthexapod_2_evt_compensation_mode,
+            "cmd_setCompensationMode.set_start.side_effect": self.mthexapod_2_cmd_set_compensation_mode,
+        }
+
+        self.mtcs.rem.mthexapod_2.configure_mock(**hexapod_2_mocks)
+
     async def get_heartbeat(self, *args, **kwargs):
         """Emulate heartbeat functionality."""
         await asyncio.sleep(1.0)
@@ -1605,6 +1701,26 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
             )
             await asyncio.sleep(1.0)
             self._mtm2_evt_force_balance_system_status.status = status
+
+    async def mthexapod_1_evt_compensation_mode(self, *args, **kwargs):
+        await asyncio.sleep(1.0)
+        return self._mthexapod_1_evt_compensation_mode
+
+    async def mthexapod_1_cmd_set_compensation_mode(self, *args, **kwargs):
+
+        await asyncio.sleep(1.0)
+        self._mthexapod_1_evt_compensation_mode.enabled = kwargs.get("enable", 0) == 1
+
+    async def mthexapod_2_evt_compensation_mode(self, *args, **kwargs):
+        await asyncio.sleep(1.0)
+        return self._mthexapod_2_evt_compensation_mode
+
+    async def mthexapod_2_cmd_set_compensation_mode(self, *args, **kwargs):
+        if self._mthexapod_2_evt_compensation_mode.enabled:
+            raise RuntimeError("Hexapod 2 compensation mode already enabled.")
+        else:
+            await asyncio.sleep(1.0)
+            self._mthexapod_2_evt_compensation_mode.enabled = True
 
     def get_summary_state_for(self, comp):
         async def get_summary_state(timeout=None):

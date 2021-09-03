@@ -922,10 +922,103 @@ class MTCS(BaseTCS):
         """Reset M2 forces."""
         await self.rem.mtm2.cmd_resetForceOffsets.start(timeout=self.long_timeout)
 
+    async def enable_compensation_mode(self, component):
+        """Enable compensation mode for one of the hexapods.
+
+        Parameters
+        ----------
+        component : `str`
+            Name of the component. Must be in `compensation_mode_components`.
+
+        See Also
+        --------
+        disable_compensation_mode: Disable compensation mode.
+        compensation_mode_components: Set of components with compensation mode.
+        """
+
+        await self._handle_set_compensation_mode(component, enable=True)
+
+    async def disable_compensation_mode(self, component):
+        """Disable compensation mode for one of the hexapods.
+
+        Parameters
+        ----------
+        component : `str`
+            Name of the component
+
+        See Also
+        --------
+        enable_compensation_mode: Enable compensation mode.
+        compensation_mode_components: Set of components with compensation mode.
+        """
+
+        await self._handle_set_compensation_mode(component, enable=False)
+
+    async def _handle_set_compensation_mode(self, component, enable):
+        """Handle setting compensation mode.
+
+        Parameters
+        ----------
+        component : `str`
+            Name of the component
+        enable : `bool`
+            Whether to enable or disable compensation mode.
+
+        Raises
+        ------
+        AssertionError
+            If `component` does not support compensation mode is not a valid
+            component.
+        """
+
+        self.assert_has_compensation_mode(component)
+
+        compensation_mode = await getattr(
+            self.rem, component
+        ).evt_compensationMode.aget(timeout=self.fast_timeout)
+
+        if (not compensation_mode.enabled and enable) or (
+            compensation_mode.enabled and not enable
+        ):
+            self.log.debug(
+                f"Setting {component} compensation mode from {compensation_mode.enabled} to {enable}."
+            )
+            await getattr(self.rem, component).cmd_setCompensationMode.set_start(
+                enable=1 if enable else 0, timeout=self.long_timeout
+            )
+        else:
+            self.log.warning(
+                f"Compensation mode for {component} already {enable}. Nothing to do."
+            )
+
+    def assert_has_compensation_mode(self, component):
+        """Assert that component is part of the set of components that supports
+        compensation mode.
+
+        Parameters
+        ----------
+        component : `str`
+            Name of the component
+
+        Raises
+        ------
+        AssertionError
+            If `component` does not support compensation mode is not a valid
+            component.
+        """
+        assert component in self.compensation_mode_components, (
+            f"Component {component} not one of the components with compensation mode. "
+            f"Choose one of {self.compensation_mode_components}."
+        )
+
     def _ready_to_take_data(self):
         """Placeholder, still needs to be implemented."""
         # TODO: Finish implementation.
         self._ready_to_take_data_future.set_result(True)
+
+    @property
+    def compensation_mode_components(self):
+        return {"mthexapod_1", "mthexapod_2"}
 
     @property
     def plate_scale(self):
