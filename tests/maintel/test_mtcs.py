@@ -882,6 +882,43 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
                 with self.assertRaises(RuntimeError):
                     await self.mtcs.raise_m1m3()
 
+    async def test_abort_raise_m1m3(self):
+
+        self._mtm1m3_evt_detailed_state.detailedState = (
+            idl.enums.MTM1M3.DetailedState.RAISING
+        )
+
+        await self.mtcs.abort_raise_m1m3()
+
+        self.mtcs.rem.mtm1m3.cmd_abortRaiseM1M3.start.assert_awaited_with(
+            timeout=self.mtcs.long_timeout
+        )
+        self.assertEqual(
+            self._mtm1m3_evt_detailed_state.detailedState,
+            idl.enums.MTM1M3.DetailedState.PARKED,
+        )
+
+    async def test_abort_raise_m1m3_active(self):
+
+        self._mtm1m3_evt_detailed_state.detailedState = (
+            idl.enums.MTM1M3.DetailedState.ACTIVE
+        )
+
+        with self.assertRaises(RuntimeError):
+            await self.mtcs.abort_raise_m1m3()
+
+        self.mtcs.rem.mtm1m3.cmd_abortRaiseM1M3.start.assert_not_awaited()
+
+    async def test_abort_raise_m1m3_parked(self):
+
+        self._mtm1m3_evt_detailed_state.detailedState = (
+            idl.enums.MTM1M3.DetailedState.PARKED
+        )
+
+        await self.mtcs.abort_raise_m1m3()
+
+        self.mtcs.rem.mtm1m3.cmd_abortRaiseM1M3.start.assert_not_awaited()
+
     def test_check_mtmount_interface(self):
 
         component = "MTMount"
@@ -1244,6 +1281,7 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
             "evt_detailedState.aget.side_effect": self.mtm1m3_evt_detailed_state,
             "cmd_raiseM1M3.set_start.side_effect": self.mtm1m3_cmd_raise_m1m3,
             "cmd_lowerM1M3.set_start.side_effect": self.mtm1m3_cmd_lower_m1m3,
+            "cmd_abortRaiseM1M3.start.side_effect": self.mtm1m3_cmd_abort_raise_m1m3,
         }
         self.mtcs.rem.mtm1m3.configure_mock(**m1m3_mocks)
 

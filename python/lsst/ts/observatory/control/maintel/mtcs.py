@@ -660,6 +660,20 @@ class MTCS(BaseTCS):
             },
         )
 
+    async def abort_raise_m1m3(self):
+        """Abort a raise m1m3 operation"""
+        await self._execute_m1m3_detailed_state_change(
+            execute_command=self._handle_abort_raise_m1m3,
+            initial_detailed_states={
+                MTM1M3.DetailedState.RAISING,
+                MTM1M3.DetailedState.RAISINGENGINEERING,
+            },
+            final_detailed_states={
+                MTM1M3.DetailedState.PARKED,
+                MTM1M3.DetailedState.PARKEDENGINEERING,
+            },
+        )
+
     async def _execute_m1m3_detailed_state_change(
         self, execute_command, initial_detailed_states, final_detailed_states
     ):
@@ -723,6 +737,15 @@ class MTCS(BaseTCS):
             )
         else:
             await self.rem.mtm1m3.cmd_lowerM1M3.set_start(timeout=self.long_timeout)
+
+        await self._handle_m1m3_detailed_state(
+            expected_m1m3_detailed_state=MTM1M3.DetailedState.PARKED,
+            unexpected_m1m3_detailed_states={},
+        )
+
+    async def _handle_abort_raise_m1m3(self):
+        """Handler running the abort raise m1m3 command."""
+        await self.rem.mtm1m3.cmd_abortRaiseM1M3.start(timeout=self.long_timeout)
 
         await self._handle_m1m3_detailed_state(
             expected_m1m3_detailed_state=MTM1M3.DetailedState.PARKED,
