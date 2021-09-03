@@ -28,7 +28,7 @@ import astropy.units as u
 from astropy.coordinates import Angle
 
 from lsst.ts import salobj
-from lsst.ts.idl.enums import MTPtg
+from lsst.ts.idl.enums import MTM1M3, MTPtg
 from ..remote_group import Usages, UsagesResources
 from ..base_tcs import BaseTCS
 from ..constants import mtcs_constants
@@ -631,6 +631,39 @@ class MTCS(BaseTCS):
         angle = tel_el_actual_position - rotation_data.actualPosition
 
         return angle
+
+    async def _execute_m1m3_detailed_state_change(
+        self, execute_command, initial_detailed_states, final_detailed_states
+    ):
+        """Execute a command that caused M1M3 detailed state to change and
+        handle detailed state changes.
+
+        Parameters
+        ----------
+        execute_command : awaitable
+            An awaitable object (coroutine or task) that will cause m1m3
+            detailed state to change.
+        initial_detailed_states : `set` of `MTM1M3.DetailedState`
+            The expected initial detailed state.
+        final_detailed_states : `set` of `MTM1M3.DetailedState`
+            The expected final detailed state.
+        """
+        m1m3_detailed_state = await self.rem.mtm1m3.evt_detailedState.aget()
+
+        if m1m3_detailed_state.detailedState in initial_detailed_states:
+            self.log.debug(
+                f"M1M3 current detailed state {initial_detailed_states!r}, executing command..."
+            )
+            await execute_command()
+        elif m1m3_detailed_state.detailedState in final_detailed_states:
+            self.log.info(
+                f"M1M3 current detailed state {final_detailed_states!r}. Nothing to do."
+            )
+        else:
+            raise RuntimeError(
+                f"M1M3 detailed state is {MTM1M3.DetailedState(m1m3_detailed_state.detailedState)!r}. "
+                "Cannot execute command."
+            )
 
     def _ready_to_take_data(self):
         """Placeholder, still needs to be implemented."""
