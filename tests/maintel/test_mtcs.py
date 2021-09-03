@@ -936,6 +936,68 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
         for component in self.mtcs.components_attr:
             setattr(self.mtcs.rem, component, unittest.mock.AsyncMock())
 
+        # Setup data to support summary state manipulation
+        self.summary_state = dict(
+            [
+                (comp, types.SimpleNamespace(summaryState=int(salobj.State.ENABLED)))
+                for comp in self.mtcs.components_attr
+            ]
+        )
+
+        self.summary_state_queue = dict(
+            [
+                (comp, [types.SimpleNamespace(summaryState=int(salobj.State.ENABLED))])
+                for comp in self.mtcs.components_attr
+            ]
+        )
+
+        self.summary_state_queue_event = dict(
+            [(comp, asyncio.Event()) for comp in self.mtcs.components_attr]
+        )
+
+        # Setup AsyncMock. The idea is to replace the placeholder for the
+        # remotes (in atcs.rem) by AsyncMock. The remote for each component is
+        # replaced by an AsyncMock and later augmented to emulate the behavior
+        # of the Remote->Controller interaction with side_effect and
+        # return_value.
+        # By default all mocks are augmented to handle summary state setting.
+        for component in self.mtcs.components_attr:
+            setattr(
+                self.mtcs.rem,
+                component,
+                unittest.mock.AsyncMock(
+                    **{
+                        "cmd_start.set_start.side_effect": self.set_summary_state_for(
+                            component, salobj.State.DISABLED
+                        ),
+                        "cmd_enable.start.side_effect": self.set_summary_state_for(
+                            component, salobj.State.ENABLED
+                        ),
+                        "cmd_disable.start.side_effect": self.set_summary_state_for(
+                            component, salobj.State.DISABLED
+                        ),
+                        "cmd_standby.start.side_effect": self.set_summary_state_for(
+                            component, salobj.State.STANDBY
+                        ),
+                        "evt_summaryState.next.side_effect": self.next_summary_state_for(
+                            component
+                        ),
+                        "evt_summaryState.aget.side_effect": self.get_summary_state_for(
+                            component
+                        ),
+                        "evt_heartbeat.next.side_effect": self.get_heartbeat,
+                        "evt_heartbeat.aget.side_effect": self.get_heartbeat,
+                        "evt_settingVersions.aget.return_value": None,
+                    }
+                ),
+            )
+            # A trick to support calling a regular method (flush) from an
+            # AsyncMock. Basically, attach a regular Mock.
+            getattr(self.mtcs.rem, f"{component}").evt_summaryState.attach_mock(
+                unittest.mock.Mock(),
+                "flush",
+            )
+
         # Augment MTPtg
         self.mtcs.rem.mtptg.attach_mock(
             unittest.mock.AsyncMock(),
