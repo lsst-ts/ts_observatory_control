@@ -1029,6 +1029,14 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
         self.mtcs.rem.mtm2.cmd_switchForceBalanceSystem.set_start.assert_not_awaited()
         self.mtcs.rem.mtm2.evt_forceBalanceSystemStatus.next.assert_not_awaited()
 
+    async def test_reset_m2_forces(self):
+
+        await self.mtcs.reset_m2_forces()
+
+        self.mtcs.rem.mtm2.cmd_resetForceOffsets.start.assert_awaited_with(
+            timeout=self.mtcs.long_timeout
+        )
+
     def test_check_mtmount_interface(self):
 
         component = "MTMount"

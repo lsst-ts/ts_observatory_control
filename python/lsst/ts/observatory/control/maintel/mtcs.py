@@ -918,6 +918,10 @@ class MTCS(BaseTCS):
         else:
             self.log.info("M2 force balance system already enabled. Nothing to do.")
 
+    async def reset_m2_forces(self):
+        """Reset M2 forces."""
+        await self.rem.mtm2.cmd_resetForceOffsets.start(timeout=self.long_timeout)
+
     def _ready_to_take_data(self):
         """Placeholder, still needs to be implemented."""
         # TODO: Finish implementation.
