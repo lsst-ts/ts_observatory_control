@@ -919,6 +919,47 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
 
         self.mtcs.rem.mtm1m3.cmd_abortRaiseM1M3.start.assert_not_awaited()
 
+    async def test_enable_m1m3_balance_system(self):
+
+        await self.mtcs.enable_m1m3_balance_system()
+
+        self.mtcs.rem.mtm1m3.evt_appliedBalanceForces.aget.assert_awaited()
+        self.mtcs.rem.mtm1m3.cmd_enableHardpointCorrections.start.assert_awaited_with(
+            timeout=self.mtcs.long_timeout
+        )
+
+    async def test_enable_m1m3_balance_system_when_enabled(self):
+
+        self._mtm1m3_evt_applied_balance_forces.forceMagnitude = 2000
+
+        # Check that it logs a warning...
+        with self.assertLogs(self.log.name, level=logging.WARNING):
+            await self.mtcs.enable_m1m3_balance_system()
+
+        self.mtcs.rem.mtm1m3.cmd_enableHardpointCorrections.start.assert_not_awaited()
+
+    async def test_wait_m1m3_force_balance_system(self):
+
+        await self._execute_enable_hardpoint_corrections()
+
+        # Use a shorter timeout on wait_for than in the call to
+        # wait_m1m3_force_balance_system. This will cause the call to timeout
+        # if the call does not finish in the appropriate time (which is about)
+        # 1 second shorter than fast_timeout.
+        await asyncio.wait_for(
+            self.mtcs.wait_m1m3_force_balance_system(timeout=self.mtcs.long_timeout),
+            timeout=self.mtcs.fast_timeout,
+        )
+
+    async def test_wait_m1m3_force_balance_system_fail_when_off(self):
+
+        with self.assertLogs(self.log.name, level=logging.WARNING), self.assertRaises(
+            RuntimeError
+        ):
+            await self.mtcs.wait_m1m3_force_balance_system(
+                timeout=self.mtcs.long_timeout
+            )
+
     def test_check_mtmount_interface(self):
 
         component = "MTMount"
@@ -1100,8 +1141,14 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
         self._mtm1m3_evt_detailed_state = types.SimpleNamespace(
             detailedState=idl.enums.MTM1M3.DetailedState.PARKED
         )
+        self._mtm1m3_evt_applied_balance_forces = types.SimpleNamespace(
+            forceMagnitude=0.0
+        )
+
         self._mtm1m3_raise_task = salobj.make_done_future()
         self._mtm1m3_lower_task = salobj.make_done_future()
+        self._hardpoint_corrections_task = salobj.make_done_future()
+
         # Setup AsyncMock. The idea is to replace the placeholder for the
         # remotes (in mtcs.rem) by AsyncMock. The remote for each component is
         # replaced by an AsyncMock and later augmented to emulate the behavior
@@ -1256,6 +1303,11 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
             unittest.mock.Mock(),
             "flush",
         )
+        self.mtcs.rem.mtm1m3.evt_appliedBalanceForces.attach_mock(
+            unittest.mock.Mock(),
+            "flush",
+        )
+
         self.mtcs.rem.mtm1m3.cmd_lowerM1M3.attach_mock(
             unittest.mock.Mock(
                 return_value=types.SimpleNamespace(
@@ -1279,8 +1331,11 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
         m1m3_mocks = {
             "evt_detailedState.next.side_effect": self.mtm1m3_evt_detailed_state,
             "evt_detailedState.aget.side_effect": self.mtm1m3_evt_detailed_state,
+            "evt_appliedBalanceForces.next.side_effect": self.mtm1m3_evt_applied_balance_forces,
+            "evt_appliedBalanceForces.aget.side_effect": self.mtm1m3_evt_applied_balance_forces,
             "cmd_raiseM1M3.set_start.side_effect": self.mtm1m3_cmd_raise_m1m3,
             "cmd_lowerM1M3.set_start.side_effect": self.mtm1m3_cmd_lower_m1m3,
+            "cmd_enableHardpointCorrections.start.side_effect": self.mtm1m3_cmd_enable_hardpoint_corrections,
             "cmd_abortRaiseM1M3.start.side_effect": self.mtm1m3_cmd_abort_raise_m1m3,
         }
         self.mtcs.rem.mtm1m3.configure_mock(**m1m3_mocks)
@@ -1326,6 +1381,10 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
     async def mtm1m3_evt_detailed_state(self, *args, **kwargs):
         await asyncio.sleep(1.0)
         return self._mtm1m3_evt_detailed_state
+
+    async def mtm1m3_evt_applied_balance_forces(self, *args, **kwargs):
+        await asyncio.sleep(0.25)
+        return self._mtm1m3_evt_applied_balance_forces
 
     async def mtm1m3_cmd_raise_m1m3(self, *args, **kwargs):
         raise_m1m3 = kwargs.get("raiseM1M3", True)
@@ -1404,6 +1463,21 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
         self._mtm1m3_evt_detailed_state.detailedState = (
             idl.enums.MTM1M3.DetailedState.PARKED
         )
+
+    async def mtm1m3_cmd_enable_hardpoint_corrections(self, *args, **kwargs):
+        await asyncio.sleep(0.1)
+        if self._mtm1m3_evt_applied_balance_forces.forceMagnitude == 0.0:
+            self._hardpoint_corrections_task = asyncio.create_task(
+                self._execute_enable_hardpoint_corrections()
+            )
+
+    async def _execute_enable_hardpoint_corrections(self):
+
+        for force_magnitude in range(0, 2200, 200):
+            self._mtm1m3_evt_applied_balance_forces.forceMagnitude = force_magnitude
+            await asyncio.sleep(0.25)
+
+        return self._mtm1m3_evt_applied_balance_forces.forceMagnitude
 
     def get_summary_state_for(self, comp):
         async def get_summary_state(timeout=None):

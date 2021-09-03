@@ -125,6 +125,9 @@ class MTCS(BaseTCS):
         self._dome_az_in_position = None
         self._dome_el_in_position = None
 
+        # Tolerance on the stability of the balance force magnitude
+        self.m1m3_force_magnitude_stable_tolerance = 50.0
+
         try:
             self._create_asyncio_events()
         except RuntimeError:
@@ -812,6 +815,73 @@ class MTCS(BaseTCS):
                     f"M1M3 transitioned to unexpected detailed state {m1m3_detailed_state.detailedState!r}."
                 )
             self.log.debug(f"M1M3 detailed state {m1m3_detailed_state.detailedState!r}")
+
+    async def enable_m1m3_balance_system(self):
+        """Enable m1m3 balance system."""
+
+        applied_balance_forces = await self.rem.mtm1m3.evt_appliedBalanceForces.aget(
+            timeout=self.fast_timeout
+        )
+
+        if applied_balance_forces.forceMagnitude == 0.0:
+            self.log.debug("Enabling hardpoint corrections.")
+            await self.rem.mtm1m3.cmd_enableHardpointCorrections.start(
+                timeout=self.long_timeout
+            )
+        else:
+            self.log.warning("Hardpoint corrections already enabled. Nothing to do.")
+
+    async def wait_m1m3_force_balance_system(self, timeout):
+        """Wait for m1m3 force balance system to stabilize.
+
+        Parameters
+        ----------
+        timeout : `float`
+            How long to wait before timing out.
+        """
+
+        applied_balance_forces_last = (
+            await self.rem.mtm1m3.evt_appliedBalanceForces.aget(
+                timeout=self.fast_timeout
+            )
+        )
+
+        if applied_balance_forces_last.forceMagnitude == 0.0:
+            self.log.warning(
+                "Force magnitude is zero. If force balance system is off this operation will fail. "
+                f"Waiting {self.fast_timeout}s before proceeding."
+            )
+            await asyncio.sleep(self.fast_timeout)
+
+        timer_task = asyncio.create_task(asyncio.sleep(timeout))
+
+        while not timer_task.done():
+            applied_balance_forces_new = (
+                await self.rem.mtm1m3.evt_appliedBalanceForces.next(
+                    flush=True, timeout=self.fast_timeout
+                )
+            )
+            if applied_balance_forces_new.forceMagnitude == 0.0:
+                raise RuntimeError(
+                    "Force magnitude is zero. Enable force balance system before "
+                    "waiting for system to stabilize."
+                )
+            self.log.debug(
+                f"Force magnitude: {applied_balance_forces_new.forceMagnitude}N"
+            )
+            if (
+                abs(
+                    applied_balance_forces_new.forceMagnitude
+                    - applied_balance_forces_last.forceMagnitude
+                )
+                < self.m1m3_force_magnitude_stable_tolerance
+            ):
+                self.log.info("Change in force balance inside tolerance.")
+                break
+            applied_balance_forces_last = applied_balance_forces_new
+
+        if not timer_task:
+            timer_task.cancel()
 
     def _ready_to_take_data(self):
         """Placeholder, still needs to be implemented."""
