@@ -1001,6 +1001,34 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
             self.mtcs.fast_timeout,
         )
 
+    async def test_enable_m2_balance_system(self):
+
+        await self.mtcs.enable_m2_balance_system()
+
+        self.mtcs.rem.mtm2.evt_forceBalanceSystemStatus.aget.assert_awaited_once_with(
+            timeout=self.mtcs.fast_timeout
+        )
+        self.mtcs.rem.mtm2.evt_forceBalanceSystemStatus.flush.assert_called()
+        self.mtcs.rem.mtm2.cmd_switchForceBalanceSystem.set_start.assert_awaited_with(
+            status=True, timeout=self.mtcs.long_timeout
+        )
+        self.mtcs.rem.mtm2.evt_forceBalanceSystemStatus.next.assert_awaited_with(
+            flush=False, timeout=self.mtcs.long_timeout
+        )
+
+    async def test_enable_m2_balance_system_when_on(self):
+
+        self._mtm2_evt_force_balance_system_status.status = True
+
+        await self.mtcs.enable_m2_balance_system()
+
+        self.mtcs.rem.mtm2.evt_forceBalanceSystemStatus.aget.assert_awaited_once_with(
+            timeout=self.mtcs.fast_timeout
+        )
+        self.mtcs.rem.mtm2.evt_forceBalanceSystemStatus.flush.assert_called()
+        self.mtcs.rem.mtm2.cmd_switchForceBalanceSystem.set_start.assert_not_awaited()
+        self.mtcs.rem.mtm2.evt_forceBalanceSystemStatus.next.assert_not_awaited()
+
     def test_check_mtmount_interface(self):
 
         component = "MTMount"
@@ -1189,6 +1217,9 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
         self._mtm1m3_raise_task = salobj.make_done_future()
         self._mtm1m3_lower_task = salobj.make_done_future()
         self._hardpoint_corrections_task = salobj.make_done_future()
+
+        # MTM2 data
+        self._mtm2_evt_force_balance_system_status = types.SimpleNamespace(status=False)
 
         # Setup AsyncMock. The idea is to replace the placeholder for the
         # remotes (in mtcs.rem) by AsyncMock. The remote for each component is
@@ -1396,6 +1427,21 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
         }
         self.mtcs.rem.mtm1m3.configure_mock(**m1m3_mocks)
 
+        # Augment M2
+
+        self.mtcs.rem.mtm2.evt_forceBalanceSystemStatus.attach_mock(
+            unittest.mock.Mock(),
+            "flush",
+        )
+
+        m2_mocks = {
+            "evt_forceBalanceSystemStatus.aget.side_effect": self.mtm2_evt_force_balance_system_status,
+            "evt_forceBalanceSystemStatus.next.side_effect": self.mtm2_evt_force_balance_system_status,
+            "cmd_switchForceBalanceSystem.set_start.side_effect": self.mtm2_cmd_switch_force_balance_system,
+        }
+
+        self.mtcs.rem.mtm2.configure_mock(**m2_mocks)
+
     async def get_heartbeat(self, *args, **kwargs):
         """Emulate heartbeat functionality."""
         await asyncio.sleep(1.0)
@@ -1534,6 +1580,23 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
             await asyncio.sleep(0.25)
 
         return self._mtm1m3_evt_applied_balance_forces.forceMagnitude
+
+    async def mtm2_evt_force_balance_system_status(self, *args, **kwargs):
+        await asyncio.sleep(1.0)
+        return self._mtm2_evt_force_balance_system_status
+
+    async def mtm2_cmd_switch_force_balance_system(self, *args, **kwargs):
+        status = kwargs.get("status", False)
+
+        if status == self._mtm2_evt_force_balance_system_status.status:
+            raise RuntimeError(f"Force balance status already {status}.")
+        else:
+            self.log.debug(
+                "Switching force balance status "
+                f"{self._mtm2_evt_force_balance_system_status.status} -> {status}"
+            )
+            await asyncio.sleep(1.0)
+            self._mtm2_evt_force_balance_system_status.status = status
 
     def get_summary_state_for(self, comp):
         async def get_summary_state(timeout=None):

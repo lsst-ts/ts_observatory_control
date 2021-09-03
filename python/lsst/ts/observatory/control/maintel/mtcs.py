@@ -896,6 +896,28 @@ class MTCS(BaseTCS):
             zForces=forces, timeout=self.fast_timeout
         )
 
+    async def enable_m2_balance_system(self):
+        """Enable m2 balance system."""
+
+        m2_force_balance_system_status = (
+            await self.rem.mtm2.evt_forceBalanceSystemStatus.aget(
+                timeout=self.fast_timeout
+            )
+        )
+
+        self.rem.mtm2.evt_forceBalanceSystemStatus.flush()
+
+        if not m2_force_balance_system_status.status:
+            self.log.debug("Enabling M2 force balance system.")
+            await self.rem.mtm2.cmd_switchForceBalanceSystem.set_start(
+                status=True, timeout=self.long_timeout
+            )
+            await self.rem.mtm2.evt_forceBalanceSystemStatus.next(
+                flush=False, timeout=self.long_timeout
+            )
+        else:
+            self.log.info("M2 force balance system already enabled. Nothing to do.")
+
     def _ready_to_take_data(self):
         """Placeholder, still needs to be implemented."""
         # TODO: Finish implementation.
