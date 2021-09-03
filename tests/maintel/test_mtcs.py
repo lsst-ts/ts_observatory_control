@@ -24,7 +24,7 @@ import unittest
 
 import numpy as np
 
-import astropy.units as u
+import astropy.units as units
 from astropy.coordinates import Angle
 
 from lsst.ts import idl
@@ -93,8 +93,8 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
         await self.mtcs.slew_object(name=name, rot_type=RotType.Sky)
 
         self.mtcs.rem.mtptg.cmd_raDecTarget.set.assert_called_with(
-            ra=Angle(ra, unit=u.hourangle).hour,
-            declination=Angle(dec, unit=u.deg).deg,
+            ra=Angle(ra, unit=units.hourangle).hour,
+            declination=Angle(dec, unit=units.deg).deg,
             targetName=name,
             frame=self.mtcs.CoordFrame.ICRS,
             rotAngle=0.0,
@@ -137,8 +137,8 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
         )
 
         self.mtcs.rem.mtptg.cmd_raDecTarget.set.assert_called_with(
-            ra=Angle(ra, unit=u.hourangle).hour,
-            declination=Angle(dec, unit=u.deg).deg,
+            ra=Angle(ra, unit=units.hourangle).hour,
+            declination=Angle(dec, unit=units.deg).deg,
             targetName=name,
             frame=self.mtcs.CoordFrame.ICRS,
             rotAngle=0.0,
@@ -185,8 +185,8 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
         )
 
         self.mtcs.rem.mtptg.cmd_raDecTarget.set.assert_called_with(
-            ra=Angle(ra, unit=u.hourangle).hour,
-            declination=Angle(dec, unit=u.deg).deg,
+            ra=Angle(ra, unit=units.hourangle).hour,
+            declination=Angle(dec, unit=units.deg).deg,
             targetName=name,
             frame=self.mtcs.CoordFrame.ICRS,
             rotAngle=0.0,
@@ -229,8 +229,8 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
         )
 
         self.mtcs.rem.mtptg.cmd_raDecTarget.set.assert_called_with(
-            ra=Angle(ra, unit=u.hourangle).hour,
-            declination=Angle(dec, unit=u.deg).deg,
+            ra=Angle(ra, unit=units.hourangle).hour,
+            declination=Angle(dec, unit=units.deg).deg,
             targetName=name,
             frame=self.mtcs.CoordFrame.ICRS,
             rotAngle=rot,
@@ -274,8 +274,8 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
         )
 
         self.mtcs.rem.mtptg.cmd_raDecTarget.set.assert_called_with(
-            ra=Angle(ra, unit=u.hourangle).hour,
-            declination=Angle(dec, unit=u.deg).deg,
+            ra=Angle(ra, unit=units.hourangle).hour,
+            declination=Angle(dec, unit=units.deg).deg,
             targetName=name,
             frame=self.mtcs.CoordFrame.ICRS,
             rotAngle=rot,
@@ -319,8 +319,8 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
         )
 
         self.mtcs.rem.mtptg.cmd_raDecTarget.set.assert_called_with(
-            ra=Angle(ra, unit=u.hourangle).hour,
-            declination=Angle(dec, unit=u.deg).deg,
+            ra=Angle(ra, unit=units.hourangle).hour,
+            declination=Angle(dec, unit=units.deg).deg,
             targetName=name,
             frame=self.mtcs.CoordFrame.ICRS,
             rotAngle=rot,
@@ -370,8 +370,8 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
         )
 
         self.mtcs.rem.mtptg.cmd_raDecTarget.set.assert_called_with(
-            ra=Angle(ra, unit=u.hourangle).hour,
-            declination=Angle(dec, unit=u.deg).deg,
+            ra=Angle(ra, unit=units.hourangle).hour,
+            declination=Angle(dec, unit=units.deg).deg,
             targetName=name,
             frame=self.mtcs.CoordFrame.ICRS,
             rotAngle=0.0,
