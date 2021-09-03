@@ -18,6 +18,7 @@
 #
 # You should have received a copy of the GNU General Public License
 import copy
+import logging
 import types
 import unittest
 
@@ -858,12 +859,16 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
         test.
         """
 
+        cls.log = logging.getLogger("TestMTCS")
+
         # Pass in a string as domain to prevent ATCS from trying to create a
         # domain by itself. When using DryTest usage, the class won't create
         # any remote. When this method is called there is no event loop
         # running so all asyncio facilities will fail to create. This is later
         # rectified in the asyncSetUp.
-        cls.mtcs = MTCS(domain="FakeDomain", intended_usage=MTCSUsages.DryTest)
+        cls.mtcs = MTCS(
+            domain="FakeDomain", log=cls.log, intended_usage=MTCSUsages.DryTest
+        )
 
         # Decrease telescope settle time to speed up unit test
         cls.mtcs.tel_settle_time = 0.25
