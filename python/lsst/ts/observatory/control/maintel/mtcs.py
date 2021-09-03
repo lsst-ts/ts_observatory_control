@@ -646,6 +646,20 @@ class MTCS(BaseTCS):
             },
         )
 
+    async def lower_m1m3(self):
+        """Lower M1M3."""
+        await self._execute_m1m3_detailed_state_change(
+            execute_command=self._handle_lower_m1m3,
+            initial_detailed_states={
+                MTM1M3.DetailedState.ACTIVE,
+                MTM1M3.DetailedState.ACTIVEENGINEERING,
+            },
+            final_detailed_states={
+                MTM1M3.DetailedState.PARKED,
+                MTM1M3.DetailedState.PARKEDENGINEERING,
+            },
+        )
+
     async def _execute_m1m3_detailed_state_change(
         self, execute_command, initial_detailed_states, final_detailed_states
     ):
@@ -696,6 +710,23 @@ class MTCS(BaseTCS):
             unexpected_m1m3_detailed_states={
                 MTM1M3.DetailedState.LOWERING,
             },
+        )
+
+    async def _handle_lower_m1m3(self):
+        """Handle lowering m1m3."""
+        self.rem.mtm1m3.evt_detailedState.flush()
+
+        # xml 9/10 compatibility
+        if hasattr(self.rem.mtm1m3.cmd_lowerM1M3.DataType(), "lowerM1M3"):
+            await self.rem.mtm1m3.cmd_lowerM1M3.set_start(
+                lowerM1M3=True, timeout=self.long_timeout
+            )
+        else:
+            await self.rem.mtm1m3.cmd_lowerM1M3.set_start(timeout=self.long_timeout)
+
+        await self._handle_m1m3_detailed_state(
+            expected_m1m3_detailed_state=MTM1M3.DetailedState.PARKED,
+            unexpected_m1m3_detailed_states={},
         )
 
     async def _handle_m1m3_detailed_state(
