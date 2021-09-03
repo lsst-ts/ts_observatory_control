@@ -848,7 +848,8 @@ class RemoteGroup:
         return simulation_mode
 
     async def get_software_versions(self, components=None):
-        """Return a list with the software versions for components in the group.
+        """Return a list with the software versions for components in the
+        group.
 
         Parameters
         ----------
