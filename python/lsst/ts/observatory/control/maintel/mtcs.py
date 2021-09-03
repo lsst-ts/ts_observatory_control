@@ -679,6 +679,25 @@ class MTCS(BaseTCS):
                 "Cannot execute command."
             )
 
+    async def _handle_raise_m1m3(self):
+        """Handler raising m1m3."""
+        self.rem.mtm1m3.evt_detailedState.flush()
+
+        # xml 9/10 compatibility
+        if hasattr(self.rem.mtm1m3.cmd_raiseM1M3.DataType(), "raiseM1M3"):
+            await self.rem.mtm1m3.cmd_raiseM1M3.set_start(
+                raiseM1M3=True, timeout=self.long_timeout
+            )
+        else:
+            await self.rem.mtm1m3.cmd_raiseM1M3.set_start(timeout=self.long_timeout)
+
+        await self._handle_m1m3_detailed_state(
+            expected_m1m3_detailed_state=MTM1M3.DetailedState.ACTIVE,
+            unexpected_m1m3_detailed_states={
+                MTM1M3.DetailedState.LOWERING,
+            },
+        )
+
     async def _handle_m1m3_detailed_state(
         self, expected_m1m3_detailed_state, unexpected_m1m3_detailed_states
     ):
