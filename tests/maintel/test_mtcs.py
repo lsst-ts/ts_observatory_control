@@ -751,6 +751,87 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
         with self.assertRaises(NotImplementedError):
             await self.mtcs.stop_all()
 
+    async def test_raise_m1m3(self):
+
+        self._mtm1m3_evt_detailed_state.detailedState = (
+            idl.enums.MTM1M3.DetailedState.PARKED
+        )
+
+        await self.mtcs.raise_m1m3()
+
+        self.mtcs.rem.mtm1m3.evt_detailedState.aget.assert_awaited()
+        self.mtcs.rem.mtm1m3.evt_detailedState.flush.assert_called()
+        if hasattr(self.mtcs.rem.mtm1m3.cmd_raiseM1M3.DataType(), "raiseM1M3"):
+            self.mtcs.rem.mtm1m3.cmd_raiseM1M3.set_start.assert_awaited_with(
+                raiseM1M3=True, timeout=self.mtcs.long_timeout
+            )
+        else:
+            self.mtcs.rem.mtm1m3.cmd_raiseM1M3.set_start.assert_awaited_with(
+                timeout=self.mtcs.long_timeout
+            )
+        self.mtcs.rem.mtm1m3.evt_detailedState.next.assert_awaited_with(
+            flush=False, timeout=self.mtcs.long_long_timeout
+        )
+
+    async def test_raise_m1m3_when_active(self):
+
+        self._mtm1m3_evt_detailed_state.detailedState = (
+            idl.enums.MTM1M3.DetailedState.ACTIVE
+        )
+        await self.mtcs.raise_m1m3()
+
+        self.mtcs.rem.mtm1m3.evt_detailedState.aget.assert_awaited()
+        self.mtcs.rem.mtm1m3.evt_detailedState.flush.assert_not_called()
+        self.mtcs.rem.mtm1m3.cmd_raiseM1M3.set_start.assert_not_awaited()
+        self.mtcs.rem.mtm1m3.evt_detailedState.next.assert_not_awaited()
+
+    async def test_raise_m1m3_aborted(self):
+
+        self._mtm1m3_evt_detailed_state.detailedState = (
+            idl.enums.MTM1M3.DetailedState.PARKED
+        )
+
+        m1m3_raise_task = asyncio.create_task(self.mtcs.raise_m1m3())
+
+        await asyncio.sleep(2.0)
+
+        await self.execute_abort_raise_m1m3()
+
+        with self.assertRaises(RuntimeError):
+            await asyncio.wait_for(m1m3_raise_task, self.mtcs.fast_timeout)
+
+        self.mtcs.rem.mtm1m3.evt_detailedState.aget.assert_awaited()
+        self.mtcs.rem.mtm1m3.evt_detailedState.flush.assert_called()
+        if hasattr(self.mtcs.rem.mtm1m3.cmd_raiseM1M3.DataType(), "raiseM1M3"):
+            self.mtcs.rem.mtm1m3.cmd_raiseM1M3.set_start.assert_awaited_with(
+                raiseM1M3=True, timeout=self.mtcs.long_timeout
+            )
+        else:
+            self.mtcs.rem.mtm1m3.cmd_raiseM1M3.set_start.assert_awaited_with(
+                timeout=self.mtcs.long_timeout
+            )
+        self.mtcs.rem.mtm1m3.evt_detailedState.next.assert_awaited_with(
+            flush=False, timeout=self.mtcs.long_long_timeout
+        )
+
+    async def test_raise_m1m3_not_raisable(self):
+
+        for m1m3_detailed_state in idl.enums.MTM1M3.DetailedState:
+            if m1m3_detailed_state not in {
+                idl.enums.MTM1M3.DetailedState.ACTIVE,
+                idl.enums.MTM1M3.DetailedState.ACTIVEENGINEERING,
+                idl.enums.MTM1M3.DetailedState.PARKED,
+                idl.enums.MTM1M3.DetailedState.PARKEDENGINEERING,
+            }:
+
+                self.log.debug(
+                    f"Test m1m3 raise fails if detailed state is {m1m3_detailed_state!r}"
+                )
+                self._mtm1m3_evt_detailed_state.detailedState = m1m3_detailed_state
+
+                with self.assertRaises(RuntimeError):
+                    await self.mtcs.raise_m1m3()
+
     def test_check_mtmount_interface(self):
 
         component = "MTMount"
@@ -928,6 +1009,11 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
             positionCommanded=0.0,
         )
 
+        # MTM1M3 data
+        self._mtm1m3_evt_detailed_state = types.SimpleNamespace(
+            detailedState=idl.enums.MTM1M3.DetailedState.PARKED
+        )
+        self._mtm1m3_raise_task = salobj.make_done_future()
         # Setup AsyncMock. The idea is to replace the placeholder for the
         # remotes (in mtcs.rem) by AsyncMock. The remote for each component is
         # replaced by an AsyncMock and later augmented to emulate the behavior
@@ -1077,6 +1163,28 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
             }
         )
 
+        # Augment MTM1M3
+        self.mtcs.rem.mtm1m3.evt_detailedState.attach_mock(
+            unittest.mock.Mock(),
+            "flush",
+        )
+        self.mtcs.rem.mtm1m3.cmd_raiseM1M3.attach_mock(
+            unittest.mock.Mock(
+                return_value=types.SimpleNamespace(
+                    **self.components_metadata["MTM1M3"]
+                    .topic_info["command_raiseM1M3"]
+                    .field_info
+                )
+            ),
+            "DataType",
+        )
+        m1m3_mocks = {
+            "evt_detailedState.next.side_effect": self.mtm1m3_evt_detailed_state,
+            "evt_detailedState.aget.side_effect": self.mtm1m3_evt_detailed_state,
+            "cmd_raiseM1M3.set_start.side_effect": self.mtm1m3_cmd_raise_m1m3,
+        }
+        self.mtcs.rem.mtm1m3.configure_mock(**m1m3_mocks)
+
     async def mtmount_evt_target_next(self, *args, **kwargs):
         return self._mtmount_evt_target
 
@@ -1109,6 +1217,51 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
 
     async def mtdome_tel_light_wind_screen_next(self, *args, **kwargs):
         return self._mtdome_tel_light_wind_screen
+
+    async def mtm1m3_evt_detailed_state(self, *args, **kwargs):
+        await asyncio.sleep(1.0)
+        return self._mtm1m3_evt_detailed_state
+
+    async def mtm1m3_cmd_raise_m1m3(self, *args, **kwargs):
+        raise_m1m3 = kwargs.get("raiseM1M3", True)
+
+        if (
+            raise_m1m3
+            and self._mtm1m3_evt_detailed_state.detailedState
+            == idl.enums.MTM1M3.DetailedState.PARKED
+        ):
+            self._mtm1m3_raise_task = asyncio.create_task(self.execute_raise_m1m3())
+        else:
+            raise RuntimeError(
+                f"MTM1M3 current detailed state is {self._mtm1m3_evt_detailed_state.detailedState!r}."
+            )
+
+    async def execute_raise_m1m3(self):
+        self.log.debug("Start raising M1M3...")
+        self._mtm1m3_evt_detailed_state.detailedState = (
+            idl.enums.MTM1M3.DetailedState.RAISING
+        )
+        await asyncio.sleep(4.0)
+        self.log.debug("Done raising M1M3...")
+        self._mtm1m3_evt_detailed_state.detailedState = (
+            idl.enums.MTM1M3.DetailedState.ACTIVE
+        )
+
+    async def execute_abort_raise_m1m3(self):
+
+        if not self._mtm1m3_raise_task.done():
+            self.log.debug("Cancel m1m3 raise task...")
+            self._mtm1m3_raise_task.cancel()
+
+        self.log.debug("Set m1m3 detailed state to lowering...")
+        self._mtm1m3_evt_detailed_state.detailedState = (
+            idl.enums.MTM1M3.DetailedState.LOWERING
+        )
+        await asyncio.sleep(4.0)
+        self.log.debug("M1M3 raise task done, set detailed state to parked...")
+        self._mtm1m3_evt_detailed_state.detailedState = (
+            idl.enums.MTM1M3.DetailedState.PARKED
+        )
 
 
 if __name__ == "__main__":

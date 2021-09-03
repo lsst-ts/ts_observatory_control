@@ -632,6 +632,20 @@ class MTCS(BaseTCS):
 
         return angle
 
+    async def raise_m1m3(self):
+        """Raise M1M3."""
+        await self._execute_m1m3_detailed_state_change(
+            execute_command=self._handle_raise_m1m3,
+            initial_detailed_states={
+                MTM1M3.DetailedState.PARKED,
+                MTM1M3.DetailedState.PARKEDENGINEERING,
+            },
+            final_detailed_states={
+                MTM1M3.DetailedState.ACTIVE,
+                MTM1M3.DetailedState.ACTIVEENGINEERING,
+            },
+        )
+
     async def _execute_m1m3_detailed_state_change(
         self, execute_command, initial_detailed_states, final_detailed_states
     ):
