@@ -960,6 +960,47 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
                 timeout=self.mtcs.long_timeout
             )
 
+    async def test_reset_m1m3_forces(self):
+
+        await self.mtcs.reset_m1m3_forces()
+
+        fz = np.zeros(
+            self.components_metadata["MTM1M3"]
+            .topic_info["command_applyAberrationForces"]
+            .field_info["zForces"]
+            .array_length
+        )
+        self.mtcs.rem.mtm1m3.cmd_applyAberrationForces.set_start.assert_awaited_once()
+        self.assertTrue(
+            np.array_equal(
+                self.mtcs.rem.mtm1m3.cmd_applyAberrationForces.set_start.mock_calls[
+                    0
+                ].kwargs["zForces"],
+                fz,
+            )
+        )
+        self.assertEqual(
+            self.mtcs.rem.mtm1m3.cmd_applyAberrationForces.set_start.mock_calls[
+                0
+            ].kwargs["timeout"],
+            self.mtcs.fast_timeout,
+        )
+        self.mtcs.rem.mtm1m3.cmd_applyActiveOpticForces.set_start.assert_awaited_once()
+        self.assertTrue(
+            np.array_equal(
+                self.mtcs.rem.mtm1m3.cmd_applyActiveOpticForces.set_start.mock_calls[
+                    0
+                ].kwargs["zForces"],
+                fz,
+            )
+        )
+        self.assertEqual(
+            self.mtcs.rem.mtm1m3.cmd_applyActiveOpticForces.set_start.mock_calls[
+                0
+            ].kwargs["timeout"],
+            self.mtcs.fast_timeout,
+        )
+
     def test_check_mtmount_interface(self):
 
         component = "MTMount"
@@ -1328,6 +1369,21 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
             ),
             "DataType",
         )
+        data_type_apply_aberration_forces = types.SimpleNamespace(
+            **self.components_metadata["MTM1M3"]
+            .topic_info["command_applyAberrationForces"]
+            .field_info
+        )
+
+        data_type_apply_aberration_forces.zForces = np.zeros(
+            data_type_apply_aberration_forces.zForces.array_length
+        )
+
+        self.mtcs.rem.mtm1m3.cmd_applyAberrationForces.attach_mock(
+            unittest.mock.Mock(return_value=data_type_apply_aberration_forces),
+            "DataType",
+        )
+
         m1m3_mocks = {
             "evt_detailedState.next.side_effect": self.mtm1m3_evt_detailed_state,
             "evt_detailedState.aget.side_effect": self.mtm1m3_evt_detailed_state,

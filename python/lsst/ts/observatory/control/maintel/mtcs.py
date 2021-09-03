@@ -883,6 +883,19 @@ class MTCS(BaseTCS):
         if not timer_task:
             timer_task.cancel()
 
+    async def reset_m1m3_forces(self):
+        """Reset M1M3 forces."""
+
+        forces = np.zeros_like(
+            self.rem.mtm1m3.cmd_applyAberrationForces.DataType().zForces
+        )
+        await self.rem.mtm1m3.cmd_applyAberrationForces.set_start(
+            zForces=forces, timeout=self.fast_timeout
+        )
+        await self.rem.mtm1m3.cmd_applyActiveOpticForces.set_start(
+            zForces=forces, timeout=self.fast_timeout
+        )
+
     def _ready_to_take_data(self):
         """Placeholder, still needs to be implemented."""
         # TODO: Finish implementation.
