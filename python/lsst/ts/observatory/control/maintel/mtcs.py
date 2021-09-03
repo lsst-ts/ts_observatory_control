@@ -679,6 +679,67 @@ class MTCS(BaseTCS):
                 "Cannot execute command."
             )
 
+    async def _handle_m1m3_detailed_state(
+        self, expected_m1m3_detailed_state, unexpected_m1m3_detailed_states
+    ):
+        """Handle m1m3 detailed state.
+
+        Parameters
+        ----------
+        expected_m1m3_detailed_state : `MTM1M3.DetailedState`
+            Expected m1m3 detailed state.
+        unexpected_m1m3_detailed_states : `list` of `MTM1M3.DetailedState`
+            List of unexpedted detailed state. If M1M3 transition to any of
+            these states, raise an exception.
+        """
+
+        m1m3_raise_check_tasks = [
+            asyncio.create_task(
+                self._wait_for_mtm1m3_detailed_state(
+                    expected_m1m3_detailed_state=expected_m1m3_detailed_state,
+                    unexpected_m1m3_detailed_states=unexpected_m1m3_detailed_states,
+                    timeout=self.long_long_timeout,
+                )
+            ),
+            asyncio.create_task(
+                self.check_component_state("mtm1m3", salobj.State.ENABLED)
+            ),
+        ]
+        await self.process_as_completed(m1m3_raise_check_tasks)
+
+    async def _wait_for_mtm1m3_detailed_state(
+        self, expected_m1m3_detailed_state, unexpected_m1m3_detailed_states, timeout
+    ):
+        """Wait for a specified m1m3 detailed state.
+
+        Parameters
+        ----------
+        expected_m1m3_detailed_state : `MTM1M3.DetailedState`
+            Expected m1m3 detailed state.
+        unexpected_m1m3_detailed_states : `list` of `MTM1M3.DetailedState`
+            List of unexpedted detailed state. If M1M3 transition to any of
+            these states, raise an exception.
+        timeout : `float`
+            How long to wait for.
+
+        Raises
+        ------
+        RuntimeError
+            If detailed state is not reached in specified timeout.
+            If detailed state transition to one of the
+            `unexpected_m1m3_detailed_states`.
+        """
+        m1m3_detailed_state = await self.rem.mtm1m3.evt_detailedState.aget()
+        while m1m3_detailed_state.detailedState != expected_m1m3_detailed_state:
+            m1m3_detailed_state = await self.rem.mtm1m3.evt_detailedState.next(
+                flush=False, timeout=timeout
+            )
+            if m1m3_detailed_state.detailedState in unexpected_m1m3_detailed_states:
+                raise RuntimeError(
+                    f"M1M3 transitioned to unexpected detailed state {m1m3_detailed_state.detailedState!r}."
+                )
+            self.log.debug(f"M1M3 detailed state {m1m3_detailed_state.detailedState!r}")
+
     def _ready_to_take_data(self):
         """Placeholder, still needs to be implemented."""
         # TODO: Finish implementation.
