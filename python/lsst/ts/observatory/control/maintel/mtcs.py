@@ -1096,6 +1096,10 @@ class MTCS(BaseTCS):
 
         await self.move_camera_hexapod(x=0.0, y=0.0, z=0.0, u=0.0, v=0.0)
 
+    async def reset_m2_hexapod_position(self):
+        """Reset position of the M2 hexapod."""
+        await self.move_m2_hexapod(x=0.0, y=0.0, z=0.0, u=0.0, v=0.0)
+
     async def get_compensation_mode_camera_hexapod(self):
         return await self.rem.mthexapod_1.evt_compensationMode.aget(
             timeout=self.fast_timeout
