@@ -1532,7 +1532,14 @@ class ATCS(BaseTCS):
         asyncio.TimeoutError
             If does not get a status update in less then `timeout` seconds.
         """
-        await asyncio.wait_for(self.dome_az_in_position.wait(), timeout=timeout)
+        if not await self.check_dome_following():
+            self.log.debug("Dome following disabled. Ignoring dome position.")
+            self.dome_az_in_position.set()
+        else:
+            self.log.debug(
+                "Dome following enabled. Waiting for dome to get in position."
+            )
+            await asyncio.wait_for(self.dome_az_in_position.wait(), timeout=timeout)
         self.log.info("ATDome in position.")
         return "ATDome in position."
 

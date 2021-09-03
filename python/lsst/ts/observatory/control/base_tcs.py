@@ -1125,6 +1125,20 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
                 "Dome trajectory check disable. Will not disable following."
             )
 
+    async def check_dome_following(self):
+        """Check if dome following is enabled.
+
+        Returns
+        -------
+        dome_following : `bool`
+            `True` is enabled `False` otherwise.
+        """
+        dome_followig = await getattr(
+            self.rem, self.dome_trajectory_name
+        ).evt_followingMode.aget(timeout=self.fast_timeout)
+
+        return dome_followig.enabled
+
     def azel_from_radec(self, ra, dec, time=None):
         """Calculate Az/El coordinates from RA/Dec in ICRS.
 
