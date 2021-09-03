@@ -1150,6 +1150,30 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
             timeout=self.mtcs.long_timeout, flush=False
         )
 
+    async def test_reset_camera_hexapod_position(self):
+
+        self._mthexapod_1_evt_uncompensated_position.z = 10.0
+
+        await self.mtcs.reset_camera_hexapod_position()
+
+        for axis in "xyzuvw":
+            self.assertEqual(
+                getattr(self._mthexapod_1_evt_uncompensated_position, axis), 0.0
+            )
+
+        self.assertTrue(self._mthexapod_1_evt_in_position.inPosition)
+
+        self.mtcs.rem.mthexapod_1.evt_inPosition.aget.assert_awaited_with(
+            timeout=self.mtcs.fast_timeout
+        )
+        self.mtcs.rem.mthexapod_1.evt_inPosition.flush.assert_called()
+        self.mtcs.rem.mthexapod_1.cmd_move.set_start.assert_awaited_with(
+            x=0, y=0, z=0, u=0, v=0, w=0, sync=True, timeout=self.mtcs.long_timeout
+        )
+        self.mtcs.rem.mthexapod_1.evt_inPosition.next.assert_awaited_with(
+            timeout=self.mtcs.long_timeout, flush=False
+        )
+
     def test_check_mtmount_interface(self):
 
         component = "MTMount"
