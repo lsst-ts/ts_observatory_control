@@ -125,6 +125,8 @@ class MTCS(BaseTCS):
         self._dome_az_in_position = None
         self._dome_el_in_position = None
 
+        self.m1m3_raise_timeout = 600.0
+
         # Tolerance on the stability of the balance force magnitude
         self.m1m3_force_magnitude_stable_tolerance = 50.0
 
@@ -774,7 +776,7 @@ class MTCS(BaseTCS):
                 self._wait_for_mtm1m3_detailed_state(
                     expected_m1m3_detailed_state=expected_m1m3_detailed_state,
                     unexpected_m1m3_detailed_states=unexpected_m1m3_detailed_states,
-                    timeout=self.long_long_timeout,
+                    timeout=self.m1m3_raise_timeout,
                 )
             ),
             asyncio.create_task(

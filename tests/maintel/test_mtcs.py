@@ -771,7 +771,7 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
                 timeout=self.mtcs.long_timeout
             )
         self.mtcs.rem.mtm1m3.evt_detailedState.next.assert_awaited_with(
-            flush=False, timeout=self.mtcs.long_long_timeout
+            flush=False, timeout=self.mtcs.m1m3_raise_timeout
         )
 
     async def test_raise_m1m3_when_active(self):
@@ -812,7 +812,7 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
                 timeout=self.mtcs.long_timeout
             )
         self.mtcs.rem.mtm1m3.evt_detailedState.next.assert_awaited_with(
-            flush=False, timeout=self.mtcs.long_long_timeout
+            flush=False, timeout=self.mtcs.m1m3_raise_timeout
         )
 
     async def test_raise_m1m3_not_raisable(self):
@@ -852,7 +852,7 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
                 timeout=self.mtcs.long_timeout
             )
         self.mtcs.rem.mtm1m3.evt_detailedState.next.assert_awaited_with(
-            flush=False, timeout=self.mtcs.long_long_timeout
+            flush=False, timeout=self.mtcs.m1m3_raise_timeout
         )
 
     async def test_lower_m1m3_when_parked(self):
