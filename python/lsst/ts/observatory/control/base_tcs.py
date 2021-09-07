@@ -1267,7 +1267,7 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
 
         criteria = (
             f"region(circle,ICRS,{_ra} {_dec},{r}d) & "
-            f"Vmag > {mag_limit} & Vmag < {mag_limit+2} & "
+            f"Vmag > {mag_limit} & Vmag < {mag_limit+mag_range} & "
             "cat = HD"
         )
 

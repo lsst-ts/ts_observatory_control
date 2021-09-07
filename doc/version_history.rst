@@ -6,6 +6,15 @@
 Version History
 ###############
 
+v0.10.3
+=======
+
+* Add `DryTest` to `LATISSUsages`. 
+  This is useful for unit testing.
+* In open/close m1 cover and vents check that m1 correction is disabled before proceeding.
+* Add feature to check that ATAOS m1 correction is disabled.
+* In `BaseTCS.find_target` fix magnitude range to use input parameter instead of hard coded value.
+
 v0.10.2
 =======
 
