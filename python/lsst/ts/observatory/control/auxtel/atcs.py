@@ -152,6 +152,8 @@ class ATCS(BaseTCS):
         self.dome_flat_az = 20.0
         self.dome_slew_tolerance = Angle(5.1 * u.deg)
 
+        self.azimuth_open_dome = 90.0
+
         if hasattr(self.rem.atmcs, "tel_mount_AzEl_Encoders"):
             self.rem.atmcs.tel_mount_AzEl_Encoders.callback = (
                 self.mount_AzEl_Encoders_callback
@@ -458,11 +460,11 @@ class ATCS(BaseTCS):
 
         await self.disable_dome_following()
 
-        self.log.debug("Slew telescope to park position.")
+        self.log.debug("Slew telescope to open position.")
 
         await self.point_azel(
             target_name="Park position",
-            az=self.tel_park_az,
+            az=self.azimuth_open_dome,
             el=self.tel_park_el,
             rot_tel=self.tel_park_rot,
             wait_dome=False,
@@ -477,7 +479,7 @@ class ATCS(BaseTCS):
 
         if self.check.atdome:
 
-            self.log.info(
+            self.log.debug(
                 "Check that dome CSC can communicate with shutter control box."
             )
 
@@ -506,8 +508,8 @@ class ATCS(BaseTCS):
 
             await self.home_dome()
 
-            self.log.debug("Moving dome to 90 degrees.")
-            await self.slew_dome_to(az=90.0)
+            self.log.debug(f"Moving dome to {self.azimuth_open_dome} degrees.")
+            await self.slew_dome_to(az=self.azimuth_open_dome)
 
             self.log.info("Opening dome.")
 
@@ -531,6 +533,10 @@ class ATCS(BaseTCS):
             await self.rem.ataos.cmd_enableCorrection.set_start(
                 m1=True, hexapod=True, atspectrograph=True, timeout=self.long_timeout
             )
+
+        await self.enable_dome_following()
+
+        self.log.info("Prepare for on sky finished.")
 
     async def shutdown(self):
         """Shutdown ATTCS components.
