@@ -968,7 +968,7 @@ class ATCS(BaseTCS):
         )
 
         cover_state = await self.rem.atpneumatics.evt_m1CoverState.aget(
-            timeout=self.fast_timeout
+            timeout=self.long_long_timeout
         )
 
         self.log.debug(
@@ -1032,7 +1032,7 @@ class ATCS(BaseTCS):
         await self.open_valves()
 
         vent_state = await self.rem.atpneumatics.evt_m1VentsPosition.aget(
-            timeout=self.fast_timeout
+            timeout=self.long_long_timeout
         )
 
         self.log.debug(
