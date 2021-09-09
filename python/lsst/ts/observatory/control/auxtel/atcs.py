@@ -2086,7 +2086,7 @@ class ATCS(BaseTCS):
                     "scbLink",
                     "mainDoorState",
                 ],
-                ataos=["enableCorrection"],
+                ataos=["enableCorrection", "correctionEnabled"],
                 atpneumatics=[
                     "openM1Cover",
                     "closeM1Cover",
@@ -2151,7 +2151,7 @@ class ATCS(BaseTCS):
                     "mainDoorState",
                     "scbLink",
                 ],
-                ataos=["disableCorrection"],
+                ataos=["disableCorrection", "correctionEnabled"],
                 atpneumatics=[
                     "closeM1Cover",
                     "closeM1CellVents",
@@ -2194,6 +2194,7 @@ class ATCS(BaseTCS):
                     "focusNameSelected",
                 ],
                 atdome=["stopMotion", "homeAzimuth"],
+                ataos=["correctionEnabled"],
                 atpneumatics=[
                     "openM1Cover",
                     "closeM1Cover",
