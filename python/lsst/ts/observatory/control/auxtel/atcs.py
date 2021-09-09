@@ -2011,6 +2011,7 @@ class ATCS(BaseTCS):
                     "mainDoorState",
                     "scbLink",
                 ],
+                atdometrajectory=["followingMode"],
             )
 
             usages[self.valid_use_cases.Slew] = UsagesResources(
@@ -2109,6 +2110,7 @@ class ATCS(BaseTCS):
                     "m2AirPressure",
                 ],
                 athexapod=["positionUpdate"],
+                atdometrajectory=["followingMode"],
             )
 
             usages[self.valid_use_cases.Shutdown] = UsagesResources(
@@ -2157,6 +2159,7 @@ class ATCS(BaseTCS):
                     "m1VentsPosition",
                 ],
                 athexapod=["positionUpdate"],
+                atdometrajectory=["followingMode"],
             )
 
             usages[self.valid_use_cases.PrepareForFlatfield] = UsagesResources(
@@ -2214,6 +2217,7 @@ class ATCS(BaseTCS):
                     "m2AirPressure",
                 ],
                 athexapod=["positionUpdate"],
+                atdometrajectory=["followingMode"],
             )
 
             usages[self.valid_use_cases.OffsettingForATAOS] = UsagesResources(
