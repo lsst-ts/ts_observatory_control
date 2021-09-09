@@ -2076,7 +2076,7 @@ class ATCS(BaseTCS):
                     "position",
                     "mount_Nasmyth_Encoders",
                 ],
-                atptg=["azElTarget", "stopTracking", "target"],
+                atptg=["azElTarget", "stopTracking", "target", "focusNameSelected"],
                 atdome=[
                     "moveAzimuth",
                     "stopMotion",
