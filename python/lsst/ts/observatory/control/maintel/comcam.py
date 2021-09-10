@@ -199,10 +199,6 @@ class ComCam(BaseCamera):
             end_readout = await self.rem.cccamera.evt_endReadout.next(
                 flush=False, timeout=timeout
             )
-            # 2020/07/01 Temporary fix until better messages can be sent to
-            # handle the fast paced images like biases.
-            if float(exp_time) < 10.0:
-                await asyncio.sleep(5.0)
             return end_readout
 
     async def setup_instrument(self, **kwargs):
