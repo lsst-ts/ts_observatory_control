@@ -125,7 +125,7 @@ class MTCS(BaseTCS):
         self._dome_az_in_position = None
         self._dome_el_in_position = None
 
-        self.m1m3_raise_timeout = 600.0
+        self.m1m3_raise_timeout = 600.0  # timeout to raise m1m3, in seconds.
 
         # Tolerance on the stability of the balance force magnitude
         self.m1m3_force_magnitude_stable_tolerance = 50.0
@@ -666,7 +666,7 @@ class MTCS(BaseTCS):
         )
 
     async def abort_raise_m1m3(self):
-        """Abort a raise m1m3 operation"""
+        """Abort a raise m1m3 operation."""
         await self._execute_m1m3_detailed_state_change(
             execute_command=self._handle_abort_raise_m1m3,
             initial_detailed_states={
@@ -682,7 +682,7 @@ class MTCS(BaseTCS):
     async def _execute_m1m3_detailed_state_change(
         self, execute_command, initial_detailed_states, final_detailed_states
     ):
-        """Execute a command that caused M1M3 detailed state to change and
+        """Execute a command that causes M1M3 detailed state to change and
         handle detailed state changes.
 
         Parameters
@@ -708,12 +708,13 @@ class MTCS(BaseTCS):
             )
         else:
             raise RuntimeError(
-                f"M1M3 detailed state is {MTM1M3.DetailedState(m1m3_detailed_state.detailedState)!r}. "
+                f"M1M3 detailed state is {MTM1M3.DetailedState(m1m3_detailed_state.detailedState)!r}, "
+                f"expected {initial_detailed_states!r}. "
                 "Cannot execute command."
             )
 
     async def _handle_raise_m1m3(self):
-        """Handler raising m1m3."""
+        """Handle raising m1m3."""
         self.rem.mtm1m3.evt_detailedState.flush()
 
         # xml 9/10 compatibility
@@ -749,7 +750,7 @@ class MTCS(BaseTCS):
         )
 
     async def _handle_abort_raise_m1m3(self):
-        """Handler running the abort raise m1m3 command."""
+        """Handle running the abort raise m1m3 command."""
         await self.rem.mtm1m3.cmd_abortRaiseM1M3.start(timeout=self.long_timeout)
 
         await self._handle_m1m3_detailed_state(
@@ -798,7 +799,7 @@ class MTCS(BaseTCS):
             List of unexpedted detailed state. If M1M3 transition to any of
             these states, raise an exception.
         timeout : `float`
-            How long to wait for.
+            How long to wait for (in seconds).
 
         Raises
         ------
@@ -839,7 +840,7 @@ class MTCS(BaseTCS):
         Parameters
         ----------
         timeout : `float`
-            How long to wait before timing out.
+            How long to wait before timing out (in seconds).
         """
 
         applied_balance_forces_last = (
@@ -969,8 +970,8 @@ class MTCS(BaseTCS):
         Raises
         ------
         AssertionError
-            If `component` does not support compensation mode is not a valid
-            component.
+            If `component` does not support compensation mode or if it is not a
+            valid MTCS component.
         """
 
         self.assert_has_compensation_mode(component)
@@ -1005,8 +1006,8 @@ class MTCS(BaseTCS):
         Raises
         ------
         AssertionError
-            If `component` does not support compensation mode is not a valid
-            component.
+            If `component` does not support compensation mode or if it is not a
+            valid MTCS component.
         """
         assert component in self.compensation_mode_components, (
             f"Component {component} not one of the components with compensation mode. "
@@ -1054,9 +1055,9 @@ class MTCS(BaseTCS):
         )
 
     async def move_m2_hexapod(self, x, y, z, u, v, w=0.0, sync=True):
-        """Move camera hexapod.
+        """Move m2 hexapod.
 
-        When camera hexapod compensation mode is on move will act as offset.
+        When m2 hexapod compensation mode is on move will act as offset.
 
         Parameters
         ----------
@@ -1103,11 +1104,24 @@ class MTCS(BaseTCS):
         await self.move_m2_hexapod(x=0.0, y=0.0, z=0.0, u=0.0, v=0.0)
 
     async def get_compensation_mode_camera_hexapod(self):
+        """Return the last sample of `compensationMode` event from camera
+        hexapod.
+
+        Returns
+        -------
+        `MTHexapod_logevent_compensationMode`
+        """
         return await self.rem.mthexapod_1.evt_compensationMode.aget(
             timeout=self.fast_timeout
         )
 
     async def get_compensation_mode_m2_hexapod(self):
+        """Return the last sample of `compensationMode` event from m2 hexapod.
+
+        Returns
+        -------
+        `MTHexapod_logevent_compensationMode`
+        """
         return await self.rem.mthexapod_2.evt_compensationMode.aget(
             timeout=self.fast_timeout
         )
@@ -1119,6 +1133,9 @@ class MTCS(BaseTCS):
 
     @property
     def compensation_mode_components(self):
+        """Set with the name of the components that support compensation
+        mode.
+        """
         return {"mthexapod_1", "mthexapod_2"}
 
     @property

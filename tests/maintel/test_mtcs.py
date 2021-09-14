@@ -794,7 +794,7 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
 
         m1m3_raise_task = asyncio.create_task(self.mtcs.raise_m1m3())
 
-        await asyncio.sleep(2.0)
+        await asyncio.sleep(self.execute_raise_lower_m1m3_time / 2)
 
         await self.execute_abort_raise_m1m3()
 
@@ -1681,9 +1681,15 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
 
         self.mtcs.rem.mthexapod_2.configure_mock(**hexapod_2_mocks)
 
+        # setup some execution times
+        self.execute_raise_lower_m1m3_time = 4.0  # seconds
+        self.heartbeat_time = 1.0  # seconds
+        self.short_process_time = 0.1  # seconds
+        self.normal_process_time = 0.25  # seconds
+
     async def get_heartbeat(self, *args, **kwargs):
         """Emulate heartbeat functionality."""
-        await asyncio.sleep(1.0)
+        await asyncio.sleep(self.heartbeat_time)
         return types.SimpleNamespace()
 
     async def mtmount_evt_target_next(self, *args, **kwargs):
@@ -1720,11 +1726,11 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
         return self._mtdome_tel_light_wind_screen
 
     async def mtm1m3_evt_detailed_state(self, *args, **kwargs):
-        await asyncio.sleep(1.0)
+        await asyncio.sleep(self.heartbeat_time)
         return self._mtm1m3_evt_detailed_state
 
     async def mtm1m3_evt_applied_balance_forces(self, *args, **kwargs):
-        await asyncio.sleep(0.25)
+        await asyncio.sleep(self.normal_process_time)
         return self._mtm1m3_evt_applied_balance_forces
 
     async def mtm1m3_cmd_raise_m1m3(self, *args, **kwargs):
@@ -1758,7 +1764,7 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
         self._mtm1m3_evt_detailed_state.detailedState = (
             idl.enums.MTM1M3.DetailedState.RAISING
         )
-        await asyncio.sleep(4.0)
+        await asyncio.sleep(self.execute_raise_lower_m1m3_time)
         self.log.debug("Done raising M1M3...")
         self._mtm1m3_evt_detailed_state.detailedState = (
             idl.enums.MTM1M3.DetailedState.ACTIVE
@@ -1783,7 +1789,7 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
         self._mtm1m3_evt_detailed_state.detailedState = (
             idl.enums.MTM1M3.DetailedState.LOWERING
         )
-        await asyncio.sleep(4.0)
+        await asyncio.sleep(self.execute_raise_lower_m1m3_time)
         self.log.debug("Done lowering M1M3...")
         self._mtm1m3_evt_detailed_state.detailedState = (
             idl.enums.MTM1M3.DetailedState.PARKED
@@ -1799,14 +1805,14 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
         self._mtm1m3_evt_detailed_state.detailedState = (
             idl.enums.MTM1M3.DetailedState.LOWERING
         )
-        await asyncio.sleep(4.0)
+        await asyncio.sleep(self.execute_raise_lower_m1m3_time)
         self.log.debug("M1M3 raise task done, set detailed state to parked...")
         self._mtm1m3_evt_detailed_state.detailedState = (
             idl.enums.MTM1M3.DetailedState.PARKED
         )
 
     async def mtm1m3_cmd_enable_hardpoint_corrections(self, *args, **kwargs):
-        await asyncio.sleep(0.1)
+        await asyncio.sleep(self.short_process_time)
         if self._mtm1m3_evt_applied_balance_forces.forceMagnitude == 0.0:
             self._hardpoint_corrections_task = asyncio.create_task(
                 self._execute_enable_hardpoint_corrections()
@@ -1816,12 +1822,12 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
 
         for force_magnitude in range(0, 2200, 200):
             self._mtm1m3_evt_applied_balance_forces.forceMagnitude = force_magnitude
-            await asyncio.sleep(0.25)
+            await asyncio.sleep(self.normal_process_time)
 
         return self._mtm1m3_evt_applied_balance_forces.forceMagnitude
 
     async def mtm2_evt_force_balance_system_status(self, *args, **kwargs):
-        await asyncio.sleep(1.0)
+        await asyncio.sleep(self.heartbeat_time)
         return self._mtm2_evt_force_balance_system_status
 
     async def mtm2_cmd_switch_force_balance_system(self, *args, **kwargs):
@@ -1834,59 +1840,58 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
                 "Switching force balance status "
                 f"{self._mtm2_evt_force_balance_system_status.status} -> {status}"
             )
-            await asyncio.sleep(1.0)
+            await asyncio.sleep(self.heartbeat_time)
             self._mtm2_evt_force_balance_system_status.status = status
 
     async def mthexapod_1_evt_compensation_mode(self, *args, **kwargs):
-        await asyncio.sleep(1.0)
+        await asyncio.sleep(self.heartbeat_time)
         return self._mthexapod_1_evt_compensation_mode
 
     async def mthexapod_1_cmd_set_compensation_mode(self, *args, **kwargs):
-
-        await asyncio.sleep(1.0)
+        await asyncio.sleep(self.heartbeat_time)
         self._mthexapod_1_evt_compensation_mode.enabled = kwargs.get("enable", 0) == 1
 
     async def mthexapod_2_evt_compensation_mode(self, *args, **kwargs):
-        await asyncio.sleep(1.0)
+        await asyncio.sleep(self.heartbeat_time)
         return self._mthexapod_2_evt_compensation_mode
 
     async def mthexapod_1_evt_uncompensated_position(self, *args, **kwargs):
-        await asyncio.sleep(1.0)
+        await asyncio.sleep(self.heartbeat_time)
         return self._mthexapod_1_evt_uncompensated_position
 
     async def mthexapod_1_evt_in_position(self, *args, **kwargs):
-        await asyncio.sleep(1.0)
+        await asyncio.sleep(self.heartbeat_time)
         return self._mthexapod_1_evt_in_position
 
     async def mthexapod_2_evt_uncompensated_position(self, *args, **kwargs):
-        await asyncio.sleep(1.0)
+        await asyncio.sleep(self.heartbeat_time)
         return self._mthexapod_2_evt_uncompensated_position
 
     async def mthexapod_2_evt_in_position(self, *args, **kwargs):
-        await asyncio.sleep(1.0)
+        await asyncio.sleep(self.heartbeat_time)
         return self._mthexapod_2_evt_in_position
 
     async def mthexapod_2_cmd_set_compensation_mode(self, *args, **kwargs):
         if self._mthexapod_2_evt_compensation_mode.enabled:
             raise RuntimeError("Hexapod 2 compensation mode already enabled.")
         else:
-            await asyncio.sleep(1.0)
+            await asyncio.sleep(self.heartbeat_time)
             self._mthexapod_2_evt_compensation_mode.enabled = True
 
     async def mthexapod_1_cmd_move(self, *args, **kwargs):
         self.log.debug("Move camera hexapod...")
-        await asyncio.sleep(0.5)
+        await asyncio.sleep(self.heartbeat_time / 2)
         self._mthexapod_1_move_task = asyncio.create_task(
             self.execute_hexapod_move(hexapod=1, **kwargs)
         )
-        await asyncio.sleep(0.1)
+        await asyncio.sleep(self.short_process_time)
 
     async def mthexapod_2_cmd_move(self, *args, **kwargs):
-        await asyncio.sleep(0.5)
+        await asyncio.sleep(self.heartbeat_time / 2.0)
         self._mthexapod_2_move_task = asyncio.create_task(
             self.execute_hexapod_move(hexapod=2, **kwargs)
         )
-        await asyncio.sleep(0.1)
+        await asyncio.sleep(self.short_process_time)
 
     async def execute_hexapod_move(self, hexapod, **kwargs):
 
@@ -1911,7 +1916,7 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
             getattr(self, f"_mthexapod_{hexapod}_evt_uncompensated_position").u = u
             getattr(self, f"_mthexapod_{hexapod}_evt_uncompensated_position").v = v
             getattr(self, f"_mthexapod_{hexapod}_evt_uncompensated_position").w = w
-            await asyncio.sleep(0.2)
+            await asyncio.sleep(self.short_process_time * 2.0)
 
         getattr(self, f"_mthexapod_{hexapod}_evt_in_position").inPosition = True
 

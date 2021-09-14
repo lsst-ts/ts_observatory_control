@@ -53,6 +53,8 @@ class TestUtils(unittest.TestCase):
 
         object_with_nothing_to_handle = dict(item1=1, item2=2, item3=3)
 
+        # In this case the call below will not do anything, so there is no
+        # assertion to make afterwards.
         utils.handle_exception_in_dict_items(object_with_nothing_to_handle)
 
     def test_handle_exception_in_dict_items_with_one_exception(self):

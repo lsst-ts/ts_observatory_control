@@ -1307,7 +1307,7 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
         Returns
         -------
         str
-            Message indicating the hexapod is in position.
+            Message indicating the component is in position.
         """
         self.log.debug(f"Wait for {component_name} in position event.")
 
