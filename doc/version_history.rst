@@ -54,6 +54,13 @@ v0.11.0
 * Add new utility method `handle_exeception_in_dict_items`, to handle exception stored in dictionaries items.
 * Add new utility method `handle_exeception_in`, to handle exception stored in dictionaries items.
 * Remove the delay in ComCam image taking.
+* In ATCS:
+  * Increase timeout in open/close m1 cover.
+  * add focusNameSelected. to startUp usages.
+  * add ataos `correctionEnabled` event to usages.
+  * add atdometrajectory followingMode event as a dependency to usages.
+  * update `prepare_for_onsky` to allow enabling dome following at the end.
+  * Make `ATCS` more resilient when the dome following is disabled.
 
 v0.10.3
 =======

@@ -583,8 +583,14 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
         self.atcs.rem.ataos.cmd_enableCorrection.set_start.assert_awaited_with(
             m1=True, hexapod=True, atspectrograph=True, timeout=self.atcs.long_timeout
         )
-        self.atcs.rem.atdometrajectory.cmd_setFollowingMode.set_start.assert_awaited_with(
-            enable=False, timeout=self.atcs.fast_timeout
+
+        atdometreajectory_cmd_set_following_mode_expected_calls = [
+            unittest.mock.call(enable=False, timeout=self.atcs.fast_timeout),
+            unittest.mock.call(enable=True, timeout=self.atcs.fast_timeout),
+        ]
+
+        self.atcs.rem.atdometrajectory.cmd_setFollowingMode.set_start.assert_has_awaits(
+            atdometreajectory_cmd_set_following_mode_expected_calls
         )
 
     async def test_prepare_for_onsky_no_scb_link(self):
