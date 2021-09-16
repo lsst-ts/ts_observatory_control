@@ -24,6 +24,7 @@ import logging
 import traceback
 
 from lsst.ts import salobj
+from .utils import handle_exception_in_dict_items
 
 __all__ = ["Usages", "UsagesResources", "RemoteGroup"]
 
@@ -54,10 +55,21 @@ class Usages:
     StateTransition = 1
     MonitorState = 1 << 1
     MonitorHeartBeat = 1 << 2
+    CheckSimulationMode = 1 << 3
+    CheckSoftwareVersions = 1 << 4
+    DryTest = 1 << 5
 
     def __iter__(self):
         return iter(
-            [self.All, self.StateTransition, self.MonitorState, self.MonitorHeartBeat]
+            [
+                self.All,
+                self.StateTransition,
+                self.MonitorState,
+                self.MonitorHeartBeat,
+                self.CheckSimulationMode,
+                self.CheckSoftwareVersions,
+                self.DryTest,
+            ]
         )
 
 
@@ -726,16 +738,7 @@ class RemoteGroup:
 
         """
 
-        if components is not None:
-            work_components = list(components)
-
-            for comp in work_components:
-                if comp not in self.components_attr:
-                    raise RuntimeError(
-                        f"Component {comp} not part of the group. Must be one of {self.components_attr}."
-                    )
-        else:
-            work_components = list(self.components_attr)
+        work_components = self.get_work_components(components)
 
         if settings is not None:
             settings_all = settings
@@ -817,6 +820,61 @@ class RemoteGroup:
             len(not_enabled) == 0
         ), f"The following components are not enabled: {not_enabled}. {message}"
 
+    async def get_simulation_mode(self, components=None):
+        """Return a list with the simulation mode for components in the group.
+
+        Parameters
+        ----------
+        components : `list` of `str`, optional
+            List with the name of components to get the simulation mode. If
+            `None` (default) return the values for all components.
+
+        Returns
+        -------
+        simulation_mode: `dict`
+            Dictionary with the name of the component and the value of
+            simulation mode.
+        """
+
+        simulation_mode = await self._aget_topic_samples_for_components(
+            "evt_simulationMode", components
+        )
+
+        handle_exception_in_dict_items(
+            simulation_mode,
+            "Error getting simulation mode for the following components",
+        )
+
+        return simulation_mode
+
+    async def get_software_versions(self, components=None):
+        """Return a list with the software versions for components in the
+        group.
+
+        Parameters
+        ----------
+        components : `list` of `str`, optional
+            List with the name of components to get the software versions. If
+            `None` (default) return the values for all components.
+
+        Returns
+        -------
+        software_versions: `dict`
+            Dictionary with the name of the component and the value of
+            software versions.
+        """
+
+        software_versions = await self._aget_topic_samples_for_components(
+            "evt_softwareVersions", components
+        )
+
+        handle_exception_in_dict_items(
+            software_versions,
+            "Error getting software versions for the following components",
+        )
+
+        return software_versions
+
     async def enable(self, settings=None):
         """Enable all components.
 
@@ -861,6 +919,74 @@ class RemoteGroup:
         """
         for component in self.components:
             logging.getLogger(component).setLevel(level)
+
+    def get_work_components(self, components=None):
+        """Parse input into a list of valid components from the group.
+
+        Parameters
+        ----------
+        components : `list` of `str` or `None`
+            Input list of components to process or `None`. If `None` return a
+            list with all components.
+
+        Returns
+        -------
+        work_components : `list` of `str`
+            List of valid components.
+
+        Raises
+        ------
+        RuntimeError
+            If a component in the `components` input list is not part of the
+            group.
+        """
+        if components is not None:
+            work_components = list(components)
+
+            for comp in work_components:
+                if comp not in self.components_attr:
+                    raise RuntimeError(
+                        f"Component {comp} not part of the group. Must be one of {self.components_attr}."
+                    )
+        else:
+            work_components = list(self.components_attr)
+
+        return work_components
+
+    async def _aget_topic_samples_for_components(self, topic_name, components=None):
+        """Get topic samples for a list of components.
+
+        Parameters
+        ----------
+        topic_name : `str`
+            Name of the topic to get samples from. All CSCs must have this
+            topic defined.
+        components : `list` of `str` or `None`, optional
+            Input list of components to process or `None`. If `None` (default)
+            return a list with all components.
+
+        Returns
+        -------
+        topic_samples_for_components : `dict`
+            Dictionary with the name of the component and the value of the
+            topic sample. If an exception occurrs while trying to get the
+            topic sample, the exception is returned rather than raised.
+        """
+        work_components = self.get_work_components(components=components)
+
+        topic_data = await asyncio.gather(
+            *[
+                getattr(getattr(self.rem, component), topic_name).aget(
+                    timeout=self.fast_timeout
+                )
+                for component in work_components
+            ],
+            return_exceptions=True,
+        )
+
+        topic_samples_for_components = dict(zip(work_components, topic_data))
+
+        return topic_samples_for_components
 
     @property
     def components(self):
@@ -940,6 +1066,8 @@ class RemoteGroup:
                         "summaryState",
                         "settingVersions",
                         "heartbeat",
+                        "simulationMode",
+                        "softwareVersions",
                     ],
                 ),
                 self.valid_use_cases.StateTransition: UsagesResources(
@@ -965,6 +1093,20 @@ class RemoteGroup:
                     components_attr=self.components_attr,
                     readonly=True,
                     generics=["heartbeat"],
+                ),
+                self.valid_use_cases.CheckSimulationMode: UsagesResources(
+                    components_attr=self.components_attr,
+                    readonly=True,
+                    generics=["simulationMode"],
+                ),
+                self.valid_use_cases.CheckSoftwareVersions: UsagesResources(
+                    components_attr=self.components_attr,
+                    readonly=True,
+                    generics=["softwareVersions"],
+                ),
+                self.valid_use_cases.DryTest: UsagesResources(
+                    components_attr=self.components_attr,
+                    readonly=True,
                 ),
             }
 

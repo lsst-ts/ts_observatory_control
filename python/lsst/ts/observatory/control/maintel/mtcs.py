@@ -28,7 +28,7 @@ import astropy.units as u
 from astropy.coordinates import Angle
 
 from lsst.ts import salobj
-from lsst.ts.idl.enums import MTPtg
+from lsst.ts.idl.enums import MTM1M3, MTPtg
 from ..remote_group import Usages, UsagesResources
 from ..base_tcs import BaseTCS
 from ..constants import mtcs_constants
@@ -124,6 +124,11 @@ class MTCS(BaseTCS):
 
         self._dome_az_in_position = None
         self._dome_el_in_position = None
+
+        self.m1m3_raise_timeout = 600.0  # timeout to raise m1m3, in seconds.
+
+        # Tolerance on the stability of the balance force magnitude
+        self.m1m3_force_magnitude_stable_tolerance = 50.0
 
         try:
             self._create_asyncio_events()
@@ -632,10 +637,506 @@ class MTCS(BaseTCS):
 
         return angle
 
+    async def raise_m1m3(self):
+        """Raise M1M3."""
+        await self._execute_m1m3_detailed_state_change(
+            execute_command=self._handle_raise_m1m3,
+            initial_detailed_states={
+                MTM1M3.DetailedState.PARKED,
+                MTM1M3.DetailedState.PARKEDENGINEERING,
+            },
+            final_detailed_states={
+                MTM1M3.DetailedState.ACTIVE,
+                MTM1M3.DetailedState.ACTIVEENGINEERING,
+            },
+        )
+
+    async def lower_m1m3(self):
+        """Lower M1M3."""
+        await self._execute_m1m3_detailed_state_change(
+            execute_command=self._handle_lower_m1m3,
+            initial_detailed_states={
+                MTM1M3.DetailedState.ACTIVE,
+                MTM1M3.DetailedState.ACTIVEENGINEERING,
+            },
+            final_detailed_states={
+                MTM1M3.DetailedState.PARKED,
+                MTM1M3.DetailedState.PARKEDENGINEERING,
+            },
+        )
+
+    async def abort_raise_m1m3(self):
+        """Abort a raise m1m3 operation."""
+        await self._execute_m1m3_detailed_state_change(
+            execute_command=self._handle_abort_raise_m1m3,
+            initial_detailed_states={
+                MTM1M3.DetailedState.RAISING,
+                MTM1M3.DetailedState.RAISINGENGINEERING,
+            },
+            final_detailed_states={
+                MTM1M3.DetailedState.PARKED,
+                MTM1M3.DetailedState.PARKEDENGINEERING,
+            },
+        )
+
+    async def _execute_m1m3_detailed_state_change(
+        self, execute_command, initial_detailed_states, final_detailed_states
+    ):
+        """Execute a command that causes M1M3 detailed state to change and
+        handle detailed state changes.
+
+        Parameters
+        ----------
+        execute_command : awaitable
+            An awaitable object (coroutine or task) that will cause m1m3
+            detailed state to change.
+        initial_detailed_states : `set` of `MTM1M3.DetailedState`
+            The expected initial detailed state.
+        final_detailed_states : `set` of `MTM1M3.DetailedState`
+            The expected final detailed state.
+        """
+        m1m3_detailed_state = await self.rem.mtm1m3.evt_detailedState.aget()
+
+        if m1m3_detailed_state.detailedState in initial_detailed_states:
+            self.log.debug(
+                f"M1M3 current detailed state {initial_detailed_states!r}, executing command..."
+            )
+            await execute_command()
+        elif m1m3_detailed_state.detailedState in final_detailed_states:
+            self.log.info(
+                f"M1M3 current detailed state {final_detailed_states!r}. Nothing to do."
+            )
+        else:
+            raise RuntimeError(
+                f"M1M3 detailed state is {MTM1M3.DetailedState(m1m3_detailed_state.detailedState)!r}, "
+                f"expected {initial_detailed_states!r}. "
+                "Cannot execute command."
+            )
+
+    async def _handle_raise_m1m3(self):
+        """Handle raising m1m3."""
+        self.rem.mtm1m3.evt_detailedState.flush()
+
+        # xml 9/10 compatibility
+        if hasattr(self.rem.mtm1m3.cmd_raiseM1M3.DataType(), "raiseM1M3"):
+            await self.rem.mtm1m3.cmd_raiseM1M3.set_start(
+                raiseM1M3=True, timeout=self.long_timeout
+            )
+        else:
+            await self.rem.mtm1m3.cmd_raiseM1M3.set_start(timeout=self.long_timeout)
+
+        await self._handle_m1m3_detailed_state(
+            expected_m1m3_detailed_state=MTM1M3.DetailedState.ACTIVE,
+            unexpected_m1m3_detailed_states={
+                MTM1M3.DetailedState.LOWERING,
+            },
+        )
+
+    async def _handle_lower_m1m3(self):
+        """Handle lowering m1m3."""
+        self.rem.mtm1m3.evt_detailedState.flush()
+
+        # xml 9/10 compatibility
+        if hasattr(self.rem.mtm1m3.cmd_lowerM1M3.DataType(), "lowerM1M3"):
+            await self.rem.mtm1m3.cmd_lowerM1M3.set_start(
+                lowerM1M3=True, timeout=self.long_timeout
+            )
+        else:
+            await self.rem.mtm1m3.cmd_lowerM1M3.set_start(timeout=self.long_timeout)
+
+        await self._handle_m1m3_detailed_state(
+            expected_m1m3_detailed_state=MTM1M3.DetailedState.PARKED,
+            unexpected_m1m3_detailed_states={},
+        )
+
+    async def _handle_abort_raise_m1m3(self):
+        """Handle running the abort raise m1m3 command."""
+        await self.rem.mtm1m3.cmd_abortRaiseM1M3.start(timeout=self.long_timeout)
+
+        await self._handle_m1m3_detailed_state(
+            expected_m1m3_detailed_state=MTM1M3.DetailedState.PARKED,
+            unexpected_m1m3_detailed_states={},
+        )
+
+    async def _handle_m1m3_detailed_state(
+        self, expected_m1m3_detailed_state, unexpected_m1m3_detailed_states
+    ):
+        """Handle m1m3 detailed state.
+
+        Parameters
+        ----------
+        expected_m1m3_detailed_state : `MTM1M3.DetailedState`
+            Expected m1m3 detailed state.
+        unexpected_m1m3_detailed_states : `list` of `MTM1M3.DetailedState`
+            List of unexpedted detailed state. If M1M3 transition to any of
+            these states, raise an exception.
+        """
+
+        m1m3_raise_check_tasks = [
+            asyncio.create_task(
+                self._wait_for_mtm1m3_detailed_state(
+                    expected_m1m3_detailed_state=expected_m1m3_detailed_state,
+                    unexpected_m1m3_detailed_states=unexpected_m1m3_detailed_states,
+                    timeout=self.m1m3_raise_timeout,
+                )
+            ),
+            asyncio.create_task(
+                self.check_component_state("mtm1m3", salobj.State.ENABLED)
+            ),
+        ]
+        await self.process_as_completed(m1m3_raise_check_tasks)
+
+    async def _wait_for_mtm1m3_detailed_state(
+        self, expected_m1m3_detailed_state, unexpected_m1m3_detailed_states, timeout
+    ):
+        """Wait for a specified m1m3 detailed state.
+
+        Parameters
+        ----------
+        expected_m1m3_detailed_state : `MTM1M3.DetailedState`
+            Expected m1m3 detailed state.
+        unexpected_m1m3_detailed_states : `list` of `MTM1M3.DetailedState`
+            List of unexpedted detailed state. If M1M3 transition to any of
+            these states, raise an exception.
+        timeout : `float`
+            How long to wait for (in seconds).
+
+        Raises
+        ------
+        RuntimeError
+            If detailed state is not reached in specified timeout.
+            If detailed state transition to one of the
+            `unexpected_m1m3_detailed_states`.
+        """
+        m1m3_detailed_state = await self.rem.mtm1m3.evt_detailedState.aget()
+        while m1m3_detailed_state.detailedState != expected_m1m3_detailed_state:
+            m1m3_detailed_state = await self.rem.mtm1m3.evt_detailedState.next(
+                flush=False, timeout=timeout
+            )
+            if m1m3_detailed_state.detailedState in unexpected_m1m3_detailed_states:
+                raise RuntimeError(
+                    f"M1M3 transitioned to unexpected detailed state {m1m3_detailed_state.detailedState!r}."
+                )
+            self.log.debug(f"M1M3 detailed state {m1m3_detailed_state.detailedState!r}")
+
+    async def enable_m1m3_balance_system(self):
+        """Enable m1m3 balance system."""
+
+        applied_balance_forces = await self.rem.mtm1m3.evt_appliedBalanceForces.aget(
+            timeout=self.fast_timeout
+        )
+
+        if applied_balance_forces.forceMagnitude == 0.0:
+            self.log.debug("Enabling hardpoint corrections.")
+            await self.rem.mtm1m3.cmd_enableHardpointCorrections.start(
+                timeout=self.long_timeout
+            )
+        else:
+            self.log.warning("Hardpoint corrections already enabled. Nothing to do.")
+
+    async def wait_m1m3_force_balance_system(self, timeout):
+        """Wait for m1m3 force balance system to stabilize.
+
+        Parameters
+        ----------
+        timeout : `float`
+            How long to wait before timing out (in seconds).
+        """
+
+        applied_balance_forces_last = (
+            await self.rem.mtm1m3.evt_appliedBalanceForces.aget(
+                timeout=self.fast_timeout
+            )
+        )
+
+        if applied_balance_forces_last.forceMagnitude == 0.0:
+            self.log.warning(
+                "Force magnitude is zero. If force balance system is off this operation will fail. "
+                f"Waiting {self.fast_timeout}s before proceeding."
+            )
+            await asyncio.sleep(self.fast_timeout)
+
+        timer_task = asyncio.create_task(asyncio.sleep(timeout))
+
+        while not timer_task.done():
+            applied_balance_forces_new = (
+                await self.rem.mtm1m3.evt_appliedBalanceForces.next(
+                    flush=True, timeout=self.fast_timeout
+                )
+            )
+            if applied_balance_forces_new.forceMagnitude == 0.0:
+                raise RuntimeError(
+                    "Force magnitude is zero. Enable force balance system before "
+                    "waiting for system to stabilize."
+                )
+            self.log.debug(
+                f"Force magnitude: {applied_balance_forces_new.forceMagnitude}N"
+            )
+            if (
+                abs(
+                    applied_balance_forces_new.forceMagnitude
+                    - applied_balance_forces_last.forceMagnitude
+                )
+                < self.m1m3_force_magnitude_stable_tolerance
+            ):
+                self.log.info("Change in force balance inside tolerance.")
+                break
+            applied_balance_forces_last = applied_balance_forces_new
+
+        if not timer_task:
+            timer_task.cancel()
+
+    async def reset_m1m3_forces(self):
+        """Reset M1M3 forces."""
+
+        forces = np.zeros_like(
+            self.rem.mtm1m3.cmd_applyAberrationForces.DataType().zForces
+        )
+        await self.rem.mtm1m3.cmd_applyAberrationForces.set_start(
+            zForces=forces, timeout=self.fast_timeout
+        )
+        await self.rem.mtm1m3.cmd_applyActiveOpticForces.set_start(
+            zForces=forces, timeout=self.fast_timeout
+        )
+
+    async def enable_m2_balance_system(self):
+        """Enable m2 balance system."""
+
+        m2_force_balance_system_status = (
+            await self.rem.mtm2.evt_forceBalanceSystemStatus.aget(
+                timeout=self.fast_timeout
+            )
+        )
+
+        self.rem.mtm2.evt_forceBalanceSystemStatus.flush()
+
+        if not m2_force_balance_system_status.status:
+            self.log.debug("Enabling M2 force balance system.")
+            await self.rem.mtm2.cmd_switchForceBalanceSystem.set_start(
+                status=True, timeout=self.long_timeout
+            )
+            await self.rem.mtm2.evt_forceBalanceSystemStatus.next(
+                flush=False, timeout=self.long_timeout
+            )
+        else:
+            self.log.info("M2 force balance system already enabled. Nothing to do.")
+
+    async def reset_m2_forces(self):
+        """Reset M2 forces."""
+        await self.rem.mtm2.cmd_resetForceOffsets.start(timeout=self.long_timeout)
+
+    async def enable_compensation_mode(self, component):
+        """Enable compensation mode for one of the hexapods.
+
+        Parameters
+        ----------
+        component : `str`
+            Name of the component. Must be in `compensation_mode_components`.
+
+        See Also
+        --------
+        disable_compensation_mode: Disable compensation mode.
+        compensation_mode_components: Set of components with compensation mode.
+        """
+
+        await self._handle_set_compensation_mode(component, enable=True)
+
+    async def disable_compensation_mode(self, component):
+        """Disable compensation mode for one of the hexapods.
+
+        Parameters
+        ----------
+        component : `str`
+            Name of the component
+
+        See Also
+        --------
+        enable_compensation_mode: Enable compensation mode.
+        compensation_mode_components: Set of components with compensation mode.
+        """
+
+        await self._handle_set_compensation_mode(component, enable=False)
+
+    async def _handle_set_compensation_mode(self, component, enable):
+        """Handle setting compensation mode.
+
+        Parameters
+        ----------
+        component : `str`
+            Name of the component
+        enable : `bool`
+            Whether to enable or disable compensation mode.
+
+        Raises
+        ------
+        AssertionError
+            If `component` does not support compensation mode or if it is not a
+            valid MTCS component.
+        """
+
+        self.assert_has_compensation_mode(component)
+
+        compensation_mode = await getattr(
+            self.rem, component
+        ).evt_compensationMode.aget(timeout=self.fast_timeout)
+
+        if (not compensation_mode.enabled and enable) or (
+            compensation_mode.enabled and not enable
+        ):
+            self.log.debug(
+                f"Setting {component} compensation mode from {compensation_mode.enabled} to {enable}."
+            )
+            await getattr(self.rem, component).cmd_setCompensationMode.set_start(
+                enable=1 if enable else 0, timeout=self.long_timeout
+            )
+        else:
+            self.log.warning(
+                f"Compensation mode for {component} already {enable}. Nothing to do."
+            )
+
+    def assert_has_compensation_mode(self, component):
+        """Assert that component is part of the set of components that supports
+        compensation mode.
+
+        Parameters
+        ----------
+        component : `str`
+            Name of the component
+
+        Raises
+        ------
+        AssertionError
+            If `component` does not support compensation mode or if it is not a
+            valid MTCS component.
+        """
+        assert component in self.compensation_mode_components, (
+            f"Component {component} not one of the components with compensation mode. "
+            f"Choose one of {self.compensation_mode_components}."
+        )
+
+    async def move_camera_hexapod(self, x, y, z, u, v, w=0.0, sync=True):
+        """Move camera hexapod.
+
+        When camera hexapod compensation mode is on move will act as offset.
+
+        Parameters
+        ----------
+        x : `float`
+            Hexapod-x position (microns).
+        y : `float`
+            Hexapod-y position (microns).
+        z : `float`
+            Hexapod-z position (microns).
+        u : `float`
+            Hexapod-u angle (degrees).
+        v : `float`
+            Hexapod-v angle (degrees).
+        w : `float`, optional
+            Hexapod-w angle (degrees). Default 0.
+        sync : `bool`, optinal
+            Should the hexapod movement be synchronized? Default True.
+        """
+
+        compensation_mode = await self.get_compensation_mode_camera_hexapod()
+
+        if compensation_mode.enabled:
+            self.log.info(
+                "Camera Hexapod compensation mode enabled. Move will offset with respect to LUT."
+            )
+
+        await self.rem.mthexapod_1.cmd_move.set_start(
+            x=x, y=y, z=z, u=u, v=v, w=w, sync=sync, timeout=self.long_timeout
+        )
+
+        await self._handle_in_position(
+            in_position_event=self.rem.mthexapod_1.evt_inPosition,
+            timeout=self.long_timeout,
+            component_name="Camera Hexapod",
+        )
+
+    async def move_m2_hexapod(self, x, y, z, u, v, w=0.0, sync=True):
+        """Move m2 hexapod.
+
+        When m2 hexapod compensation mode is on move will act as offset.
+
+        Parameters
+        ----------
+        x : `float`
+            Hexapod-x position (microns).
+        y : `float`
+            Hexapod-y position (microns).
+        z : `float`
+            Hexapod-z position (microns).
+        u : `float`
+            Hexapod-u angle (degrees).
+        v : `float`
+            Hexapod-v angle (degrees).
+        w : `float`, optional
+            Hexapod-w angle (degrees). Default 0.
+        sync : `bool`, optinal
+            Should the hexapod movement be synchronized? Default True.
+        """
+
+        compensation_mode = await self.get_compensation_mode_m2_hexapod()
+
+        if compensation_mode.enabled:
+            self.log.info(
+                "M2 Hexapod compensation mode enabled. Move will offset with respect to LUT."
+            )
+
+        await self.rem.mthexapod_2.cmd_move.set_start(
+            x=x, y=y, z=z, u=u, v=v, w=w, sync=sync, timeout=self.long_timeout
+        )
+
+        await self._handle_in_position(
+            in_position_event=self.rem.mthexapod_2.evt_inPosition,
+            timeout=self.long_timeout,
+            component_name="M2 Hexapod",
+        )
+
+    async def reset_camera_hexapod_position(self):
+        """Reset position of the camera hexapod."""
+
+        await self.move_camera_hexapod(x=0.0, y=0.0, z=0.0, u=0.0, v=0.0)
+
+    async def reset_m2_hexapod_position(self):
+        """Reset position of the M2 hexapod."""
+        await self.move_m2_hexapod(x=0.0, y=0.0, z=0.0, u=0.0, v=0.0)
+
+    async def get_compensation_mode_camera_hexapod(self):
+        """Return the last sample of `compensationMode` event from camera
+        hexapod.
+
+        Returns
+        -------
+        `MTHexapod_logevent_compensationMode`
+        """
+        return await self.rem.mthexapod_1.evt_compensationMode.aget(
+            timeout=self.fast_timeout
+        )
+
+    async def get_compensation_mode_m2_hexapod(self):
+        """Return the last sample of `compensationMode` event from m2 hexapod.
+
+        Returns
+        -------
+        `MTHexapod_logevent_compensationMode`
+        """
+        return await self.rem.mthexapod_2.evt_compensationMode.aget(
+            timeout=self.fast_timeout
+        )
+
     def _ready_to_take_data(self):
         """Placeholder, still needs to be implemented."""
         # TODO: Finish implementation.
         self._ready_to_take_data_future.set_result(True)
+
+    @property
+    def compensation_mode_components(self):
+        """Set with the name of the components that support compensation
+        mode.
+        """
+        return {"mthexapod_1", "mthexapod_2"}
 
     @property
     def plate_scale(self):

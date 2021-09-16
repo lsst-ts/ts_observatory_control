@@ -36,14 +36,19 @@ MAKE_TIMEOUT = 60  # Timeout for make_script (sec)
 class TestBaseGroup(RemoteGroupTestCase, unittest.IsolatedAsyncioTestCase):
     async def basic_make_group(self, usage=None):
 
-        ntest = 4
+        self.ntest = 4
 
         self.basegroup = RemoteGroup(
-            components=[f"Test:{c_id+1}" for c_id in range(ntest)],
+            components=[f"Test:{c_id+1}" for c_id in range(self.ntest)],
             intended_usage=usage,
         )
 
-        self.mock_test = [salobj.TestCsc(index=c_id + 1) for c_id in range(ntest)]
+        if usage != Usages.DryTest:
+            self.mock_test = [
+                salobj.TestCsc(index=c_id + 1) for c_id in range(self.ntest)
+            ]
+        else:
+            self.mock_test = []
 
         return (self.basegroup, *self.mock_test)
 
@@ -175,6 +180,61 @@ class TestBaseGroup(RemoteGroupTestCase, unittest.IsolatedAsyncioTestCase):
             await self.basegroup.enable()
 
             await self.basegroup.assert_all_enabled()
+
+    async def test_get_simulation_mode(self):
+        async with self.make_group(usage=Usages.CheckSimulationMode):
+
+            component_simulation_mode = await self.basegroup.get_simulation_mode()
+
+            self.assertEqual(
+                len(component_simulation_mode), len(self.basegroup.components_attr)
+            )
+
+            for component in component_simulation_mode:
+                self.assertEqual(component_simulation_mode[component].mode, 0)
+
+            component_simulation_mode = await self.basegroup.get_simulation_mode(
+                ["test_1"]
+            )
+
+            self.assertEqual(len(component_simulation_mode), 1)
+
+            self.assertEqual(component_simulation_mode["test_1"].mode, 0)
+
+    async def test_get_software_versions(self):
+        async with self.make_group(usage=Usages.CheckSoftwareVersions):
+
+            software_versions = await self.basegroup.get_software_versions()
+
+            self.assertEqual(
+                len(software_versions), len(self.basegroup.components_attr)
+            )
+
+            for i, component in enumerate(software_versions):
+                self.assertEqual(
+                    software_versions[component].cscVersion, self.mock_test[i].version
+                )
+
+            software_versions = await self.basegroup.get_software_versions(["test_1"])
+
+            self.assertEqual(len(software_versions), 1)
+
+            self.assertEqual(
+                software_versions["test_1"].cscVersion, self.mock_test[0].version
+            )
+
+    async def test_get_work_components(self):
+        async with self.make_group(usage=Usages.DryTest):
+            work_components = self.basegroup.get_work_components()
+
+            self.assertEqual(len(work_components), self.ntest)
+
+            work_components = self.basegroup.get_work_components(["test_1"])
+
+            self.assertEqual(len(work_components), 1)
+
+            with self.assertRaises(RuntimeError):
+                self.basegroup.get_work_components(["bad_1"])
 
 
 if __name__ == "__main__":
