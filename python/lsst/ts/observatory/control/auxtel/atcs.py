@@ -152,6 +152,8 @@ class ATCS(BaseTCS):
         self.dome_flat_az = 20.0
         self.dome_slew_tolerance = Angle(5.1 * u.deg)
 
+        self.azimuth_open_dome = 90.0
+
         if hasattr(self.rem.atmcs, "tel_mount_AzEl_Encoders"):
             self.rem.atmcs.tel_mount_AzEl_Encoders.callback = (
                 self.mount_AzEl_Encoders_callback
@@ -458,11 +460,11 @@ class ATCS(BaseTCS):
 
         await self.disable_dome_following()
 
-        self.log.debug("Slew telescope to park position.")
+        self.log.debug("Slew telescope to open position.")
 
         await self.point_azel(
             target_name="Park position",
-            az=self.tel_park_az,
+            az=self.azimuth_open_dome,
             el=self.tel_park_el,
             rot_tel=self.tel_park_rot,
             wait_dome=False,
@@ -477,7 +479,7 @@ class ATCS(BaseTCS):
 
         if self.check.atdome:
 
-            self.log.info(
+            self.log.debug(
                 "Check that dome CSC can communicate with shutter control box."
             )
 
@@ -506,8 +508,8 @@ class ATCS(BaseTCS):
 
             await self.home_dome()
 
-            self.log.debug("Moving dome to 90 degrees.")
-            await self.slew_dome_to(az=90.0)
+            self.log.debug(f"Moving dome to {self.azimuth_open_dome} degrees.")
+            await self.slew_dome_to(az=self.azimuth_open_dome)
 
             self.log.info("Opening dome.")
 
@@ -531,6 +533,10 @@ class ATCS(BaseTCS):
             await self.rem.ataos.cmd_enableCorrection.set_start(
                 m1=True, hexapod=True, atspectrograph=True, timeout=self.long_timeout
             )
+
+        await self.enable_dome_following()
+
+        self.log.info("Prepare for on sky finished.")
 
     async def shutdown(self):
         """Shutdown ATTCS components.
@@ -962,7 +968,7 @@ class ATCS(BaseTCS):
         )
 
         cover_state = await self.rem.atpneumatics.evt_m1CoverState.aget(
-            timeout=self.fast_timeout
+            timeout=self.long_long_timeout
         )
 
         self.log.debug(
@@ -1026,7 +1032,7 @@ class ATCS(BaseTCS):
         await self.open_valves()
 
         vent_state = await self.rem.atpneumatics.evt_m1VentsPosition.aget(
-            timeout=self.fast_timeout
+            timeout=self.long_long_timeout
         )
 
         self.log.debug(
@@ -1532,7 +1538,14 @@ class ATCS(BaseTCS):
         asyncio.TimeoutError
             If does not get a status update in less then `timeout` seconds.
         """
-        await asyncio.wait_for(self.dome_az_in_position.wait(), timeout=timeout)
+        if not await self.check_dome_following():
+            self.log.debug("Dome following disabled. Ignoring dome position.")
+            self.dome_az_in_position.set()
+        else:
+            self.log.debug(
+                "Dome following enabled. Waiting for dome to get in position."
+            )
+            await asyncio.wait_for(self.dome_az_in_position.wait(), timeout=timeout)
         self.log.info("ATDome in position.")
         return "ATDome in position."
 
@@ -1998,6 +2011,7 @@ class ATCS(BaseTCS):
                     "mainDoorState",
                     "scbLink",
                 ],
+                atdometrajectory=["followingMode"],
             )
 
             usages[self.valid_use_cases.Slew] = UsagesResources(
@@ -2062,7 +2076,7 @@ class ATCS(BaseTCS):
                     "position",
                     "mount_Nasmyth_Encoders",
                 ],
-                atptg=["azElTarget", "stopTracking", "target"],
+                atptg=["azElTarget", "stopTracking", "target", "focusNameSelected"],
                 atdome=[
                     "moveAzimuth",
                     "stopMotion",
@@ -2072,7 +2086,7 @@ class ATCS(BaseTCS):
                     "scbLink",
                     "mainDoorState",
                 ],
-                ataos=["enableCorrection"],
+                ataos=["enableCorrection", "correctionEnabled"],
                 atpneumatics=[
                     "openM1Cover",
                     "closeM1Cover",
@@ -2096,6 +2110,7 @@ class ATCS(BaseTCS):
                     "m2AirPressure",
                 ],
                 athexapod=["positionUpdate"],
+                atdometrajectory=["followingMode"],
             )
 
             usages[self.valid_use_cases.Shutdown] = UsagesResources(
@@ -2136,7 +2151,7 @@ class ATCS(BaseTCS):
                     "mainDoorState",
                     "scbLink",
                 ],
-                ataos=["disableCorrection"],
+                ataos=["disableCorrection", "correctionEnabled"],
                 atpneumatics=[
                     "closeM1Cover",
                     "closeM1CellVents",
@@ -2144,6 +2159,7 @@ class ATCS(BaseTCS):
                     "m1VentsPosition",
                 ],
                 athexapod=["positionUpdate"],
+                atdometrajectory=["followingMode"],
             )
 
             usages[self.valid_use_cases.PrepareForFlatfield] = UsagesResources(
@@ -2178,6 +2194,7 @@ class ATCS(BaseTCS):
                     "focusNameSelected",
                 ],
                 atdome=["stopMotion", "homeAzimuth"],
+                ataos=["correctionEnabled"],
                 atpneumatics=[
                     "openM1Cover",
                     "closeM1Cover",
@@ -2201,6 +2218,7 @@ class ATCS(BaseTCS):
                     "m2AirPressure",
                 ],
                 athexapod=["positionUpdate"],
+                atdometrajectory=["followingMode"],
             )
 
             usages[self.valid_use_cases.OffsettingForATAOS] = UsagesResources(

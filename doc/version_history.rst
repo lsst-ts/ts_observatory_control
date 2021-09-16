@@ -6,6 +6,62 @@
 Version History
 ###############
 
+v0.11.0
+=======
+
+* In MTCS: 
+  * add longer timeout for raising/lowering the system.
+  * implement `reset_m2_hexapod_position`.
+  * implement `reset_camera_hexapod_position`.
+  * implement `move_m2_hexapod`.
+  * implement `move_camera_hexapod`.
+  * implement `enabled_compensation_mode` and `disable_compensation_mode`.
+  * implement `reset_m2_forces`.
+  * implement `enable_m2_balance_system`.
+  * implement `reset_m1m3_forces`.
+  * omplement enable_m1m3_balance_system.
+  * Implement abort_raise_m1m3.
+  * implement lower_m1m3 method.
+  * add method to handle raising m1m3.
+  * add methods to handle m1m3 detailed state.
+  * Implement `MTCS.raise_m1m3` method.
+  * Implement `MTCS._execute_m1m3_detailed_state_change`, a method that executes a command that change M1M3 detailed state and handle waiting for it to complete.
+* In `test_mtcs`:
+  * implement `test_check_mtm1m3_interface`.
+  * add support for summary state and heartbeat on the mocks.
+  * rename import of `astropy.units` from `u` to `units`.
+  * add support for summary state and heartbeat on the mocks.
+  * add logger to `TestMTCS`.
+* Fix `get_software_versions` docstring.
+* Add new `BaseTCS._handle_in_position` method to take care of in position event in a generic way.
+* Unit tests for `get_work_components`.
+* In `RemoteGroupd` add `get_sfotware_versions` method to return the last sample of `softwareVersions` event for all components or a subset.
+* Fix unit test on get_simulation_mode.
+* In test_base_group, implement usage of `DryTest` to allow implementation of faster unit tests that don't require Remotes/Controllers.
+* Use `_aget_topic_samples_for_components` in `get_simulation_mode`
+* In `RemoteGroup`: 
+  * add new usages:
+    * CheckSimulationMode
+    * CheckSoftwareVersions
+    * DryTest
+  * add new utility method `_aget_topic_samples_for_components` to get generic samples.
+  * usages `All` add new generic events.
+  * add `RemoteGroup.get_work_components` method.
+  * add new method `get_simulation_mode` that returns a dictionary with the last sample of the event `simulationMode` for all components or a subset specified in the `components` input parameter.
+  * `RemoteGroup.set_state`  use new method `get_work_components`.
+  * add `RemoteGroup.get_work_components` method. 
+    This method receives a list of component names, and either raise an exception (if one or more components are not part of the group) or return a list of components. If called with `None`, return the name of all components.
+* Add new utility method `handle_exeception_in_dict_items`, to handle exception stored in dictionaries items.
+* Add new utility method `handle_exeception_in`, to handle exception stored in dictionaries items.
+* Remove the delay in ComCam image taking.
+* In ATCS:
+  * Increase timeout in open/close m1 cover.
+  * add focusNameSelected. to startUp usages.
+  * add ataos `correctionEnabled` event to usages.
+  * add atdometrajectory followingMode event as a dependency to usages.
+  * update `prepare_for_onsky` to allow enabling dome following at the end.
+  * Make `ATCS` more resilient when the dome following is disabled.
+
 v0.10.3
 =======
 

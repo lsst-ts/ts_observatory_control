@@ -1125,6 +1125,20 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
                 "Dome trajectory check disable. Will not disable following."
             )
 
+    async def check_dome_following(self):
+        """Check if dome following is enabled.
+
+        Returns
+        -------
+        dome_following : `bool`
+            `True` is enabled `False` otherwise.
+        """
+        dome_followig = await getattr(
+            self.rem, self.dome_trajectory_name
+        ).evt_followingMode.aget(timeout=self.fast_timeout)
+
+        return dome_followig.enabled
+
     def azel_from_radec(self, ra, dec, time=None):
         """Calculate Az/El coordinates from RA/Dec in ICRS.
 
@@ -1286,6 +1300,61 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
         self.object_list_add(f"{target_main_id}".rstrip(), result_table[0])
 
         return f"{target_main_id}".rstrip()
+
+    async def _handle_in_position(
+        self, in_position_event, timeout, settle_time=0.0, component_name=""
+    ):
+        """Handle inPosition event.
+
+        Parameters
+        ----------
+        in_position_event : `object`
+            A reference to the in position event.
+        timeout: `float`
+            How long to wait for in position (in seconds).
+        settle_time: `float`, optional
+            Additional time to wait once in position (in seconds).
+        component_name : `str`, optional
+            The name of the component. This is used in log messages and to
+            construct a return message when in position.
+
+        Returns
+        -------
+        str
+            Message indicating the component is in position.
+        """
+        self.log.debug(f"Wait for {component_name} in position event.")
+
+        in_position_event.flush()
+        in_position = await in_position_event.aget(timeout=self.fast_timeout)
+        self.log.debug(f"{component_name} in position: {in_position.inPosition}.")
+
+        if in_position.inPosition:
+            self.log.debug(
+                f"{component_name} already in position. Handling potential race condition."
+            )
+            try:
+                in_position = await in_position_event.next(
+                    flush=False,
+                    timeout=settle_time if settle_time > 0.0 else self.fast_timeout,
+                )
+                self.log.info(
+                    f"{component_name} in position: {in_position.inPosition}."
+                )
+            except asyncio.TimeoutError:
+                self.log.debug(
+                    "No new in position event in the last "
+                    f"{settle_time if settle_time > 0.0 else self.fast_timeout}s. "
+                    f"Assuming {component_name} in position."
+                )
+
+        while not in_position.inPosition:
+
+            in_position = await in_position_event.next(flush=False, timeout=timeout)
+
+            self.log.info(f"{component_name} in position: {in_position.inPosition}.")
+
+        return f"{component_name} in position."
 
     @property
     def instrument_focus(self):
