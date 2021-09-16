@@ -207,6 +207,7 @@ class MTCS(BaseTCS):
         if stop_before_slew:
             try:
                 await self.stop_tracking()
+                await self.rem.mtrotator.cmd_stop.start(timeout=self.fast_timeout)
             except Exception:
                 pass
 
