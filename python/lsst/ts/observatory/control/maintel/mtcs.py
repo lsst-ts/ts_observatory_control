@@ -202,9 +202,7 @@ class MTCS(BaseTCS):
         )
 
         if not ccw_following.enabled:
-            raise RuntimeError(
-                "Camera cable wrap following disabled in MTMount. Enable it before slewing the telescope."
-            )
+            self.log.warning("Camera cable wrap following disabled in MTMount.")
 
         if stop_before_slew:
             try:
