@@ -1416,6 +1416,77 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
 
         return f"{target_main_id}".rstrip()
 
+    async def find_target_local_catalog(
+        self, az, el, mag_limit, mag_range=2.0, radius=0.5
+    ):
+        """Make a cone search in the internal catalog and return a target
+        close to the specified position.
+
+        Parameters
+        ----------
+        az: `float`
+            Azimuth (in degrees).
+        el: `float`
+            Elevation (in degrees).
+        mag_limit: `float`
+            Minimum (brightest) V-magnitude limit.
+        mag_range: `float`, optional
+            Magnitude range. The maximum/faintest limit is defined as
+            mag_limit+mag_range (default=2).
+        radius: `float`, optional
+            Radius of the cone search (default=2 degrees).
+
+        Returns
+        -------
+        `str`
+            Name of the target.
+
+        Raises
+        ------
+        RuntimeError:
+            If catalog is not loaded.
+            If no object is found.
+        """
+
+        if not self.is_catalog_loaded():
+            raise RuntimeError(
+                "Catalog not loaded. Load a catalog with `load_catalog` before "
+                "calling `find_target_local_catalog`."
+            )
+
+        radec_as_sky_coord = SkyCoord(self.radec_from_azel(az=az, el=el))
+
+        mask_magnitude = np.bitwise_and(
+            self._catalog["FLUX_V"] >= mag_limit,
+            self._catalog["FLUX_V"] <= mag_limit + mag_range,
+        )
+
+        if np.sum(mask_magnitude) == 0:
+            raise RuntimeError(
+                f"No target in local catalog with magnitude between {mag_limit} and {mag_limit+mag_range}."
+            )
+
+        match = radec_as_sky_coord.match_to_catalog_sky(
+            self._catalog_coordinates[mask_magnitude]
+        )
+
+        target_index = int(match[0])
+
+        target = self._catalog[mask_magnitude][target_index]
+
+        target_name = target["MAIN_ID"]
+
+        if match[1][0] > radius * u.deg:
+
+            raise RuntimeError(
+                "Could not find a valid target in the specified radius. "
+                f"Closest target is {target_name}, {match[1][0]:.2f} away."
+            )
+
+        self.object_list_add(target_name, target)
+
+        return target_name
+
     def _query_object(self, object_name):
         """Get an object from its name.
 
