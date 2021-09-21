@@ -163,7 +163,8 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
         """
 
         if name not in self._object_list:
-            object_table = Simbad.query_object(name)
+
+            object_table = self._query_object(name)
 
             if object_table is None:
                 raise RuntimeError(f"Could not find {name} in Simbad database.")
@@ -1414,6 +1415,29 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
         self.object_list_add(f"{target_main_id}".rstrip(), result_table[0])
 
         return f"{target_main_id}".rstrip()
+
+    def _query_object(self, object_name):
+        """Get an object from its name.
+
+        Parameters
+        ----------
+        object_name : `str`
+            Object nade identifier as it appears in the internal catalog or a
+            valid Simbad identifier.
+
+        Returns
+        -------
+        `astropy.Table`
+            Object information.
+        """
+        if self._catalog is not None and object_name in self._catalog["MAIN_ID"]:
+            self.log.debug(f"Found {object_name} in internal catalog.")
+            return self._catalog[self._catalog["MAIN_ID"] == object_name]
+        else:
+            self.log.debug(
+                f"Object {object_name} not in internal catalog. Querying Simbad."
+            )
+            return Simbad.query_object(object_name)
 
     async def _handle_in_position(
         self, in_position_event, timeout, settle_time=0.0, component_name=""
