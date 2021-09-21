@@ -23,14 +23,23 @@ __all__ = ["BaseTCS"]
 import abc
 import asyncio
 import warnings
+from astropy.coordinates.sky_coordinate import SkyCoord
 
 import numpy as np
 import astropy.units as u
+
+from os.path import splitext
+from astropy.table import Table
 from astropy.coordinates import AltAz, ICRS, EarthLocation, Angle
 from astroquery.simbad import Simbad
 
 from . import RemoteGroup
-from .utils import calculate_parallactic_angle, RotType, InstrumentFocus
+from .utils import (
+    calculate_parallactic_angle,
+    RotType,
+    InstrumentFocus,
+    get_catalogs_path,
+)
 
 from lsst.ts import salobj
 
@@ -90,6 +99,9 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
 
         # Dictionary to store name->coordinates of objects
         self._object_list = dict()
+
+        self._catalog = None
+        self._catalog_coordinates = None
 
     def object_list_clear(self):
         """Remove all objects stored in the internal object list."""
@@ -177,6 +189,98 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
             Set with the names of all targets in the object list.
         """
         return set(self._object_list.keys())
+
+    def load_catalog(self, catalog_name):
+        """Load a catalog from the available set.
+
+        Parameters
+        ----------
+        catalog_name : `str`
+            Name of the catalog to load. Must be a valid entry in the list
+            of available catalogs.
+
+        Raises
+        ------
+        RuntimeError
+            If input `catalog_name` is not a valid entry in the list of
+            available catalogs.
+            If catalog was already loaded or not cleared before loading a new
+            one.
+
+        See Also
+        --------
+        list_available_catalogs: List available catalogs to load.
+        """
+        if self.is_catalog_loaded():
+            raise RuntimeError(
+                "Internal catalog is not empty. To load a new catalog, "
+                "clear it with `clear_catalog` before loading a new one."
+            )
+
+        available_catalogs = self.list_available_catalogs()
+        if catalog_name not in available_catalogs:
+            raise RuntimeError(
+                f"Catalog {catalog_name} not in the list of available catalogs. "
+                f"Must be one of {available_catalogs}."
+            )
+
+        self.log.info(f"Loading {catalog_name}...")
+
+        self._catalog = Table.read(
+            get_catalogs_path() / f"{catalog_name}.pd",
+            format="pandas.json",
+        )
+
+        self.log.debug("Creating coordinate catalog...")
+        self._catalog_coordinates = SkyCoord(
+            Angle(self._catalog["RA"], unit=u.hourangle),
+            Angle(self._catalog["DEC"], unit=u.deg),
+            frame="icrs",
+        )
+
+        self.log.debug(f"Loaded catalog with {len(self._catalog)} targets.")
+
+    def list_available_catalogs(self):
+        """List of available catalogs to load.
+
+        Returns
+        -------
+        catalog_names : `set`
+            Set with the names of the available catalogs.
+
+        See Also
+        --------
+        load_catalog: Load a catalog from the available set.
+        """
+        return set(
+            [
+                splitext(file_name.name)[0]
+                for file_name in get_catalogs_path().glob("*.pd")
+            ]
+        )
+
+    def clear_catalog(self):
+        """Clear internal catalog."""
+        if self._catalog is None:
+            self.log.info("Catalog already cleared, nothing to do.")
+        else:
+            self.log.debug(f"Removing catalog with {len(self._catalog)} targets.")
+
+            del self._catalog
+            del self._catalog_coordinates
+
+            self._catalog = None
+            self._catalog_coordinates = None
+
+    def is_catalog_loaded(self):
+        """Check if catalog is loaded.
+
+        Returns
+        -------
+        `bool`
+            `True` if catalog was loaded, `False` otherwise.
+        """
+        return self._catalog is not None
 
     async def point_azel(
         self,
