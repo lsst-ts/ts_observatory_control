@@ -19,6 +19,8 @@ test:
   requires:
     - ts-conda-build =0.3
     - astroquery
+    - pandas
+    - scipy
     - ts-idl {{ idl_version }}
     - ts-salobj {{ salobj_version }}
   source_files:
@@ -39,5 +41,8 @@ requirements:
     - python
     - setuptools
     - setuptools_scm
+    - astroquery
+    - pandas
+    - scipy
     - ts-idl
     - ts-salobj
