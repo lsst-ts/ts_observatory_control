@@ -168,6 +168,16 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
 
         return object_table
 
+    def object_list_get_all(self):
+        """Return list of objects in the object list.
+
+        Returns
+        -------
+        object_list_names : `set`
+            Set with the names of all targets in the object list.
+        """
+        return set(self._object_list.keys())
+
     async def point_azel(
         self,
         az,
