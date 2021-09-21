@@ -1366,6 +1366,54 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
         return pa_angle
 
     async def find_target(self, az, el, mag_limit, mag_range=2.0, radius=0.5):
+        """Make a cone search and return a target close to the specified
+        position.
+
+        Parameters
+        ----------
+        az: `float`
+            Azimuth (in degrees).
+        el: `float`
+            Elevation (in degrees).
+        mag_limit: `float`
+            Minimum (brightest) V-magnitude limit.
+        mag_range: `float`, optional
+            Magnitude range. The maximum/faintest limit is defined as
+            mag_limit+mag_range (default=2).
+        radius: `float`, optional
+            Radius of the cone search (default=2 degrees).
+
+        Returns
+        -------
+        target : `astropy.Table`
+            Target information.
+        """
+
+        target = None
+
+        if self.is_catalog_loaded():
+            self.log.debug("Searching internal catalog.")
+            try:
+                target = await self.find_target_local_catalog(
+                    az=az,
+                    el=el,
+                    mag_limit=mag_limit,
+                    mag_range=mag_range,
+                    radius=radius,
+                )
+            except RuntimeError:
+                self.log.info(
+                    "Could not find suitable target in local catalog. Continue and try with Simbad."
+                )
+
+        if target is None:
+            target = await self.find_target_simbad(
+                az=az, el=el, mag_limit=mag_limit, mag_range=mag_range, radius=radius
+            )
+
+        return target
+
+    async def find_target_simbad(self, az, el, mag_limit, mag_range=2.0, radius=0.5):
         """Make a cone search in Simbad and return a target close to the
         specified position.
 
@@ -1382,7 +1430,13 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
             mag_limit+mag_range (default=2).
         radius: `float`, optional
             Radius of the cone search (default=2 degrees).
+
+        Raises
+        ------
+        RuntimeError:
+            If no object is found.
         """
+
         customSimbad = Simbad()
 
         customSimbad.add_votable_fields("distance_result", "fluxdata(V)")
@@ -1405,8 +1459,9 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
         result_table = await loop.run_in_executor(
             None, customSimbad.query_criteria, criteria
         )
+
         if result_table is None:
-            raise RuntimeError("No result from query.")
+            raise RuntimeError(f"No result from query: {criteria}.")
 
         result_table.sort("FLUX_V")
 
