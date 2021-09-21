@@ -18,12 +18,20 @@
 #
 # You should have received a copy of the GNU General Public License
 
-__all__ = ["calculate_parallactic_angle", "handle_exception_in_dict_items"]
+__all__ = [
+    "calculate_parallactic_angle",
+    "handle_exception_in_dict_items",
+    "get_catalogs_path",
+]
+
+import pathlib
 
 import numpy as np
 
 import astropy.units as u
 from astropy.coordinates import Angle
+
+from .. import catalogs
 
 
 def calculate_parallactic_angle(location, lst, target):
@@ -83,3 +91,14 @@ def handle_exception_in_dict_items(
 
     if len(exception_keys) > 0:
         raise RuntimeError(f"{message}: {exception_keys}")
+
+
+def get_catalogs_path():
+    """Return the path to the internal catalog directory.
+
+    Returns
+    -------
+    catalogs_path : `pathlib.Path`
+        Path to catalogs directory.
+    """
+    return pathlib.Path(catalogs.__file__).resolve().parent
