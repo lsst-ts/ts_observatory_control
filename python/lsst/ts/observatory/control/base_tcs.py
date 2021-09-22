@@ -1467,8 +1467,8 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
     async def find_target_local_catalog(
         self, az, el, mag_limit, mag_range=2.0, radius=0.5
     ):
-        """Make a cone search in the internal catalog and return a target
-        close to the specified position.
+        """Make a cone search in the internal catalog and return a target in
+        the magnitude range, close to the specified position.
 
         Parameters
         ----------
