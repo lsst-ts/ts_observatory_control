@@ -155,20 +155,13 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
         -------
         object_table: `astropy.table.row.Row`
             Table row with object information.
-
-        Raises
-        ------
-        RuntimeError
-            If no object is found.
         """
 
         if name not in self._object_list:
 
             object_table = self._query_object(name)
 
-            if object_table is None:
-                raise RuntimeError(f"Could not find {name} in Simbad database.")
-            elif len(object_table) > 1:
+            if len(object_table) > 1:
                 self.log.warning(
                     f"Found more than one entry for {name}. Using first one."
                 )
