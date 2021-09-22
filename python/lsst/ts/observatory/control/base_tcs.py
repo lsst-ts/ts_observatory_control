@@ -1553,17 +1553,27 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
 
         Returns
         -------
-        `astropy.Table`
+        target_info : `astropy.Table`
             Object information.
         """
-        if self._catalog is not None and object_name in self._catalog["MAIN_ID"]:
+        if self.is_catalog_loaded() and object_name in self._catalog["MAIN_ID"]:
             self.log.debug(f"Found {object_name} in internal catalog.")
             return self._catalog[self._catalog["MAIN_ID"] == object_name]
         else:
             self.log.debug(
                 f"Object {object_name} not in internal catalog. Querying Simbad."
             )
-            return Simbad.query_object(object_name)
+
+            target_info = Simbad.query_object(object_name)
+
+            if target_info is None:
+                additional_error_message = (
+                    "internal catalog and " if self.is_catalog_loaded() else ""
+                )
+                raise RuntimeError(
+                    f"Could not find {object_name} in {additional_error_message}Simbad database."
+                )
+            return target_info
 
     async def _handle_in_position(
         self, in_position_event, timeout, settle_time=0.0, component_name=""
