@@ -1407,7 +1407,8 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
         return target
 
     async def find_target_simbad(self, az, el, mag_limit, mag_range=2.0, radius=0.5):
-        """Make a cone search in Simbad and return a target close to the
+        """Make a cone search in the HD catalog using Simbad and return a
+        target with magnitude inside the magnitude range, close to the
         specified position.
 
         Parameters
