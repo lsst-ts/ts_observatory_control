@@ -207,6 +207,18 @@ class MTCS(BaseTCS):
         if stop_before_slew:
             try:
                 await self.stop_tracking()
+                rotator_position = await self.rem.mtrotator.tel_rotation.aget(
+                    timeout=self.fast_timeout
+                )
+                await self.rem.mtrotator.cmd_move.set_start(
+                    position=rotator_position, timeout=self.fast_timeout
+                )
+                await self._handle_in_position(
+                    self.rem.mtrotator.evt_inPosition,
+                    timeout=self.long_timeout,
+                    settle_time=self.fast_timeout,
+                    component_name="MTRotator",
+                )
                 await self.rem.mtrotator.cmd_stop.start(timeout=self.fast_timeout)
             except Exception:
                 pass
