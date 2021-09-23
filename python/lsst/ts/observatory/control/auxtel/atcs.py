@@ -2051,6 +2051,7 @@ class ATCS(BaseTCS):
                 ],
                 atdome=["stopMotion", "shutterInPosition"],
                 athexapod=["positionUpdate"],
+                atdometrajectory=["followingMode"],
                 ataos=[
                     "applyFocusOffset",
                     "correctionEnabled",
