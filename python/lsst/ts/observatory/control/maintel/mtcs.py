@@ -230,7 +230,7 @@ class MTCS(BaseTCS):
         self.log.debug("Sending slew command.")
 
         if stop_before_slew:
-            self.rem.mtmount.evt_axesInPosition.flush()
+            self.flush_offset_events()
             self.rem.mtrotator.evt_inPosition.flush()
 
         await slew_cmd.start(timeout=slew_timeout)
@@ -433,32 +433,22 @@ class MTCS(BaseTCS):
             wait? (default: True)
         """
 
-        self.log.debug("Wait for mtmount in position event.")
+        self.log.debug("Wait for mtmount in position events.")
 
-        while True:
-
-            in_position = await self.rem.mtmount.evt_axesInPosition.next(
-                flush=False, timeout=timeout
-            )
-
-            # make sure timestamp of event is after command was acknowledged.
-            if (
-                cmd_ack is not None
-                and in_position.private_sndStamp < cmd_ack.private_sndStamp
-            ):
-                self.log.debug("Received old event. Ignoring.")
-            else:
-                self.log.debug(
-                    "MTMount axesInPosition got: "
-                    f"elevation {in_position.elevation}, "
-                    f"azimuth {in_position.azimuth}."
-                )
-                if in_position.elevation and in_position.azimuth:
-                    if wait_settle:
-                        self.log.info("Waiting for telescope to settle.")
-                        await asyncio.sleep(self.tel_settle_time)
-                    self.log.info("Telescope in position.")
-                    return "Telescope in position."
+        await asyncio.gather(
+            self._handle_in_position(
+                self.rem.mtmount.evt_elevationInPosition,
+                timeout=timeout,
+                settle_time=self.tel_settle_time,
+                component_name="MTMount elevation",
+            ),
+            self._handle_in_position(
+                self.rem.mtmount.evt_azimuthInPosition,
+                timeout=timeout,
+                settle_time=self.tel_settle_time,
+                component_name="MTMount azimuth",
+            ),
+        )
 
     async def wait_for_dome_inposition(self, timeout, cmd_ack=None, wait_settle=True):
         """Wait for the Dome to be in position.
@@ -613,7 +603,8 @@ class MTCS(BaseTCS):
 
     def flush_offset_events(self):
         """Abstract method to flush events before and offset is performed."""
-        self.rem.mtmount.evt_axesInPosition.flush()
+        self.rem.mtmount.evt_elevationInPosition.flush()
+        self.rem.mtmount.evt_azimuthInPosition.flush()
 
     async def offset_done(self):
         """Wait for offset events."""
@@ -1221,7 +1212,8 @@ class MTCS(BaseTCS):
                 mtmount=[
                     "azimuth",
                     "elevation",
-                    "axesInPosition",
+                    "elevationInPosition",
+                    "azimuthInPosition",
                     "cameraCableWrapFollowing",
                 ],
                 mtdome=["azimuth", "lightWindScreen"],
@@ -1249,7 +1241,8 @@ class MTCS(BaseTCS):
                 mtmount=[
                     "azimuth",
                     "elevation",
-                    "axesInPosition",
+                    "elevationInPosition",
+                    "azimuthInPosition",
                     "cameraCableWrapFollowing",
                 ],
                 mtdome=["azimuth", "lightWindScreen"],
@@ -1273,7 +1266,8 @@ class MTCS(BaseTCS):
                 mtmount=[
                     "azimuth",
                     "elevation",
-                    "axesInPosition",
+                    "elevationInPosition",
+                    "azimuthInPosition",
                     "cameraCableWrapFollowing",
                 ],
             )
@@ -1296,7 +1290,8 @@ class MTCS(BaseTCS):
                 mtmount=[
                     "azimuth",
                     "elevation",
-                    "axesInPosition",
+                    "elevationInPosition",
+                    "azimuthInPosition",
                     "cameraCableWrapFollowing",
                 ],
             )
