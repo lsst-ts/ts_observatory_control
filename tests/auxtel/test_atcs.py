@@ -92,11 +92,143 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
 
         self.assertTrue(name in self.atcs._object_list)
 
+    def test_object_list_get_from_catalog(self):
+
+        self.atcs.load_catalog("hd_catalog_6th_mag")
+
+        name = "HD  68601"
+
+        with self.assertLogs(
+            self.log.name, level=logging.DEBUG
+        ) as log_messages_object_list_get:
+            object_table = self.atcs.object_list_get(name)
+
+        for message in log_messages_object_list_get.output:
+            self.assertIn(f"Found {name} in internal catalog.", message)
+
+        self.assertTrue(name in self.atcs._object_list)
+        self.assertTrue(object_table is not None)
+
+        self.atcs.object_list_clear()
+        self.atcs.clear_catalog()
+
+        self.assertEqual(len(self.atcs._object_list), 0)
+
+    def test_list_available_catalogs(self):
+
+        available_catalogs = self.atcs.list_available_catalogs()
+
+        self.assertIn("hd_catalog_6th_mag", available_catalogs)
+
+    def test_load_catalog_and_clear_catalog(self):
+
+        # Need to clear the catalog in case it was loaded before by another
+        # test
+        self.atcs.clear_catalog()
+
+        self.assertFalse(self.atcs.is_catalog_loaded())
+
+        self.atcs.load_catalog("hd_catalog_6th_mag")
+
+        self.assertTrue(self.atcs.is_catalog_loaded())
+
+        self.atcs.clear_catalog()
+
+        self.assertFalse(self.atcs.is_catalog_loaded())
+
     async def test_find_target(self):
+
+        # Make sure it searches Simbad and not local catalog
+        self.atcs.clear_catalog()
 
         name = await self.atcs.find_target(az=-180.0, el=30.0, mag_limit=9.0)
 
         self.assertTrue(name in self.atcs._object_list)
+
+        self.atcs.object_list_clear()
+
+    async def test_find_target_with_internal_catalog(self):
+        # Clear catalog to make sure it was not loaded
+        self.atcs.clear_catalog()
+        # Load catalog
+        self.atcs.load_catalog("hd_catalog_6th_mag")
+
+        with self.assertLogs(
+            self.log.name, level=logging.DEBUG
+        ) as log_messages_find_target:
+
+            name = await self.atcs.find_target(
+                az=-180.0, el=30.0, mag_limit=4.0, mag_range=2.0, radius=2.0
+            )
+
+        for message in log_messages_find_target.output:
+            self.assertIn("Searching internal catalog.", message)
+
+        self.assertTrue(name in self.atcs._object_list)
+
+        self.atcs.object_list_clear()
+
+    async def test_find_target_local_catalog_fail_not_loaded(self):
+
+        # Clear catalog to make sure it was not loaded
+        self.atcs.clear_catalog()
+
+        with self.assertRaises(RuntimeError):
+            await self.atcs.find_target_local_catalog(az=-180.0, el=30.0, mag_limit=9.0)
+
+    async def test_find_target_local_catalog_fail_outside_mag_limit(self):
+
+        # Clear catalog to make sure it was not loaded
+        self.atcs.clear_catalog()
+        # Load catalog
+        self.atcs.load_catalog("hd_catalog_6th_mag")
+
+        with self.assertRaises(RuntimeError) as context:
+            # Test catalog only goes to magnitude 6, search for mag = 9-11
+            await self.atcs.find_target_local_catalog(
+                az=-180.0, el=30.0, mag_limit=9.0, mag_range=2.0
+            )
+
+        self.assertIn(
+            "No target in local catalog with magnitude between",
+            str(context.exception),
+        )
+
+    async def test_find_target_local_catalog_fail_outside_radius(self):
+
+        # Clear catalog to make sure it was not loaded
+        self.atcs.clear_catalog()
+        # Load catalog
+        self.atcs.load_catalog("hd_catalog_6th_mag")
+
+        with self.assertRaises(RuntimeError) as context:
+            await self.atcs.find_target_local_catalog(
+                az=-180.0, el=30.0, mag_limit=4.0, mag_range=2.0, radius=0.1
+            )
+
+        self.assertIn(
+            "Could not find a valid target in the specified radius.",
+            str(context.exception),
+        )
+
+    async def test_find_target_local_catalog_loaded(self):
+
+        # Clear catalog to make sure it was not loaded
+        self.atcs.clear_catalog()
+        # Load catalog
+        self.atcs.load_catalog("hd_catalog_6th_mag")
+
+        # Search close to the south pole, where there are a handfull of
+        # suitable targets all the time.
+        # The test catalog only has targets brighther than 6th magnitude, so
+        # will use the range 4 - 6.
+        name = await self.atcs.find_target_local_catalog(
+            az=-180.0, el=30.0, mag_limit=4.0, mag_range=2.0, radius=2.0
+        )
+
+        self.assertTrue(name in self.atcs._object_list)
+
+        self.atcs.object_list_clear()
 
     async def test_slew_dome_to_check_false(self):
 
