@@ -6,6 +6,36 @@
 Version History
 ###############
 
+v0.11.1
+=======
+
+* Update conda recipe to add new dependencies; pandas and scipy.
+* Update setup.py to include `.pd` files.
+* Unit tests for `BaseTCS` new catalog feature.
+* In `BaseTCS`:
+  * move `find_target` code into `find_target_simbad`. In `find_target`, use `find_target_local_catalog` if catalog is loaded or try `find_target_simbad` otherwise or if it fails to find a target in the local catalog.
+  * implement method to find target given an az/el position, magnitude range and radius.
+  * implement method to query objects from the local catalog, when a catalog is loaded, or query `Simbad` if the catalog is not loaded or the object is not found in the local catalog.
+  * add functionality to manage local catalogs, which includes:
+    * list available catalogs.
+    * load a catalog from the list of available catalogs.
+    * check if a catalog was loaded.
+    * clear catalog.
+* Add `BaseTCS.object_list_get_all` method to retrieve a list of all the object names in the object list.
+* Add utility function to return the path to the catalog module.
+* Add `catalogs` module to store local object catalogs.
+* Add `hd_catalog_6th_mag.pd` catalog file.
+  This is a cut out of the HD catalog with southern stars brighter than 6th magnitude, used for testing the package.
+  It contains roughly 1500 objects.
+* Setup `.gitattributes` to track `*.pd` files with git large file storage.
+* In `MTCS`:
+  * replace `axesInPosition` by `elevationInPosition` and `azimuthInPosition` on all usages.
+  * fix for xml 10.0.0. Event `axesInPosition` was removed, need to use `elevationInPosition` and `azimuthInPosition` instead.
+* In `ATCS`:
+  * add `ATDomeTrajectory.evt_followingMode` to `Slew` usage.
+  * `assert_m1_coorection_disabled` deal with situation where no `correctionEnabled` event is seen.
+* Update Jenkinsfile to pull git lfs files before running tests.
+
 v0.11.0
 =======
 

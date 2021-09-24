@@ -1870,13 +1870,19 @@ class ATCS(BaseTCS):
 
     async def assert_m1_correction_disabled(self, message=""):
 
-        ataos_correction_enabled = await self.rem.ataos.evt_correctionEnabled.aget(
-            timeout=self.fast_timeout
-        )
-
-        assert (
-            not ataos_correction_enabled.m1
-        ), f"ATAOS m1 correction enabled. {message}"
+        try:
+            ataos_correction_enabled = await self.rem.ataos.evt_correctionEnabled.aget(
+                timeout=self.fast_timeout
+            )
+        except asyncio.TimeoutError:
+            self.log.debug(
+                "No correctionEnabled event, assuming correction not enabled."
+            )
+            return
+        else:
+            assert (
+                not ataos_correction_enabled.m1
+            ), f"ATAOS m1 correction enabled. {message}"
 
     @property
     def plate_scale(self):
@@ -2045,6 +2051,7 @@ class ATCS(BaseTCS):
                 ],
                 atdome=["stopMotion", "shutterInPosition"],
                 athexapod=["positionUpdate"],
+                atdometrajectory=["followingMode"],
                 ataos=[
                     "applyFocusOffset",
                     "correctionEnabled",

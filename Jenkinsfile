@@ -76,6 +76,15 @@ pipeline {
                 }
             }
         }
+        stage("Checkout git-lfs files") {
+            steps {
+                script {
+                    sh """
+                    docker exec -u saluser \${container_name} sh -c \"source ~/.setup.sh && cd /home/saluser/repo/ && eups declare -r . -t saluser && setup ts_observatory_control -t saluser && export LSST_DDS_IP=192.168.0.1 && printenv LSST_DDS_IP && git lfs install && git lfs fetch --all && git lfs checkout\"
+                    """
+                }
+            }
+        }
         stage("Running tests") {
             steps {
                 script {

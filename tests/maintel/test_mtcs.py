@@ -120,7 +120,8 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
             timeout=self.mtcs.fast_timeout
         )
 
-        self.mtcs.rem.mtmount.evt_axesInPosition.flush.assert_called()
+        self.mtcs.rem.mtmount.evt_elevationInPosition.flush.assert_called()
+        self.mtcs.rem.mtmount.evt_azimuthInPosition.flush.assert_called()
         self.mtcs.rem.mtrotator.evt_inPosition.flush.assert_called()
         self.mtcs.rem.mtptg.cmd_raDecTarget.start.assert_called()
         self.mtcs.rem.mtptg.cmd_poriginOffset.start.assert_called_with(
@@ -164,7 +165,8 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
             timeout=self.mtcs.fast_timeout
         )
 
-        self.mtcs.rem.mtmount.evt_axesInPosition.flush.assert_called()
+        self.mtcs.rem.mtmount.evt_elevationInPosition.flush.assert_called()
+        self.mtcs.rem.mtmount.evt_azimuthInPosition.flush.assert_called()
         self.mtcs.rem.mtrotator.evt_inPosition.flush.assert_called()
         self.mtcs.rem.mtptg.cmd_raDecTarget.start.assert_called()
         self.mtcs.rem.mtptg.cmd_poriginOffset.start.assert_called_with(
@@ -210,7 +212,9 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
 
         self.mtcs.rem.mtptg.cmd_stopTracking.start.assert_not_called()
 
-        self.mtcs.rem.mtmount.evt_axesInPosition.flush.assert_not_called()
+        self.mtcs.rem.mtmount.evt_elevationInPosition.flush.assert_not_called()
+        self.mtcs.rem.mtmount.evt_azimuthInPosition.flush.assert_not_called()
+
         self.mtcs.rem.mtrotator.evt_inPosition.flush.assert_not_called()
 
         self.mtcs.rem.mtptg.cmd_raDecTarget.start.assert_called()
@@ -256,7 +260,8 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
             timeout=self.mtcs.fast_timeout
         )
 
-        self.mtcs.rem.mtmount.evt_axesInPosition.flush.assert_called()
+        self.mtcs.rem.mtmount.evt_elevationInPosition.flush.assert_called()
+        self.mtcs.rem.mtmount.evt_azimuthInPosition.flush.assert_called()
         self.mtcs.rem.mtrotator.evt_inPosition.flush.assert_called()
         self.mtcs.rem.mtptg.cmd_raDecTarget.start.assert_called()
         self.mtcs.rem.mtptg.cmd_poriginOffset.start.assert_called_with(
@@ -301,7 +306,8 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
             timeout=self.mtcs.fast_timeout
         )
 
-        self.mtcs.rem.mtmount.evt_axesInPosition.flush.assert_called()
+        self.mtcs.rem.mtmount.evt_elevationInPosition.flush.assert_called()
+        self.mtcs.rem.mtmount.evt_azimuthInPosition.flush.assert_called()
         self.mtcs.rem.mtrotator.evt_inPosition.flush.assert_called()
         self.mtcs.rem.mtptg.cmd_raDecTarget.start.assert_called()
         self.mtcs.rem.mtptg.cmd_poriginOffset.start.assert_called_with(
@@ -346,7 +352,8 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
             timeout=self.mtcs.fast_timeout
         )
 
-        self.mtcs.rem.mtmount.evt_axesInPosition.flush.assert_called()
+        self.mtcs.rem.mtmount.evt_elevationInPosition.flush.assert_called()
+        self.mtcs.rem.mtmount.evt_azimuthInPosition.flush.assert_called()
         self.mtcs.rem.mtrotator.evt_inPosition.flush.assert_called()
         self.mtcs.rem.mtptg.cmd_raDecTarget.start.assert_called()
         self.mtcs.rem.mtptg.cmd_poriginOffset.start.assert_called_with(
@@ -401,7 +408,8 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
             timeout=self.mtcs.fast_timeout
         )
 
-        self.mtcs.rem.mtmount.evt_axesInPosition.flush.assert_called()
+        self.mtcs.rem.mtmount.evt_elevationInPosition.flush.assert_called()
+        self.mtcs.rem.mtmount.evt_azimuthInPosition.flush.assert_called()
         self.mtcs.rem.mtrotator.evt_inPosition.flush.assert_called()
         self.mtcs.rem.mtptg.cmd_raDecTarget.start.assert_called()
         self.mtcs.rem.mtptg.cmd_poriginOffset.start.assert_called_with(
@@ -449,7 +457,8 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
             timeout=self.mtcs.fast_timeout
         )
 
-        self.mtcs.rem.mtmount.evt_axesInPosition.flush.assert_called()
+        self.mtcs.rem.mtmount.evt_elevationInPosition.flush.assert_called()
+        self.mtcs.rem.mtmount.evt_azimuthInPosition.flush.assert_called()
         self.mtcs.rem.mtrotator.evt_inPosition.flush.assert_called()
 
     async def test_enable_ccw_following(self):
@@ -1359,9 +1368,11 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
         self._mtmount_tel_azimuth = types.SimpleNamespace(actualPosition=0.0)
         self._mtmount_tel_elevation = types.SimpleNamespace(actualPosition=80.0)
 
-        self._mtmount_evt_axes_in_position = types.SimpleNamespace(
-            elevation=True,
-            azimuth=True,
+        self._mtmount_evt_elevation_in_position = types.SimpleNamespace(
+            inPosition=True,
+        )
+        self._mtmount_evt_azimuth_in_position = types.SimpleNamespace(
+            inPosition=True,
         )
 
         # MTRotator data
@@ -1528,14 +1539,19 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
             "tel_azimuth.next.side_effect": self.mtmount_tel_azimuth_next,
             "tel_elevation.next.side_effect": self.mtmount_tel_elevation_next,
             "tel_elevation.aget.side_effect": self.mtmount_tel_elevation_next,
-            "evt_axesInPosition.next.side_effect": self.mtmount_evt_axes_in_position_next,
+            "evt_elevationInPosition.next.side_effect": self.mtmount_evt_elevation_in_position_next,
+            "evt_azimuthInPosition.next.side_effect": self.mtmount_evt_azimuth_in_position_next,
             "evt_cameraCableWrapFollowing.aget.side_effect": self.mtmount_evt_cameraCableWrapFollowing,
             "cmd_enableCameraCableWrapFollowing.start.side_effect": self.mtmout_cmd_enable_ccw_following,
             "cmd_disableCameraCableWrapFollowing.start.side_effect": self.mtmout_cmd_disable_ccw_following,
         }
         self.mtcs.rem.mtmount.configure_mock(**mtmount_mocks)
 
-        self.mtcs.rem.mtmount.evt_axesInPosition.attach_mock(
+        self.mtcs.rem.mtmount.evt_elevationInPosition.attach_mock(
+            unittest.mock.Mock(),
+            "flush",
+        )
+        self.mtcs.rem.mtmount.evt_azimuthInPosition.attach_mock(
             unittest.mock.Mock(),
             "flush",
         )
@@ -1701,8 +1717,11 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
     async def mtmount_tel_elevation_next(self, *args, **kwargs):
         return self._mtmount_tel_elevation
 
-    async def mtmount_evt_axes_in_position_next(self, *args, **kwargs):
-        return self._mtmount_evt_axes_in_position
+    async def mtmount_evt_elevation_in_position_next(self, *args, **kwargs):
+        return self._mtmount_evt_elevation_in_position
+
+    async def mtmount_evt_azimuth_in_position_next(self, *args, **kwargs):
+        return self._mtmount_evt_azimuth_in_position
 
     async def mtmount_evt_cameraCableWrapFollowing(self, *args, **kwargs):
         return self._mtmount_evt_cameraCableWrapFollowing

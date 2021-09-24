@@ -23,14 +23,23 @@ __all__ = ["BaseTCS"]
 import abc
 import asyncio
 import warnings
+from astropy.coordinates.sky_coordinate import SkyCoord
 
 import numpy as np
 import astropy.units as u
+
+from os.path import splitext
+from astropy.table import Table
 from astropy.coordinates import AltAz, ICRS, EarthLocation, Angle
 from astroquery.simbad import Simbad
 
 from . import RemoteGroup
-from .utils import calculate_parallactic_angle, RotType, InstrumentFocus
+from .utils import (
+    calculate_parallactic_angle,
+    RotType,
+    InstrumentFocus,
+    get_catalogs_path,
+)
 
 from lsst.ts import salobj
 
@@ -91,6 +100,9 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
         # Dictionary to store name->coordinates of objects
         self._object_list = dict()
 
+        self._catalog = None
+        self._catalog_coordinates = None
+
     def object_list_clear(self):
         """Remove all objects stored in the internal object list."""
         self.log.debug(f"Removing {len(self._object_list)} items from object list.")
@@ -143,19 +155,13 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
         -------
         object_table: `astropy.table.row.Row`
             Table row with object information.
-
-        Raises
-        ------
-        RuntimeError
-            If no object is found.
         """
 
         if name not in self._object_list:
-            object_table = Simbad.query_object(name)
 
-            if object_table is None:
-                raise RuntimeError(f"Could not find {name} in Simbad database.")
-            elif len(object_table) > 1:
+            object_table = self._query_object(name)
+
+            if len(object_table) > 1:
                 self.log.warning(
                     f"Found more than one entry for {name}. Using first one."
                 )
@@ -167,6 +173,108 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
             object_table = self._object_list[name]
 
         return object_table
+
+    def object_list_get_all(self):
+        """Return list of objects in the object list.
+
+        Returns
+        -------
+        object_list_names : `set`
+            Set with the names of all targets in the object list.
+        """
+        return set(self._object_list.keys())
+
+    def load_catalog(self, catalog_name):
+        """Load a catalog from the available set.
+
+        Parameters
+        ----------
+        catalog_name : `str`
+            Name of the catalog to load. Must be a valid entry in the list
+            of available catalogs.
+
+        Raises
+        ------
+        RuntimeError
+            If input `catalog_name` is not a valid entry in the list of
+            available catalogs.
+            If catalog was already loaded or not cleared before loading a new
+            one.
+
+        See Also
+        --------
+        list_available_catalogs: List available catalogs to load.
+        """
+        if self.is_catalog_loaded():
+            raise RuntimeError(
+                "Internal catalog is not empty. To load a new catalog, "
+                "clear it with `clear_catalog` before loading a new one."
+            )
+
+        available_catalogs = self.list_available_catalogs()
+        if catalog_name not in available_catalogs:
+            raise RuntimeError(
+                f"Catalog {catalog_name} not in the list of available catalogs. "
+                f"Must be one of {available_catalogs}."
+            )
+
+        self.log.info(f"Loading {catalog_name}...")
+
+        self._catalog = Table.read(
+            get_catalogs_path() / f"{catalog_name}.pd",
+            format="pandas.json",
+        )
+
+        self.log.debug("Creating coordinate catalog...")
+        self._catalog_coordinates = SkyCoord(
+            Angle(self._catalog["RA"], unit=u.hourangle),
+            Angle(self._catalog["DEC"], unit=u.deg),
+            frame="icrs",
+        )
+
+        self.log.debug(f"Loaded catalog with {len(self._catalog)} targets.")
+
+    def list_available_catalogs(self):
+        """List of available catalogs to load.
+
+        Returns
+        -------
+        catalog_names : `set`
+            Set with the names of the available catalogs.
+
+        See Also
+        --------
+        load_catalog: Load a catalog from the available set.
+        """
+        return set(
+            [
+                splitext(file_name.name)[0]
+                for file_name in get_catalogs_path().glob("*.pd")
+            ]
+        )
+
+    def clear_catalog(self):
+        """Clear internal catalog."""
+        if self._catalog is None:
+            self.log.info("Catalog already cleared, nothing to do.")
+        else:
+            self.log.debug(f"Removing catalog with {len(self._catalog)} targets.")
+
+            del self._catalog
+            del self._catalog_coordinates
+
+            self._catalog = None
+            self._catalog_coordinates = None
+
+    def is_catalog_loaded(self):
+        """Check if catalog is loaded.
+
+        Returns
+        -------
+        `bool`
+            `True` if catalog was loaded, `False` otherwise.
+        """
+        return self._catalog is not None
 
     async def point_azel(
         self,
@@ -1251,7 +1359,56 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
         return pa_angle
 
     async def find_target(self, az, el, mag_limit, mag_range=2.0, radius=0.5):
-        """Make a cone search in Simbad and return a target close to the
+        """Make a cone search and return a target close to the specified
+        position.
+
+        Parameters
+        ----------
+        az: `float`
+            Azimuth (in degrees).
+        el: `float`
+            Elevation (in degrees).
+        mag_limit: `float`
+            Minimum (brightest) V-magnitude limit.
+        mag_range: `float`, optional
+            Magnitude range. The maximum/faintest limit is defined as
+            mag_limit+mag_range (default=2).
+        radius: `float`, optional
+            Radius of the cone search (default=2 degrees).
+
+        Returns
+        -------
+        target : `astropy.Table`
+            Target information.
+        """
+
+        target = None
+
+        if self.is_catalog_loaded():
+            self.log.debug("Searching internal catalog.")
+            try:
+                target = await self.find_target_local_catalog(
+                    az=az,
+                    el=el,
+                    mag_limit=mag_limit,
+                    mag_range=mag_range,
+                    radius=radius,
+                )
+            except RuntimeError:
+                self.log.info(
+                    "Could not find suitable target in local catalog. Continue and try with Simbad."
+                )
+
+        if target is None:
+            target = await self.find_target_simbad(
+                az=az, el=el, mag_limit=mag_limit, mag_range=mag_range, radius=radius
+            )
+
+        return target
+
+    async def find_target_simbad(self, az, el, mag_limit, mag_range=2.0, radius=0.5):
+        """Make a cone search in the HD catalog using Simbad and return a
+        target with magnitude inside the magnitude range, close to the
         specified position.
 
         Parameters
@@ -1267,7 +1424,13 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
             mag_limit+mag_range (default=2).
         radius: `float`, optional
             Radius of the cone search (default=2 degrees).
+
+        Raises
+        ------
+        RuntimeError:
+            If no object is found.
         """
+
         customSimbad = Simbad()
 
         customSimbad.add_votable_fields("distance_result", "fluxdata(V)")
@@ -1290,8 +1453,9 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
         result_table = await loop.run_in_executor(
             None, customSimbad.query_criteria, criteria
         )
+
         if result_table is None:
-            raise RuntimeError("No result from query.")
+            raise RuntimeError(f"No result from query: {criteria}.")
 
         result_table.sort("FLUX_V")
 
@@ -1300,6 +1464,110 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
         self.object_list_add(f"{target_main_id}".rstrip(), result_table[0])
 
         return f"{target_main_id}".rstrip()
+
+    async def find_target_local_catalog(
+        self, az, el, mag_limit, mag_range=2.0, radius=0.5
+    ):
+        """Make a cone search in the internal catalog and return a target in
+        the magnitude range, close to the specified position.
+
+        Parameters
+        ----------
+        az: `float`
+            Azimuth (in degrees).
+        el: `float`
+            Elevation (in degrees).
+        mag_limit: `float`
+            Minimum (brightest) V-magnitude limit.
+        mag_range: `float`, optional
+            Magnitude range. The maximum/faintest limit is defined as
+            mag_limit+mag_range (default=2).
+        radius: `float`, optional
+            Radius of the cone search (default=2 degrees).
+
+        Returns
+        -------
+        `str`
+            Name of the target.
+
+        Raises
+        ------
+        RuntimeError:
+            If catalog is not loaded.
+            If no object is found.
+        """
+
+        if not self.is_catalog_loaded():
+            raise RuntimeError(
+                "Catalog not loaded. Load a catalog with `load_catalog` before "
+                "calling `find_target_local_catalog`."
+            )
+
+        radec_as_sky_coord = SkyCoord(self.radec_from_azel(az=az, el=el))
+
+        mask_magnitude = np.bitwise_and(
+            self._catalog["FLUX_V"] >= mag_limit,
+            self._catalog["FLUX_V"] <= mag_limit + mag_range,
+        )
+
+        if np.sum(mask_magnitude) == 0:
+            raise RuntimeError(
+                f"No target in local catalog with magnitude between {mag_limit} and {mag_limit+mag_range}."
+            )
+
+        match = radec_as_sky_coord.match_to_catalog_sky(
+            self._catalog_coordinates[mask_magnitude]
+        )
+
+        target_index = int(match[0])
+
+        target = self._catalog[mask_magnitude][target_index]
+
+        target_name = target["MAIN_ID"]
+
+        if match[1][0] > radius * u.deg:
+
+            raise RuntimeError(
+                "Could not find a valid target in the specified radius. "
+                f"Closest target is {target_name}, {match[1][0]:.2f} away."
+            )
+
+        self.object_list_add(target_name, target)
+
+        return target_name
+
+    def _query_object(self, object_name):
+        """Get an object from its name.
+
+        Parameters
+        ----------
+        object_name : `str`
+            Object nade identifier as it appears in the internal catalog or a
+            valid Simbad identifier.
+
+        Returns
+        -------
+        target_info : `astropy.Table`
+            Object information.
+        """
+        if self.is_catalog_loaded() and object_name in self._catalog["MAIN_ID"]:
+            self.log.debug(f"Found {object_name} in internal catalog.")
+            return self._catalog[self._catalog["MAIN_ID"] == object_name]
+        else:
+            self.log.debug(
+                f"Object {object_name} not in internal catalog. Querying Simbad."
+            )
+
+            target_info = Simbad.query_object(object_name)
+
+            if target_info is None:
+                additional_error_message = (
+                    "internal catalog and " if self.is_catalog_loaded() else ""
+                )
+                raise RuntimeError(
+                    f"Could not find {object_name} in {additional_error_message}Simbad database."
+                )
+            return target_info
 
     async def _handle_in_position(
         self, in_position_event, timeout, settle_time=0.0, component_name=""
