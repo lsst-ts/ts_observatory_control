@@ -6,6 +6,15 @@
 Version History
 ###############
 
+v0.11.2
+=======
+
+* Update `mock.BaseGroupMock` to be compatible with xml 10.1 and sal 6.
+* In `MTCS`:
+  * Disable ccw_following check on mtcs slew.
+  * Implement work around to rotator trajectory problem that cannot complete 2 subsequent moves.
+    The work around consist of sending a move command to the rotator current position then stopping, thus resetting the trajectory.
+
 v0.11.1
 =======
 
