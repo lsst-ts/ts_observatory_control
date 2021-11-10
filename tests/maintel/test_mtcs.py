@@ -424,14 +424,47 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
 
         self._mtmount_evt_cameraCableWrapFollowing.enabled = 0
 
-        with self.assertRaises(RuntimeError):
-            await self.mtcs.slew_icrs(ra=ra, dec=dec, target_name=name)
+        # TODO DM-32545: Restore exception in slew method if dome
+        # following is disabled.
+        with self.assertLogs(self.log.name, level=logging.WARNING):
+            await self.mtcs.slew_icrs(
+                ra=ra, dec=dec, target_name=name, rot_type=RotType.Sky
+            )
 
-        self.mtcs.rem.mtptg.cmd_raDecTarget.start.assert_not_awaited()
+        self.mtcs.rem.mtptg.cmd_raDecTarget.set.assert_called_with(
+            ra=Angle(ra, unit=units.hourangle).hour,
+            declination=Angle(dec, unit=units.deg).deg,
+            targetName=name,
+            frame=self.mtcs.CoordFrame.ICRS,
+            rotAngle=0.0,
+            rotStartFrame=self.mtcs.RotFrame.TARGET,
+            rotTrackFrame=self.mtcs.RotFrame.TARGET,
+            azWrapStrategy=self.mtcs.WrapStrategy.MAXTIMEONTARGET,
+            timeOnTarget=0.0,
+            epoch=2000,
+            equinox=2000,
+            parallax=0,
+            pmRA=0,
+            pmDec=0,
+            rv=0,
+            dRA=0.0,
+            dDec=0.0,
+            rotMode=self.mtcs.RotMode.FIELD,
+        )
 
-        self.mtcs.rem.mtptg.cmd_poriginOffset.start.assert_not_awaited()
+        self.mtcs.rem.mtptg.cmd_poriginOffset.set.assert_called_with(dx=0, dy=0, num=0)
 
-        self.mtcs.rem.mtptg.cmd_stopTracking.start.assert_not_awaited()
+        self.mtcs.rem.mtptg.cmd_stopTracking.start.assert_called_with(
+            timeout=self.mtcs.fast_timeout
+        )
+
+        self.mtcs.rem.mtmount.evt_elevationInPosition.flush.assert_called()
+        self.mtcs.rem.mtmount.evt_azimuthInPosition.flush.assert_called()
+        self.mtcs.rem.mtrotator.evt_inPosition.flush.assert_called()
+        self.mtcs.rem.mtptg.cmd_raDecTarget.start.assert_called()
+        self.mtcs.rem.mtptg.cmd_poriginOffset.start.assert_called_with(
+            timeout=self.mtcs.fast_timeout
+        )
 
     async def test_point_azel(self):
 

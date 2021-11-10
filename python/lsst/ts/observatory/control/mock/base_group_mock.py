@@ -115,11 +115,12 @@ class BaseGroupMock:
                 ).cmd_exitControl.callback = functools.partial(
                     self.get_exitControl_callback, comp=comp
                 )
-                getattr(
-                    self.controllers, comp
-                ).cmd_enterControl.callback = functools.partial(
-                    self.get_enterControl_callback, comp=comp
-                )
+                if hasattr(getattr(self.controllers, comp), "cmd_enterControl"):
+                    getattr(
+                        self.controllers, comp
+                    ).cmd_enterControl.callback = functools.partial(
+                        self.get_enterControl_callback, comp=comp
+                    )
 
         for comp in self.output_only:
             for cmd in getattr(self.controllers, comp).salinfo.command_names:
@@ -157,9 +158,10 @@ class BaseGroupMock:
                     summaryState=salobj.State.STANDBY
                 )
                 self.setting_versions[comp] = f"test_{comp}"
-                getattr(self.controllers, comp).evt_settingVersions.set_put(
-                    recommendedSettingsVersion=f"{self.setting_versions[comp]},"
-                )
+                if hasattr(getattr(self.controllers, comp), "evt_settingVersions"):
+                    getattr(self.controllers, comp).evt_settingVersions.set_put(
+                        recommendedSettingsVersion=f"{self.setting_versions[comp]},"
+                    )
                 self.task_list.append(
                     asyncio.create_task(self.publish_heartbeats_for(comp))
                 )
