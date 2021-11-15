@@ -20,7 +20,7 @@
 import asyncio
 import unittest
 
-from lsst.ts.salobj import make_done_future
+from lsst.ts.utils import make_done_future
 from lsst.ts.observatory.control.mock import LATISSMock
 from lsst.ts.observatory.control.auxtel.latiss import LATISS, LATISSUsages
 from lsst.ts.observatory.control.utils import RemoteGroupTestCase

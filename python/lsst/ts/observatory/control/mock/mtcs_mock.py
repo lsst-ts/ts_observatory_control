@@ -34,6 +34,7 @@ from astropy.time import Time
 from astropy.coordinates import AltAz, ICRS, EarthLocation, Angle
 
 from lsst.ts.idl.enums import MTPtg, MTMount
+from lsst.ts.utils import angle_diff, current_tai
 
 LONG_TIMEOUT = 30  # seconds
 HEARTBEAT_INTERVAL = 1  # seconds
@@ -273,8 +274,8 @@ class MTCSMock(BaseGroupMock):
                     self.mtmount_actual_position_name,
                 )
 
-                az_dif = salobj.angle_diff(az_set, az_actual)
-                el_dif = salobj.angle_diff(el_set, el_actual)
+                az_dif = angle_diff(az_set, az_actual)
+                el_dif = angle_diff(el_set, el_actual)
                 in_position_elevation = np.abs(el_dif) < 1e-1 * u.deg
                 in_position_azimuth = np.abs(az_dif) < 1e-1 * u.deg
 
@@ -343,7 +344,7 @@ class MTCSMock(BaseGroupMock):
                             self.controllers.mtmount.tel_azimuthDrives.data.current
                         ),
                     ),
-                    timestamp=salobj.current_tai(),
+                    timestamp=current_tai(),
                 )
 
                 self.controllers.mtmount.tel_elevationDrives.set_put(
@@ -354,16 +355,16 @@ class MTCSMock(BaseGroupMock):
                             self.controllers.mtmount.tel_elevationDrives.data.current
                         ),
                     ),
-                    timestamp=salobj.current_tai(),
+                    timestamp=current_tai(),
                 )
 
                 self.controllers.mtmount.tel_cameraCableWrap.set_put(
                     actualPosition=self.controllers.mtrotator.tel_rotation.data.actualPosition,
-                    timestamp=salobj.current_tai(),
+                    timestamp=current_tai(),
                 )
                 self.controllers.mtmount.evt_cameraCableWrapTarget.set_put(
                     position=self.controllers.mtrotator.tel_rotation.data.actualPosition,
-                    taiTime=salobj.current_tai(),
+                    taiTime=current_tai(),
                     force_output=True,
                 )
 
@@ -409,7 +410,7 @@ class MTCSMock(BaseGroupMock):
                 error = np.random.normal(0.0, 1e-7)
                 demand = self.controllers.mtrotator.tel_rotation.data.demandPosition
                 position = self.controllers.mtrotator.tel_rotation.data.actualPosition
-                dif = salobj.angle_diff(demand, position)
+                dif = angle_diff(demand, position)
 
                 self.controllers.mtrotator.tel_rotation.set_put(
                     actualPosition=position + error + dif.deg / 1.1
@@ -426,14 +427,14 @@ class MTCSMock(BaseGroupMock):
                 )
 
                 self.controllers.mtrotator.tel_ccwFollowingError.set_put(
-                    timestamp=salobj.current_tai()
+                    timestamp=current_tai()
                 )
 
                 if self.acting:
                     self.controllers.mtrotator.evt_target.set_put(
                         position=position,
                         velocity=0.0,
-                        tai=salobj.current_tai(),
+                        tai=current_tai(),
                     )
                     self.controllers.mtrotator.evt_tracking.set_put(tracking=True)
                     self.controllers.mtrotator.evt_inPosition.set_put(
@@ -465,8 +466,8 @@ class MTCSMock(BaseGroupMock):
                 error_az = np.random.normal(0.0, 1e-7)
                 error_el = np.random.normal(0.0, 1e-7)
 
-                diff_az = salobj.angle_diff(dome_az_set, dome_az_pos)
-                diff_el = salobj.angle_diff(dome_el_set, dome_el_pos)
+                diff_az = angle_diff(dome_az_set, dome_az_pos)
+                diff_el = angle_diff(dome_el_set, dome_el_pos)
 
                 # This next bit is to simulate the MTDomeTrajectory behavior.
                 if (
@@ -580,7 +581,7 @@ class MTCSMock(BaseGroupMock):
                     self.controllers.mtm1m3.tel_accelerometerData.DataType()
                 )
 
-                accelerometer_data.timestamp = salobj.current_tai()
+                accelerometer_data.timestamp = current_tai()
 
                 raw_accelerometer = np.sin(
                     np.radians(
@@ -605,7 +606,7 @@ class MTCSMock(BaseGroupMock):
                     self.controllers.mtm1m3.tel_forceActuatorData.DataType()
                 )
 
-                force_actuator_data.timestamp = salobj.current_tai()
+                force_actuator_data.timestamp = current_tai()
 
                 force_actuator_data.primaryCylinderForce = np.random.rand(
                     len(force_actuator_data.primaryCylinderForce)
@@ -641,7 +642,7 @@ class MTCSMock(BaseGroupMock):
                     self.controllers.mtm1m3.tel_hardpointActuatorData.DataType()
                 )
 
-                hardpoint_actuator_data.timestamp = salobj.current_tai()
+                hardpoint_actuator_data.timestamp = current_tai()
                 hardpoint_actuator_data.measuredForce = np.random.normal(
                     size=len(hardpoint_actuator_data.measuredForce)
                 )
@@ -673,7 +674,7 @@ class MTCSMock(BaseGroupMock):
                     self.controllers.mtm1m3.tel_hardpointMonitorData.DataType()
                 )
 
-                hardpoint_monitor_data.timestamp = salobj.current_tai()
+                hardpoint_monitor_data.timestamp = current_tai()
                 hardpoint_monitor_data.breakawayLVDT = np.random.normal(
                     loc=self.m1m3_breakaway_lvdt,
                     scale=self.m1m3_breakaway_lvdt / 10.0,
@@ -719,14 +720,14 @@ class MTCSMock(BaseGroupMock):
                 if "ilcState" in self.m1m3_force_actuator_state and np.all(
                     self.m1m3_force_actuator_state["ilcState"] == 0
                 ):
-                    self.m1m3_force_actuator_state["timestamp"] = salobj.current_tai()
+                    self.m1m3_force_actuator_state["timestamp"] = current_tai()
                     self.m1m3_force_actuator_state["ilcState"] = np.ones_like(
                         self.controllers.mtm1m3.evt_forceActuatorState.data.ilcState,
                         dtype=int,
                     )
 
             else:
-                self.m1m3_force_actuator_state["timestamp"] = salobj.current_tai()
+                self.m1m3_force_actuator_state["timestamp"] = current_tai()
                 self.m1m3_force_actuator_state["ilcState"] = np.zeros_like(
                     self.controllers.mtm1m3.evt_forceActuatorState.data.ilcState,
                     dtype=int,
@@ -753,7 +754,7 @@ class MTCSMock(BaseGroupMock):
 
         for topic_sample in m1m3_topic_samples:
             if "timestamp" in m1m3_topic_samples[topic_sample]:
-                m1m3_topic_samples[topic_sample]["timestamp"] = salobj.current_tai()
+                m1m3_topic_samples[topic_sample]["timestamp"] = current_tai()
 
             # Cleanup sample data in case of schema evolution
             cleanup_topic_attr = []

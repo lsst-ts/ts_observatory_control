@@ -24,8 +24,11 @@ import unittest
 import astropy.units as u
 from astropy.coordinates import ICRS, EarthLocation, Angle
 
-from lsst.ts import salobj
-from lsst.ts.observatory.control import utils
+from lsst.ts.utils import astropy_time_from_tai_unix, current_tai
+from lsst.ts.observatory.control.utils import (
+    calculate_parallactic_angle,
+    handle_exception_in_dict_items,
+)
 
 
 class TestUtils(unittest.TestCase):
@@ -37,11 +40,11 @@ class TestUtils(unittest.TestCase):
             lon=-70.747698 * u.deg, lat=-30.244728 * u.deg, height=2663.0 * u.m
         )
 
-        current_time = salobj.astropy_time_from_tai_unix(salobj.current_tai())
+        current_time = astropy_time_from_tai_unix(current_tai())
 
         current_time.location = location
 
-        par_angle = utils.calculate_parallactic_angle(
+        par_angle = calculate_parallactic_angle(
             location,
             current_time.sidereal_time("mean"),
             radec_icrs,
@@ -55,7 +58,7 @@ class TestUtils(unittest.TestCase):
 
         # In this case the call below will not do anything, so there is no
         # assertion to make afterwards.
-        utils.handle_exception_in_dict_items(object_with_nothing_to_handle)
+        handle_exception_in_dict_items(object_with_nothing_to_handle)
 
     def test_handle_exception_in_dict_items_with_one_exception(self):
 
@@ -64,10 +67,10 @@ class TestUtils(unittest.TestCase):
         )
 
         with self.assertRaises(RuntimeError):
-            utils.handle_exception_in_dict_items(object_with_one_exception_to_handle)
+            handle_exception_in_dict_items(object_with_one_exception_to_handle)
 
         with self.assertRaises(RuntimeError):
-            utils.handle_exception_in_dict_items(
+            handle_exception_in_dict_items(
                 object_with_one_exception_to_handle,
                 "Proving some additional message for the exception.",
             )
@@ -81,10 +84,10 @@ class TestUtils(unittest.TestCase):
         )
 
         with self.assertRaises(RuntimeError):
-            utils.handle_exception_in_dict_items(object_with_two_exceptions_to_handle)
+            handle_exception_in_dict_items(object_with_two_exceptions_to_handle)
 
         with self.assertRaises(RuntimeError):
-            utils.handle_exception_in_dict_items(
+            handle_exception_in_dict_items(
                 object_with_two_exceptions_to_handle,
                 "Proving some additional message for the exception.",
             )

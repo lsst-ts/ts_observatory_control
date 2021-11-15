@@ -30,7 +30,7 @@ from astropy.coordinates import Angle
 
 from lsst.ts import idl
 from lsst.ts import salobj
-
+from lsst.ts import utils
 from lsst.ts.observatory.control.maintel.mtcs import MTCS, MTCSUsages
 from lsst.ts.observatory.control.utils import RotType
 
@@ -46,14 +46,12 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
 
         pa = self.mtcs.parallactic_angle(ra=radec.ra, dec=radec.dec)
 
-        self.assertAlmostEqual(
-            salobj.angle_diff(az, azel.az.value).value, 0.0, places=1
-        )
+        self.assertAlmostEqual(utils.angle_diff(az, azel.az.value).value, 0.0, places=1)
         self.assertAlmostEqual(el, azel.alt.value, places=1)
         self.assertAlmostEqual(pa.value, 3.12, places=1)
 
         # Test passing a time that is 60s in the future
-        obs_time = salobj.astropy_time_from_tai_unix(salobj.current_tai() + 60.0)
+        obs_time = utils.astropy_time_from_tai_unix(utils.current_tai() + 60.0)
 
         radec = self.mtcs.radec_from_azel(az=az, el=el, time=obs_time)
 
@@ -61,9 +59,7 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
 
         pa = self.mtcs.parallactic_angle(ra=radec.ra, dec=radec.dec, time=obs_time)
 
-        self.assertAlmostEqual(
-            salobj.angle_diff(az, azel.az.value).value, 0.0, places=5
-        )
+        self.assertAlmostEqual(utils.angle_diff(az, azel.az.value).value, 0.0, places=5)
         self.assertAlmostEqual(el, azel.alt.value, places=5)
         self.assertAlmostEqual(pa.value, 3.1269, places=2)
 
@@ -1434,9 +1430,9 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
             forceMagnitude=0.0
         )
 
-        self._mtm1m3_raise_task = salobj.make_done_future()
-        self._mtm1m3_lower_task = salobj.make_done_future()
-        self._hardpoint_corrections_task = salobj.make_done_future()
+        self._mtm1m3_raise_task = utils.make_done_future()
+        self._mtm1m3_lower_task = utils.make_done_future()
+        self._hardpoint_corrections_task = utils.make_done_future()
 
         # MTM2 data
         self._mtm2_evt_force_balance_system_status = types.SimpleNamespace(status=False)
@@ -1447,7 +1443,7 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
             x=0.0, y=0.0, z=0.0, u=0.0, v=0.0, w=0.0
         )
         self._mthexapod_1_evt_in_position = types.SimpleNamespace(inPosition=True)
-        self._mthexapod_1_move_task = salobj.make_done_future()
+        self._mthexapod_1_move_task = utils.make_done_future()
 
         # M2 hexapod data
         self._mthexapod_2_evt_compensation_mode = types.SimpleNamespace(enabled=False)
@@ -1455,7 +1451,7 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
             x=0.0, y=0.0, z=0.0, u=0.0, v=0.0, w=0.0
         )
         self._mthexapod_2_evt_in_position = types.SimpleNamespace(inPosition=True)
-        self._mthexapod_2_move_task = salobj.make_done_future()
+        self._mthexapod_2_move_task = utils.make_done_future()
 
         # Setup AsyncMock. The idea is to replace the placeholder for the
         # remotes (in mtcs.rem) by AsyncMock. The remote for each component is
