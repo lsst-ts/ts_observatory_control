@@ -23,10 +23,11 @@ import types
 import asyncio
 import unittest
 
-import numpy as np
-
 import astropy.units as units
 from astropy.coordinates import Angle
+import numpy as np
+from numpy.testing import assert_array_equal
+import pytest
 
 from lsst.ts import idl
 from lsst.ts import salobj
@@ -46,9 +47,9 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
 
         pa = self.mtcs.parallactic_angle(ra=radec.ra, dec=radec.dec)
 
-        self.assertAlmostEqual(utils.angle_diff(az, azel.az.value).value, 0.0, places=1)
-        self.assertAlmostEqual(el, azel.alt.value, places=1)
-        self.assertAlmostEqual(pa.value, 3.12, places=1)
+        assert utils.angle_diff(az, azel.az.value).value == pytest.approx(0.0, abs=0.5)
+        assert el == pytest.approx(azel.alt.value, abs=0.5)
+        assert pa.value == pytest.approx(3.12, abs=0.5)
 
         # Test passing a time that is 60s in the future
         obs_time = utils.astropy_time_from_tai_unix(utils.current_tai() + 60.0)
@@ -59,9 +60,9 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
 
         pa = self.mtcs.parallactic_angle(ra=radec.ra, dec=radec.dec, time=obs_time)
 
-        self.assertAlmostEqual(utils.angle_diff(az, azel.az.value).value, 0.0, places=5)
-        self.assertAlmostEqual(el, azel.alt.value, places=5)
-        self.assertAlmostEqual(pa.value, 3.1269, places=2)
+        utils.assert_angles_almost_equal(az, azel.az, max_diff=5e-5)
+        assert el == pytest.approx(azel.alt.value, abs=5e-6)
+        assert pa.value == pytest.approx(3.1269, abs=5e-2)
 
     async def test_set_azel_slew_checks(self):
 
@@ -70,17 +71,15 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
         check = self.mtcs.set_azel_slew_checks(True)
 
         for comp in self.mtcs.components_attr:
-            self.assertEqual(
-                getattr(self.mtcs.check, comp), getattr(original_check, comp)
-            )
+            assert getattr(self.mtcs.check, comp) == getattr(original_check, comp)
 
         for comp in {"mtdome", "mtdometrajectory"}:
-            self.assertTrue(getattr(check, comp))
+            assert getattr(check, comp)
 
         check = self.mtcs.set_azel_slew_checks(False)
 
         for comp in {"mtdome", "mtdometrajectory"}:
-            self.assertFalse(getattr(check, comp))
+            assert not getattr(check, comp)
 
     async def test_slew_object(self):
         name = "HD 185975"
@@ -497,7 +496,7 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
         self.mtcs.rem.mtmount.cmd_enableCameraCableWrapFollowing.start.assert_awaited_with(
             timeout=self.mtcs.fast_timeout
         )
-        self.assertEqual(self._mtmount_evt_cameraCableWrapFollowing.enabled, 1)
+        assert self._mtmount_evt_cameraCableWrapFollowing.enabled == 1
 
     async def test_disable_ccw_following(self):
 
@@ -506,7 +505,7 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
         self.mtcs.rem.mtmount.cmd_disableCameraCableWrapFollowing.start.assert_awaited_with(
             timeout=self.mtcs.fast_timeout
         )
-        self.assertEqual(self._mtmount_evt_cameraCableWrapFollowing.enabled, 0)
+        assert self._mtmount_evt_cameraCableWrapFollowing.enabled == 0
 
     async def test_offset_radec(self):
 
@@ -742,52 +741,52 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
 
         az = 90.0
 
-        with self.assertRaises(NotImplementedError):
+        with pytest.raises(NotImplementedError):
             await self.mtcs.slew_dome_to(az)
 
     async def test_close_dome(self):
 
-        with self.assertRaises(NotImplementedError):
+        with pytest.raises(NotImplementedError):
             await self.mtcs.close_dome()
 
     async def test_open_m1_cover(self):
 
-        with self.assertRaises(NotImplementedError):
+        with pytest.raises(NotImplementedError):
             await self.mtcs.open_m1_cover()
 
     async def test_close_m1_cover(self):
 
-        with self.assertRaises(NotImplementedError):
+        with pytest.raises(NotImplementedError):
             await self.mtcs.close_m1_cover()
 
     async def test_home_dome(self):
 
-        with self.assertRaises(NotImplementedError):
+        with pytest.raises(NotImplementedError):
             await self.mtcs.home_dome()
 
     async def test_open_dome_shutter(self):
 
-        with self.assertRaises(NotImplementedError):
+        with pytest.raises(NotImplementedError):
             await self.mtcs.open_dome_shutter()
 
     async def test_prepare_for_flatfield(self):
 
-        with self.assertRaises(NotImplementedError):
+        with pytest.raises(NotImplementedError):
             await self.mtcs.prepare_for_flatfield()
 
     async def test_prepare_for_onsky(self):
 
-        with self.assertRaises(NotImplementedError):
+        with pytest.raises(NotImplementedError):
             await self.mtcs.prepare_for_onsky()
 
     async def test_shutdown(self):
 
-        with self.assertRaises(NotImplementedError):
+        with pytest.raises(NotImplementedError):
             await self.mtcs.shutdown()
 
     async def test_stop_all(self):
 
-        with self.assertRaises(NotImplementedError):
+        with pytest.raises(NotImplementedError):
             await self.mtcs.stop_all()
 
     async def test_raise_m1m3(self):
@@ -836,7 +835,7 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
 
         await self.execute_abort_raise_m1m3()
 
-        with self.assertRaises(RuntimeError):
+        with pytest.raises(RuntimeError):
             await asyncio.wait_for(m1m3_raise_task, self.mtcs.fast_timeout)
 
         self.mtcs.rem.mtm1m3.evt_detailedState.aget.assert_awaited()
@@ -868,7 +867,7 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
                 )
                 self._mtm1m3_evt_detailed_state.detailedState = m1m3_detailed_state
 
-                with self.assertRaises(RuntimeError):
+                with pytest.raises(RuntimeError):
                     await self.mtcs.raise_m1m3()
 
     async def test_lower_m1m3_when_active(self):
@@ -917,7 +916,7 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
                 )
                 self._mtm1m3_evt_detailed_state.detailedState = m1m3_detailed_state
 
-                with self.assertRaises(RuntimeError):
+                with pytest.raises(RuntimeError):
                     await self.mtcs.raise_m1m3()
 
     async def test_abort_raise_m1m3(self):
@@ -931,9 +930,9 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
         self.mtcs.rem.mtm1m3.cmd_abortRaiseM1M3.start.assert_awaited_with(
             timeout=self.mtcs.long_timeout
         )
-        self.assertEqual(
-            self._mtm1m3_evt_detailed_state.detailedState,
-            idl.enums.MTM1M3.DetailedState.PARKED,
+        assert (
+            self._mtm1m3_evt_detailed_state.detailedState
+            == idl.enums.MTM1M3.DetailedState.PARKED
         )
 
     async def test_abort_raise_m1m3_active(self):
@@ -942,7 +941,7 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
             idl.enums.MTM1M3.DetailedState.ACTIVE
         )
 
-        with self.assertRaises(RuntimeError):
+        with pytest.raises(RuntimeError):
             await self.mtcs.abort_raise_m1m3()
 
         self.mtcs.rem.mtm1m3.cmd_abortRaiseM1M3.start.assert_not_awaited()
@@ -991,7 +990,7 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
 
     async def test_wait_m1m3_force_balance_system_fail_when_off(self):
 
-        with self.assertLogs(self.log.name, level=logging.WARNING), self.assertRaises(
+        with self.assertLogs(self.log.name, level=logging.WARNING), pytest.raises(
             RuntimeError
         ):
             await self.mtcs.wait_m1m3_force_balance_system(
@@ -1009,34 +1008,30 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
             .array_length
         )
         self.mtcs.rem.mtm1m3.cmd_applyAberrationForces.set_start.assert_awaited_once()
-        self.assertTrue(
-            np.array_equal(
-                self.mtcs.rem.mtm1m3.cmd_applyAberrationForces.set_start.mock_calls[
-                    0
-                ].kwargs["zForces"],
-                fz,
-            )
-        )
-        self.assertEqual(
+        assert_array_equal(
             self.mtcs.rem.mtm1m3.cmd_applyAberrationForces.set_start.mock_calls[
                 0
-            ].kwargs["timeout"],
-            self.mtcs.fast_timeout,
+            ].kwargs["zForces"],
+            fz,
+        )
+        assert (
+            self.mtcs.rem.mtm1m3.cmd_applyAberrationForces.set_start.mock_calls[
+                0
+            ].kwargs["timeout"]
+            == self.mtcs.fast_timeout
         )
         self.mtcs.rem.mtm1m3.cmd_applyActiveOpticForces.set_start.assert_awaited_once()
-        self.assertTrue(
-            np.array_equal(
-                self.mtcs.rem.mtm1m3.cmd_applyActiveOpticForces.set_start.mock_calls[
-                    0
-                ].kwargs["zForces"],
-                fz,
-            )
-        )
-        self.assertEqual(
+        assert_array_equal(
             self.mtcs.rem.mtm1m3.cmd_applyActiveOpticForces.set_start.mock_calls[
                 0
-            ].kwargs["timeout"],
-            self.mtcs.fast_timeout,
+            ].kwargs["zForces"],
+            fz,
+        )
+        assert (
+            self.mtcs.rem.mtm1m3.cmd_applyActiveOpticForces.set_start.mock_calls[
+                0
+            ].kwargs["timeout"]
+            == self.mtcs.fast_timeout
         )
 
     async def test_enable_m2_balance_system(self):
@@ -1081,7 +1076,7 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
 
         await self.mtcs.enable_compensation_mode(component="mthexapod_1")
 
-        self.assertTrue(self._mthexapod_1_evt_compensation_mode.enabled)
+        assert self._mthexapod_1_evt_compensation_mode.enabled
         self.mtcs.rem.mthexapod_1.cmd_setCompensationMode.set_start.assert_awaited_with(
             enable=1, timeout=self.mtcs.long_timeout
         )
@@ -1092,7 +1087,7 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
 
         await self.mtcs.enable_compensation_mode(component="mthexapod_2")
 
-        self.assertTrue(self._mthexapod_2_evt_compensation_mode.enabled)
+        assert self._mthexapod_2_evt_compensation_mode.enabled
         self.mtcs.rem.mthexapod_2.cmd_setCompensationMode.set_start.assert_awaited_with(
             enable=1, timeout=self.mtcs.long_timeout
         )
@@ -1107,7 +1102,7 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
 
     async def test_enable_compensation_mode_bad_component(self):
 
-        with self.assertRaises(AssertionError):
+        with pytest.raises(AssertionError):
             await self.mtcs.enable_compensation_mode(component="mtm1m3")
 
     async def test_disable_compensation_mode_for_hexapod_1(self):
@@ -1116,7 +1111,7 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
 
         await self.mtcs.disable_compensation_mode(component="mthexapod_1")
 
-        self.assertFalse(self._mthexapod_1_evt_compensation_mode.enabled)
+        assert not self._mthexapod_1_evt_compensation_mode.enabled
         self.mtcs.rem.mthexapod_1.cmd_setCompensationMode.set_start.assert_awaited_with(
             enable=0, timeout=self.mtcs.long_timeout
         )
@@ -1131,7 +1126,7 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
 
     async def test_disable_compensation_mode_bad_component(self):
 
-        with self.assertRaises(AssertionError):
+        with pytest.raises(AssertionError):
             await self.mtcs.enable_compensation_mode(component="mtm1m3")
 
     async def test_move_camera_hexapod(self):
@@ -1141,16 +1136,16 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
         await self.mtcs.move_camera_hexapod(**hexapod_positions)
 
         for axis in hexapod_positions:
-            self.assertEqual(
-                getattr(self._mthexapod_1_evt_uncompensated_position, axis),
-                hexapod_positions[axis],
+            assert (
+                getattr(self._mthexapod_1_evt_uncompensated_position, axis)
+                == hexapod_positions[axis]
             )
 
         self.mtcs.rem.mthexapod_1.cmd_move.set_start.assert_awaited_with(
             **hexapod_positions, w=0.0, sync=True, timeout=self.mtcs.long_timeout
         )
 
-        self.assertTrue(self._mthexapod_1_evt_in_position.inPosition)
+        assert self._mthexapod_1_evt_in_position.inPosition
 
         self.mtcs.rem.mthexapod_1.evt_inPosition.aget.assert_awaited_with(
             timeout=self.mtcs.fast_timeout
@@ -1168,16 +1163,16 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
         await self.mtcs.move_m2_hexapod(**hexapod_positions)
 
         for axis in hexapod_positions:
-            self.assertEqual(
-                getattr(self._mthexapod_2_evt_uncompensated_position, axis),
-                hexapod_positions[axis],
+            assert (
+                getattr(self._mthexapod_2_evt_uncompensated_position, axis)
+                == hexapod_positions[axis]
             )
 
         self.mtcs.rem.mthexapod_2.cmd_move.set_start.assert_awaited_with(
             **hexapod_positions, w=0.0, sync=True, timeout=self.mtcs.long_timeout
         )
 
-        self.assertTrue(self._mthexapod_2_evt_in_position.inPosition)
+        assert self._mthexapod_2_evt_in_position.inPosition
 
         self.mtcs.rem.mthexapod_2.evt_inPosition.aget.assert_awaited_with(
             timeout=self.mtcs.fast_timeout
@@ -1195,11 +1190,9 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
         await self.mtcs.reset_camera_hexapod_position()
 
         for axis in "xyzuvw":
-            self.assertEqual(
-                getattr(self._mthexapod_1_evt_uncompensated_position, axis), 0.0
-            )
+            assert getattr(self._mthexapod_1_evt_uncompensated_position, axis) == 0.0
 
-        self.assertTrue(self._mthexapod_1_evt_in_position.inPosition)
+        assert self._mthexapod_1_evt_in_position.inPosition
 
         self.mtcs.rem.mthexapod_1.evt_inPosition.aget.assert_awaited_with(
             timeout=self.mtcs.fast_timeout
@@ -1218,11 +1211,9 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
         await self.mtcs.reset_m2_hexapod_position()
 
         for axis in "xyzuvw":
-            self.assertEqual(
-                getattr(self._mthexapod_2_evt_uncompensated_position, axis), 0.0
-            )
+            assert getattr(self._mthexapod_2_evt_uncompensated_position, axis) == 0.0
 
-        self.assertTrue(self._mthexapod_2_evt_in_position.inPosition)
+        assert self._mthexapod_2_evt_in_position.inPosition
 
         self.mtcs.rem.mthexapod_2.evt_inPosition.aget.assert_awaited_with(
             timeout=self.mtcs.fast_timeout
@@ -1253,7 +1244,7 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
 
     def test_check_mtrotator_interface(self):
         for attribute in {"actualPosition"}:
-            self.assertTrue(
+            assert (
                 attribute
                 in self.components_metadata["MTRotator"]
                 .topic_info["rotation"]
@@ -1282,7 +1273,7 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
             "dDec",
             "rotMode",
         }:
-            self.assertTrue(
+            assert (
                 attribute
                 in self.components_metadata["MTPtg"]
                 .topic_info["command_raDecTarget"]
@@ -1295,7 +1286,7 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
             "elDegs",
             "rotPA",
         }:
-            self.assertTrue(
+            assert (
                 attribute
                 in self.components_metadata["MTPtg"]
                 .topic_info["command_azElTarget"]
@@ -1307,7 +1298,7 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
             "dy",
             "num",
         }:
-            self.assertTrue(
+            assert (
                 attribute
                 in self.components_metadata["MTPtg"]
                 .topic_info["command_poriginOffset"]
@@ -1315,7 +1306,7 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
             )
 
         for attribute in {"type", "off1", "off2", "num"}:
-            self.assertTrue(
+            assert (
                 attribute
                 in self.components_metadata["MTPtg"]
                 .topic_info["command_offsetRADec"]
@@ -1323,7 +1314,7 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
             )
 
         for attribute in {"az", "el", "num"}:
-            self.assertTrue(
+            assert (
                 attribute
                 in self.components_metadata["MTPtg"]
                 .topic_info["command_offsetAzEl"]
@@ -1340,7 +1331,7 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
 
     def check_topic_attribute(self, attributes, topic, component):
         for attribute in attributes:
-            self.assertTrue(
+            assert (
                 attribute
                 in self.components_metadata[component].topic_info[topic].field_info
             )
@@ -1995,7 +1986,3 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
             self.summary_state_queue_event[comp].set()
 
         return set_summary_state
-
-
-if __name__ == "__main__":
-    unittest.main()

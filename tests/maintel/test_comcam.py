@@ -34,22 +34,22 @@ class TestComCam(RemoteGroupTestCase, unittest.IsolatedAsyncioTestCase):
         async with self.make_group(usage=ComCamUsages.TakeImage):
             nbias = 3
             await self.comcam.take_bias(nbias=nbias)
-            self.assertEqual(self.comcam_mock.nimages, nbias)
-            self.assertEqual(len(self.comcam_mock.exptime_list), nbias)
+            assert self.comcam_mock.nimages == nbias
+            assert len(self.comcam_mock.exptime_list) == nbias
             for i in range(nbias):
-                self.assertEqual(self.comcam_mock.exptime_list[i], 0.0)
-            self.assertIsNone(self.comcam_mock.camera_filter)
+                assert self.comcam_mock.exptime_list[i] == 0.0
+            assert self.comcam_mock.camera_filter is None
 
     async def test_take_darks(self):
         async with self.make_group(usage=ComCamUsages.TakeImage):
             ndarks = 3
             exptime = 1.0
             await self.comcam.take_darks(ndarks=ndarks, exptime=exptime)
-            self.assertEqual(self.comcam_mock.nimages, ndarks)
-            self.assertEqual(len(self.comcam_mock.exptime_list), ndarks)
+            assert self.comcam_mock.nimages == ndarks
+            assert len(self.comcam_mock.exptime_list) == ndarks
             for i in range(ndarks):
-                self.assertEqual(self.comcam_mock.exptime_list[i], exptime)
-            self.assertIsNone(self.comcam_mock.camera_filter)
+                assert self.comcam_mock.exptime_list[i] == exptime
+            assert self.comcam_mock.camera_filter is None
 
     async def test_take_flats(self):
         async with self.make_group(usage=ComCamUsages.TakeImage):
@@ -60,11 +60,11 @@ class TestComCam(RemoteGroupTestCase, unittest.IsolatedAsyncioTestCase):
                 nflats=nflats,
                 exptime=exptime,
             )
-            self.assertEqual(self.comcam_mock.nimages, nflats)
-            self.assertEqual(len(self.comcam_mock.exptime_list), nflats)
+            assert self.comcam_mock.nimages == nflats
+            assert len(self.comcam_mock.exptime_list) == nflats
             for i in range(nflats):
-                self.assertEqual(self.comcam_mock.exptime_list[i], exptime)
-            self.assertIsNone(self.comcam_mock.camera_filter)
+                assert self.comcam_mock.exptime_list[i] == exptime
+            assert self.comcam_mock.camera_filter is None
 
     async def test_take_flats_with_filter(self):
         async with self.make_group(usage=ComCamUsages.TakeImage):
@@ -75,12 +75,8 @@ class TestComCam(RemoteGroupTestCase, unittest.IsolatedAsyncioTestCase):
             await self.comcam.take_flats(
                 nflats=nflats, exptime=exptime, filter=camera_filter
             )
-            self.assertEqual(self.comcam_mock.nimages, nflats)
-            self.assertEqual(len(self.comcam_mock.exptime_list), nflats)
+            assert self.comcam_mock.nimages == nflats
+            assert len(self.comcam_mock.exptime_list) == nflats
             for i in range(nflats):
-                self.assertEqual(self.comcam_mock.exptime_list[i], exptime)
-            self.assertEqual(self.comcam_mock.camera_filter, camera_filter)
-
-
-if __name__ == "__main__":
-    unittest.main()
+                assert self.comcam_mock.exptime_list[i] == exptime
+            assert self.comcam_mock.camera_filter == camera_filter

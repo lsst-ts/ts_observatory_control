@@ -23,6 +23,7 @@ import unittest
 
 import astropy.units as u
 from astropy.coordinates import ICRS, EarthLocation, Angle
+import pytest
 
 from lsst.ts.utils import astropy_time_from_tai_unix, current_tai
 from lsst.ts.observatory.control.utils import (
@@ -50,7 +51,7 @@ class TestUtils(unittest.TestCase):
             radec_icrs,
         )
 
-        self.assertIsNotNone(par_angle)
+        assert par_angle is not None
 
     def test_handle_exception_in_dict_items_nothing_to_handle(self):
 
@@ -66,10 +67,10 @@ class TestUtils(unittest.TestCase):
             item1=1, item2=2, item3=TypeError("Raising some exception for testing.")
         )
 
-        with self.assertRaises(RuntimeError):
+        with pytest.raises(RuntimeError):
             handle_exception_in_dict_items(object_with_one_exception_to_handle)
 
-        with self.assertRaises(RuntimeError):
+        with pytest.raises(RuntimeError):
             handle_exception_in_dict_items(
                 object_with_one_exception_to_handle,
                 "Proving some additional message for the exception.",
@@ -83,15 +84,11 @@ class TestUtils(unittest.TestCase):
             item3=TypeError("Raising some exception for testing."),
         )
 
-        with self.assertRaises(RuntimeError):
+        with pytest.raises(RuntimeError):
             handle_exception_in_dict_items(object_with_two_exceptions_to_handle)
 
-        with self.assertRaises(RuntimeError):
+        with pytest.raises(RuntimeError):
             handle_exception_in_dict_items(
                 object_with_two_exceptions_to_handle,
                 "Proving some additional message for the exception.",
             )
-
-
-if __name__ == "__main__":
-    unittest.main()

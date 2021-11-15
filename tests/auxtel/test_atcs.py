@@ -23,8 +23,8 @@ import asyncio
 import logging
 import unittest
 
-
 import numpy as np
+import pytest
 
 import astropy.units as u
 from astropy.coordinates import Angle
@@ -53,8 +53,8 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
 
         object_table = self.atcs.object_list_get(name)
 
-        self.assertTrue(name in self.atcs._object_list)
-        self.assertTrue(object_table is not None)
+        assert name in self.atcs._object_list
+        assert object_table is not None
 
     def test_object_list_clear(self):
 
@@ -62,12 +62,12 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
 
         object_table = self.atcs.object_list_get(name)
 
-        self.assertTrue(name in self.atcs._object_list)
-        self.assertTrue(object_table is not None)
+        assert name in self.atcs._object_list
+        assert object_table is not None
 
         self.atcs.object_list_clear()
 
-        self.assertEqual(len(self.atcs._object_list), 0)
+        assert len(self.atcs._object_list) == 0
 
     def test_object_list_remove(self):
 
@@ -75,12 +75,12 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
 
         object_table = self.atcs.object_list_get(name)
 
-        self.assertTrue(name in self.atcs._object_list)
-        self.assertTrue(object_table is not None)
+        assert name in self.atcs._object_list
+        assert object_table is not None
 
         self.atcs.object_list_remove(name)
 
-        self.assertFalse(name in self.atcs._object_list)
+        assert name not in self.atcs._object_list
 
     def test_object_list_add(self):
 
@@ -90,7 +90,7 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
 
         self.atcs.object_list_add(name, object_table)
 
-        self.assertTrue(name in self.atcs._object_list)
+        assert name in self.atcs._object_list
 
     def test_object_list_get_from_catalog(self):
 
@@ -104,21 +104,21 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
             object_table = self.atcs.object_list_get(name)
 
         for message in log_messages_object_list_get.output:
-            self.assertIn(f"Found {name} in internal catalog.", message)
+            assert f"Found {name} in internal catalog." in message
 
-        self.assertTrue(name in self.atcs._object_list)
-        self.assertTrue(object_table is not None)
+        assert name in self.atcs._object_list
+        assert object_table is not None
 
         self.atcs.object_list_clear()
         self.atcs.clear_catalog()
 
-        self.assertEqual(len(self.atcs._object_list), 0)
+        assert len(self.atcs._object_list) == 0
 
     def test_list_available_catalogs(self):
 
         available_catalogs = self.atcs.list_available_catalogs()
 
-        self.assertIn("hd_catalog_6th_mag", available_catalogs)
+        assert "hd_catalog_6th_mag" in available_catalogs
 
     def test_load_catalog_and_clear_catalog(self):
 
@@ -126,15 +126,15 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
         # test
         self.atcs.clear_catalog()
 
-        self.assertFalse(self.atcs.is_catalog_loaded())
+        assert not self.atcs.is_catalog_loaded()
 
         self.atcs.load_catalog("hd_catalog_6th_mag")
 
-        self.assertTrue(self.atcs.is_catalog_loaded())
+        assert self.atcs.is_catalog_loaded()
 
         self.atcs.clear_catalog()
 
-        self.assertFalse(self.atcs.is_catalog_loaded())
+        assert not self.atcs.is_catalog_loaded()
 
     async def test_find_target(self):
 
@@ -143,7 +143,7 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
 
         name = await self.atcs.find_target(az=-180.0, el=30.0, mag_limit=9.0)
 
-        self.assertTrue(name in self.atcs._object_list)
+        assert name in self.atcs._object_list
 
         self.atcs.object_list_clear()
 
@@ -162,9 +162,9 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
             )
 
         for message in log_messages_find_target.output:
-            self.assertIn("Searching internal catalog.", message)
+            assert "Searching internal catalog." in message
 
-        self.assertTrue(name in self.atcs._object_list)
+        assert name in self.atcs._object_list
 
         self.atcs.object_list_clear()
 
@@ -173,7 +173,7 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
         # Clear catalog to make sure it was not loaded
         self.atcs.clear_catalog()
 
-        with self.assertRaises(RuntimeError):
+        with pytest.raises(RuntimeError):
             await self.atcs.find_target_local_catalog(az=-180.0, el=30.0, mag_limit=9.0)
 
     async def test_find_target_local_catalog_fail_outside_mag_limit(self):
@@ -183,16 +183,13 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
         # Load catalog
         self.atcs.load_catalog("hd_catalog_6th_mag")
 
-        with self.assertRaises(RuntimeError) as context:
+        with pytest.raises(RuntimeError) as excinfo:
             # Test catalog only goes to magnitude 6, search for mag = 9-11
             await self.atcs.find_target_local_catalog(
                 az=-180.0, el=30.0, mag_limit=9.0, mag_range=2.0
             )
 
-        self.assertIn(
-            "No target in local catalog with magnitude between",
-            str(context.exception),
-        )
+        assert "No target in local catalog with magnitude between" in str(excinfo.value)
 
     async def test_find_target_local_catalog_fail_outside_radius(self):
 
@@ -201,14 +198,13 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
         # Load catalog
         self.atcs.load_catalog("hd_catalog_6th_mag")
 
-        with self.assertRaises(RuntimeError) as context:
+        with pytest.raises(RuntimeError) as excinfo:
             await self.atcs.find_target_local_catalog(
                 az=-180.0, el=30.0, mag_limit=4.0, mag_range=2.0, radius=0.1
             )
 
-        self.assertIn(
-            "Could not find a valid target in the specified radius.",
-            str(context.exception),
+        assert "Could not find a valid target in the specified radius." in str(
+            excinfo.value
         )
 
     async def test_find_target_local_catalog_loaded(self):
@@ -226,7 +222,7 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
             az=-180.0, el=30.0, mag_limit=4.0, mag_range=2.0, radius=2.0
         )
 
-        self.assertTrue(name in self.atcs._object_list)
+        assert name in self.atcs._object_list
 
         self.atcs.object_list_clear()
 
@@ -235,7 +231,7 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
         az = 45.0
         self.atcs.check.atdome = False
 
-        with self.assertRaises(RuntimeError):
+        with pytest.raises(RuntimeError):
             await self.atcs.slew_dome_to(az=az)
 
     async def test_slew_dome_to(self):
@@ -341,7 +337,7 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
 
         self._atdome_evt_main_door_state.state = ATDome.ShutterDoorState.OPENING
 
-        with self.assertRaises(RuntimeError):
+        with pytest.raises(RuntimeError):
             await self.atcs.open_dome_shutter()
 
     async def test_close_dome_when_open(self):
@@ -366,7 +362,7 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
 
         self._atdome_evt_main_door_state.state = ATDome.ShutterDoorState.OPENING
 
-        with self.assertRaises(RuntimeError):
+        with pytest.raises(RuntimeError):
             await self.atcs.close_dome()
 
     async def test_assert_m1_correction_disable_when_off(self):
@@ -379,7 +375,7 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
 
         self._ataos_evt_correction_enabled.m1 = True
 
-        with self.assertRaises(AssertionError):
+        with pytest.raises(AssertionError):
             await self.atcs.assert_m1_correction_disabled()
 
     async def test_open_m1_cover_when_cover_closed(self):
@@ -398,14 +394,14 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
 
         await self.atcs.open_m1_cover()
 
-        self.assertEqual(
-            self._atpneumatics_evt_instrument_state.state,
-            ATPneumatics.AirValveState.CLOSED,
+        assert (
+            self._atpneumatics_evt_instrument_state.state
+            == ATPneumatics.AirValveState.CLOSED
         )
 
-        self.assertEqual(
-            self._atpneumatics_evt_main_valve_state.state,
-            ATPneumatics.AirValveState.OPENED,
+        assert (
+            self._atpneumatics_evt_main_valve_state.state
+            == ATPneumatics.AirValveState.OPENED
         )
 
         self.atcs.rem.atpneumatics.cmd_openM1Cover.start.assert_awaited_with(
@@ -430,14 +426,14 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
 
         await self.atcs.open_m1_cover()
 
-        self.assertEqual(
-            self._atpneumatics_evt_instrument_state.state,
-            ATPneumatics.AirValveState.CLOSED,
+        assert (
+            self._atpneumatics_evt_instrument_state.state
+            == ATPneumatics.AirValveState.CLOSED
         )
 
-        self.assertEqual(
-            self._atpneumatics_evt_main_valve_state.state,
-            ATPneumatics.AirValveState.OPENED,
+        assert (
+            self._atpneumatics_evt_main_valve_state.state
+            == ATPneumatics.AirValveState.OPENED
         )
 
         self.atcs.rem.atpneumatics.cmd_openM1Cover.start.assert_awaited_with(
@@ -462,14 +458,14 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
 
         await self.atcs.open_m1_cover()
 
-        self.assertEqual(
-            self._atpneumatics_evt_instrument_state.state,
-            ATPneumatics.AirValveState.CLOSED,
+        assert (
+            self._atpneumatics_evt_instrument_state.state
+            == ATPneumatics.AirValveState.CLOSED
         )
 
-        self.assertEqual(
-            self._atpneumatics_evt_main_valve_state.state,
-            ATPneumatics.AirValveState.OPENED,
+        assert (
+            self._atpneumatics_evt_main_valve_state.state
+            == ATPneumatics.AirValveState.OPENED
         )
 
         # Should not be called
@@ -479,7 +475,7 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
 
         self._ataos_evt_correction_enabled.m1 = True
 
-        with self.assertRaises(AssertionError):
+        with pytest.raises(AssertionError):
             await self.atcs.open_m1_cover()
 
     async def test_close_m1_cover_when_cover_opened(self):
@@ -549,27 +545,27 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
 
         self._ataos_evt_correction_enabled.m1 = True
 
-        with self.assertRaises(AssertionError):
+        with pytest.raises(AssertionError):
             await self.atcs.close_m1_cover()
 
     async def test_open_m1_vent_when_closed(self):
 
         await self.atcs.open_m1_vent()
 
-        self.assertEqual(
-            self._atpneumatics_evt_instrument_state.state,
-            ATPneumatics.AirValveState.OPENED,
+        assert (
+            self._atpneumatics_evt_instrument_state.state
+            == ATPneumatics.AirValveState.OPENED
         )
 
-        self.assertEqual(
-            self._atpneumatics_evt_main_valve_state.state,
-            ATPneumatics.AirValveState.OPENED,
+        assert (
+            self._atpneumatics_evt_main_valve_state.state
+            == ATPneumatics.AirValveState.OPENED
         )
 
         self.atcs.rem.atpneumatics.cmd_openM1CellVents.start.assert_awaited_with(
             timeout=self.atcs.long_timeout
         )
-        self.assertTrue(
+        assert (
             self._atpneumatics_evt_m1_vents_position.position
             == ATPneumatics.VentsPosition.OPENED
         )
@@ -582,19 +578,19 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
 
         await self.atcs.open_m1_vent()
 
-        self.assertEqual(
-            self._atpneumatics_evt_instrument_state.state,
-            ATPneumatics.AirValveState.OPENED,
+        assert (
+            self._atpneumatics_evt_instrument_state.state
+            == ATPneumatics.AirValveState.OPENED
         )
 
-        self.assertEqual(
-            self._atpneumatics_evt_main_valve_state.state,
-            ATPneumatics.AirValveState.OPENED,
+        assert (
+            self._atpneumatics_evt_main_valve_state.state
+            == ATPneumatics.AirValveState.OPENED
         )
 
         self.atcs.rem.atpneumatics.cmd_openM1CellVents.start.assert_not_awaited()
 
-        self.assertTrue(
+        assert (
             self._atpneumatics_evt_m1_vents_position.position
             == ATPneumatics.VentsPosition.OPENED
         )
@@ -605,14 +601,14 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
             ATPneumatics.VentsPosition.PARTIALLYOPENED
         )
 
-        with self.assertRaises(RuntimeError):
+        with pytest.raises(RuntimeError):
             await self.atcs.open_m1_vent()
 
     async def test_open_m1_vent_when_m1_correction_enabled(self):
 
         self._ataos_evt_correction_enabled.m1 = True
 
-        with self.assertRaises(AssertionError):
+        with pytest.raises(AssertionError):
             await self.atcs.open_m1_vent()
 
     async def test_home_dome_pressing_home_switch(self):
@@ -641,7 +637,7 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
 
         # Test that warning message was not posted
         for message in home_dome_log_messages.output:
-            self.assertTrue("WARNING" not in message)
+            assert "WARNING" not in message
 
     async def test_home_dome(self):
 
@@ -656,7 +652,7 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
 
         # Test that warning message was not posted
         for message in home_dome_log_messages.output:
-            self.assertTrue("WARNING" not in message)
+            assert "WARNING" not in message
 
     async def test_prepare_for_flatfield(self):
 
@@ -673,9 +669,9 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
         self.atcs.rem.atpneumatics.cmd_openM1Cover.start.assert_awaited_with(
             timeout=self.atcs.long_timeout
         )
-        self.assertEqual(
-            self._atpneumatics_evt_m1_cover_state.state,
-            ATPneumatics.MirrorCoverState.OPENED,
+        assert (
+            self._atpneumatics_evt_m1_cover_state.state
+            == ATPneumatics.MirrorCoverState.OPENED
         )
 
         # make sure telescope slew to the flat field position
@@ -701,16 +697,14 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
         finally:
             self.atcs.check = original_check
 
-        self.assertEqual(
-            self._atdome_evt_main_door_state.state, ATDome.ShutterDoorState.OPENED
+        assert self._atdome_evt_main_door_state.state == ATDome.ShutterDoorState.OPENED
+        assert (
+            self._atpneumatics_evt_m1_cover_state.state
+            == ATPneumatics.MirrorCoverState.OPENED
         )
-        self.assertEqual(
-            self._atpneumatics_evt_m1_cover_state.state,
-            ATPneumatics.MirrorCoverState.OPENED,
-        )
-        self.assertEqual(
-            self._atpneumatics_evt_m1_vents_position.position,
-            ATPneumatics.VentsPosition.OPENED,
+        assert (
+            self._atpneumatics_evt_m1_vents_position.position
+            == ATPneumatics.VentsPosition.OPENED
         )
         self.atcs.rem.ataos.cmd_enableCorrection.set_start.assert_awaited_with(
             m1=True, hexapod=True, atspectrograph=True, timeout=self.atcs.long_timeout
@@ -733,7 +727,7 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
 
         self._atdome_evt_scb_link.active = False
         try:
-            with self.assertRaises(RuntimeError):
+            with pytest.raises(RuntimeError):
                 await self.atcs.prepare_for_onsky()
         finally:
             self.atcs.check = original_check
@@ -758,17 +752,15 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
         finally:
             self.atcs.check = original_check
 
-        self.assertEqual(
-            self._atpneumatics_evt_m1_vents_position.position,
-            ATPneumatics.VentsPosition.CLOSED,
+        assert (
+            self._atpneumatics_evt_m1_vents_position.position
+            == ATPneumatics.VentsPosition.CLOSED
         )
-        self.assertEqual(
-            self._atpneumatics_evt_m1_cover_state.state,
-            ATPneumatics.MirrorCoverState.CLOSED,
+        assert (
+            self._atpneumatics_evt_m1_cover_state.state
+            == ATPneumatics.MirrorCoverState.CLOSED
         )
-        self.assertEqual(
-            self._atdome_evt_main_door_state.state, ATDome.ShutterDoorState.CLOSED
-        )
+        assert self._atdome_evt_main_door_state.state == ATDome.ShutterDoorState.CLOSED
 
     async def test_set_azel_slew_checks(self):
 
@@ -777,17 +769,15 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
         check = self.atcs.set_azel_slew_checks(True)
 
         for comp in self.atcs.components_attr:
-            self.assertEqual(
-                getattr(self.atcs.check, comp), getattr(original_check, comp)
-            )
+            assert getattr(self.atcs.check, comp) == getattr(original_check, comp)
 
         for comp in {"atdome", "atdometrajectory"}:
-            self.assertTrue(getattr(check, comp))
+            assert getattr(check, comp)
 
         check = self.atcs.set_azel_slew_checks(False)
 
         for comp in {"atdome", "atdometrajectory"}:
-            self.assertFalse(getattr(check, comp))
+            assert not getattr(check, comp)
 
     async def test_enable(self):
         original_check = copy.copy(self.atcs.check)
@@ -860,7 +850,7 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
 
             await asyncio.sleep(2.0)
 
-            self.assertFalse(task.done())
+            assert not task.done()
 
             start_az = 0.1
             end_az = 0.0
@@ -873,8 +863,8 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
 
             await asyncio.sleep(2.0)
 
-            self.assertTrue(task.done())
-            self.assertTrue(task.exception() is None)
+            assert task.done()
+            assert task.exception() is None
             await task
         finally:
             self.atcs.check = original_check
@@ -1461,9 +1451,9 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
             flush=False, timeout=self.atcs.long_timeout
         )
 
-        self.assertEqual(
-            self._atpneumatics_evt_instrument_state.state,
-            ATPneumatics.AirValveState.OPENED,
+        assert (
+            self._atpneumatics_evt_instrument_state.state
+            == ATPneumatics.AirValveState.OPENED
         )
 
         self.atcs.rem.atpneumatics.evt_mainValveState.aget.assert_awaited_with(
@@ -1480,9 +1470,9 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
             flush=False, timeout=self.atcs.long_timeout
         )
 
-        self.assertEqual(
-            self._atpneumatics_evt_main_valve_state.state,
-            ATPneumatics.AirValveState.OPENED,
+        assert (
+            self._atpneumatics_evt_main_valve_state.state
+            == ATPneumatics.AirValveState.OPENED
         )
 
     async def test_open_valve_instrument(self):
@@ -1503,9 +1493,9 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
             flush=False, timeout=self.atcs.long_timeout
         )
 
-        self.assertEqual(
-            self._atpneumatics_evt_instrument_state.state,
-            ATPneumatics.AirValveState.OPENED,
+        assert (
+            self._atpneumatics_evt_instrument_state.state
+            == ATPneumatics.AirValveState.OPENED
         )
 
     async def test_open_valve_main(self):
@@ -1526,9 +1516,9 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
             flush=False, timeout=self.atcs.long_timeout
         )
 
-        self.assertEqual(
-            self._atpneumatics_evt_main_valve_state.state,
-            ATPneumatics.AirValveState.OPENED,
+        assert (
+            self._atpneumatics_evt_main_valve_state.state
+            == ATPneumatics.AirValveState.OPENED
         )
 
     def test_check_interface_atmcs(self):
@@ -1815,7 +1805,7 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
 
     def check_topic_attribute(self, attributes, topic, component):
         for attribute in attributes:
-            self.assertTrue(
+            assert (
                 attribute
                 in self.components_metadata[component].topic_info[topic].field_info
             )
@@ -2405,7 +2395,3 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
             self.summary_state_queue_event[comp].set()
 
         return set_summary_state
-
-
-if __name__ == "__main__":
-    unittest.main()
