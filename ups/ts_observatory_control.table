@@ -3,6 +3,7 @@
 # - Common third-party packages can be assumed to be recursively included by
 #   the "sconsUtils" package.
 setupRequired(sconsUtils)
+setupRequired(ts_utils)
 setupRequired(ts_salobj)
 setupRequired(ts_idl)
 

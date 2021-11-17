@@ -20,7 +20,9 @@
 import asyncio
 import unittest
 
-from lsst.ts.salobj import make_done_future
+import pytest
+
+from lsst.ts.utils import make_done_future
 from lsst.ts.observatory.control.mock import LATISSMock
 from lsst.ts.observatory.control.auxtel.latiss import LATISS, LATISSUsages
 from lsst.ts.observatory.control.utils import RemoteGroupTestCase
@@ -72,26 +74,26 @@ class TestLATISS(RemoteGroupTestCase, unittest.IsolatedAsyncioTestCase):
 
             nbias = 4
             await self.latiss_remote.take_bias(nbias=nbias)
-            self.assertEqual(self.latiss_mock.nimages, nbias)
-            self.assertEqual(len(self.latiss_mock.exptime_list), nbias)
+            assert self.latiss_mock.nimages == nbias
+            assert len(self.latiss_mock.exptime_list) == nbias
             for i in range(nbias):
-                self.assertEqual(self.latiss_mock.exptime_list[i], 0.0)
-            self.assertIsNone(self.latiss_mock.latiss_linear_stage)
-            self.assertIsNone(self.latiss_mock.latiss_grating)
-            self.assertIsNone(self.latiss_mock.latiss_filter)
+                assert self.latiss_mock.exptime_list[i] == 0.0
+            assert self.latiss_mock.latiss_linear_stage is None
+            assert self.latiss_mock.latiss_grating is None
+            assert self.latiss_mock.latiss_filter is None
 
     async def test_take_darks(self):
         async with self.make_group(usage=LATISSUsages.TakeImage):
             ndarks = 4
             exptime = 1.0
             await self.latiss_remote.take_darks(ndarks=ndarks, exptime=exptime)
-            self.assertEqual(self.latiss_mock.nimages, ndarks)
-            self.assertEqual(len(self.latiss_mock.exptime_list), ndarks)
+            assert self.latiss_mock.nimages == ndarks
+            assert len(self.latiss_mock.exptime_list) == ndarks
             for i in range(ndarks):
-                self.assertEqual(self.latiss_mock.exptime_list[i], exptime)
-            self.assertIsNone(self.latiss_mock.latiss_linear_stage)
-            self.assertIsNone(self.latiss_mock.latiss_grating)
-            self.assertIsNone(self.latiss_mock.latiss_filter)
+                assert self.latiss_mock.exptime_list[i] == exptime
+            assert self.latiss_mock.latiss_linear_stage is None
+            assert self.latiss_mock.latiss_grating is None
+            assert self.latiss_mock.latiss_filter is None
 
     async def test_take_flats(self):
         async with self.make_group(usage=LATISSUsages.TakeImage + LATISSUsages.Setup):
@@ -117,17 +119,17 @@ class TestLATISS(RemoteGroupTestCase, unittest.IsolatedAsyncioTestCase):
                 current_stage_pos,
             ) = await self.latiss_remote.get_setup()
 
-            self.assertEqual(self.latiss_mock.nimages, nflats)
-            self.assertEqual(len(self.latiss_mock.exptime_list), nflats)
+            assert self.latiss_mock.nimages == nflats
+            assert len(self.latiss_mock.exptime_list) == nflats
             for i in range(nflats):
-                self.assertEqual(self.latiss_mock.exptime_list[i], exptime)
-            self.assertEqual(self.latiss_mock.latiss_filter, filter_id)
-            self.assertEqual(self.latiss_mock.latiss_grating, grating_id)
-            self.assertEqual(self.latiss_mock.latiss_linear_stage, linear_stage)
+                assert self.latiss_mock.exptime_list[i] == exptime
+            assert self.latiss_mock.latiss_filter == filter_id
+            assert self.latiss_mock.latiss_grating == grating_id
+            assert self.latiss_mock.latiss_linear_stage == linear_stage
 
-            self.assertEqual(current_filter, filter_name)
-            self.assertEqual(current_grating, grating_name)
-            self.assertEqual(current_stage_pos, linear_stage)
+            assert current_filter == filter_name
+            assert current_grating == grating_name
+            assert current_stage_pos == linear_stage
 
     async def test_take_object(self):
         async with self.make_group(usage=LATISSUsages.TakeImage + LATISSUsages.Setup):
@@ -154,23 +156,23 @@ class TestLATISS(RemoteGroupTestCase, unittest.IsolatedAsyncioTestCase):
                 current_stage_pos,
             ) = await self.latiss_remote.get_setup()
 
-            self.assertEqual(self.latiss_mock.nimages, nobj)
-            self.assertEqual(len(self.latiss_mock.exptime_list), nobj)
+            assert self.latiss_mock.nimages == nobj
+            assert len(self.latiss_mock.exptime_list) == nobj
             for i in range(nobj):
-                self.assertEqual(self.latiss_mock.exptime_list[i], exptime)
-            self.assertEqual(self.latiss_mock.latiss_filter, filter_id)
-            self.assertEqual(self.latiss_mock.latiss_grating, grating_id)
-            self.assertEqual(self.latiss_mock.latiss_linear_stage, linear_stage)
+                assert self.latiss_mock.exptime_list[i] == exptime
+            assert self.latiss_mock.latiss_filter == filter_id
+            assert self.latiss_mock.latiss_grating == grating_id
+            assert self.latiss_mock.latiss_linear_stage == linear_stage
 
-            self.assertEqual(current_filter, filter_name)
-            self.assertEqual(current_grating, grating_name)
-            self.assertEqual(current_stage_pos, linear_stage)
+            assert current_filter == filter_name
+            assert current_grating == grating_name
+            assert current_stage_pos == linear_stage
 
             # Test case where synchronization fails
             self.atcs.fail = True
 
             # should raise the same exception
-            with self.assertRaises(RuntimeError):
+            with pytest.raises(RuntimeError):
                 await self.latiss_remote.take_object(
                     n=nobj,
                     exptime=exptime,
@@ -201,21 +203,21 @@ class TestLATISS(RemoteGroupTestCase, unittest.IsolatedAsyncioTestCase):
                 current_stage_pos,
             ) = await self.latiss_remote.get_setup()
 
-            self.assertEqual(self.latiss_mock.nimages, nobj + nobj_2)
-            self.assertEqual(len(self.latiss_mock.exptime_list), nobj + nobj_2)
+            assert self.latiss_mock.nimages == nobj + nobj_2
+            assert len(self.latiss_mock.exptime_list) == nobj + nobj_2
             for i in range(nobj, nobj + nobj_2):
-                self.assertEqual(self.latiss_mock.exptime_list[i], exptime)
-            self.assertEqual(self.latiss_mock.latiss_filter, filter_id)
-            self.assertEqual(self.latiss_mock.latiss_grating, grating_id)
-            self.assertEqual(self.latiss_mock.latiss_linear_stage, linear_stage)
+                assert self.latiss_mock.exptime_list[i] == exptime
+            assert self.latiss_mock.latiss_filter == filter_id
+            assert self.latiss_mock.latiss_grating == grating_id
+            assert self.latiss_mock.latiss_linear_stage == linear_stage
 
-            self.assertEqual(current_filter, filter_name)
-            self.assertEqual(current_grating, grating_name)
-            self.assertEqual(current_stage_pos, linear_stage)
+            assert current_filter == filter_name
+            assert current_grating == grating_name
+            assert current_stage_pos == linear_stage
 
             # Check ATCS synchronization. This is called only once per
             # take_object when synchronization is configured.
-            self.assertEqual(self.atcs.called, 2)
+            assert self.atcs.called == 2
 
     async def test_instrument_parameters(self):
         async with self.make_group(usage=LATISSUsages.TakeImage):
@@ -236,9 +238,5 @@ class TestLATISS(RemoteGroupTestCase, unittest.IsolatedAsyncioTestCase):
 
             for key in invalid_keyword_sample:
                 with self.subTest(test="invalid_keywords", key=key):
-                    with self.assertRaises(RuntimeError):
+                    with pytest.raises(RuntimeError):
                         self.latiss_remote.check_kwargs(**{key: "test"})
-
-
-if __name__ == "__main__":
-    unittest.main()

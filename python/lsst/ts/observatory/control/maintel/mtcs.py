@@ -28,6 +28,7 @@ import astropy.units as u
 from astropy.coordinates import Angle
 
 from lsst.ts import salobj
+from lsst.ts.utils import angle_diff
 from lsst.ts.idl.enums import MTM1M3, MTPtg
 from ..remote_group import Usages, UsagesResources
 from ..base_tcs import BaseTCS
@@ -398,10 +399,8 @@ class MTCS(BaseTCS):
                 )
                 tel_az_actual_position = getattr(tel_az, mtmount_actual_position_name)
                 tel_el_actual_position = getattr(tel_el, mtmount_actual_position_name)
-                distance_az = salobj.angle_diff(target.azimuth, tel_az_actual_position)
-                distance_el = salobj.angle_diff(
-                    target.elevation, tel_el_actual_position
-                )
+                distance_az = angle_diff(target.azimuth, tel_az_actual_position)
+                distance_el = angle_diff(target.elevation, tel_el_actual_position)
                 status += (
                     f"[Tel]: Az = {tel_az_actual_position:+08.3f}[{distance_az.deg:+6.1f}]; "
                     f"El = {tel_el_actual_position:+08.3f}[{distance_el.deg:+6.1f}] "
@@ -411,7 +410,7 @@ class MTCS(BaseTCS):
                 rotation_data = await self.rem.mtrotator.tel_rotation.next(
                     flush=True, timeout=self.fast_timeout
                 )
-                distance_rot = salobj.angle_diff(
+                distance_rot = angle_diff(
                     rotation_data.demandPosition, rotation_data.actualPosition
                 )
                 status += f"[Rot]: {rotation_data.demandPosition:+08.3f}[{distance_rot.deg:+6.1f}] "
@@ -423,10 +422,10 @@ class MTCS(BaseTCS):
                 dome_el = await self.rem.mtdome.tel_lightWindScreen.next(
                     flush=True, timeout=self.fast_timeout
                 )
-                dome_az_diff = salobj.angle_diff(
+                dome_az_diff = angle_diff(
                     dome_az.positionActual, dome_az.positionCommanded
                 )
-                dome_el_diff = salobj.angle_diff(
+                dome_el_diff = angle_diff(
                     dome_el.positionActual, dome_el.positionCommanded
                 )
                 if np.abs(dome_az_diff) < self.dome_slew_tolerance:

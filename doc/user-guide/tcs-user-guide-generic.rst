@@ -67,10 +67,11 @@ It is also possible to provide a time for which the observation is intended to c
 .. code:: python
 
     from lsst.ts import salobj
+    from lsst.ts import utils
 
     # Compute coordinates 2 minutes (120 seconds) from now.
 
-    obs_time = salobj.astropy_time_from_tai_unix(salobj.current_tai() + 120.)
+    obs_time = utils.astropy_time_from_tai_unix(utils.current_tai() + 120)
 
     az = 45.
     el = 75.

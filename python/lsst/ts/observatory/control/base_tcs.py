@@ -33,6 +33,7 @@ from astropy.table import Table
 from astropy.coordinates import AltAz, ICRS, EarthLocation, Angle
 from astroquery.simbad import Simbad
 
+from lsst.ts.utils import angle_wrap_center, astropy_time_from_tai_unix, current_tai
 from . import RemoteGroup
 from .utils import (
     calculate_parallactic_angle,
@@ -506,7 +507,7 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
 
         rot_angle = Angle(rot, unit=u.deg)
 
-        current_time = salobj.astropy_time_from_tai_unix(salobj.current_tai())
+        current_time = astropy_time_from_tai_unix(current_tai())
 
         current_time.location = self.location
 
@@ -524,7 +525,7 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
         rot_track_frame = self.RotFrame.TARGET
 
         # compute rotator physical position if rot_angle is sky.
-        rot_phys_val = salobj.angle_wrap_center(
+        rot_phys_val = angle_wrap_center(
             Angle(
                 Angle(180.0, unit=u.deg)
                 + par_angle
@@ -546,9 +547,7 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
                 self.log.debug(
                     f"Rotator angle out of limits {rot_angle} [{self.rotator_limits}]. Wrapping."
                 )
-                rot_angle = salobj.angle_wrap_center(
-                    Angle(180.0, unit=u.deg) + rot_angle
-                )
+                rot_angle = angle_wrap_center(Angle(180.0, unit=u.deg) + rot_angle)
         elif rot_type == RotType.PhysicalSky:
             self.log.debug(
                 f"Setting rotator physical position to {rot_angle}. Rotator will track sky."
@@ -1272,7 +1271,7 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
         radec_icrs = ICRS(Angle(ra, unit=u.hourangle), Angle(dec, unit=u.deg))
 
         if time is None:
-            time = salobj.astropy_time_from_tai_unix(salobj.current_tai())
+            time = astropy_time_from_tai_unix(current_tai())
 
         time.location = self.location
 
@@ -1306,7 +1305,7 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
         """
 
         if time is None:
-            time = salobj.astropy_time_from_tai_unix(salobj.current_tai())
+            time = astropy_time_from_tai_unix(current_tai())
 
         time.location = self.location
 
@@ -1346,7 +1345,7 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
         radec_icrs = ICRS(Angle(ra, unit=u.hourangle), Angle(dec, unit=u.deg))
 
         if time is None:
-            time = salobj.astropy_time_from_tai_unix(salobj.current_tai())
+            time = astropy_time_from_tai_unix(current_tai())
 
         time.location = self.location
 
