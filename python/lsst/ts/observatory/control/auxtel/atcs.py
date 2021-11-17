@@ -33,6 +33,7 @@ from ..constants import atcs_constants
 from ..utils import InstrumentFocus
 
 from lsst.ts import salobj
+from lsst.ts.utils import angle_diff
 from lsst.ts.idl.enums import ATPtg, ATDome, ATPneumatics, ATMCS
 
 
@@ -1615,16 +1616,16 @@ class ATCS(BaseTCS):
                     flush=True, timeout=self.fast_timeout
                 )
 
-                alt_dif = salobj.angle_diff(
+                alt_dif = angle_diff(
                     comm_pos.elevation, tel_pos.elevationCalculatedAngle[-1]
                 )
-                az_dif = salobj.angle_diff(
+                az_dif = angle_diff(
                     comm_pos.azimuth, tel_pos.azimuthCalculatedAngle[-1]
                 )
-                nasm1_dif = salobj.angle_diff(
+                nasm1_dif = angle_diff(
                     comm_pos.nasmyth1RotatorAngle, nasm_pos.nasmyth1CalculatedAngle[-1]
                 )
-                nasm2_dif = salobj.angle_diff(
+                nasm2_dif = angle_diff(
                     comm_pos.nasmyth2RotatorAngle, nasm_pos.nasmyth2CalculatedAngle[-1]
                 )
                 alt_in_position = np.abs(alt_dif) < self.tel_el_slew_tolerance
@@ -1640,9 +1641,7 @@ class ATCS(BaseTCS):
                     timeout=self.fast_timeout
                 )
 
-                dom_az_dif = salobj.angle_diff(
-                    dom_comm_pos.azimuth, dom_pos.azimuthPosition
-                )
+                dom_az_dif = angle_diff(dom_comm_pos.azimuth, dom_pos.azimuthPosition)
 
                 dom_in_position = np.abs(dom_az_dif) < self.dome_slew_tolerance
                 if dom_in_position:

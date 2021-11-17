@@ -6,8 +6,14 @@
 Version History
 ###############
 
+v0.12.0
+-------
+
+* Update the code to use ts_utils.
+* Modernize the unit tests to use bare asserts.
+
 v0.11.2
-=======
+-------
 
 * Update `mock.BaseGroupMock` to be compatible with xml 10.1 and sal 6.
 * In `MTCS`:
@@ -16,7 +22,7 @@ v0.11.2
     The work around consist of sending a move command to the rotator current position then stopping, thus resetting the trajectory.
 
 v0.11.1
-=======
+-------
 
 * Update conda recipe to add new dependencies; pandas and scipy.
 * Update setup.py to include `.pd` files.
@@ -46,7 +52,7 @@ v0.11.1
 * Update Jenkinsfile to pull git lfs files before running tests.
 
 v0.11.0
-=======
+-------
 
 * In MTCS: 
   * add longer timeout for raising/lowering the system.
@@ -102,7 +108,7 @@ v0.11.0
   * Make `ATCS` more resilient when the dome following is disabled.
 
 v0.10.3
-=======
+-------
 
 * Add `DryTest` to `LATISSUsages`. 
   This is useful for unit testing.
@@ -111,7 +117,7 @@ v0.10.3
 * In `BaseTCS.find_target` fix magnitude range to use input parameter instead of hard coded value.
 
 v0.10.2
-=======
+-------
 
 * In `ATCS`:
   * Small fixes to find_target and object_list_get.
@@ -131,14 +137,14 @@ v0.10.2
 
 
 v0.10.1
-=======
+-------
 
 * In ATCS update algorithm to open m1 cover.
 * Add object storing and finding facility to BaseTCS.
 * In ATCS add functionality to stop the monitor position loop.
 
 v0.10.0
-=======
+-------
 
 * Refactor MTCS and ATCS unit tests to use ``DryTest`` mode (no remotes) and mock the expected behavior with ``unittest.mock``. This allows the unit tests to run much more quickly and reliable. The old unit tests relying on DDS will be converted to integration tests.
 * Add support in ``RemoteGroup`` and ``BaseTCS`` to support setting up the class when there is no event loop running.
