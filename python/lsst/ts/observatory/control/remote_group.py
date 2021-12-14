@@ -646,9 +646,12 @@ class RemoteGroup:
 
         for comp in settings:
             try:
-                sv = await getattr(self.rem, comp).evt_settingVersions.aget(
-                    timeout=self.fast_timeout
-                )
+                if "settingVersions" in getattr(self.rem, comp).salinfo.event_names:
+                    sv = await getattr(self.rem, comp).evt_settingVersions.aget(
+                        timeout=self.fast_timeout
+                    )
+                else:
+                    sv = None
             except asyncio.TimeoutError:
                 sv = None
 
