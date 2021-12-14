@@ -6,6 +6,11 @@
 Version History
 ###############
 
+v0.12.1
+-------
+
+* Update expand `RemoteGroup.inspect_settings` to deal with non-configurable components.
+
 v0.12.0
 -------
 
