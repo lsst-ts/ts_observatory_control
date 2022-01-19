@@ -502,6 +502,46 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
                     f" Must be one of {self.instrument_setup_attributes}."
                 )
 
+    def get_key_value_map(
+        self,
+        image_type,
+        group_id,
+        test_type=None,
+        reason=None,
+        program=None,
+    ):
+        """Parse inputs into a valid key-value string for the cameras.
+
+        Parameters
+        ----------
+        image_type : `str`
+            Image type (a.k.a. IMGTYPE) (e.g. e.g. BIAS, DARK, FLAT, FE55,
+            XTALK, CCOB, SPOT...)
+        group_id : `str`
+            Image groupId. Used to fill in FITS GROUPID header
+        test_type : `str`, optional
+            The classifier for the testing type. Usually the same as
+            `image_type`.
+        reason : `str`, optional
+            Reason for the data being taken. This must be a short tag-like
+            string that can be used to disambiguate a set of observations.
+        program : `str`, optional
+            Name of the program this data belongs to, e.g. WFD, DD, etc.
+        """
+
+        key_value_map = (
+            f"imageType: {image_type}, groupId: {group_id}, "
+            f"testType: {image_type if test_type is None else test_type}"
+        )
+
+        if reason is not None:
+            key_value_map += f", reason: {reason}"
+
+        if program is not None:
+            key_value_map += f", program: {program}"
+
+        return key_value_map
+
     @abc.abstractmethod
     async def setup_instrument(self, **kwargs):
         """Generic method called during `take_imgtype` to setup instrument.
