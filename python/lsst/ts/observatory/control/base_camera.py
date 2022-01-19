@@ -90,6 +90,8 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
         nbias,
         group_id=None,
         test_type=None,
+        reason=None,
+        program=None,
         sensors=None,
         note=None,
         checkpoint=None,
@@ -105,6 +107,11 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
             one for all the data if none is given.
         test_type : `str`
             Optional string to be added to the keyword testType image header.
+        reason : `str`, optional
+            Reason for the data being taken. This must be a short tag-like
+            string that can be used to disambiguate a set of observations.
+        program : `str`, optional
+            Name of the program this data belongs to, e.g. WFD, DD, etc.
         sensors : `str`
             A colon delimited list of sensor names to use for the image.
         note : `str`
@@ -130,6 +137,8 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
             n=nbias,
             group_id=group_id,
             test_type=test_type,
+            reason=reason,
+            program=program,
             sensors=sensors,
             note=note,
             checkpoint=checkpoint,
@@ -141,6 +150,8 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
         ndarks,
         group_id=None,
         test_type=None,
+        reason=None,
+        program=None,
         sensors=None,
         note=None,
         checkpoint=None,
@@ -160,6 +171,11 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
             Optional string to be added to the keyword testType image header.
         sensors : `str`
             A colon delimited list of sensor names to use for the image.
+        reason : `str`, optional
+            Reason for the data being taken. This must be a short tag-like
+            string that can be used to disambiguate a set of observations.
+        program : `str`, optional
+            Name of the program this data belongs to, e.g. WFD, DD, etc.
         note : `str`
             Optional observer note to be added to the image header.
         checkpoint : `coro`
@@ -183,6 +199,8 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
             n=ndarks,
             group_id=group_id,
             test_type=test_type,
+            reason=reason,
+            program=program,
             sensors=sensors,
             note=note,
             checkpoint=checkpoint,
@@ -194,6 +212,8 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
         nflats,
         group_id=None,
         test_type=None,
+        reason=None,
+        program=None,
         sensors=None,
         note=None,
         checkpoint=None,
@@ -212,6 +232,11 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
             one for all the data if none is given.
         test_type : `str`
             Optional string to be added to the keyword testType image header.
+        reason : `str`, optional
+            Reason for the data being taken. This must be a short tag-like
+            string that can be used to disambiguate a set of observations.
+        program : `str`, optional
+            Name of the program this data belongs to, e.g. WFD, DD, etc.
         sensors : `str`
             A colon delimited list of sensor names to use for the image.
         note : `str`
@@ -247,6 +272,8 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
             n=nflats,
             group_id=group_id,
             test_type=test_type,
+            reason=reason,
+            program=program,
             sensors=sensors,
             note=note,
             checkpoint=checkpoint,
@@ -259,6 +286,8 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
         n=1,
         group_id=None,
         test_type=None,
+        reason=None,
+        program=None,
         sensors=None,
         note=None,
         checkpoint=None,
@@ -280,6 +309,11 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
             one for all the data if none is given.
         test_type : `str`
             Optional string to be added to the keyword testType image header.
+        reason : `str`, optional
+            Reason for the data being taken. This must be a short tag-like
+            string that can be used to disambiguate a set of observations.
+        program : `str`, optional
+            Name of the program this data belongs to, e.g. WFD, DD, etc.
         sensors : `str`
             A colon delimited list of sensor names to use for the image.
         note : `str`
@@ -310,6 +344,8 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
             n=n,
             group_id=group_id,
             test_type=test_type,
+            reason=reason,
+            program=program,
             sensors=sensors,
             note=note,
             checkpoint=checkpoint,
@@ -322,6 +358,8 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
         n=1,
         group_id=None,
         test_type=None,
+        reason=None,
+        program=None,
         sensors=None,
         note=None,
         checkpoint=None,
@@ -340,6 +378,11 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
             one for all the data if none is given.
         test_type : `str`
             Optional string to be added to the keyword testType image header.
+        reason : `str`, optional
+            Reason for the data being taken. This must be a short tag-like
+            string that can be used to disambiguate a set of observations.
+        program : `str`, optional
+            Name of the program this data belongs to, e.g. WFD, DD, etc.
         sensors : `str`
             A colon delimited list of sensor names to use for the image.
         note : `str`
@@ -370,6 +413,8 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
             n=n,
             group_id=group_id,
             test_type=test_type,
+            reason=reason,
+            program=program,
             sensors=sensors,
             note=note,
             checkpoint=checkpoint,
@@ -383,6 +428,8 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
         n,
         group_id=None,
         test_type=None,
+        reason=None,
+        program=None,
         sensors=None,
         note=None,
         checkpoint=None,
@@ -398,9 +445,14 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
             Number of frames to take.
         test_type : `str`
             Optional string to be added to the keyword testType image header.
-        sensors : `str`
+        reason : `str`, optional
+            Reason for the data being taken. This must be a short tag-like
+            string that can be used to disambiguate a set of observations.
+        program : `str`, optional
+            Name of the program this data belongs to, e.g. WFD, DD, etc.
+        sensors : `str`, optional
             A colon delimited list of sensor names to use for the image.
-        note : `str`
+        note : `str`, optional
             Optional observer note to be added to the image header.
         checkpoint : `coro`
             A optional awaitable callback that accepts one string argument
@@ -473,6 +525,8 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
                 image_type=imgtype,
                 group_id=group_id,
                 test_type=test_type,
+                reason=reason,
+                program=program,
                 sensors=sensors,
                 note=note,
             )
