@@ -587,6 +587,8 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
         image_type,
         group_id,
         test_type=None,
+        reason=None,
+        program=None,
         sensors=None,
         note=None,
     ):
@@ -609,6 +611,11 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
         test_type : `str`, optional
             The classifier for the testing type. Usually the same as
             `image_type`.
+        reason : `str`, optional
+            Reason for the data being taken. This must be a short tag-like
+            string that can be used to disambiguate a set of observations.
+        program : `str`, optional
+            Name of the program this data belongs to, e.g. WFD, DD, etc.
         sensors : `str`, optional
             A colon delimited list of sensor names to use for the image.
         note : `str`, optional
@@ -645,6 +652,8 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
                 image_type=image_type,
                 group_id=group_id,
                 test_type=test_type,
+                reason=reason,
+                program=program,
             )
 
             self.camera.cmd_takeImages.set(
