@@ -542,6 +542,12 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
 
         return key_value_map
 
+    @property
+    @abc.abstractmethod
+    def camera(self):
+        """Camera remote."""
+        raise NotImplementedError()
+
     @abc.abstractmethod
     async def setup_instrument(self, **kwargs):
         """Generic method called during `take_imgtype` to setup instrument.
