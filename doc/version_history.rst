@@ -6,6 +6,29 @@
 Version History
 ###############
 
+v0.13.0
+-------
+
+* Update MTCSMock for the latest xml.
+* Add unit tests for additional keywords in LATISS and ComCam.
+* In `BaseCamera`:
+  * Implement reason and program keywords on the `take_<img_type>` methods.
+  * In `BaseCamera.next_group_id` replace all occurrences of "-" and ":" by empty strings.
+  * Add `reason` and `program` to the interface of `expose`
+  * Provide a base implementation for `expose`.
+  * Add new abstract method `parse_sensors`, that receives a `sensors` string and return a valid `sensors` string for the particular implementation.
+  * Add new abstract property `camera` that should return the remote to the camera.
+  * Add new `get_key_value_map` method that parses its inputs into a valid `keyValueMap` entry for the cameras takeImage command.
+* In `ComCam`:
+  * Remove specialized implementation of the `expose` method.
+  * Add new abstract property, `camera`.
+  * Add new abstract method `parse_sensors`
+  * Update `take_spot` to implement test_type, reason and program keywords.
+* In `LATISS`:
+  * Remove specialized implementation of the `expose` method.
+  * Add new abstract property, `camera`.
+  * Add new abstract method `parse_sensors`
+
 v0.12.1
 -------
 
