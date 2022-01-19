@@ -652,3 +652,20 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
         # from lsst.ts.scriptqueue.queue_model import QueueModel
         # QueueModel.next_group_id()
         return astropy.time.Time.now().tai.isot
+
+    @abc.abstractmethod
+    def parse_sensors(self, sensors):
+        """Parse input sensors.
+
+        Parameters
+        ----------
+        sensors : `str`
+            A colon delimited list of sensor names to use for the image.
+
+        Returns
+        -------
+        sensors : `str`
+            A validated set of colon delimited list of sensor names to use for
+            the image.
+        """
+        raise NotImplementedError()
