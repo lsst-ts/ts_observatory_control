@@ -580,7 +580,6 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
         """
         raise NotImplementedError()
 
-    @abc.abstractmethod
     async def expose(
         self,
         exp_time,
@@ -603,16 +602,17 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
         shutter : `bool`
             Should activate the shutter? (False for bias and dark)
         image_type : `str`
-            Image type (a.k.a. IMGTYPE) (e.g. BIAS, DARK, FLAT, FE55,
+            Image type (a.k.a. IMGTYPE) (e.g. e.g. BIAS, DARK, FLAT, FE55,
             XTALK, CCOB, SPOT...)
         group_id : `str`
             Image groupId. Used to fill in FITS GROUPID header
-        test_type : `str`
-            Optional string to be added to the keyword testType image header.
-        sensors : `str`
+        test_type : `str`, optional
+            The classifier for the testing type. Usually the same as
+            `image_type`.
+        sensors : `str`, optional
             A colon delimited list of sensor names to use for the image.
-        note : `str`
-            Optional observer note to be added to the image header.
+        note : `str`, optional
+            A freeform string containing small notes about the image.
 
         Returns
         -------
@@ -630,7 +630,39 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
         setup_instrument: Set up instrument.
 
         """
-        raise NotImplementedError()
+        async with self.cmd_lock:
+
+            if image_type == "BIAS" and exp_time > 0.0:
+                self.log.warning("Image type is BIAS, ignoring exptime.")
+                exp_time = 0.0
+            elif bool(shutter) and exp_time < self.min_exptime:
+                raise RuntimeError(
+                    f"Minimum allowed open-shutter exposure time "
+                    f"is {self.min_exptime}. Got {exp_time}."
+                )
+
+            key_value_map = self.get_key_value_map(
+                image_type=image_type,
+                group_id=group_id,
+                test_type=test_type,
+            )
+
+            self.camera.cmd_takeImages.set(
+                numImages=1,
+                expTime=float(exp_time),
+                shutter=bool(shutter),
+                keyValueMap=key_value_map,
+                sensors=self.parse_sensors(sensors),
+                obsNote="" if note is None else note,
+            )
+
+            timeout = self.read_out_time + self.long_timeout + self.long_long_timeout
+            self.camera.evt_endReadout.flush()
+            await self.camera.cmd_takeImages.start(timeout=timeout + exp_time)
+            end_readout = await self.camera.evt_endReadout.next(
+                flush=False, timeout=timeout
+            )
+            return end_readout
 
     @staticmethod
     def next_group_id():
