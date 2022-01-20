@@ -97,6 +97,9 @@ class ComCam(BaseCamera):
         exptime,
         n=1,
         group_id=None,
+        test_type=None,
+        reason=None,
+        program=None,
         sensors=None,
         note=None,
         checkpoint=None,
@@ -113,6 +116,13 @@ class ComCam(BaseCamera):
         group_id : `str`
             Optional group id for the data sequence. Will generate a common
             one for all the data if none is given.
+        test_type : `str`
+            Optional string to be added to the keyword testType image header.
+        reason : `str`, optional
+            Reason for the data being taken. This must be a short tag-like
+            string that can be used to disambiguate a set of observations.
+        program : `str`, optional
+            Name of the program this data belongs to, e.g. WFD, DD, etc.
         sensors : `str`
             A colon delimited list of sensor names to use for the image.
         note : `str`
@@ -129,6 +139,9 @@ class ComCam(BaseCamera):
             exptime=exptime,
             n=n,
             group_id=group_id,
+            test_type=test_type,
+            reason=reason,
+            program=program,
             sensors=sensors,
             note=note,
             checkpoint=checkpoint,
