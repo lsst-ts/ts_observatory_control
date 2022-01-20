@@ -212,11 +212,14 @@ class MTCSMock(BaseGroupMock):
 
     async def mount_telemetry(self):
 
-        self.controllers.mtmount.evt_axesState.set_put(
-            elevation=MTMount.AxisState.IDLE, azimuth=MTMount.AxisState.IDLE
+        self.controllers.mtmount.evt_elevationMotionState.set_put(
+            state=MTMount.AxisMotionState.STOPPED
         )
-        self.controllers.mtmount.evt_cameraCableWrapState.set_put(
-            state=MTMount.AxisState.IDLE
+        self.controllers.mtmount.evt_azimuthMotionState.set_put(
+            state=MTMount.AxisMotionState.STOPPED
+        )
+        self.controllers.mtmount.evt_cameraCableWrapMotionState.set_put(
+            state=MTMount.AxisMotionState.STOPPED
         )
         self.controllers.mtmount.evt_cameraCableWrapFollowing.set_put(enabled=True)
         self.controllers.mtmount.evt_connected.set_put(command=True, replies=True)
@@ -280,35 +283,46 @@ class MTCSMock(BaseGroupMock):
                 in_position_azimuth = np.abs(az_dif) < 1e-1 * u.deg
 
                 if self.acting:
-                    self.controllers.mtmount.evt_axesState.set_put(
-                        elevation=MTMount.AxisState.TRACKING,
-                        azimuth=MTMount.AxisState.TRACKING,
+                    self.controllers.mtmount.evt_elevationMotionState.set_put(
+                        state=MTMount.AxisMotionState.TRACKING
                     )
-                    self.controllers.mtmount.evt_cameraCableWrapState.set_put(
-                        state=MTMount.AxisState.TRACKING,
+                    self.controllers.mtmount.evt_azimuthMotionState.set_put(
+                        state=MTMount.AxisMotionState.TRACKING
                     )
-
-                    self.controllers.mtmount.evt_axesInPosition.set_put(
-                        elevation=in_position_elevation, azimuth=in_position_azimuth
+                    self.controllers.mtmount.evt_cameraCableWrapMotionState.set_put(
+                        state=MTMount.AxisMotionState.TRACKING
+                    )
+                    self.controllers.mtmount.evt_elevationInPosition.set_put(
+                        inPosition=in_position_elevation
+                    )
+                    self.controllers.mtmount.evt_azimuthInPosition.set_put(
+                        inPosition=in_position_azimuth
+                    )
+                    self.controllers.mtmount.evt_cameraCableWrapInPosition.set_put(
+                        inPosition=True
                     )
                 elif (
-                    self.controllers.mtmount.evt_axesState.data.elevation
+                    self.controllers.mtmount.evt_elevationMotionState.data.state
                     == MTMount.AxisState.TRACKING
                 ):
-                    self.controllers.mtmount.evt_axesState.set_put(
-                        elevation=MTMount.AxisState.STOPPING,
-                        azimuth=MTMount.AxisState.STOPPING,
+                    self.controllers.mtmount.evt_elevationMotionState.set_put(
+                        state=MTMount.AxisMotionState.STOPPING
                     )
-                    self.controllers.mtmount.evt_cameraCableWrapState.set_put(
-                        state=MTMount.AxisState.STOPPING,
+                    self.controllers.mtmount.evt_azimuthMotionState.set_put(
+                        state=MTMount.AxisMotionState.STOPPING
+                    )
+                    self.controllers.mtmount.evt_cameraCableWrapMotionState.set_put(
+                        state=MTMount.AxisMotionState.STOPPING
                     )
                 else:
-                    self.controllers.mtmount.evt_axesState.set_put(
-                        elevation=MTMount.AxisState.ENABLED,
-                        azimuth=MTMount.AxisState.ENABLED,
+                    self.controllers.mtmount.evt_elevationMotionState.set_put(
+                        state=MTMount.AxisMotionState.STOPPED
                     )
-                    self.controllers.mtmount.evt_cameraCableWrapState.set_put(
-                        state=MTMount.AxisState.ENABLED,
+                    self.controllers.mtmount.evt_azimuthMotionState.set_put(
+                        state=MTMount.AxisMotionState.STOPPED
+                    )
+                    self.controllers.mtmount.evt_cameraCableWrapMotionState.set_put(
+                        state=MTMount.AxisMotionState.STOPPED
                     )
                 # The following computation of angleActual is to emulate a
                 # trajectory. At every loop it adds three factors:
