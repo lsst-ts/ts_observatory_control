@@ -40,6 +40,76 @@ class TestComCam(RemoteGroupTestCase, unittest.IsolatedAsyncioTestCase):
                 assert self.comcam_mock.exptime_list[i] == 0.0
             assert self.comcam_mock.camera_filter is None
 
+    async def test_take_bias_additional_keywords(self):
+
+        async with self.make_group(usage=ComCamUsages.TakeImage):
+
+            group_id = self.comcam.next_group_id()
+
+            await self.comcam.take_bias(
+                nbias=1,
+                group_id=group_id,
+            )
+
+            end_readout = self.comcam.camera.evt_endReadout.get()
+
+            assert end_readout.additionalKeys == "imageType:groupId:testType"
+            assert end_readout.additionalValues == f"BIAS:{group_id}:BIAS"
+
+            await self.comcam.take_bias(
+                nbias=1,
+                group_id=group_id,
+                test_type="LBIAS",
+            )
+
+            end_readout = self.comcam.camera.evt_endReadout.get()
+
+            assert end_readout.additionalKeys == "imageType:groupId:testType"
+            assert end_readout.additionalValues == f"BIAS:{group_id}:LBIAS"
+
+            await self.comcam.take_bias(
+                nbias=1,
+                group_id=group_id,
+                reason="DAYLIGHT CALIB",
+            )
+
+            end_readout = self.comcam.camera.evt_endReadout.get()
+
+            assert end_readout.additionalKeys == "imageType:groupId:testType:reason"
+            assert (
+                end_readout.additionalValues == f"BIAS:{group_id}:BIAS:DAYLIGHT CALIB"
+            )
+
+            await self.comcam.take_bias(
+                nbias=1,
+                group_id=group_id,
+                program="CALIB",
+            )
+
+            end_readout = self.comcam.camera.evt_endReadout.get()
+
+            assert end_readout.additionalKeys == "imageType:groupId:testType:program"
+            assert end_readout.additionalValues == f"BIAS:{group_id}:BIAS:CALIB"
+
+            await self.comcam.take_bias(
+                nbias=1,
+                group_id=group_id,
+                test_type="LBIAS",
+                reason="DAYLIGHT CALIB",
+                program="CALIB",
+            )
+
+            end_readout = self.comcam.camera.evt_endReadout.get()
+
+            assert (
+                end_readout.additionalKeys
+                == "imageType:groupId:testType:reason:program"
+            )
+            assert (
+                end_readout.additionalValues
+                == f"BIAS:{group_id}:LBIAS:DAYLIGHT CALIB:CALIB"
+            )
+
     async def test_take_darks(self):
         async with self.make_group(usage=ComCamUsages.TakeImage):
             ndarks = 3
@@ -50,6 +120,81 @@ class TestComCam(RemoteGroupTestCase, unittest.IsolatedAsyncioTestCase):
             for i in range(ndarks):
                 assert self.comcam_mock.exptime_list[i] == exptime
             assert self.comcam_mock.camera_filter is None
+
+    async def test_take_darks_additional_keywords(self):
+
+        async with self.make_group(usage=ComCamUsages.TakeImage):
+
+            group_id = self.comcam.next_group_id()
+
+            await self.comcam.take_darks(
+                ndarks=1,
+                exptime=1.0,
+                group_id=group_id,
+            )
+
+            end_readout = self.comcam.camera.evt_endReadout.get()
+
+            assert end_readout.additionalKeys == "imageType:groupId:testType"
+            assert end_readout.additionalValues == f"DARK:{group_id}:DARK"
+
+            await self.comcam.take_darks(
+                ndarks=1,
+                exptime=1.0,
+                group_id=group_id,
+                test_type="LDARK",
+            )
+
+            end_readout = self.comcam.camera.evt_endReadout.get()
+
+            assert end_readout.additionalKeys == "imageType:groupId:testType"
+            assert end_readout.additionalValues == f"DARK:{group_id}:LDARK"
+
+            await self.comcam.take_darks(
+                ndarks=1,
+                exptime=1.0,
+                group_id=group_id,
+                reason="DAYLIGHT CALIB",
+            )
+
+            end_readout = self.comcam.camera.evt_endReadout.get()
+
+            assert end_readout.additionalKeys == "imageType:groupId:testType:reason"
+            assert (
+                end_readout.additionalValues == f"DARK:{group_id}:DARK:DAYLIGHT CALIB"
+            )
+
+            await self.comcam.take_darks(
+                ndarks=1,
+                exptime=1.0,
+                group_id=group_id,
+                program="CALIB",
+            )
+
+            end_readout = self.comcam.camera.evt_endReadout.get()
+
+            assert end_readout.additionalKeys == "imageType:groupId:testType:program"
+            assert end_readout.additionalValues == f"DARK:{group_id}:DARK:CALIB"
+
+            await self.comcam.take_darks(
+                ndarks=1,
+                exptime=1.0,
+                group_id=group_id,
+                test_type="LDARK",
+                reason="DAYLIGHT CALIB",
+                program="CALIB",
+            )
+
+            end_readout = self.comcam.camera.evt_endReadout.get()
+
+            assert (
+                end_readout.additionalKeys
+                == "imageType:groupId:testType:reason:program"
+            )
+            assert (
+                end_readout.additionalValues
+                == f"DARK:{group_id}:LDARK:DAYLIGHT CALIB:CALIB"
+            )
 
     async def test_take_flats(self):
         async with self.make_group(usage=ComCamUsages.TakeImage):
@@ -66,6 +211,81 @@ class TestComCam(RemoteGroupTestCase, unittest.IsolatedAsyncioTestCase):
                 assert self.comcam_mock.exptime_list[i] == exptime
             assert self.comcam_mock.camera_filter is None
 
+    async def test_take_flats_additional_keywords(self):
+
+        async with self.make_group(usage=ComCamUsages.TakeImage):
+
+            group_id = self.comcam.next_group_id()
+
+            await self.comcam.take_flats(
+                nflats=1,
+                exptime=1.0,
+                group_id=group_id,
+            )
+
+            end_readout = self.comcam.camera.evt_endReadout.get()
+
+            assert end_readout.additionalKeys == "imageType:groupId:testType"
+            assert end_readout.additionalValues == f"FLAT:{group_id}:FLAT"
+
+            await self.comcam.take_flats(
+                nflats=1,
+                exptime=1.0,
+                group_id=group_id,
+                test_type="LFLAT",
+            )
+
+            end_readout = self.comcam.camera.evt_endReadout.get()
+
+            assert end_readout.additionalKeys == "imageType:groupId:testType"
+            assert end_readout.additionalValues == f"FLAT:{group_id}:LFLAT"
+
+            await self.comcam.take_flats(
+                nflats=1,
+                exptime=1.0,
+                group_id=group_id,
+                reason="DAYLIGHT CALIB",
+            )
+
+            end_readout = self.comcam.camera.evt_endReadout.get()
+
+            assert end_readout.additionalKeys == "imageType:groupId:testType:reason"
+            assert (
+                end_readout.additionalValues == f"FLAT:{group_id}:FLAT:DAYLIGHT CALIB"
+            )
+
+            await self.comcam.take_flats(
+                nflats=1,
+                exptime=1.0,
+                group_id=group_id,
+                program="CALIB",
+            )
+
+            end_readout = self.comcam.camera.evt_endReadout.get()
+
+            assert end_readout.additionalKeys == "imageType:groupId:testType:program"
+            assert end_readout.additionalValues == f"FLAT:{group_id}:FLAT:CALIB"
+
+            await self.comcam.take_flats(
+                nflats=1,
+                exptime=1.0,
+                group_id=group_id,
+                test_type="LFLAT",
+                reason="DAYLIGHT CALIB",
+                program="CALIB",
+            )
+
+            end_readout = self.comcam.camera.evt_endReadout.get()
+
+            assert (
+                end_readout.additionalKeys
+                == "imageType:groupId:testType:reason:program"
+            )
+            assert (
+                end_readout.additionalValues
+                == f"FLAT:{group_id}:LFLAT:DAYLIGHT CALIB:CALIB"
+            )
+
     async def test_take_flats_with_filter(self):
         async with self.make_group(usage=ComCamUsages.TakeImage):
             nflats = 3
@@ -80,3 +300,223 @@ class TestComCam(RemoteGroupTestCase, unittest.IsolatedAsyncioTestCase):
             for i in range(nflats):
                 assert self.comcam_mock.exptime_list[i] == exptime
             assert self.comcam_mock.camera_filter == camera_filter
+
+    async def test_take_object_additional_keywords(self):
+
+        async with self.make_group(usage=ComCamUsages.TakeImage):
+
+            group_id = self.comcam.next_group_id()
+
+            await self.comcam.take_object(
+                n=1,
+                exptime=1.0,
+                group_id=group_id,
+            )
+
+            end_readout = self.comcam.camera.evt_endReadout.get()
+
+            assert end_readout.additionalKeys == "imageType:groupId:testType"
+            assert end_readout.additionalValues == f"OBJECT:{group_id}:OBJECT"
+
+            await self.comcam.take_object(
+                n=1,
+                exptime=1.0,
+                group_id=group_id,
+                test_type="LOBJECT",
+            )
+
+            end_readout = self.comcam.camera.evt_endReadout.get()
+
+            assert end_readout.additionalKeys == "imageType:groupId:testType"
+            assert end_readout.additionalValues == f"OBJECT:{group_id}:LOBJECT"
+
+            await self.comcam.take_object(
+                n=1,
+                exptime=1.0,
+                group_id=group_id,
+                reason="UNIT TEST",
+            )
+
+            end_readout = self.comcam.camera.evt_endReadout.get()
+
+            assert end_readout.additionalKeys == "imageType:groupId:testType:reason"
+            assert end_readout.additionalValues == f"OBJECT:{group_id}:OBJECT:UNIT TEST"
+
+            await self.comcam.take_object(
+                n=1,
+                exptime=1.0,
+                group_id=group_id,
+                program="UTEST",
+            )
+
+            end_readout = self.comcam.camera.evt_endReadout.get()
+
+            assert end_readout.additionalKeys == "imageType:groupId:testType:program"
+            assert end_readout.additionalValues == f"OBJECT:{group_id}:OBJECT:UTEST"
+
+            await self.comcam.take_object(
+                n=1,
+                exptime=1.0,
+                group_id=group_id,
+                test_type="LOBJECT",
+                reason="UNIT TEST",
+                program="UTEST",
+            )
+
+            end_readout = self.comcam.camera.evt_endReadout.get()
+
+            assert (
+                end_readout.additionalKeys
+                == "imageType:groupId:testType:reason:program"
+            )
+            assert (
+                end_readout.additionalValues
+                == f"OBJECT:{group_id}:LOBJECT:UNIT TEST:UTEST"
+            )
+
+    async def test_take_engtest_additional_keywords(self):
+
+        async with self.make_group(usage=ComCamUsages.TakeImage):
+
+            group_id = self.comcam.next_group_id()
+
+            await self.comcam.take_engtest(
+                n=1,
+                exptime=1.0,
+                group_id=group_id,
+            )
+
+            end_readout = self.comcam.camera.evt_endReadout.get()
+
+            assert end_readout.additionalKeys == "imageType:groupId:testType"
+            assert end_readout.additionalValues == f"ENGTEST:{group_id}:ENGTEST"
+
+            await self.comcam.take_engtest(
+                n=1,
+                exptime=1.0,
+                group_id=group_id,
+                test_type="LENGTEST",
+            )
+
+            end_readout = self.comcam.camera.evt_endReadout.get()
+
+            assert end_readout.additionalKeys == "imageType:groupId:testType"
+            assert end_readout.additionalValues == f"ENGTEST:{group_id}:LENGTEST"
+
+            await self.comcam.take_engtest(
+                n=1,
+                exptime=1.0,
+                group_id=group_id,
+                reason="UNIT TEST",
+            )
+
+            end_readout = self.comcam.camera.evt_endReadout.get()
+
+            assert end_readout.additionalKeys == "imageType:groupId:testType:reason"
+            assert (
+                end_readout.additionalValues == f"ENGTEST:{group_id}:ENGTEST:UNIT TEST"
+            )
+
+            await self.comcam.take_engtest(
+                n=1,
+                exptime=1.0,
+                group_id=group_id,
+                program="UTEST",
+            )
+
+            end_readout = self.comcam.camera.evt_endReadout.get()
+
+            assert end_readout.additionalKeys == "imageType:groupId:testType:program"
+            assert end_readout.additionalValues == f"ENGTEST:{group_id}:ENGTEST:UTEST"
+
+            await self.comcam.take_engtest(
+                n=1,
+                exptime=1.0,
+                group_id=group_id,
+                test_type="LENGTEST",
+                reason="UNIT TEST",
+                program="UTEST",
+            )
+
+            end_readout = self.comcam.camera.evt_endReadout.get()
+
+            assert (
+                end_readout.additionalKeys
+                == "imageType:groupId:testType:reason:program"
+            )
+            assert (
+                end_readout.additionalValues
+                == f"ENGTEST:{group_id}:LENGTEST:UNIT TEST:UTEST"
+            )
+
+    async def test_take_spot_additional_keywords(self):
+
+        async with self.make_group(usage=ComCamUsages.TakeImage):
+
+            group_id = self.comcam.next_group_id()
+
+            await self.comcam.take_spot(
+                n=1,
+                exptime=1.0,
+                group_id=group_id,
+            )
+
+            end_readout = self.comcam.camera.evt_endReadout.get()
+
+            assert end_readout.additionalKeys == "imageType:groupId:testType"
+            assert end_readout.additionalValues == f"SPOT:{group_id}:SPOT"
+
+            await self.comcam.take_spot(
+                n=1,
+                exptime=1.0,
+                group_id=group_id,
+                test_type="LSPOT",
+            )
+
+            end_readout = self.comcam.camera.evt_endReadout.get()
+
+            assert end_readout.additionalKeys == "imageType:groupId:testType"
+            assert end_readout.additionalValues == f"SPOT:{group_id}:LSPOT"
+
+            await self.comcam.take_spot(
+                n=1,
+                exptime=1.0,
+                group_id=group_id,
+                reason="UNIT TEST",
+            )
+
+            end_readout = self.comcam.camera.evt_endReadout.get()
+
+            assert end_readout.additionalKeys == "imageType:groupId:testType:reason"
+            assert end_readout.additionalValues == f"SPOT:{group_id}:SPOT:UNIT TEST"
+
+            await self.comcam.take_spot(
+                n=1,
+                exptime=1.0,
+                group_id=group_id,
+                program="UTEST",
+            )
+
+            end_readout = self.comcam.camera.evt_endReadout.get()
+
+            assert end_readout.additionalKeys == "imageType:groupId:testType:program"
+            assert end_readout.additionalValues == f"SPOT:{group_id}:SPOT:UTEST"
+
+            await self.comcam.take_spot(
+                n=1,
+                exptime=1.0,
+                group_id=group_id,
+                test_type="LSPOT",
+                reason="UNIT TEST",
+                program="UTEST",
+            )
+
+            end_readout = self.comcam.camera.evt_endReadout.get()
+
+            assert (
+                end_readout.additionalKeys
+                == "imageType:groupId:testType:reason:program"
+            )
+            assert (
+                end_readout.additionalValues == f"SPOT:{group_id}:LSPOT:UNIT TEST:UTEST"
+            )
