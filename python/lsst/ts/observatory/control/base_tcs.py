@@ -63,16 +63,26 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
         used to limit the resources allocated by the class by gathering some
         knowledge about the usage intention. By default allocates all
         resources.
-
+    concurrent_operation : `bool`, optional
+        If `False`, tasks like `enable` and other concurrent tasks will be done
+        sequentially. Default=True.
     """
 
-    def __init__(self, components, domain=None, log=None, intended_usage=None):
+    def __init__(
+        self,
+        components,
+        domain=None,
+        log=None,
+        intended_usage=None,
+        concurrent_operation=True,
+    ):
 
         super().__init__(
             components=components,
             domain=domain,
             log=log,
             intended_usage=intended_usage,
+            concurrent_operation=concurrent_operation,
         )
 
         self.location = EarthLocation.from_geodetic(
