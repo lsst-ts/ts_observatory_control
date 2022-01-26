@@ -90,7 +90,20 @@ class ComCamMock(BaseGroupMock):
         date_id = astropy.time.Time.now().tai.isot.split("T")[0].replace("-", "")
         image_name = f"test_comcam_{date_id}_{next(index_gen)}"
         self.log.debug(f"sending endReadout: {image_name}")
-        self.cccamera.evt_endReadout.set_put(imageName=image_name)
+        additional_keys, additional_values = list(
+            zip(
+                *[
+                    key_value.strip().split(":", maxsplit=1)
+                    for key_value in data.keyValueMap.split(",")
+                ]
+            )
+        )
+
+        self.cccamera.evt_endReadout.set_put(
+            imageName=image_name,
+            additionalKeys=":".join([key.strip() for key in additional_keys]),
+            additionalValues=":".join([value.strip() for value in additional_values]),
+        )
         self.log.debug("sending LFOA")
         self.ccheaderservice.evt_largeFileObjectAvailable.put()
         self.log.debug("end_readout done")

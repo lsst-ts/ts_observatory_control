@@ -99,90 +99,27 @@ class LATISS(BaseCamera):
             tcs_ready_to_take_data=tcs_ready_to_take_data,
         )
 
-    async def expose(
-        self,
-        exp_time,
-        shutter,
-        image_type,
-        group_id,
-        test_type=None,
-        sensors=None,
-        note=None,
-    ):
-        """Encapsulates the take image command.
+    @property
+    def camera(self):
+        """Camera remote."""
+        return self.rem.atcamera
 
-        This basically consists of configuring and sending a takeImages
-        command to the camera and waiting for an endReadout event.
+    def parse_sensors(self, sensors):
+        """Parse input sensors.
+
+        For ATCamera this should always be an empty string.
 
         Parameters
         ----------
-        exp_time : `float`
-            The exposure time for the image, in seconds.
-        shutter : `bool`
-            Should activate the shutter? (False for bias and dark)
-        image_type : `str`
-            Image type (a.k.a. IMGTYPE) (e.g. e.g. BIAS, DARK, FLAT, FE55,
-            XTALK, CCOB, SPOT...)
-        group_id : `str`
-            Image groupId. Used to fill in FITS GROUPID header
-        test_type : `str`
-            Optional string to be added to the keyword testType image header.
         sensors : `str`
-            A colon delimited list of sensor names to use for the image.
-        note : `str`
-            Optional observer note to be added to the image header.
+            This field is ignored by LATISS.
 
         Returns
         -------
-        endReadout : ``self.atcam.evt_endReadout.DataType``
-            End readout event data.
-
-        See Also
-        --------
-        take_bias: Take series of bias.
-        take_darks: Take series of darks.
-        take_flats: Take series of flat-field images.
-        take_object: Take series of object observations.
-        take_engtest: Take series of engineering test observations.
-        take_imgtype: Take series of images by image type.
-        setup_instrument: Set up instrument.
-
+        sensors : `str`
+            A valid set of sensors.
         """
-        async with self.cmd_lock:
-            # FIXME: Current version of ATCamera software is not set up to take
-            # images with numImages > 1, so this is fixed at 1 for now and we
-            # loop through any set of images we want to take. (2019/03/11)
-
-            if image_type == "BIAS" and exp_time > 0.0:
-                self.log.warning("Image type is BIAS, ignoring exptime.")
-                exp_time = 0.0
-            elif bool(shutter) and exp_time < self.min_exptime:
-                raise RuntimeError(
-                    f"Minimum allowed open-shutter exposure time "
-                    f"is {self.min_exptime}. Got {exp_time}."
-                )
-
-            key_value_map = f"groupId: {group_id},imageType: {image_type}"
-            if test_type is not None:
-                key_value_map += f",testType: {test_type}"
-
-            base_timeout = (
-                self.read_out_time + self.long_timeout + self.long_long_timeout
-            )
-            self.rem.atcamera.evt_endReadout.flush()
-            await self.rem.atcamera.cmd_takeImages.set_start(
-                numImages=1,
-                expTime=float(exp_time),
-                shutter=bool(shutter),
-                sensors="",  # For ATCamera this should always be empty string
-                keyValueMap=key_value_map,
-                obsNote=note if note is not None else "",
-                timeout=base_timeout + exp_time,
-            )
-            end_readout = await self.rem.atcamera.evt_endReadout.next(
-                flush=False, timeout=base_timeout
-            )
-            return end_readout
+        return ""
 
     async def setup_instrument(self, **kwargs):
         """Implements abstract method to setup instrument.
