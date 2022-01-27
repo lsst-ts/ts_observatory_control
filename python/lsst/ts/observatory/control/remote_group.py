@@ -189,6 +189,9 @@ class RemoteGroup:
         used to limit the resources allocated by the class by gathering some
         knowledge about the usage intention. By default allocates all
         resources.
+    concurrent_operation : `bool`, optional
+        If `False`, tasks like `enable` and other concurrent tasks will be done
+        sequentially. Default=True.
 
     Attributes
     ----------
@@ -233,7 +236,14 @@ class RemoteGroup:
 
     """
 
-    def __init__(self, components, domain=None, log=None, intended_usage=None):
+    def __init__(
+        self,
+        components,
+        domain=None,
+        log=None,
+        intended_usage=None,
+        concurrent_operation=True,
+    ):
 
         if log is None:
             self.log = logging.getLogger(type(self).__name__)
@@ -243,6 +253,8 @@ class RemoteGroup:
         self.fast_timeout = 5.0
         self.long_timeout = 30.0
         self.long_long_timeout = 120.0
+
+        self._concurrent_operation = concurrent_operation
 
         self._components = dict(
             [
@@ -740,7 +752,6 @@ class RemoteGroup:
             * If it fails to transition one or more components.
 
         """
-
         work_components = self.get_work_components(components)
 
         if settings is not None:
@@ -766,7 +777,14 @@ class RemoteGroup:
             else:
                 set_ss_tasks.append(self.get_state(comp, ignore_timeout=True))
 
-        ret_val = await asyncio.gather(*set_ss_tasks, return_exceptions=True)
+        ret_val = (
+            await asyncio.gather(*set_ss_tasks, return_exceptions=True)
+            if self._concurrent_operation
+            else [
+                (await asyncio.gather(task, return_exceptions=True))[0]
+                for task in set_ss_tasks
+            ]
+        )
 
         error_flag = False
         failed_components = []
