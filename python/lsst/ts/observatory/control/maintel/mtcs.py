@@ -107,6 +107,7 @@ class MTCS(BaseTCS):
             domain=domain,
             log=log,
             intended_usage=intended_usage,
+            concurrent_operation=False,
         )
 
         self.open_dome_shutter_time = 1200.0

@@ -6,6 +6,13 @@
 Version History
 ###############
 
+v0.13.1
+-------
+
+* Make MTCS non-concurrent.
+* In `BaseTcs` add interface to enable/disable concurrent operation.
+* In `RemoteGroup` implement mechanism to prevent concurrent operation.
+
 v0.13.0
 -------
 
