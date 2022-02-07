@@ -27,7 +27,7 @@ import numpy as np
 import pytest
 
 import astropy.units as u
-from astropy.coordinates import Angle
+from astropy.coordinates import ICRS, Angle
 
 from astroquery.simbad import Simbad
 
@@ -924,8 +924,13 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
     async def test_slew_object(self):
 
         name = "HD 185975"
-        ra = "20 28 18.7402"
-        dec = "-87 28 19.938"
+
+        object_table = self.atcs.object_list_get(name)
+
+        radec_icrs = ICRS(
+            Angle(object_table["RA"], unit=u.hourangle),
+            Angle(object_table["DEC"], unit=u.deg),
+        )
 
         await self.atcs.slew_object(name=name)
 
@@ -934,8 +939,8 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
         )
 
         self.atcs.rem.atptg.cmd_raDecTarget.set.assert_called_with(
-            ra=Angle(ra, unit=u.hourangle).hour,
-            declination=Angle(dec, unit=u.deg).deg,
+            ra=radec_icrs.ra.hour,
+            declination=radec_icrs.dec.deg,
             targetName=name,
             frame=self.atcs.CoordFrame.ICRS,
             rotAngle=0.0,
