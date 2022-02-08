@@ -6,6 +6,11 @@
 Version History
 ###############
 
+v0.13.2
+-------
+
+* Fix unit test failure in `slew_object` due to coordinate convertion issue.
+
 v0.13.1
 -------
 
