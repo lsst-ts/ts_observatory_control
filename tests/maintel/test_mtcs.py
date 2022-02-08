@@ -24,7 +24,7 @@ import asyncio
 import unittest
 
 import astropy.units as units
-from astropy.coordinates import Angle
+from astropy.coordinates import ICRS, Angle
 import numpy as np
 from numpy.testing import assert_array_equal
 import pytest
@@ -83,14 +83,19 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
 
     async def test_slew_object(self):
         name = "HD 185975"
-        ra = "20 28 18.7402"
-        dec = "-87 28 19.938"
+
+        object_table = self.mtcs.object_list_get(name)
+
+        radec_icrs = ICRS(
+            Angle(object_table["RA"], unit=units.hourangle),
+            Angle(object_table["DEC"], unit=units.deg),
+        )
 
         await self.mtcs.slew_object(name=name, rot_type=RotType.Sky)
 
         self.mtcs.rem.mtptg.cmd_raDecTarget.set.assert_called_with(
-            ra=Angle(ra, unit=units.hourangle).hour,
-            declination=Angle(dec, unit=units.deg).deg,
+            ra=radec_icrs.ra.hour,
+            declination=radec_icrs.dec.deg,
             targetName=name,
             frame=self.mtcs.CoordFrame.ICRS,
             rotAngle=0.0,
