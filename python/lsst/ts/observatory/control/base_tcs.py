@@ -1741,7 +1741,7 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
         slew_cmd,
         slew_timeout,
         offset_cmd=None,
-        stop_before_slew=True,
+        stop_before_slew=False,
         wait_settle=True,
         check=None,
     ):
