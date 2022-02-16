@@ -116,12 +116,10 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
 
         self.mtcs.rem.mtptg.cmd_poriginOffset.set.assert_called_with(dx=0, dy=0, num=0)
 
-        self.mtcs.rem.mtptg.cmd_stopTracking.start.assert_called_with(
-            timeout=self.mtcs.fast_timeout
-        )
+        self.mtcs.rem.mtptg.cmd_stopTracking.start.assert_not_awaited()
+        self.mtcs.rem.mtmount.evt_elevationInPosition.flush.assert_not_called()
+        self.mtcs.rem.mtmount.evt_azimuthInPosition.flush.assert_not_called()
 
-        self.mtcs.rem.mtmount.evt_elevationInPosition.flush.assert_called()
-        self.mtcs.rem.mtmount.evt_azimuthInPosition.flush.assert_called()
         self.mtcs.rem.mtrotator.evt_inPosition.flush.assert_called()
         self.mtcs.rem.mtptg.cmd_raDecTarget.start.assert_called()
         self.mtcs.rem.mtptg.cmd_poriginOffset.start.assert_called_with(
@@ -161,19 +159,17 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
 
         self.mtcs.rem.mtptg.cmd_poriginOffset.set.assert_called_with(dx=0, dy=0, num=0)
 
-        self.mtcs.rem.mtptg.cmd_stopTracking.start.assert_called_with(
-            timeout=self.mtcs.fast_timeout
-        )
+        self.mtcs.rem.mtptg.cmd_stopTracking.start.assert_not_awaited()
+        self.mtcs.rem.mtmount.evt_elevationInPosition.flush.assert_not_called()
+        self.mtcs.rem.mtmount.evt_azimuthInPosition.flush.assert_not_called()
 
-        self.mtcs.rem.mtmount.evt_elevationInPosition.flush.assert_called()
-        self.mtcs.rem.mtmount.evt_azimuthInPosition.flush.assert_called()
         self.mtcs.rem.mtrotator.evt_inPosition.flush.assert_called()
         self.mtcs.rem.mtptg.cmd_raDecTarget.start.assert_called()
         self.mtcs.rem.mtptg.cmd_poriginOffset.start.assert_called_with(
             timeout=self.mtcs.fast_timeout
         )
 
-    async def test_slew_icrs_no_stop(self):
+    async def test_slew_icrs_stop(self):
 
         name = "HD 185975"
         ra = "20:28:18.74"
@@ -183,7 +179,7 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
             ra=ra,
             dec=dec,
             target_name=name,
-            stop_before_slew=False,
+            stop_before_slew=True,
             rot_type=RotType.Sky,
         )
 
@@ -210,12 +206,12 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
 
         self.mtcs.rem.mtptg.cmd_poriginOffset.set.assert_called_with(dx=0, dy=0, num=0)
 
-        self.mtcs.rem.mtptg.cmd_stopTracking.start.assert_not_called()
+        self.mtcs.rem.mtptg.cmd_stopTracking.start.assert_awaited()
 
-        self.mtcs.rem.mtmount.evt_elevationInPosition.flush.assert_not_called()
-        self.mtcs.rem.mtmount.evt_azimuthInPosition.flush.assert_not_called()
+        self.mtcs.rem.mtmount.evt_elevationInPosition.flush.assert_called()
+        self.mtcs.rem.mtmount.evt_azimuthInPosition.flush.assert_called()
 
-        self.mtcs.rem.mtrotator.evt_inPosition.flush.assert_not_called()
+        self.mtcs.rem.mtrotator.evt_inPosition.flush.assert_called()
 
         self.mtcs.rem.mtptg.cmd_raDecTarget.start.assert_called()
         self.mtcs.rem.mtptg.cmd_poriginOffset.start.assert_called_with(
@@ -256,12 +252,10 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
 
         self.mtcs.rem.mtptg.cmd_poriginOffset.set.assert_called_with(dx=0, dy=0, num=0)
 
-        self.mtcs.rem.mtptg.cmd_stopTracking.start.assert_called_with(
-            timeout=self.mtcs.fast_timeout
-        )
+        self.mtcs.rem.mtptg.cmd_stopTracking.start.assert_not_awaited()
+        self.mtcs.rem.mtmount.evt_elevationInPosition.flush.assert_not_called()
+        self.mtcs.rem.mtmount.evt_azimuthInPosition.flush.assert_not_called()
 
-        self.mtcs.rem.mtmount.evt_elevationInPosition.flush.assert_called()
-        self.mtcs.rem.mtmount.evt_azimuthInPosition.flush.assert_called()
         self.mtcs.rem.mtrotator.evt_inPosition.flush.assert_called()
         self.mtcs.rem.mtptg.cmd_raDecTarget.start.assert_called()
         self.mtcs.rem.mtptg.cmd_poriginOffset.start.assert_called_with(
@@ -302,12 +296,10 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
 
         self.mtcs.rem.mtptg.cmd_poriginOffset.set.assert_called_with(dx=0, dy=0, num=0)
 
-        self.mtcs.rem.mtptg.cmd_stopTracking.start.assert_called_with(
-            timeout=self.mtcs.fast_timeout
-        )
+        self.mtcs.rem.mtptg.cmd_stopTracking.start.assert_not_called()
+        self.mtcs.rem.mtmount.evt_elevationInPosition.flush.assert_not_called()
+        self.mtcs.rem.mtmount.evt_azimuthInPosition.flush.assert_not_called()
 
-        self.mtcs.rem.mtmount.evt_elevationInPosition.flush.assert_called()
-        self.mtcs.rem.mtmount.evt_azimuthInPosition.flush.assert_called()
         self.mtcs.rem.mtrotator.evt_inPosition.flush.assert_called()
         self.mtcs.rem.mtptg.cmd_raDecTarget.start.assert_called()
         self.mtcs.rem.mtptg.cmd_poriginOffset.start.assert_called_with(
@@ -348,12 +340,10 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
 
         self.mtcs.rem.mtptg.cmd_poriginOffset.set.assert_called_with(dx=0, dy=0, num=0)
 
-        self.mtcs.rem.mtptg.cmd_stopTracking.start.assert_called_with(
-            timeout=self.mtcs.fast_timeout
-        )
+        self.mtcs.rem.mtptg.cmd_stopTracking.start.assert_not_called()
+        self.mtcs.rem.mtmount.evt_elevationInPosition.flush.assert_not_called()
+        self.mtcs.rem.mtmount.evt_azimuthInPosition.flush.assert_not_called()
 
-        self.mtcs.rem.mtmount.evt_elevationInPosition.flush.assert_called()
-        self.mtcs.rem.mtmount.evt_azimuthInPosition.flush.assert_called()
         self.mtcs.rem.mtrotator.evt_inPosition.flush.assert_called()
         self.mtcs.rem.mtptg.cmd_raDecTarget.start.assert_called()
         self.mtcs.rem.mtptg.cmd_poriginOffset.start.assert_called_with(
@@ -404,12 +394,10 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
             num=0,
         )
 
-        self.mtcs.rem.mtptg.cmd_stopTracking.start.assert_called_with(
-            timeout=self.mtcs.fast_timeout
-        )
+        self.mtcs.rem.mtptg.cmd_stopTracking.start.assert_not_called()
+        self.mtcs.rem.mtmount.evt_elevationInPosition.flush.assert_not_called()
+        self.mtcs.rem.mtmount.evt_azimuthInPosition.flush.assert_not_called()
 
-        self.mtcs.rem.mtmount.evt_elevationInPosition.flush.assert_called()
-        self.mtcs.rem.mtmount.evt_azimuthInPosition.flush.assert_called()
         self.mtcs.rem.mtrotator.evt_inPosition.flush.assert_called()
         self.mtcs.rem.mtptg.cmd_raDecTarget.start.assert_called()
         self.mtcs.rem.mtptg.cmd_poriginOffset.start.assert_called_with(
@@ -454,12 +442,10 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
 
         self.mtcs.rem.mtptg.cmd_poriginOffset.set.assert_called_with(dx=0, dy=0, num=0)
 
-        self.mtcs.rem.mtptg.cmd_stopTracking.start.assert_called_with(
-            timeout=self.mtcs.fast_timeout
-        )
+        self.mtcs.rem.mtptg.cmd_stopTracking.start.assert_not_awaited()
+        self.mtcs.rem.mtmount.evt_elevationInPosition.flush.assert_not_called()
+        self.mtcs.rem.mtmount.evt_azimuthInPosition.flush.assert_not_called()
 
-        self.mtcs.rem.mtmount.evt_elevationInPosition.flush.assert_called()
-        self.mtcs.rem.mtmount.evt_azimuthInPosition.flush.assert_called()
         self.mtcs.rem.mtrotator.evt_inPosition.flush.assert_called()
         self.mtcs.rem.mtptg.cmd_raDecTarget.start.assert_called()
         self.mtcs.rem.mtptg.cmd_poriginOffset.start.assert_called_with(
