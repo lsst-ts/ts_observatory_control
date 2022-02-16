@@ -917,9 +917,7 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
 
         self.atcs.rem.atptg.cmd_poriginOffset.set.assert_called_with(dx=0, dy=0, num=0)
 
-        self.atcs.rem.atptg.cmd_stopTracking.start.assert_called_with(
-            timeout=self.atcs.fast_timeout
-        )
+        self.atcs.rem.atptg.cmd_stopTracking.start.assert_not_awaited()
 
     async def test_slew_object(self):
 
@@ -934,9 +932,7 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
 
         await self.atcs.slew_object(name=name)
 
-        self.atcs.rem.atptg.cmd_stopTracking.start.assert_called_with(
-            timeout=self.atcs.fast_timeout
-        )
+        self.atcs.rem.atptg.cmd_stopTracking.start.assert_not_awaited()
 
         self.atcs.rem.atptg.cmd_raDecTarget.set.assert_called_with(
             ra=radec_icrs.ra.hour,
@@ -1035,12 +1031,10 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
 
         self.atcs.rem.atptg.cmd_poriginOffset.set.assert_called_with(dx=0, dy=0, num=0)
 
-        self.atcs.rem.atptg.cmd_stopTracking.start.assert_called_with(
-            timeout=self.atcs.fast_timeout
-        )
+        self.atcs.rem.atptg.cmd_stopTracking.start.assert_not_awaited()
 
-        self.atcs.rem.atptg.cmd_raDecTarget.start.assert_called()
-        self.atcs.rem.atptg.cmd_poriginOffset.start.assert_called_with(
+        self.atcs.rem.atptg.cmd_raDecTarget.start.assert_awaited()
+        self.atcs.rem.atptg.cmd_poriginOffset.start.assert_awaited_with(
             timeout=self.atcs.fast_timeout
         )
 
@@ -1078,12 +1072,8 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
 
         self.atcs.rem.atptg.cmd_poriginOffset.set.assert_called_with(dx=0, dy=0, num=0)
 
-        self.atcs.rem.atptg.cmd_stopTracking.start.assert_called_with(
-            timeout=self.atcs.fast_timeout
-        )
-
-        self.atcs.rem.atptg.cmd_raDecTarget.start.assert_called()
-        self.atcs.rem.atptg.cmd_poriginOffset.start.assert_called_with(
+        self.atcs.rem.atptg.cmd_raDecTarget.start.assert_awaited()
+        self.atcs.rem.atptg.cmd_poriginOffset.start.assert_awaited_with(
             timeout=self.atcs.fast_timeout
         )
 
@@ -1121,12 +1111,10 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
 
         self.atcs.rem.atptg.cmd_poriginOffset.set.assert_called_with(dx=0, dy=0, num=0)
 
-        self.atcs.rem.atptg.cmd_stopTracking.start.assert_called_with(
-            timeout=self.atcs.fast_timeout
-        )
+        self.atcs.rem.atptg.cmd_stopTracking.start.assert_not_awaited()
 
-        self.atcs.rem.atptg.cmd_raDecTarget.start.assert_called()
-        self.atcs.rem.atptg.cmd_poriginOffset.start.assert_called_with(
+        self.atcs.rem.atptg.cmd_raDecTarget.start.assert_awaited()
+        self.atcs.rem.atptg.cmd_poriginOffset.start.assert_awaited_with(
             timeout=self.atcs.fast_timeout
         )
 
@@ -1169,12 +1157,10 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
             num=0,
         )
 
-        self.atcs.rem.atptg.cmd_stopTracking.start.assert_called_with(
-            timeout=self.atcs.fast_timeout
-        )
+        self.atcs.rem.atptg.cmd_stopTracking.start.assert_not_awaited()
 
-        self.atcs.rem.atptg.cmd_raDecTarget.start.assert_called()
-        self.atcs.rem.atptg.cmd_poriginOffset.start.assert_called_with(
+        self.atcs.rem.atptg.cmd_raDecTarget.start.assert_awaited()
+        self.atcs.rem.atptg.cmd_poriginOffset.start.assert_awaited_with(
             timeout=self.atcs.fast_timeout
         )
 
@@ -1198,9 +1184,7 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
 
         self.atcs.rem.atptg.cmd_poriginOffset.set.assert_not_called()
 
-        self.atcs.rem.atptg.cmd_stopTracking.start.assert_called_with(
-            timeout=self.atcs.fast_timeout
-        )
+        self.atcs.rem.atptg.cmd_stopTracking.start.assert_not_called()
 
     async def test_offset_radec(self):
 

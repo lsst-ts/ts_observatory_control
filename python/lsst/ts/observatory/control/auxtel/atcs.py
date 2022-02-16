@@ -1494,7 +1494,7 @@ class ATCS(BaseTCS):
         asyncio.TimeoutError
             If does not get a status update in less then `timeout` seconds.
         """
-        await self._handle_in_position(
+        return await self._handle_in_position(
             in_position_event=self.rem.atmcs.evt_allAxesInPosition,
             timeout=timeout,
             settle_time=self.tel_settle_time,
