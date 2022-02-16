@@ -1217,7 +1217,7 @@ class ATCS(BaseTCS):
         slew_cmd,
         slew_timeout,
         offset_cmd=None,
-        stop_before_slew=True,
+        stop_before_slew=False,
         wait_settle=True,
         check=None,
     ):
@@ -1494,28 +1494,12 @@ class ATCS(BaseTCS):
         asyncio.TimeoutError
             If does not get a status update in less then `timeout` seconds.
         """
-        while True:
-
-            in_position = await self.rem.atmcs.evt_allAxesInPosition.next(
-                flush=False, timeout=timeout
-            )
-
-            # make sure timestamp of event is after command was acknowledged.
-            if (
-                cmd_ack is not None
-                and in_position.private_sndStamp < cmd_ack.private_sndStamp
-            ):
-                self.log.debug("Received old event. Ignoring.")
-            else:
-                self.log.info(f"Got {in_position.inPosition}")
-                if in_position.inPosition:
-                    if wait_settle:
-                        self.log.info("Waiting for telescope to settle.")
-                        await asyncio.sleep(self.tel_settle_time)
-                    self.log.info("Telescope in position.")
-                    return "Telescope in position."
-                else:
-                    self.log.debug("Telescope not in position")
+        await self._handle_in_position(
+            in_position_event=self.rem.atmcs.evt_allAxesInPosition,
+            timeout=timeout,
+            settle_time=self.tel_settle_time,
+            component_name="ATMCS",
+        )
 
     async def wait_for_atdome_inposition(self, timeout, cmd_ack=None):
         """Wait until the telescope is cleared by the dome.
