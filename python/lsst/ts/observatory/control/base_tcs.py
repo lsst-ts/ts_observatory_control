@@ -441,7 +441,7 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
         az_wrap_strategy=None,
         time_on_target=0.0,
         slew_timeout=240.0,
-        stop_before_slew=True,
+        stop_before_slew=False,
         wait_settle=True,
     ):
         """Slew the telescope and start tracking an Ra/Dec target in ICRS
@@ -635,7 +635,7 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
         az_wrap_strategy=None,
         time_on_target=0.0,
         slew_timeout=1200.0,
-        stop_before_slew=True,
+        stop_before_slew=False,
         wait_settle=True,
         offset_x=0.0,
         offset_y=0.0,
