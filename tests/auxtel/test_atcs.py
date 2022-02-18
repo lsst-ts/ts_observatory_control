@@ -863,9 +863,13 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
 
             await asyncio.sleep(2.0)
 
-            assert task.done()
+            assert not task.done()
+
+            self.atcs.stop_monitor()
+
+            await asyncio.wait_for(task, timeout=self.atcs.fast_timeout)
+
             assert task.exception() is None
-            await task
         finally:
             self.atcs.check = original_check
 
