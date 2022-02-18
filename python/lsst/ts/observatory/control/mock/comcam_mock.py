@@ -25,10 +25,10 @@ import logging
 
 import astropy
 
-from lsst.ts import salobj
+from lsst.ts import utils
 from .base_group_mock import BaseGroupMock
 
-index_gen = salobj.index_generator()
+index_gen = utils.index_generator()
 
 
 class ComCamMock(BaseGroupMock):

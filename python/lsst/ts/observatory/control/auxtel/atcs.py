@@ -32,6 +32,7 @@ from ..base_tcs import BaseTCS
 from ..constants import atcs_constants
 from ..utils import InstrumentFocus
 
+from lsst.ts import utils
 from lsst.ts import salobj
 from lsst.ts.utils import angle_diff
 from lsst.ts.idl.enums import ATPtg, ATDome, ATPneumatics, ATMCS
@@ -1262,7 +1263,7 @@ class ATCS(BaseTCS):
         try:
             current_target = await self.next_telescope_target(self.fast_timeout)
             if track_id <= current_target.trackId:
-                self.track_id_gen = salobj.index_generator(current_target.trackId + 1)
+                self.track_id_gen = utils.index_generator(current_target.trackId + 1)
                 track_id = next(self.track_id_gen)
 
         except asyncio.TimeoutError:

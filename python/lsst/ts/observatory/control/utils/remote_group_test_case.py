@@ -27,6 +27,7 @@ import contextlib
 import random
 import time
 
+from lsst.ts import utils
 from lsst.ts import salobj
 
 MAKE_TIMEOUT = 30  # Default time for make_script (seconds)
@@ -51,7 +52,7 @@ class RemoteGroupTestCase(metaclass=abc.ABCMeta):
                 # ... test something
     """
 
-    _index_iter = salobj.index_generator()
+    _index_iter = utils.index_generator()
 
     @abc.abstractmethod
     async def basic_make_group(self, usage=None):

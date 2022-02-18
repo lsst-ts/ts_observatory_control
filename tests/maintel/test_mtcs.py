@@ -1361,7 +1361,7 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
                 for component in cls.mtcs.components
             ]
         )
-        cls.track_id_gen = salobj.index_generator(1)
+        cls.track_id_gen = utils.index_generator(1)
 
     async def asyncSetUp(self):
 

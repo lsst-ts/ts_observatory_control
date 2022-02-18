@@ -27,6 +27,7 @@ import numpy as np
 import astropy.units as u
 from astropy.coordinates import Angle
 
+from lsst.ts import utils
 from lsst.ts import salobj
 from lsst.ts.utils import angle_diff
 from lsst.ts.idl.enums import MTM1M3, MTPtg
@@ -254,7 +255,7 @@ class MTCS(BaseTCS):
                 flush=True, timeout=self.fast_timeout
             )
             if track_id <= current_target.trackId:
-                self.track_id_gen = salobj.index_generator(current_target.trackId + 1)
+                self.track_id_gen = utils.index_generator(current_target.trackId + 1)
                 track_id = next(self.track_id_gen)
 
         except asyncio.TimeoutError:

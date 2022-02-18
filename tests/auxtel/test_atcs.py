@@ -33,6 +33,7 @@ from astroquery.simbad import Simbad
 
 from lsst.ts import idl
 from lsst.ts.idl.enums import ATMCS, ATPtg, ATPneumatics, ATDome
+from lsst.ts import utils
 from lsst.ts import salobj
 
 from lsst.ts.observatory.control.auxtel.atcs import ATCS, ATCSUsages
@@ -1838,7 +1839,7 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
             ]
         )
 
-        cls.track_id_gen = salobj.index_generator(1)
+        cls.track_id_gen = utils.index_generator(1)
 
     async def asyncSetUp(self):
 

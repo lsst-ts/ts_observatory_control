@@ -42,6 +42,7 @@ from .utils import (
     get_catalogs_path,
 )
 
+from lsst.ts import utils
 from lsst.ts import salobj
 
 
@@ -89,7 +90,7 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
             lon=-70.747698 * u.deg, lat=-30.244728 * u.deg, height=2663.0 * u.m
         )
 
-        self.track_id_gen = salobj.index_generator()
+        self.track_id_gen = utils.index_generator()
 
         self.instrument_focus = InstrumentFocus.Prime
 
