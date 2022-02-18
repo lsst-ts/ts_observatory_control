@@ -1592,7 +1592,7 @@ class ATCS(BaseTCS):
             self.log.warning("Monitor disabled. Enabling and starting monitoring loop.")
             self.enable_monitor()
 
-        while not in_position and self.is_monitor_enabled():
+        while self.is_monitor_enabled():
             if _check.atmcs:
                 comm_pos = await self.next_telescope_target(timeout=self.long_timeout)
                 tel_pos = await self.next_telescope_position(timeout=self.fast_timeout)
