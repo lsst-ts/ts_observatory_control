@@ -1579,7 +1579,7 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
             return target_info
 
     async def _handle_in_position(
-        self, in_position_event, timeout, settle_time=0.0, component_name=""
+        self, in_position_event, timeout, settle_time=5.0, component_name=""
     ):
         """Handle inPosition event.
 
@@ -1612,8 +1612,8 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
             )
             try:
                 in_position = await in_position_event.next(
-                    flush=False,
-                    timeout=settle_time if settle_time > 0.0 else self.fast_timeout,
+                    flush=True,
+                    timeout=settle_time,
                 )
                 self.log.info(
                     f"{component_name} in position: {in_position.inPosition}."
@@ -1621,15 +1621,33 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
             except asyncio.TimeoutError:
                 self.log.debug(
                     "No new in position event in the last "
-                    f"{settle_time if settle_time > 0.0 else self.fast_timeout}s. "
+                    f"{settle_time}s. "
                     f"Assuming {component_name} in position."
                 )
+            except Exception:
+                self.log.exception("Error handling potential race condition.")
 
         while not in_position.inPosition:
 
-            in_position = await in_position_event.next(flush=False, timeout=timeout)
+            try:
+                in_position = await in_position_event.next(flush=False, timeout=timeout)
+            except asyncio.TimeoutError:
+                self.log.debug(
+                    "No new in position event in the last "
+                    f"{timeout}s. "
+                    f"Assuming {component_name} in position."
+                )
+                break
+            else:
+                self.log.info(
+                    f"{component_name} in position: {in_position.inPosition}."
+                )
 
-            self.log.info(f"{component_name} in position: {in_position.inPosition}.")
+        self.log.debug(
+            f"{component_name} in position {in_position.inPosition}. "
+            f"Waiting settle time {settle_time}s"
+        )
+        await asyncio.sleep(settle_time)
 
         return f"{component_name} in position."
 
