@@ -324,7 +324,7 @@ class ATCS(BaseTCS):
 
         task_list = [
             asyncio.create_task(
-                self.wait_for_inposition(timeout=self.long_long_timeout)
+                self.wait_for_atdome_inposition(timeout=self.long_long_timeout)
             ),
             asyncio.create_task(self.monitor_position(check=_check)),
         ]
