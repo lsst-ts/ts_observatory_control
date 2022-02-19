@@ -137,6 +137,10 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
 
         assert not self.atcs.is_catalog_loaded()
 
+    @pytest.mark.xfail(
+        reason="Access to Simbad database is sometimes flaky.",
+        raises=RuntimeError,
+    )
     async def test_find_target(self):
 
         # Make sure it searches Simbad and not local catalog
