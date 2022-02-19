@@ -1900,6 +1900,9 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
             state=ATDome.ShutterDoorState.CLOSED
         )
 
+        # Setup rquired ATDomeTrajectory data
+        self._atdometrajectory_dome_following = types.SimpleNamespace(enabled=False)
+
         # Setup required ATPneumatics data
         self._atpneumatics_evt_m1_cover_state = types.SimpleNamespace(
             state=ATPneumatics.MirrorCoverState.CLOSED
@@ -2090,6 +2093,14 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
             "flush",
         )
 
+        # Augment atdometrajectory mock
+        self.atcs.rem.atdometrajectory.configure_mock(
+            **{
+                "evt_followingMode.aget.side_effect": self.atdometrajectory_following_mode,
+                "cmd_setFollowingMode.set_start.side_effect": self.atdometrajectory_cmd_set_following_mode,
+            }
+        )
+
         # Augment atpneumatics mock
         self.atcs.rem.atpneumatics.configure_mock(
             **{
@@ -2188,6 +2199,20 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
 
     async def atdome_cmd_close_shutter(self, *args, **kwargs):
         asyncio.create_task(self._atdome_cmd_move_shutter_main_door(open=False))
+
+    async def atdometrajectory_following_mode(self, *args, **kwargs):
+        self.log.debug(
+            "Retrieving atdometrajectory dome following mode: "
+            f"{self._atdometrajectory_dome_following}"
+        )
+        return self._atdometrajectory_dome_following
+
+    async def atdometrajectory_cmd_set_following_mode(self, enable, *args, **kwargs):
+        self.log.debug(
+            "Updating atdometrajectory following: "
+            f"{self._atdometrajectory_dome_following.enabled} -> {enable}"
+        )
+        self._atdometrajectory_dome_following.enabled = enable
 
     async def _atdome_cmd_home_azimuth(self):
         await asyncio.sleep(0.2)
