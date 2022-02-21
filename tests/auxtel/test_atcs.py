@@ -33,6 +33,7 @@ from astroquery.simbad import Simbad
 
 from lsst.ts import idl
 from lsst.ts.idl.enums import ATMCS, ATPtg, ATPneumatics, ATDome
+from lsst.ts import utils
 from lsst.ts import salobj
 
 from lsst.ts.observatory.control.auxtel.atcs import ATCS, ATCSUsages
@@ -136,6 +137,10 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
 
         assert not self.atcs.is_catalog_loaded()
 
+    @pytest.mark.xfail(
+        reason="Access to Simbad database is sometimes flaky.",
+        raises=RuntimeError,
+    )
     async def test_find_target(self):
 
         # Make sure it searches Simbad and not local catalog
@@ -863,9 +868,13 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
 
             await asyncio.sleep(2.0)
 
-            assert task.done()
+            assert not task.done()
+
+            self.atcs.stop_monitor()
+
+            await asyncio.wait_for(task, timeout=self.atcs.fast_timeout)
+
             assert task.exception() is None
-            await task
         finally:
             self.atcs.check = original_check
 
@@ -917,9 +926,7 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
 
         self.atcs.rem.atptg.cmd_poriginOffset.set.assert_called_with(dx=0, dy=0, num=0)
 
-        self.atcs.rem.atptg.cmd_stopTracking.start.assert_called_with(
-            timeout=self.atcs.fast_timeout
-        )
+        self.atcs.rem.atptg.cmd_stopTracking.start.assert_not_awaited()
 
     async def test_slew_object(self):
 
@@ -934,9 +941,7 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
 
         await self.atcs.slew_object(name=name)
 
-        self.atcs.rem.atptg.cmd_stopTracking.start.assert_called_with(
-            timeout=self.atcs.fast_timeout
-        )
+        self.atcs.rem.atptg.cmd_stopTracking.start.assert_not_awaited()
 
         self.atcs.rem.atptg.cmd_raDecTarget.set.assert_called_with(
             ra=radec_icrs.ra.hour,
@@ -1035,12 +1040,10 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
 
         self.atcs.rem.atptg.cmd_poriginOffset.set.assert_called_with(dx=0, dy=0, num=0)
 
-        self.atcs.rem.atptg.cmd_stopTracking.start.assert_called_with(
-            timeout=self.atcs.fast_timeout
-        )
+        self.atcs.rem.atptg.cmd_stopTracking.start.assert_not_awaited()
 
-        self.atcs.rem.atptg.cmd_raDecTarget.start.assert_called()
-        self.atcs.rem.atptg.cmd_poriginOffset.start.assert_called_with(
+        self.atcs.rem.atptg.cmd_raDecTarget.start.assert_awaited()
+        self.atcs.rem.atptg.cmd_poriginOffset.start.assert_awaited_with(
             timeout=self.atcs.fast_timeout
         )
 
@@ -1078,12 +1081,8 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
 
         self.atcs.rem.atptg.cmd_poriginOffset.set.assert_called_with(dx=0, dy=0, num=0)
 
-        self.atcs.rem.atptg.cmd_stopTracking.start.assert_called_with(
-            timeout=self.atcs.fast_timeout
-        )
-
-        self.atcs.rem.atptg.cmd_raDecTarget.start.assert_called()
-        self.atcs.rem.atptg.cmd_poriginOffset.start.assert_called_with(
+        self.atcs.rem.atptg.cmd_raDecTarget.start.assert_awaited()
+        self.atcs.rem.atptg.cmd_poriginOffset.start.assert_awaited_with(
             timeout=self.atcs.fast_timeout
         )
 
@@ -1121,12 +1120,10 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
 
         self.atcs.rem.atptg.cmd_poriginOffset.set.assert_called_with(dx=0, dy=0, num=0)
 
-        self.atcs.rem.atptg.cmd_stopTracking.start.assert_called_with(
-            timeout=self.atcs.fast_timeout
-        )
+        self.atcs.rem.atptg.cmd_stopTracking.start.assert_not_awaited()
 
-        self.atcs.rem.atptg.cmd_raDecTarget.start.assert_called()
-        self.atcs.rem.atptg.cmd_poriginOffset.start.assert_called_with(
+        self.atcs.rem.atptg.cmd_raDecTarget.start.assert_awaited()
+        self.atcs.rem.atptg.cmd_poriginOffset.start.assert_awaited_with(
             timeout=self.atcs.fast_timeout
         )
 
@@ -1169,12 +1166,10 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
             num=0,
         )
 
-        self.atcs.rem.atptg.cmd_stopTracking.start.assert_called_with(
-            timeout=self.atcs.fast_timeout
-        )
+        self.atcs.rem.atptg.cmd_stopTracking.start.assert_not_awaited()
 
-        self.atcs.rem.atptg.cmd_raDecTarget.start.assert_called()
-        self.atcs.rem.atptg.cmd_poriginOffset.start.assert_called_with(
+        self.atcs.rem.atptg.cmd_raDecTarget.start.assert_awaited()
+        self.atcs.rem.atptg.cmd_poriginOffset.start.assert_awaited_with(
             timeout=self.atcs.fast_timeout
         )
 
@@ -1198,9 +1193,7 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
 
         self.atcs.rem.atptg.cmd_poriginOffset.set.assert_not_called()
 
-        self.atcs.rem.atptg.cmd_stopTracking.start.assert_called_with(
-            timeout=self.atcs.fast_timeout
-        )
+        self.atcs.rem.atptg.cmd_stopTracking.start.assert_not_called()
 
     async def test_offset_radec(self):
 
@@ -1850,7 +1843,7 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
             ]
         )
 
-        cls.track_id_gen = salobj.index_generator(1)
+        cls.track_id_gen = utils.index_generator(1)
 
     async def asyncSetUp(self):
 
@@ -1910,6 +1903,9 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
         self._atdome_evt_main_door_state = types.SimpleNamespace(
             state=ATDome.ShutterDoorState.CLOSED
         )
+
+        # Setup rquired ATDomeTrajectory data
+        self._atdometrajectory_dome_following = types.SimpleNamespace(enabled=False)
 
         # Setup required ATPneumatics data
         self._atpneumatics_evt_m1_cover_state = types.SimpleNamespace(
@@ -2101,6 +2097,14 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
             "flush",
         )
 
+        # Augment atdometrajectory mock
+        self.atcs.rem.atdometrajectory.configure_mock(
+            **{
+                "evt_followingMode.aget.side_effect": self.atdometrajectory_following_mode,
+                "cmd_setFollowingMode.set_start.side_effect": self.atdometrajectory_cmd_set_following_mode,
+            }
+        )
+
         # Augment atpneumatics mock
         self.atcs.rem.atpneumatics.configure_mock(
             **{
@@ -2199,6 +2203,20 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
 
     async def atdome_cmd_close_shutter(self, *args, **kwargs):
         asyncio.create_task(self._atdome_cmd_move_shutter_main_door(open=False))
+
+    async def atdometrajectory_following_mode(self, *args, **kwargs):
+        self.log.debug(
+            "Retrieving atdometrajectory dome following mode: "
+            f"{self._atdometrajectory_dome_following}"
+        )
+        return self._atdometrajectory_dome_following
+
+    async def atdometrajectory_cmd_set_following_mode(self, enable, *args, **kwargs):
+        self.log.debug(
+            "Updating atdometrajectory following: "
+            f"{self._atdometrajectory_dome_following.enabled} -> {enable}"
+        )
+        self._atdometrajectory_dome_following.enabled = enable
 
     async def _atdome_cmd_home_azimuth(self):
         await asyncio.sleep(0.2)

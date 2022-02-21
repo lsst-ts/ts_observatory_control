@@ -24,13 +24,13 @@ import astropy
 import asyncio
 import logging
 
-from lsst.ts import salobj
+from lsst.ts import utils
 
 from .base_group_mock import BaseGroupMock
 
 CLOSE_SLEEP = 5  # seconds
 
-index_gen = salobj.index_generator()
+index_gen = utils.index_generator()
 
 
 class LATISSMock(BaseGroupMock):
