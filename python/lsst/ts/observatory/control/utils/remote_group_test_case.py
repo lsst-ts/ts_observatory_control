@@ -24,6 +24,7 @@ __all__ = ["RemoteGroupTestCase"]
 import abc
 import asyncio
 import contextlib
+import os
 import random
 import time
 
@@ -53,6 +54,19 @@ class RemoteGroupTestCase(metaclass=abc.ABCMeta):
     """
 
     _index_iter = utils.index_generator()
+
+    def setUp(self) -> None:
+        salobj.set_random_lsst_dds_partition_prefix()
+        self.original_lsst_site = os.environ.get("LSST_SITE", None)
+        os.environ["LSST_SITE"] = "test"
+
+    def tearDown(self) -> None:
+        if not hasattr(self, "original_lsst_site"):
+            raise RuntimeError("Call super().setUp() in your setUp method")
+        if self.original_lsst_site is None:
+            del os.environ["LSST_SITE"]
+        else:
+            os.environ["LSST_SITE"] = self.original_lsst_site
 
     @abc.abstractmethod
     async def basic_make_group(self, usage=None):
@@ -96,8 +110,6 @@ class RemoteGroupTestCase(metaclass=abc.ABCMeta):
         verbose : `bool`
             Log data? This can be helpful for setting ``timeout``.
         """
-        salobj.set_random_lsst_dds_partition_prefix()
-
         items_to_await = await self.wait_for(
             self.basic_make_group(usage),
             timeout=timeout,

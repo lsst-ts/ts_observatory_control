@@ -88,9 +88,9 @@ class BaseGroupMock:
 
         self.controllers = types.SimpleNamespace(**_controllers)
 
-        self.setting_versions = {}
+        self.overrides = {}
 
-        self.settings_to_apply = {}
+        self.override = {}
 
         for comp in self.component_names:
             if comp not in self._output_only:
@@ -154,13 +154,17 @@ class BaseGroupMock:
 
         for comp in self.component_names:
             if comp not in self.output_only:
-                getattr(self.controllers, comp).evt_summaryState.set_put(
+                await getattr(self.controllers, comp).evt_summaryState.set_write(
                     summaryState=salobj.State.STANDBY
                 )
-                self.setting_versions[comp] = f"test_{comp}"
-                if hasattr(getattr(self.controllers, comp), "evt_settingVersions"):
-                    getattr(self.controllers, comp).evt_settingVersions.set_put(
-                        recommendedSettingsVersion=f"{self.setting_versions[comp]},"
+                self.overrides[comp] = f"test_{comp}"
+                if hasattr(
+                    getattr(self.controllers, comp), "evt_configurationsAvailable"
+                ):
+                    await getattr(
+                        self.controllers, comp
+                    ).evt_configurationsAvailable.set_write(
+                        overrides=f"{self.overrides[comp]},"
                     )
                 self.task_list.append(
                     asyncio.create_task(self.publish_heartbeats_for(comp))
@@ -186,12 +190,12 @@ class BaseGroupMock:
 
         print(
             f"[{comp}] {ss.data.summaryState!r} -> {salobj.State.DISABLED!r} "
-            f"[settings: {data.settingsToApply}]"
+            f"[overrides: {data.configurationOverride}]"
         )
 
-        ss.set_put(summaryState=salobj.State.DISABLED)
+        await ss.set_write(summaryState=salobj.State.DISABLED)
 
-        self.settings_to_apply[comp] = data.settingsToApply
+        self.override[comp] = data.configurationOverride
 
         await asyncio.sleep(HEARTBEAT_INTERVAL)
 
@@ -206,9 +210,9 @@ class BaseGroupMock:
 
         print(f"[{comp}] {ss.data.summaryState!r} -> {salobj.State.ENABLED!r}")
 
-        ss.set_put(summaryState=salobj.State.ENABLED)
+        await ss.set_write(summaryState=salobj.State.ENABLED)
 
-        self.publish_detailed_state(comp, ss.data.summaryState)
+        await self.publish_detailed_state(comp, ss.data.summaryState)
 
         await asyncio.sleep(HEARTBEAT_INTERVAL)
 
@@ -222,9 +226,9 @@ class BaseGroupMock:
             )
         print(f"[{comp}] {ss.data.summaryState!r} -> {salobj.State.DISABLED!r}")
 
-        ss.set_put(summaryState=salobj.State.DISABLED)
+        await ss.set_write(summaryState=salobj.State.DISABLED)
 
-        self.publish_detailed_state(comp, ss.data.summaryState)
+        await self.publish_detailed_state(comp, ss.data.summaryState)
 
         await asyncio.sleep(HEARTBEAT_INTERVAL)
 
@@ -239,9 +243,9 @@ class BaseGroupMock:
 
         print(f"[{comp}] {ss.data.summaryState!r} -> {salobj.State.STANDBY!r}")
 
-        ss.set_put(summaryState=salobj.State.STANDBY)
+        await ss.set_write(summaryState=salobj.State.STANDBY)
 
-        self.publish_detailed_state(comp, ss.data.summaryState)
+        await self.publish_detailed_state(comp, ss.data.summaryState)
 
         await asyncio.sleep(HEARTBEAT_INTERVAL)
 
@@ -257,9 +261,9 @@ class BaseGroupMock:
 
         print(f"[{comp}] {ss.data.summaryState!r} -> {salobj.State.OFFLINE!r}")
 
-        ss.set_put(summaryState=salobj.State.OFFLINE)
+        await ss.set_write(summaryState=salobj.State.OFFLINE)
 
-        self.publish_detailed_state(comp, ss.data.summaryState)
+        await self.publish_detailed_state(comp, ss.data.summaryState)
 
         await self.check_done()
 
@@ -277,17 +281,17 @@ class BaseGroupMock:
 
         print(f"[{comp}] {ss.data.summaryState!r} -> {salobj.State.STANDBY!r}")
 
-        ss.set_put(summaryState=salobj.State.STANDBY)
+        await ss.set_write(summaryState=salobj.State.STANDBY)
 
-        self.publish_detailed_state(comp, ss.data.summaryState)
+        await self.publish_detailed_state(comp, ss.data.summaryState)
 
         await asyncio.sleep(HEARTBEAT_INTERVAL)
 
-    def publish_detailed_state(self, component, detailed_state):
+    async def publish_detailed_state(self, component, detailed_state):
 
         if hasattr(getattr(self.controllers, component), "evt_detailedState"):
             try:
-                getattr(self.controllers, component).evt_detailedState.set_put(
+                await getattr(self.controllers, component).evt_detailedState.set_write(
                     detailedState=salobj.State.ENABLED
                 )
             except Exception:
@@ -311,7 +315,7 @@ class BaseGroupMock:
 
     async def publish_heartbeats_for(self, comp):
         while self.run_telemetry_loop:
-            getattr(self.controllers, comp).evt_heartbeat.put()
+            await getattr(self.controllers, comp).evt_heartbeat.write()
             await asyncio.sleep(HEARTBEAT_INTERVAL)
 
     @property

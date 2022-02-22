@@ -17,10 +17,12 @@
 # GNU General Public License for more details.
 #
 # You should have received a copy of the GNU General Public License
+
 import copy
 import types
 import asyncio
 import logging
+import os
 import unittest
 
 import numpy as np
@@ -1846,6 +1848,8 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
         cls.track_id_gen = utils.index_generator(1)
 
     async def asyncSetUp(self):
+        self.original_lsst_site = os.environ.get("LSST_SITE", None)
+        os.environ["LSST_SITE"] = "test"
 
         # Setup asyncio facilities that probably failed while setting up class
         self.atcs._create_asyncio_events()
@@ -1975,7 +1979,7 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
                         ),
                         "evt_heartbeat.next.side_effect": self.get_heartbeat,
                         "evt_heartbeat.aget.side_effect": self.get_heartbeat,
-                        "evt_settingVersions.aget.return_value": None,
+                        "evt_configurationsAvailable.aget.return_value": None,
                     }
                 ),
             )
@@ -2144,6 +2148,12 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
             unittest.mock.Mock(),
             "flush",
         )
+
+    def tearDown(self) -> None:
+        if self.original_lsst_site is None:
+            del os.environ["LSST_SITE"]
+        else:
+            os.environ["LSST_SITE"] = self.original_lsst_site
 
     async def get_heartbeat(self, *args, **kwargs):
         """Emulate heartbeat functionality."""

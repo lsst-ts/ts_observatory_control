@@ -442,7 +442,7 @@ class ATCS(BaseTCS):
 
         return stop_results
 
-    async def prepare_for_onsky(self, settings=None):
+    async def prepare_for_onsky(self, overrides=None):
         """Prepare Auxiliary Telescope for on-sky operations.
 
         This method will perform the start of the night procedure for the
@@ -451,9 +451,9 @@ class ATCS(BaseTCS):
 
         Parameters
         ----------
-        settings: `dict`
-            Dictionary with settings to apply.  If `None` use the recommended
-            settings.
+        overrides: `dict`
+            Dictionary with overrides to apply.  If `None` use the recommended
+            overrides.
         """
 
         await self.assert_all_enabled(
@@ -1933,7 +1933,7 @@ class ATCS(BaseTCS):
                     "exitControl",
                     "enterControl",
                     "summaryState",
-                    "settingVersions",
+                    "configurationsAvailable",
                     "heartbeat",
                 ],
                 atmcs=[
@@ -2007,7 +2007,7 @@ class ATCS(BaseTCS):
             usages[self.valid_use_cases.Slew] = UsagesResources(
                 components_attr=self.components_attr,
                 readonly=False,
-                generics=["summaryState", "settingVersions", "heartbeat"],
+                generics=["summaryState", "configurationsAvailable", "heartbeat"],
                 atmcs=[
                     "allAxesInPosition",
                     "atMountState",
@@ -2054,7 +2054,7 @@ class ATCS(BaseTCS):
                     "exitControl",
                     "enterControl",
                     "summaryState",
-                    "settingVersions",
+                    "configurationsAvailable",
                     "heartbeat",
                 ],
                 atmcs=[
@@ -2115,7 +2115,7 @@ class ATCS(BaseTCS):
                     "exitControl",
                     "enterControl",
                     "summaryState",
-                    "settingVersions",
+                    "configurationsAvailable",
                     "heartbeat",
                 ],
                 atmcs=[
@@ -2164,7 +2164,7 @@ class ATCS(BaseTCS):
                     "exitControl",
                     "enterControl",
                     "summaryState",
-                    "settingVersions",
+                    "configurationsAvailable",
                     "heartbeat",
                 ],
                 atmcs=[

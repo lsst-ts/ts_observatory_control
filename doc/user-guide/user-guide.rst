@@ -140,7 +140,7 @@ Limiting Resources
 ------------------
 
 When writing a `SAL Script`_, it is very likely that only a small subset of topics (commands, events and telemetry) from a CSC group will be required.
-For instance, a `SAL Script`_ that will enable all components on a group, will only require the components ``summaryState`` and ``settingVersions`` events and the state transition commands.
+For instance, a `SAL Script`_ that will enable all components on a group, will only require the components ``summaryState`` and ``configurationsAvailable`` events and the state transition commands.
 In this case, it is possible to save some time and resources by limiting the group class to subscribe only to the required set, instead of the full topics set.
 
 The package allow users to do that through the ``intended_usage`` parameter.
@@ -188,15 +188,13 @@ Probably the most commonly used generic operations are the :py:meth:`enable <lss
 The idea is that, after running :py:meth:`enable <lsst.ts.observatory.control.RemoteGroup.enable>`, all CSCs in the group will be in the ``ENABLED`` state.
 Components that where already in ``ENABLED`` state will be left in that state.
 For components in any other state the method will make sure to send the required state transition commands to enable them.
-The method can run without any input argument, though one must be aware that it need to know what setting to load when transition from ``STANDBY`` to ``DISABLED``.
-If no input is given, the method will inspect the ``settingVersions`` event from the CSCs in the group and select the first item in ``settingVersions.recommendedSettingsLabels``.
-It is possible to provide settings either partially of fully using the ``settings`` input parameter.
+The method can run without any input argument.
 
 Following are a couple of examples of how to use the :py:meth:`enable <lsst.ts.observatory.control.RemoteGroup.enable>` method.
 
-.. TODO: (DM-26261) Add/Document feature to inspect all settings from all components in a group.
+.. TODO: (DM-26261) Add/Document feature to inspect all overrides from all components in a group.
 
-This will inspect the ``settingVersions`` event from all CSCs in the `ATCS` group to determine the ``settingsToApply`` for each one of them.
+This will inspect the ``configurationsAvailable`` event from all CSCs in the `ATCS` group to determine the ``override`` for each one of them.
 
 .. code:: python
 
@@ -208,20 +206,19 @@ This will inspect the ``settingVersions`` event from all CSCs in the `ATCS` grou
 
     await atcs.enable()
 
-Override settings for ATAOS only.
-Will inspect ``settingVersions`` event from all other CSCs in the group to determine the ``settingsToApply`` for the rest of them.
+Override the default configuration for ATAOS.
 
 .. code:: python
 
-    await atcs.enable(settings={"ataos": "constant_hex"})
+    await atcs.enable(overrides={"ataos": "constant_hex"})
 
-And finally, override settings for all the CSCs in the group.
-Note how some of them receive an empty string, which is a way of enabling the CSC with default settings (and also work for when the CSC is not configurable).
+And finally, override overrides for all the CSCs in the group.
+Note how some of them receive an empty string, which is a way of enabling the CSC with default overrides (and also work for when the CSC is not configurable).
 
 .. code:: python
 
     await atcs.enable(
-        settings={
+        overrides={
             "ataos": "current",
             "atmcs": "",
             "atptg": "",

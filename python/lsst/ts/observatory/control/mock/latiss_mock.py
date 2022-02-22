@@ -117,20 +117,20 @@ class LATISSMock(BaseGroupMock):
             )
         )
 
-        self.atcam.evt_endReadout.set_put(
+        await self.atcam.evt_endReadout.set_write(
             imageName=image_name,
             additionalKeys=":".join([key.strip() for key in additional_keys]),
             additionalValues=":".join([value.strip() for value in additional_values]),
         )
         self.log.debug("sending LFOA")
-        self.atheaderservice.evt_largeFileObjectAvailable.put()
+        await self.atheaderservice.evt_largeFileObjectAvailable.write()
         self.log.debug("end_readout done")
 
     async def cmd_changeFilter_callback(self, data):
         """Emulate change filter command"""
         await asyncio.sleep(0.1)
-        self.atspec.evt_filterInPosition.put()
-        self.atspec.evt_reportedFilterPosition.set_put(
+        await self.atspec.evt_filterInPosition.write()
+        await self.atspec.evt_reportedFilterPosition.set_write(
             slot=data.filter, name=f"filter{data.filter}", band="r"
         )
         self.latiss_filter = data.filter
@@ -138,9 +138,9 @@ class LATISSMock(BaseGroupMock):
     async def cmd_changeDisperser_callback(self, data):
         """Emulate change filter command"""
         await asyncio.sleep(0.1)
-        self.atspec.evt_disperserInPosition.put()
-        self.atspec.evt_reportedDisperserPosition.put()
-        self.atspec.evt_reportedDisperserPosition.set_put(
+        await self.atspec.evt_disperserInPosition.write()
+        await self.atspec.evt_reportedDisperserPosition.write()
+        await self.atspec.evt_reportedDisperserPosition.set_write(
             slot=data.disperser, name=f"grating{data.disperser}", band="R100"
         )
         self.latiss_grating = data.disperser
@@ -148,8 +148,8 @@ class LATISSMock(BaseGroupMock):
     async def cmd_moveLinearStage_callback(self, data):
         """Emulate change filter command"""
         await asyncio.sleep(0.1)
-        self.atspec.evt_linearStageInPosition.put()
-        self.atspec.evt_reportedLinearStagePosition.set_put(
+        await self.atspec.evt_linearStageInPosition.write()
+        await self.atspec.evt_reportedLinearStagePosition.set_write(
             position=data.distanceFromHome
         ),
         self.latiss_linear_stage = data.distanceFromHome

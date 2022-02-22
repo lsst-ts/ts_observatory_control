@@ -296,7 +296,7 @@ class ComCam(BaseCamera):
                     "exitControl",
                     "enterControl",
                     "summaryState",
-                    "settingVersions",
+                    "configurationsAvailable",
                     "heartbeat",
                 ],
                 cccamera=[

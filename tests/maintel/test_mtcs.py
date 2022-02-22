@@ -17,10 +17,12 @@
 # GNU General Public License for more details.
 #
 # You should have received a copy of the GNU General Public License
+
+import asyncio
 import copy
 import logging
+import os
 import types
-import asyncio
 import unittest
 
 import astropy.units as units
@@ -1364,6 +1366,8 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
         cls.track_id_gen = utils.index_generator(1)
 
     async def asyncSetUp(self):
+        self.original_lsst_site = os.environ.get("LSST_SITE", None)
+        os.environ["LSST_SITE"] = "test"
 
         self.mtcs._create_asyncio_events()
 
@@ -1494,7 +1498,7 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
                         ),
                         "evt_heartbeat.next.side_effect": self.get_heartbeat,
                         "evt_heartbeat.aget.side_effect": self.get_heartbeat,
-                        "evt_settingVersions.aget.return_value": None,
+                        "evt_configurationsAvailable.aget.return_value": None,
                     }
                 ),
             )
@@ -1713,6 +1717,12 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
         self.heartbeat_time = 1.0  # seconds
         self.short_process_time = 0.1  # seconds
         self.normal_process_time = 0.25  # seconds
+
+    def tearDown(self):
+        if self.original_lsst_site is None:
+            del os.environ["LSST_SITE"]
+        else:
+            os.environ["LSST_SITE"] = self.original_lsst_site
 
     async def get_heartbeat(self, *args, **kwargs):
         """Emulate heartbeat functionality."""
