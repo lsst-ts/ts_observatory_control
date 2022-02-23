@@ -21,7 +21,6 @@
 import asyncio
 import copy
 import logging
-import os
 import types
 import unittest
 
@@ -39,6 +38,402 @@ from lsst.ts.observatory.control.utils import RotType
 
 
 class TestMTCS(unittest.IsolatedAsyncioTestCase):
+    @classmethod
+    def setUpClass(cls):
+        """This classmethod is only called once, when preparing the unit
+        test.
+        """
+
+        cls.log = logging.getLogger("TestMTCS")
+
+        # Pass in a string as domain to prevent ATCS from trying to create a
+        # domain by itself. When using DryTest usage, the class won't create
+        # any remote. When this method is called there is no event loop
+        # running so all asyncio facilities will fail to create. This is later
+        # rectified in the asyncSetUp.
+        cls.mtcs = MTCS(
+            domain="FakeDomain", log=cls.log, intended_usage=MTCSUsages.DryTest
+        )
+
+        # Decrease telescope settle time to speed up unit test
+        cls.mtcs.tel_settle_time = 0.25
+
+        # Gather metadada information, needed to validate topics versions
+        cls.components_metadata = dict(
+            [
+                (
+                    component,
+                    salobj.parse_idl(
+                        component,
+                        idl.get_idl_dir()
+                        / f"sal_revCoded_{component.split(':')[0]}.idl",
+                    ),
+                )
+                for component in cls.mtcs.components
+            ]
+        )
+        cls.track_id_gen = utils.index_generator(1)
+
+    def run(self, result=None):
+        """Override `run` to set a random LSST_DDS_PARTITION_PREFIX
+        and set LSST_SITE=test for every test.
+
+        https://stackoverflow.com/a/11180583
+        """
+        salobj.set_random_lsst_dds_partition_prefix()
+        with utils.modify_environ(LSST_SITE="test"):
+            super().run(result)
+
+    async def asyncSetUp(self):
+        self.mtcs._create_asyncio_events()
+
+        # MTMount data
+        self._mtmount_evt_target = types.SimpleNamespace(
+            trackId=next(self.track_id_gen),
+            azimuth=0.0,
+            elevation=80.0,
+        )
+
+        self._mtmount_evt_cameraCableWrapFollowing = types.SimpleNamespace(enabled=1)
+
+        self._mtmount_tel_azimuth = types.SimpleNamespace(actualPosition=0.0)
+        self._mtmount_tel_elevation = types.SimpleNamespace(actualPosition=80.0)
+
+        self._mtmount_evt_elevation_in_position = types.SimpleNamespace(
+            inPosition=True,
+        )
+        self._mtmount_evt_azimuth_in_position = types.SimpleNamespace(
+            inPosition=True,
+        )
+
+        # MTRotator data
+        self._mtrotator_tel_rotation = types.SimpleNamespace(
+            demandPosition=0.0,
+            actualPosition=0.0,
+        )
+        self._mtrotator_evt_in_position = types.SimpleNamespace(inPosition=True)
+
+        # MTDome data
+        self._mtdome_tel_azimuth = types.SimpleNamespace(
+            positionActual=0.0,
+            positionCommanded=0.0,
+        )
+
+        self._mtdome_tel_light_wind_screen = types.SimpleNamespace(
+            positionActual=0.0,
+            positionCommanded=0.0,
+        )
+
+        # MTM1M3 data
+        self._mtm1m3_evt_detailed_state = types.SimpleNamespace(
+            detailedState=idl.enums.MTM1M3.DetailedState.PARKED
+        )
+        self._mtm1m3_evt_applied_balance_forces = types.SimpleNamespace(
+            forceMagnitude=0.0
+        )
+
+        self._mtm1m3_raise_task = utils.make_done_future()
+        self._mtm1m3_lower_task = utils.make_done_future()
+        self._hardpoint_corrections_task = utils.make_done_future()
+
+        # MTM2 data
+        self._mtm2_evt_force_balance_system_status = types.SimpleNamespace(status=False)
+
+        # Camera hexapod data
+        self._mthexapod_1_evt_compensation_mode = types.SimpleNamespace(enabled=False)
+        self._mthexapod_1_evt_uncompensated_position = types.SimpleNamespace(
+            x=0.0, y=0.0, z=0.0, u=0.0, v=0.0, w=0.0
+        )
+        self._mthexapod_1_evt_in_position = types.SimpleNamespace(inPosition=True)
+        self._mthexapod_1_move_task = utils.make_done_future()
+
+        # M2 hexapod data
+        self._mthexapod_2_evt_compensation_mode = types.SimpleNamespace(enabled=False)
+        self._mthexapod_2_evt_uncompensated_position = types.SimpleNamespace(
+            x=0.0, y=0.0, z=0.0, u=0.0, v=0.0, w=0.0
+        )
+        self._mthexapod_2_evt_in_position = types.SimpleNamespace(inPosition=True)
+        self._mthexapod_2_move_task = utils.make_done_future()
+
+        # Setup AsyncMock. The idea is to replace the placeholder for the
+        # remotes (in mtcs.rem) by AsyncMock. The remote for each component is
+        # replaced by an AsyncMock and later augmented to emulate the behavior
+        # of the Remote->Controller interaction with side_effect and
+        # return_value.
+        for component in self.mtcs.components_attr:
+            setattr(self.mtcs.rem, component, unittest.mock.AsyncMock())
+
+        # Setup data to support summary state manipulation
+        self.summary_state = dict(
+            [
+                (comp, types.SimpleNamespace(summaryState=int(salobj.State.ENABLED)))
+                for comp in self.mtcs.components_attr
+            ]
+        )
+
+        self.summary_state_queue = dict(
+            [
+                (comp, [types.SimpleNamespace(summaryState=int(salobj.State.ENABLED))])
+                for comp in self.mtcs.components_attr
+            ]
+        )
+
+        self.summary_state_queue_event = dict(
+            [(comp, asyncio.Event()) for comp in self.mtcs.components_attr]
+        )
+
+        # Setup AsyncMock. The idea is to replace the placeholder for the
+        # remotes (in atcs.rem) by AsyncMock. The remote for each component is
+        # replaced by an AsyncMock and later augmented to emulate the behavior
+        # of the Remote->Controller interaction with side_effect and
+        # return_value.
+        # By default all mocks are augmented to handle summary state setting.
+        for component in self.mtcs.components_attr:
+            setattr(
+                self.mtcs.rem,
+                component,
+                unittest.mock.AsyncMock(
+                    **{
+                        "cmd_start.set_start.side_effect": self.set_summary_state_for(
+                            component, salobj.State.DISABLED
+                        ),
+                        "cmd_enable.start.side_effect": self.set_summary_state_for(
+                            component, salobj.State.ENABLED
+                        ),
+                        "cmd_disable.start.side_effect": self.set_summary_state_for(
+                            component, salobj.State.DISABLED
+                        ),
+                        "cmd_standby.start.side_effect": self.set_summary_state_for(
+                            component, salobj.State.STANDBY
+                        ),
+                        "evt_summaryState.next.side_effect": self.next_summary_state_for(
+                            component
+                        ),
+                        "evt_summaryState.aget.side_effect": self.get_summary_state_for(
+                            component
+                        ),
+                        "evt_heartbeat.next.side_effect": self.get_heartbeat,
+                        "evt_heartbeat.aget.side_effect": self.get_heartbeat,
+                        "evt_configurationsAvailable.aget.return_value": None,
+                    }
+                ),
+            )
+            # A trick to support calling a regular method (flush) from an
+            # AsyncMock. Basically, attach a regular Mock.
+            getattr(self.mtcs.rem, f"{component}").evt_summaryState.attach_mock(
+                unittest.mock.Mock(),
+                "flush",
+            )
+
+        # Augment MTPtg
+        self.mtcs.rem.mtptg.attach_mock(
+            unittest.mock.AsyncMock(),
+            "cmd_raDecTarget",
+        )
+
+        self.mtcs.rem.mtptg.cmd_raDecTarget.attach_mock(
+            unittest.mock.Mock(
+                **{
+                    "return_value": types.SimpleNamespace(
+                        **self.components_metadata["MTPtg"]
+                        .topic_info["command_raDecTarget"]
+                        .field_info
+                    )
+                }
+            ),
+            "DataType",
+        )
+
+        self.mtcs.rem.mtptg.attach_mock(
+            unittest.mock.AsyncMock(),
+            "cmd_poriginOffset",
+        )
+
+        self.mtcs.rem.mtptg.cmd_poriginOffset.attach_mock(
+            unittest.mock.Mock(),
+            "set",
+        )
+
+        self.mtcs.rem.mtptg.cmd_raDecTarget.attach_mock(
+            unittest.mock.Mock(),
+            "set",
+        )
+
+        self.mtcs.rem.mtptg.cmd_azElTarget.attach_mock(
+            unittest.mock.Mock(),
+            "set",
+        )
+
+        # Augment MTMount
+        mtmount_mocks = {
+            "evt_target.next.side_effect": self.mtmount_evt_target_next,
+            "tel_azimuth.next.side_effect": self.mtmount_tel_azimuth_next,
+            "tel_elevation.next.side_effect": self.mtmount_tel_elevation_next,
+            "tel_elevation.aget.side_effect": self.mtmount_tel_elevation_next,
+            "evt_elevationInPosition.next.side_effect": self.mtmount_evt_elevation_in_position_next,
+            "evt_azimuthInPosition.next.side_effect": self.mtmount_evt_azimuth_in_position_next,
+            "evt_cameraCableWrapFollowing.aget.side_effect": self.mtmount_evt_cameraCableWrapFollowing,
+            "cmd_enableCameraCableWrapFollowing.start.side_effect": self.mtmout_cmd_enable_ccw_following,
+            "cmd_disableCameraCableWrapFollowing.start.side_effect": self.mtmout_cmd_disable_ccw_following,
+        }
+        self.mtcs.rem.mtmount.configure_mock(**mtmount_mocks)
+
+        self.mtcs.rem.mtmount.evt_elevationInPosition.attach_mock(
+            unittest.mock.Mock(),
+            "flush",
+        )
+        self.mtcs.rem.mtmount.evt_azimuthInPosition.attach_mock(
+            unittest.mock.Mock(),
+            "flush",
+        )
+
+        # Augment MTRotator
+        self.mtcs.rem.mtrotator.configure_mock(
+            **{
+                "tel_rotation.next.side_effect": self.mtrotator_tel_rotation_next,
+                "tel_rotation.aget.side_effect": self.mtrotator_tel_rotation_next,
+                "evt_inPosition.next.side_effect": self.mtrotator_evt_in_position_next,
+            }
+        )
+
+        self.mtcs.rem.mtrotator.evt_inPosition.attach_mock(
+            unittest.mock.Mock(),
+            "flush",
+        )
+
+        # Augment MTDome
+        self.mtcs.rem.mtdome.configure_mock(
+            **{
+                "tel_azimuth.next.side_effect": self.mtdome_tel_azimuth_next,
+                "tel_lightWindScreen.next.side_effect": self.mtdome_tel_light_wind_screen_next,
+            }
+        )
+
+        # Augment MTM1M3
+        self.mtcs.rem.mtm1m3.evt_detailedState.attach_mock(
+            unittest.mock.Mock(),
+            "flush",
+        )
+        self.mtcs.rem.mtm1m3.evt_appliedBalanceForces.attach_mock(
+            unittest.mock.Mock(),
+            "flush",
+        )
+
+        self.mtcs.rem.mtm1m3.cmd_lowerM1M3.attach_mock(
+            unittest.mock.Mock(
+                return_value=types.SimpleNamespace(
+                    **self.components_metadata["MTM1M3"]
+                    .topic_info["command_lowerM1M3"]
+                    .field_info
+                )
+            ),
+            "DataType",
+        )
+        self.mtcs.rem.mtm1m3.cmd_raiseM1M3.attach_mock(
+            unittest.mock.Mock(
+                return_value=types.SimpleNamespace(
+                    **self.components_metadata["MTM1M3"]
+                    .topic_info["command_raiseM1M3"]
+                    .field_info
+                )
+            ),
+            "DataType",
+        )
+        data_type_apply_aberration_forces = types.SimpleNamespace(
+            **self.components_metadata["MTM1M3"]
+            .topic_info["command_applyAberrationForces"]
+            .field_info
+        )
+
+        data_type_apply_aberration_forces.zForces = np.zeros(
+            data_type_apply_aberration_forces.zForces.array_length
+        )
+
+        self.mtcs.rem.mtm1m3.cmd_applyAberrationForces.attach_mock(
+            unittest.mock.Mock(return_value=data_type_apply_aberration_forces),
+            "DataType",
+        )
+
+        m1m3_mocks = {
+            "evt_detailedState.next.side_effect": self.mtm1m3_evt_detailed_state,
+            "evt_detailedState.aget.side_effect": self.mtm1m3_evt_detailed_state,
+            "evt_appliedBalanceForces.next.side_effect": self.mtm1m3_evt_applied_balance_forces,
+            "evt_appliedBalanceForces.aget.side_effect": self.mtm1m3_evt_applied_balance_forces,
+            "cmd_raiseM1M3.set_start.side_effect": self.mtm1m3_cmd_raise_m1m3,
+            "cmd_lowerM1M3.set_start.side_effect": self.mtm1m3_cmd_lower_m1m3,
+            "cmd_enableHardpointCorrections.start.side_effect": self.mtm1m3_cmd_enable_hardpoint_corrections,
+            "cmd_abortRaiseM1M3.start.side_effect": self.mtm1m3_cmd_abort_raise_m1m3,
+        }
+        self.mtcs.rem.mtm1m3.configure_mock(**m1m3_mocks)
+
+        # Augment M2
+
+        self.mtcs.rem.mtm2.evt_forceBalanceSystemStatus.attach_mock(
+            unittest.mock.Mock(),
+            "flush",
+        )
+
+        m2_mocks = {
+            "evt_forceBalanceSystemStatus.aget.side_effect": self.mtm2_evt_force_balance_system_status,
+            "evt_forceBalanceSystemStatus.next.side_effect": self.mtm2_evt_force_balance_system_status,
+            "cmd_switchForceBalanceSystem.set_start.side_effect": self.mtm2_cmd_switch_force_balance_system,
+        }
+
+        self.mtcs.rem.mtm2.configure_mock(**m2_mocks)
+
+        # Augment Camera Hexapod
+
+        self.mtcs.rem.mthexapod_1.evt_compensationMode.attach_mock(
+            unittest.mock.Mock(),
+            "flush",
+        )
+        self.mtcs.rem.mthexapod_1.evt_inPosition.attach_mock(
+            unittest.mock.Mock(),
+            "flush",
+        )
+
+        hexapod_1_mocks = {
+            "evt_compensationMode.aget.side_effect": self.mthexapod_1_evt_compensation_mode,
+            "evt_compensationMode.next.side_effect": self.mthexapod_1_evt_compensation_mode,
+            "evt_uncompensatedPosition.aget.side_effect": self.mthexapod_1_evt_uncompensated_position,
+            "evt_uncompensatedPosition.next.side_effect": self.mthexapod_1_evt_uncompensated_position,
+            "evt_inPosition.aget.side_effect": self.mthexapod_1_evt_in_position,
+            "evt_inPosition.next.side_effect": self.mthexapod_1_evt_in_position,
+            "cmd_setCompensationMode.set_start.side_effect": self.mthexapod_1_cmd_set_compensation_mode,
+            "cmd_move.set_start.side_effect": self.mthexapod_1_cmd_move,
+        }
+
+        self.mtcs.rem.mthexapod_1.configure_mock(**hexapod_1_mocks)
+
+        # Augment M2 Hexapod
+        self.mtcs.rem.mthexapod_2.evt_compensationMode.attach_mock(
+            unittest.mock.Mock(),
+            "flush",
+        )
+        self.mtcs.rem.mthexapod_2.evt_inPosition.attach_mock(
+            unittest.mock.Mock(),
+            "flush",
+        )
+
+        hexapod_2_mocks = {
+            "evt_compensationMode.aget.side_effect": self.mthexapod_2_evt_compensation_mode,
+            "evt_compensationMode.next.side_effect": self.mthexapod_2_evt_compensation_mode,
+            "evt_uncompensatedPosition.aget.side_effect": self.mthexapod_2_evt_uncompensated_position,
+            "evt_uncompensatedPosition.next.side_effect": self.mthexapod_2_evt_uncompensated_position,
+            "evt_inPosition.aget.side_effect": self.mthexapod_2_evt_in_position,
+            "evt_inPosition.next.side_effect": self.mthexapod_2_evt_in_position,
+            "cmd_setCompensationMode.set_start.side_effect": self.mthexapod_2_cmd_set_compensation_mode,
+            "cmd_move.set_start.side_effect": self.mthexapod_2_cmd_move,
+        }
+
+        self.mtcs.rem.mthexapod_2.configure_mock(**hexapod_2_mocks)
+
+        # setup some execution times
+        self.execute_raise_lower_m1m3_time = 4.0  # seconds
+        self.heartbeat_time = 1.0  # seconds
+        self.short_process_time = 0.1  # seconds
+        self.normal_process_time = 0.25  # seconds
+
     async def test_coord_facility(self):
         az = 0.0
         el = 75.0
@@ -1328,401 +1723,6 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
                 attribute
                 in self.components_metadata[component].topic_info[topic].field_info
             )
-
-    @classmethod
-    def setUpClass(cls):
-        """This classmethod is only called once, when preparing the unit
-        test.
-        """
-
-        cls.log = logging.getLogger("TestMTCS")
-
-        # Pass in a string as domain to prevent ATCS from trying to create a
-        # domain by itself. When using DryTest usage, the class won't create
-        # any remote. When this method is called there is no event loop
-        # running so all asyncio facilities will fail to create. This is later
-        # rectified in the asyncSetUp.
-        cls.mtcs = MTCS(
-            domain="FakeDomain", log=cls.log, intended_usage=MTCSUsages.DryTest
-        )
-
-        # Decrease telescope settle time to speed up unit test
-        cls.mtcs.tel_settle_time = 0.25
-
-        # Gather metadada information, needed to validate topics versions
-        cls.components_metadata = dict(
-            [
-                (
-                    component,
-                    salobj.parse_idl(
-                        component,
-                        idl.get_idl_dir()
-                        / f"sal_revCoded_{component.split(':')[0]}.idl",
-                    ),
-                )
-                for component in cls.mtcs.components
-            ]
-        )
-        cls.track_id_gen = utils.index_generator(1)
-
-    async def asyncSetUp(self):
-        self.original_lsst_site = os.environ.get("LSST_SITE", None)
-        os.environ["LSST_SITE"] = "test"
-
-        self.mtcs._create_asyncio_events()
-
-        # MTMount data
-        self._mtmount_evt_target = types.SimpleNamespace(
-            trackId=next(self.track_id_gen),
-            azimuth=0.0,
-            elevation=80.0,
-        )
-
-        self._mtmount_evt_cameraCableWrapFollowing = types.SimpleNamespace(enabled=1)
-
-        self._mtmount_tel_azimuth = types.SimpleNamespace(actualPosition=0.0)
-        self._mtmount_tel_elevation = types.SimpleNamespace(actualPosition=80.0)
-
-        self._mtmount_evt_elevation_in_position = types.SimpleNamespace(
-            inPosition=True,
-        )
-        self._mtmount_evt_azimuth_in_position = types.SimpleNamespace(
-            inPosition=True,
-        )
-
-        # MTRotator data
-        self._mtrotator_tel_rotation = types.SimpleNamespace(
-            demandPosition=0.0,
-            actualPosition=0.0,
-        )
-        self._mtrotator_evt_in_position = types.SimpleNamespace(inPosition=True)
-
-        # MTDome data
-        self._mtdome_tel_azimuth = types.SimpleNamespace(
-            positionActual=0.0,
-            positionCommanded=0.0,
-        )
-
-        self._mtdome_tel_light_wind_screen = types.SimpleNamespace(
-            positionActual=0.0,
-            positionCommanded=0.0,
-        )
-
-        # MTM1M3 data
-        self._mtm1m3_evt_detailed_state = types.SimpleNamespace(
-            detailedState=idl.enums.MTM1M3.DetailedState.PARKED
-        )
-        self._mtm1m3_evt_applied_balance_forces = types.SimpleNamespace(
-            forceMagnitude=0.0
-        )
-
-        self._mtm1m3_raise_task = utils.make_done_future()
-        self._mtm1m3_lower_task = utils.make_done_future()
-        self._hardpoint_corrections_task = utils.make_done_future()
-
-        # MTM2 data
-        self._mtm2_evt_force_balance_system_status = types.SimpleNamespace(status=False)
-
-        # Camera hexapod data
-        self._mthexapod_1_evt_compensation_mode = types.SimpleNamespace(enabled=False)
-        self._mthexapod_1_evt_uncompensated_position = types.SimpleNamespace(
-            x=0.0, y=0.0, z=0.0, u=0.0, v=0.0, w=0.0
-        )
-        self._mthexapod_1_evt_in_position = types.SimpleNamespace(inPosition=True)
-        self._mthexapod_1_move_task = utils.make_done_future()
-
-        # M2 hexapod data
-        self._mthexapod_2_evt_compensation_mode = types.SimpleNamespace(enabled=False)
-        self._mthexapod_2_evt_uncompensated_position = types.SimpleNamespace(
-            x=0.0, y=0.0, z=0.0, u=0.0, v=0.0, w=0.0
-        )
-        self._mthexapod_2_evt_in_position = types.SimpleNamespace(inPosition=True)
-        self._mthexapod_2_move_task = utils.make_done_future()
-
-        # Setup AsyncMock. The idea is to replace the placeholder for the
-        # remotes (in mtcs.rem) by AsyncMock. The remote for each component is
-        # replaced by an AsyncMock and later augmented to emulate the behavior
-        # of the Remote->Controller interaction with side_effect and
-        # return_value.
-        for component in self.mtcs.components_attr:
-            setattr(self.mtcs.rem, component, unittest.mock.AsyncMock())
-
-        # Setup data to support summary state manipulation
-        self.summary_state = dict(
-            [
-                (comp, types.SimpleNamespace(summaryState=int(salobj.State.ENABLED)))
-                for comp in self.mtcs.components_attr
-            ]
-        )
-
-        self.summary_state_queue = dict(
-            [
-                (comp, [types.SimpleNamespace(summaryState=int(salobj.State.ENABLED))])
-                for comp in self.mtcs.components_attr
-            ]
-        )
-
-        self.summary_state_queue_event = dict(
-            [(comp, asyncio.Event()) for comp in self.mtcs.components_attr]
-        )
-
-        # Setup AsyncMock. The idea is to replace the placeholder for the
-        # remotes (in atcs.rem) by AsyncMock. The remote for each component is
-        # replaced by an AsyncMock and later augmented to emulate the behavior
-        # of the Remote->Controller interaction with side_effect and
-        # return_value.
-        # By default all mocks are augmented to handle summary state setting.
-        for component in self.mtcs.components_attr:
-            setattr(
-                self.mtcs.rem,
-                component,
-                unittest.mock.AsyncMock(
-                    **{
-                        "cmd_start.set_start.side_effect": self.set_summary_state_for(
-                            component, salobj.State.DISABLED
-                        ),
-                        "cmd_enable.start.side_effect": self.set_summary_state_for(
-                            component, salobj.State.ENABLED
-                        ),
-                        "cmd_disable.start.side_effect": self.set_summary_state_for(
-                            component, salobj.State.DISABLED
-                        ),
-                        "cmd_standby.start.side_effect": self.set_summary_state_for(
-                            component, salobj.State.STANDBY
-                        ),
-                        "evt_summaryState.next.side_effect": self.next_summary_state_for(
-                            component
-                        ),
-                        "evt_summaryState.aget.side_effect": self.get_summary_state_for(
-                            component
-                        ),
-                        "evt_heartbeat.next.side_effect": self.get_heartbeat,
-                        "evt_heartbeat.aget.side_effect": self.get_heartbeat,
-                        "evt_configurationsAvailable.aget.return_value": None,
-                    }
-                ),
-            )
-            # A trick to support calling a regular method (flush) from an
-            # AsyncMock. Basically, attach a regular Mock.
-            getattr(self.mtcs.rem, f"{component}").evt_summaryState.attach_mock(
-                unittest.mock.Mock(),
-                "flush",
-            )
-
-        # Augment MTPtg
-        self.mtcs.rem.mtptg.attach_mock(
-            unittest.mock.AsyncMock(),
-            "cmd_raDecTarget",
-        )
-
-        self.mtcs.rem.mtptg.cmd_raDecTarget.attach_mock(
-            unittest.mock.Mock(
-                **{
-                    "return_value": types.SimpleNamespace(
-                        **self.components_metadata["MTPtg"]
-                        .topic_info["command_raDecTarget"]
-                        .field_info
-                    )
-                }
-            ),
-            "DataType",
-        )
-
-        self.mtcs.rem.mtptg.attach_mock(
-            unittest.mock.AsyncMock(),
-            "cmd_poriginOffset",
-        )
-
-        self.mtcs.rem.mtptg.cmd_poriginOffset.attach_mock(
-            unittest.mock.Mock(),
-            "set",
-        )
-
-        self.mtcs.rem.mtptg.cmd_raDecTarget.attach_mock(
-            unittest.mock.Mock(),
-            "set",
-        )
-
-        self.mtcs.rem.mtptg.cmd_azElTarget.attach_mock(
-            unittest.mock.Mock(),
-            "set",
-        )
-
-        # Augment MTMount
-        mtmount_mocks = {
-            "evt_target.next.side_effect": self.mtmount_evt_target_next,
-            "tel_azimuth.next.side_effect": self.mtmount_tel_azimuth_next,
-            "tel_elevation.next.side_effect": self.mtmount_tel_elevation_next,
-            "tel_elevation.aget.side_effect": self.mtmount_tel_elevation_next,
-            "evt_elevationInPosition.next.side_effect": self.mtmount_evt_elevation_in_position_next,
-            "evt_azimuthInPosition.next.side_effect": self.mtmount_evt_azimuth_in_position_next,
-            "evt_cameraCableWrapFollowing.aget.side_effect": self.mtmount_evt_cameraCableWrapFollowing,
-            "cmd_enableCameraCableWrapFollowing.start.side_effect": self.mtmout_cmd_enable_ccw_following,
-            "cmd_disableCameraCableWrapFollowing.start.side_effect": self.mtmout_cmd_disable_ccw_following,
-        }
-        self.mtcs.rem.mtmount.configure_mock(**mtmount_mocks)
-
-        self.mtcs.rem.mtmount.evt_elevationInPosition.attach_mock(
-            unittest.mock.Mock(),
-            "flush",
-        )
-        self.mtcs.rem.mtmount.evt_azimuthInPosition.attach_mock(
-            unittest.mock.Mock(),
-            "flush",
-        )
-
-        # Augment MTRotator
-        self.mtcs.rem.mtrotator.configure_mock(
-            **{
-                "tel_rotation.next.side_effect": self.mtrotator_tel_rotation_next,
-                "tel_rotation.aget.side_effect": self.mtrotator_tel_rotation_next,
-                "evt_inPosition.next.side_effect": self.mtrotator_evt_in_position_next,
-            }
-        )
-
-        self.mtcs.rem.mtrotator.evt_inPosition.attach_mock(
-            unittest.mock.Mock(),
-            "flush",
-        )
-
-        # Augment MTDome
-        self.mtcs.rem.mtdome.configure_mock(
-            **{
-                "tel_azimuth.next.side_effect": self.mtdome_tel_azimuth_next,
-                "tel_lightWindScreen.next.side_effect": self.mtdome_tel_light_wind_screen_next,
-            }
-        )
-
-        # Augment MTM1M3
-        self.mtcs.rem.mtm1m3.evt_detailedState.attach_mock(
-            unittest.mock.Mock(),
-            "flush",
-        )
-        self.mtcs.rem.mtm1m3.evt_appliedBalanceForces.attach_mock(
-            unittest.mock.Mock(),
-            "flush",
-        )
-
-        self.mtcs.rem.mtm1m3.cmd_lowerM1M3.attach_mock(
-            unittest.mock.Mock(
-                return_value=types.SimpleNamespace(
-                    **self.components_metadata["MTM1M3"]
-                    .topic_info["command_lowerM1M3"]
-                    .field_info
-                )
-            ),
-            "DataType",
-        )
-        self.mtcs.rem.mtm1m3.cmd_raiseM1M3.attach_mock(
-            unittest.mock.Mock(
-                return_value=types.SimpleNamespace(
-                    **self.components_metadata["MTM1M3"]
-                    .topic_info["command_raiseM1M3"]
-                    .field_info
-                )
-            ),
-            "DataType",
-        )
-        data_type_apply_aberration_forces = types.SimpleNamespace(
-            **self.components_metadata["MTM1M3"]
-            .topic_info["command_applyAberrationForces"]
-            .field_info
-        )
-
-        data_type_apply_aberration_forces.zForces = np.zeros(
-            data_type_apply_aberration_forces.zForces.array_length
-        )
-
-        self.mtcs.rem.mtm1m3.cmd_applyAberrationForces.attach_mock(
-            unittest.mock.Mock(return_value=data_type_apply_aberration_forces),
-            "DataType",
-        )
-
-        m1m3_mocks = {
-            "evt_detailedState.next.side_effect": self.mtm1m3_evt_detailed_state,
-            "evt_detailedState.aget.side_effect": self.mtm1m3_evt_detailed_state,
-            "evt_appliedBalanceForces.next.side_effect": self.mtm1m3_evt_applied_balance_forces,
-            "evt_appliedBalanceForces.aget.side_effect": self.mtm1m3_evt_applied_balance_forces,
-            "cmd_raiseM1M3.set_start.side_effect": self.mtm1m3_cmd_raise_m1m3,
-            "cmd_lowerM1M3.set_start.side_effect": self.mtm1m3_cmd_lower_m1m3,
-            "cmd_enableHardpointCorrections.start.side_effect": self.mtm1m3_cmd_enable_hardpoint_corrections,
-            "cmd_abortRaiseM1M3.start.side_effect": self.mtm1m3_cmd_abort_raise_m1m3,
-        }
-        self.mtcs.rem.mtm1m3.configure_mock(**m1m3_mocks)
-
-        # Augment M2
-
-        self.mtcs.rem.mtm2.evt_forceBalanceSystemStatus.attach_mock(
-            unittest.mock.Mock(),
-            "flush",
-        )
-
-        m2_mocks = {
-            "evt_forceBalanceSystemStatus.aget.side_effect": self.mtm2_evt_force_balance_system_status,
-            "evt_forceBalanceSystemStatus.next.side_effect": self.mtm2_evt_force_balance_system_status,
-            "cmd_switchForceBalanceSystem.set_start.side_effect": self.mtm2_cmd_switch_force_balance_system,
-        }
-
-        self.mtcs.rem.mtm2.configure_mock(**m2_mocks)
-
-        # Augment Camera Hexapod
-
-        self.mtcs.rem.mthexapod_1.evt_compensationMode.attach_mock(
-            unittest.mock.Mock(),
-            "flush",
-        )
-        self.mtcs.rem.mthexapod_1.evt_inPosition.attach_mock(
-            unittest.mock.Mock(),
-            "flush",
-        )
-
-        hexapod_1_mocks = {
-            "evt_compensationMode.aget.side_effect": self.mthexapod_1_evt_compensation_mode,
-            "evt_compensationMode.next.side_effect": self.mthexapod_1_evt_compensation_mode,
-            "evt_uncompensatedPosition.aget.side_effect": self.mthexapod_1_evt_uncompensated_position,
-            "evt_uncompensatedPosition.next.side_effect": self.mthexapod_1_evt_uncompensated_position,
-            "evt_inPosition.aget.side_effect": self.mthexapod_1_evt_in_position,
-            "evt_inPosition.next.side_effect": self.mthexapod_1_evt_in_position,
-            "cmd_setCompensationMode.set_start.side_effect": self.mthexapod_1_cmd_set_compensation_mode,
-            "cmd_move.set_start.side_effect": self.mthexapod_1_cmd_move,
-        }
-
-        self.mtcs.rem.mthexapod_1.configure_mock(**hexapod_1_mocks)
-
-        # Augment M2 Hexapod
-        self.mtcs.rem.mthexapod_2.evt_compensationMode.attach_mock(
-            unittest.mock.Mock(),
-            "flush",
-        )
-        self.mtcs.rem.mthexapod_2.evt_inPosition.attach_mock(
-            unittest.mock.Mock(),
-            "flush",
-        )
-
-        hexapod_2_mocks = {
-            "evt_compensationMode.aget.side_effect": self.mthexapod_2_evt_compensation_mode,
-            "evt_compensationMode.next.side_effect": self.mthexapod_2_evt_compensation_mode,
-            "evt_uncompensatedPosition.aget.side_effect": self.mthexapod_2_evt_uncompensated_position,
-            "evt_uncompensatedPosition.next.side_effect": self.mthexapod_2_evt_uncompensated_position,
-            "evt_inPosition.aget.side_effect": self.mthexapod_2_evt_in_position,
-            "evt_inPosition.next.side_effect": self.mthexapod_2_evt_in_position,
-            "cmd_setCompensationMode.set_start.side_effect": self.mthexapod_2_cmd_set_compensation_mode,
-            "cmd_move.set_start.side_effect": self.mthexapod_2_cmd_move,
-        }
-
-        self.mtcs.rem.mthexapod_2.configure_mock(**hexapod_2_mocks)
-
-        # setup some execution times
-        self.execute_raise_lower_m1m3_time = 4.0  # seconds
-        self.heartbeat_time = 1.0  # seconds
-        self.short_process_time = 0.1  # seconds
-        self.normal_process_time = 0.25  # seconds
-
-    def tearDown(self):
-        if self.original_lsst_site is None:
-            del os.environ["LSST_SITE"]
-        else:
-            os.environ["LSST_SITE"] = self.original_lsst_site
 
     async def get_heartbeat(self, *args, **kwargs):
         """Emulate heartbeat functionality."""

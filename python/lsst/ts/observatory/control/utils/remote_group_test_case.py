@@ -24,7 +24,6 @@ __all__ = ["RemoteGroupTestCase"]
 import abc
 import asyncio
 import contextlib
-import os
 import random
 import time
 
@@ -55,18 +54,15 @@ class RemoteGroupTestCase(metaclass=abc.ABCMeta):
 
     _index_iter = utils.index_generator()
 
-    def setUp(self) -> None:
-        salobj.set_random_lsst_dds_partition_prefix()
-        self.original_lsst_site = os.environ.get("LSST_SITE", None)
-        os.environ["LSST_SITE"] = "test"
+    def run(self, result=None):
+        """Override `run` to set a random LSST_DDS_PARTITION_PREFIX
+        and set LSST_SITE=test for every test.
 
-    def tearDown(self) -> None:
-        if not hasattr(self, "original_lsst_site"):
-            raise RuntimeError("Call super().setUp() in your setUp method")
-        if self.original_lsst_site is None:
-            del os.environ["LSST_SITE"]
-        else:
-            os.environ["LSST_SITE"] = self.original_lsst_site
+        https://stackoverflow.com/a/11180583
+        """
+        salobj.set_random_lsst_dds_partition_prefix()
+        with utils.modify_environ(LSST_SITE="test"):
+            super().run(result)
 
     @abc.abstractmethod
     async def basic_make_group(self, usage=None):
