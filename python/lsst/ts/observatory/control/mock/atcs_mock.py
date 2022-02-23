@@ -29,7 +29,7 @@ from .base_group_mock import BaseGroupMock
 
 import astropy.units as u
 from astropy.time import Time
-from astropy.coordinates import EarthLocation, Angle
+from astropy.coordinates import EarthLocation
 
 from lsst.ts import salobj
 from lsst.ts.idl.enums import ATDome, ATPneumatics, ATMCS, ATPtg
@@ -209,22 +209,11 @@ class ATCSMock(BaseGroupMock):
     async def atptg_telemetry(self):
         while self.run_telemetry_loop:
             now = Time.now()
-            time_and_date = self.atptg.tel_timeAndDate.DataType()
-            time_and_date.timestamp = now.tai.mjd
-            time_and_date.utc = (
-                now.utc.value.hour
-                + now.utc.value.minute / 60.0
-                + (now.utc.value.second + now.utc.value.microsecond / 1e3) / 60.0 / 60.0
+            await self.atptg.tel_timeAndDate.set_write(
+                timestamp=now.unix_tai,
+                utc=now.utc.mjd,
+                lst=now.sidereal_time("mean", self.location.lon).value,
             )
-            if type(time_and_date.lst) is str:
-                time_and_date.lst = Angle(
-                    now.sidereal_time("mean", self.location.lon)
-                ).to_string(sep=":")
-            else:
-                time_and_date.lst = now.sidereal_time("mean", self.location.lon).value
-
-            await self.atptg.tel_timeAndDate.write(time_and_date)
-
             await asyncio.sleep(1.0)
 
     async def ataos_telemetry(self):

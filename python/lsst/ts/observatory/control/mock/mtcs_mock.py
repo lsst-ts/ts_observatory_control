@@ -307,7 +307,7 @@ class MTCSMock(BaseGroupMock):
                     )
                 elif (
                     self.controllers.mtmount.evt_elevationMotionState.data.state
-                    == MTMount.AxisState.TRACKING
+                    == MTMount.AxisMotionState.TRACKING
                 ):
                     await self.controllers.mtmount.evt_elevationMotionState.set_write(
                         state=MTMount.AxisMotionState.STOPPING
@@ -528,25 +528,11 @@ class MTCSMock(BaseGroupMock):
                 == salobj.State.ENABLED
             ):
                 now = Time.now()
-                time_and_date = self.controllers.mtptg.tel_timeAndDate.DataType()
-                time_and_date.timestamp = now.tai.mjd
-                time_and_date.utc = (
-                    now.utc.value.hour
-                    + now.utc.value.minute / 60.0
-                    + (now.utc.value.second + now.utc.value.microsecond / 1e3)
-                    / 60.0
-                    / 60.0
+                await self.controllers.mtptg.tel_timeAndDate.set_write(
+                    timestamp=now.unix_tai,
+                    utc=now.utc.mjd,
+                    lst=now.sidereal_time("mean", self.location.lon).value,
                 )
-                if type(time_and_date.lst) is str:
-                    time_and_date.lst = Angle(
-                        now.sidereal_time("mean", self.location.lon)
-                    ).to_string(sep=":")
-                else:
-                    time_and_date.lst = now.sidereal_time(
-                        "mean", self.location.lon
-                    ).value
-
-                await self.controllers.mtptg.tel_timeAndDate.write(time_and_date)
 
                 if self.tracking:
                     radec_icrs = ICRS(
