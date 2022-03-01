@@ -29,7 +29,7 @@ from .base_group_mock import BaseGroupMock
 
 import astropy.units as u
 from astropy.time import Time
-from astropy.coordinates import EarthLocation, Angle
+from astropy.coordinates import EarthLocation
 
 from lsst.ts import salobj
 from lsst.ts.idl.enums import ATDome, ATPneumatics, ATMCS, ATPtg
@@ -95,8 +95,6 @@ class ATCSMock(BaseGroupMock):
         self.dom_az = 0.0
         self.is_dome_homming = False
 
-        self.m1_cover_state = ATPneumatics.MirrorCoverState.CLOSED
-
         self.track = False
 
         self.atmcs_telemetry_task = None
@@ -159,9 +157,8 @@ class ATCSMock(BaseGroupMock):
             self.atpneumatics.evt_m1CoverState.data.state
         )
 
-    @m1_cover_state.setter
-    def m1_cover_state(self, value):
-        self.atpneumatics.evt_m1CoverState.set_put(state=value)
+    async def set_m1_cover_state(self, value):
+        await self.atpneumatics.evt_m1CoverState.set_write(state=value)
 
     async def start_task_publish(self):
 
@@ -170,10 +167,14 @@ class ATCSMock(BaseGroupMock):
 
         await super().start_task_publish()
 
-        self.atmcs.evt_atMountState.set_put(state=ATMCS.AtMountState.TRACKINGDISABLED)
-        self.atdome.evt_scbLink.set_put(active=True, force_output=True)
-        self.atdome.evt_azimuthCommandedState.put()
-        self.atptg.evt_focusNameSelected.set_put(focus=ATPtg.Foci.NASMYTH2)
+        await self.set_m1_cover_state(ATPneumatics.MirrorCoverState.CLOSED)
+
+        await self.atmcs.evt_atMountState.set_write(
+            state=ATMCS.AtMountState.TRACKINGDISABLED
+        )
+        await self.atdome.evt_scbLink.set_write(active=True, force_output=True)
+        await self.atdome.evt_azimuthCommandedState.write()
+        await self.atptg.evt_focusNameSelected.set_write(focus=ATPtg.Foci.NASMYTH2)
 
         self.atmcs_telemetry_task = asyncio.create_task(self.atmcs_telemetry())
         self.atdome_telemetry_task = asyncio.create_task(self.atdome_telemetry())
@@ -183,17 +184,17 @@ class ATCSMock(BaseGroupMock):
     async def atmcs_telemetry(self):
         while self.run_telemetry_loop:
 
-            self.atmcs.tel_mount_AzEl_Encoders.set_put(
+            await self.atmcs.tel_mount_AzEl_Encoders.set_write(
                 elevationCalculatedAngle=np.zeros(100) + self.tel_alt,
                 azimuthCalculatedAngle=np.zeros(100) + self.tel_az,
             )
 
-            self.atmcs.tel_mount_Nasmyth_Encoders.put()
+            await self.atmcs.tel_mount_Nasmyth_Encoders.write()
 
-            self.atpneumatics.evt_m1VentsPosition.put()  # only output when it changes
+            await self.atpneumatics.evt_m1VentsPosition.write()  # only output when it changes
 
             if self.track:
-                self.atmcs.evt_target.set_put(
+                await self.atmcs.evt_target.set_write(
                     elevation=self.tel_alt, azimuth=self.tel_az, force_output=True
                 )
 
@@ -201,34 +202,23 @@ class ATCSMock(BaseGroupMock):
 
     async def atdome_telemetry(self):
         while self.run_telemetry_loop:
-            self.atdome.tel_position.set_put(azimuthPosition=self.dom_az)
-            self.atdome.evt_azimuthState.set_put(homing=self.is_dome_homming)
+            await self.atdome.tel_position.set_write(azimuthPosition=self.dom_az)
+            await self.atdome.evt_azimuthState.set_write(homing=self.is_dome_homming)
             await asyncio.sleep(1.0)
 
     async def atptg_telemetry(self):
         while self.run_telemetry_loop:
             now = Time.now()
-            time_and_date = self.atptg.tel_timeAndDate.DataType()
-            time_and_date.timestamp = now.tai.mjd
-            time_and_date.utc = (
-                now.utc.value.hour
-                + now.utc.value.minute / 60.0
-                + (now.utc.value.second + now.utc.value.microsecond / 1e3) / 60.0 / 60.0
+            await self.atptg.tel_timeAndDate.set_write(
+                timestamp=now.unix_tai,
+                utc=now.utc.mjd,
+                lst=now.sidereal_time("mean", self.location.lon).value,
             )
-            if type(time_and_date.lst) is str:
-                time_and_date.lst = Angle(
-                    now.sidereal_time("mean", self.location.lon)
-                ).to_string(sep=":")
-            else:
-                time_and_date.lst = now.sidereal_time("mean", self.location.lon).value
-
-            self.atptg.tel_timeAndDate.put(time_and_date)
-
             await asyncio.sleep(1.0)
 
     async def ataos_telemetry(self):
 
-        self.ataos.evt_correctionEnabled.set_put()
+        await self.ataos.evt_correctionEnabled.set_write()
 
         correction_times = cycle((1, 1, 2, 4, 10))
         while self.run_telemetry_loop:
@@ -238,34 +228,34 @@ class ATCSMock(BaseGroupMock):
                     if getattr(
                         self.ataos.evt_correctionEnabled.data, correction
                     ) and hasattr(self.ataos, f"evt_{correction}CorrectionStarted"):
-                        getattr(
+                        await getattr(
                             self.ataos, f"evt_{correction}CorrectionStarted"
-                        ).set_put(force_output=True)
+                        ).set_write(force_output=True)
                 await asyncio.sleep(0.5)
                 for correction in self.ataos_corrections:
                     if getattr(
                         self.ataos.evt_correctionEnabled.data, correction
                     ) and hasattr(self.ataos, f"evt_{correction}CorrectionCompleted"):
-                        getattr(
+                        await getattr(
                             self.ataos, f"evt_{correction}CorrectionCompleted"
-                        ).set_put(force_output=True)
+                        ).set_write(force_output=True)
             await asyncio.sleep(next(correction_times))
 
     async def atmcs_wait_and_fault(self, wait_time):
-        self.atmcs.evt_summaryState.set_put(
+        await self.atmcs.evt_summaryState.set_write(
             summaryState=salobj.State.ENABLED, force_output=True
         )
         await asyncio.sleep(wait_time)
-        self.atmcs.evt_summaryState.set_put(
+        await self.atmcs.evt_summaryState.set_write(
             summaryState=salobj.State.FAULT, force_output=True
         )
 
     async def atptg_wait_and_fault(self, wait_time):
-        self.atptg.evt_summaryState.set_put(
+        await self.atptg.evt_summaryState.set_write(
             summaryState=salobj.State.ENABLED, force_output=True
         )
         await asyncio.sleep(wait_time)
-        self.atptg.evt_summaryState.set_put(
+        await self.atptg.evt_summaryState.set_write(
             summaryState=salobj.State.FAULT, force_output=True
         )
 
@@ -320,15 +310,15 @@ class ATCSMock(BaseGroupMock):
 
     async def open_m1_cover(self):
         await asyncio.sleep(0.5)
-        self.m1_cover_state = ATPneumatics.MirrorCoverState.INMOTION
+        await self.set_m1_cover_state(ATPneumatics.MirrorCoverState.INMOTION)
         await asyncio.sleep(5.0)
-        self.m1_cover_state = ATPneumatics.MirrorCoverState.OPENED
+        await self.set_m1_cover_state(ATPneumatics.MirrorCoverState.OPENED)
 
     async def close_m1_cover(self):
         await asyncio.sleep(0.5)
-        self.m1_cover_state = ATPneumatics.MirrorCoverState.INMOTION
+        await self.set_m1_cover_state(ATPneumatics.MirrorCoverState.INMOTION)
         await asyncio.sleep(5.0)
-        self.m1_cover_state = ATPneumatics.MirrorCoverState.CLOSED
+        await self.set_m1_cover_state(ATPneumatics.MirrorCoverState.CLOSED)
 
     async def open_m1_cell_vents(self):
         self.atpneumatics.evt_m1VentsPosition.set(
@@ -352,14 +342,14 @@ class ATCSMock(BaseGroupMock):
         print("Homing dome")
         await asyncio.sleep(0.5)
         self.is_dome_homming = True
-        self.atdome.evt_azimuthCommandedState.set_put(
+        await self.atdome.evt_azimuthCommandedState.set_write(
             azimuth=0.0, commandedState=ATDome.AzimuthCommandedState.HOME
         )
 
         await asyncio.sleep(5.0)
         print("Dome homed")
         self.dom_az = 0.0
-        self.atdome.evt_azimuthCommandedState.set_put(
+        await self.atdome.evt_azimuthCommandedState.set_write(
             azimuth=0.0, commandedState=ATDome.AzimuthCommandedState.STOP
         )
         self.is_dome_homming = False
@@ -368,19 +358,25 @@ class ATCSMock(BaseGroupMock):
         """Fake slew waits 5 seconds, then reports all axes
         in position. Does not simulate the actual slew.
         """
-        self.atmcs.evt_allAxesInPosition.set_put(inPosition=False, force_output=True)
-        self.atdome.evt_azimuthInPosition.set_put(inPosition=False, force_output=True)
+        await self.atmcs.evt_allAxesInPosition.set_write(
+            inPosition=False, force_output=True
+        )
+        await self.atdome.evt_azimuthInPosition.set_write(
+            inPosition=False, force_output=True
+        )
 
-        self.atdome.evt_azimuthCommandedState.put()
+        await self.atdome.evt_azimuthCommandedState.write()
         self.track = True
         self.task_list.append(asyncio.create_task(self.wait_and_send_inposition()))
 
     async def move_dome(self, data):
 
         print(f"Move dome {self.dom_az} -> {data.azimuth}")
-        self.atdome.evt_azimuthInPosition.set_put(inPosition=False, force_output=True)
+        await self.atdome.evt_azimuthInPosition.set_write(
+            inPosition=False, force_output=True
+        )
 
-        self.atdome.evt_azimuthCommandedState.set_put(
+        await self.atdome.evt_azimuthCommandedState.set_write(
             azimuth=data.azimuth,
             commandedState=ATDome.AzimuthCommandedState.GOTOPOSITION,
             force_output=True,
@@ -389,32 +385,44 @@ class ATCSMock(BaseGroupMock):
         await asyncio.sleep(self.slew_time)
         self.dom_az = data.azimuth
 
-        self.atdome.evt_azimuthCommandedState.set_put(
+        await self.atdome.evt_azimuthCommandedState.set_write(
             azimuth=data.azimuth,
             commandedState=ATDome.AzimuthCommandedState.STOP,
             force_output=True,
         )
-        self.atdome.evt_azimuthInPosition.set_put(inPosition=True, force_output=True)
+        await self.atdome.evt_azimuthInPosition.set_write(
+            inPosition=True, force_output=True
+        )
 
     async def stop_tracking_callback(self, data):
         print("Stop tracking start")
-        self.atmcs.evt_atMountState.set_put(state=ATMCS.AtMountState.STOPPING)
+        await self.atmcs.evt_atMountState.set_write(state=ATMCS.AtMountState.STOPPING)
         await asyncio.sleep(0.5)
         self.track = False
-        self.atmcs.evt_atMountState.set_put(state=ATMCS.AtMountState.TRACKINGDISABLED)
+        await self.atmcs.evt_atMountState.set_write(
+            state=ATMCS.AtMountState.TRACKINGDISABLED
+        )
         await asyncio.sleep(0.5)
-        self.atmcs.evt_allAxesInPosition.set_put(inPosition=False, force_output=True)
+        await self.atmcs.evt_allAxesInPosition.set_write(
+            inPosition=False, force_output=True
+        )
 
         print("Stop tracking end")
 
     async def wait_and_send_inposition(self):
 
         await asyncio.sleep(self.slew_time)
-        self.atmcs.evt_allAxesInPosition.set_put(inPosition=True, force_output=True)
+        await self.atmcs.evt_allAxesInPosition.set_write(
+            inPosition=True, force_output=True
+        )
         await asyncio.sleep(0.5)
-        self.atdome.evt_azimuthInPosition.set_put(inPosition=True, force_output=True)
+        await self.atdome.evt_azimuthInPosition.set_write(
+            inPosition=True, force_output=True
+        )
 
-        self.atmcs.evt_atMountState.set_put(state=ATMCS.AtMountState.TRACKINGENABLED)
+        await self.atmcs.evt_atMountState.set_write(
+            state=ATMCS.AtMountState.TRACKINGENABLED
+        )
 
     async def move_shutter_callback(self, data):
         if data.open and self.dome_shutter_pos == 0.0:
@@ -442,15 +450,23 @@ class ATCSMock(BaseGroupMock):
                 f"should be {ATDome.ShutterDoorState.CLOSED!r}."
             )
 
-        self.atdome.evt_shutterInPosition.set_put(inPosition=False, force_output=True)
-        self.atdome.evt_mainDoorState.set_put(state=ATDome.ShutterDoorState.OPENING)
+        await self.atdome.evt_shutterInPosition.set_write(
+            inPosition=False, force_output=True
+        )
+        await self.atdome.evt_mainDoorState.set_write(
+            state=ATDome.ShutterDoorState.OPENING
+        )
         for self.dome_shutter_pos in np.linspace(0.0, 1.0, 10):
-            self.atdome.tel_position.set_put(
+            await self.atdome.tel_position.set_write(
                 mainDoorOpeningPercentage=self.dome_shutter_pos
             )
             await asyncio.sleep(self.slew_time / 10.0)
-        self.atdome.evt_shutterInPosition.set_put(inPosition=True, force_output=True)
-        self.atdome.evt_mainDoorState.set_put(state=ATDome.ShutterDoorState.OPENED)
+        await self.atdome.evt_shutterInPosition.set_write(
+            inPosition=True, force_output=True
+        )
+        await self.atdome.evt_mainDoorState.set_write(
+            state=ATDome.ShutterDoorState.OPENED
+        )
 
     async def close_shutter(self):
         if self.atdome.evt_mainDoorState.data.state != ATDome.ShutterDoorState.OPENED:
@@ -459,15 +475,23 @@ class ATCSMock(BaseGroupMock):
                 f"should be {ATDome.ShutterDoorState.OPENED!r}."
             )
 
-        self.atdome.evt_shutterInPosition.set_put(inPosition=False, force_output=True)
-        self.atdome.evt_mainDoorState.set_put(state=ATDome.ShutterDoorState.CLOSING)
+        await self.atdome.evt_shutterInPosition.set_write(
+            inPosition=False, force_output=True
+        )
+        await self.atdome.evt_mainDoorState.set_write(
+            state=ATDome.ShutterDoorState.CLOSING
+        )
         for self.dome_shutter_pos in np.linspace(1.0, 0.0, 10):
-            self.atdome.tel_position.set_put(
+            await self.atdome.tel_position.set_write(
                 mainDoorOpeningPercentage=self.dome_shutter_pos
             )
             await asyncio.sleep(self.slew_time / 10.0)
-        self.atdome.evt_shutterInPosition.set_put(inPosition=True, force_output=True)
-        self.atdome.evt_mainDoorState.set_put(state=ATDome.ShutterDoorState.CLOSED)
+        await self.atdome.evt_shutterInPosition.set_write(
+            inPosition=True, force_output=True
+        )
+        await self.atdome.evt_mainDoorState.set_write(
+            state=ATDome.ShutterDoorState.CLOSED
+        )
 
     async def atdome_start_callback(self, data):
         """ATDome start commands do more than the generic callback."""
@@ -482,16 +506,20 @@ class ATCSMock(BaseGroupMock):
 
         print(
             f"[atdome] {ss.data.summaryState!r} -> {salobj.State.DISABLED!r} "
-            f"[{data.settingsToApply}]"
+            f"[{data.configurationOverride}]"
         )
 
-        ss.set_put(summaryState=salobj.State.DISABLED)
+        await ss.set_write(summaryState=salobj.State.DISABLED)
 
-        self.settings_to_apply["atdome"] = data.settingsToApply
+        self.override["atdome"] = data.configurationOverride
 
-        self.atdome.evt_mainDoorState.set_put(state=ATDome.ShutterDoorState.CLOSED)
+        await self.atdome.evt_mainDoorState.set_write(
+            state=ATDome.ShutterDoorState.CLOSED
+        )
         self.atdome.tel_position.set(azimuthPosition=0.0)
-        self.atdome.evt_azimuthInPosition.set_put(inPosition=True, force_output=True)
+        await self.atdome.evt_azimuthInPosition.set_write(
+            inPosition=True, force_output=True
+        )
 
         await asyncio.sleep(HEARTBEAT_INTERVAL)
 
@@ -502,7 +530,7 @@ class ATCSMock(BaseGroupMock):
         for correction in self.ataos_corrections:
             if getattr(data, correction):
                 enable_corrections[correction] = True
-        self.ataos.evt_correctionEnabled.set_put(**enable_corrections)
+        await self.ataos.evt_correctionEnabled.set_write(**enable_corrections)
 
     async def ataos_disable_corrections(self, data):
         """"""
@@ -511,7 +539,7 @@ class ATCSMock(BaseGroupMock):
         for correction in self.ataos_corrections:
             if getattr(data, correction):
                 disable_corrections[correction] = False
-        self.ataos.evt_correctionEnabled.set_put(**disable_corrections)
+        await self.ataos.evt_correctionEnabled.set_write(**disable_corrections)
 
     async def close(self):
 

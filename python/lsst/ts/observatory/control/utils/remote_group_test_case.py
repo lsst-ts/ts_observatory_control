@@ -54,6 +54,16 @@ class RemoteGroupTestCase(metaclass=abc.ABCMeta):
 
     _index_iter = utils.index_generator()
 
+    def run(self, result=None):
+        """Override `run` to set a random LSST_DDS_PARTITION_PREFIX
+        and set LSST_SITE=test for every test.
+
+        https://stackoverflow.com/a/11180583
+        """
+        salobj.set_random_lsst_dds_partition_prefix()
+        with utils.modify_environ(LSST_SITE="test"):
+            super().run(result)
+
     @abc.abstractmethod
     async def basic_make_group(self, usage=None):
         """Make a group as self.group.
@@ -96,8 +106,6 @@ class RemoteGroupTestCase(metaclass=abc.ABCMeta):
         verbose : `bool`
             Log data? This can be helpful for setting ``timeout``.
         """
-        salobj.set_random_lsst_dds_partition_prefix()
-
         items_to_await = await self.wait_for(
             self.basic_make_group(usage),
             timeout=timeout,

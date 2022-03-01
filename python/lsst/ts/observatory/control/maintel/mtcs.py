@@ -623,7 +623,7 @@ class MTCS(BaseTCS):
         # TODO: Implement (DM-21336).
         raise NotImplementedError("# TODO: Implement (DM-21336).")
 
-    def prepare_for_onsky(self, settings=None):
+    def prepare_for_onsky(self, overrides=None):
         # TODO: Implement (DM-21336).
         raise NotImplementedError("# TODO: Implement (DM-21336).")
 
@@ -1226,7 +1226,7 @@ class MTCS(BaseTCS):
                     "exitControl",
                     "enterControl",
                     "summaryState",
-                    "settingVersions",
+                    "configurationsAvailable",
                     "heartbeat",
                 ],
                 mtptg=[
@@ -1256,7 +1256,7 @@ class MTCS(BaseTCS):
             usages[self.valid_use_cases.Slew] = UsagesResources(
                 components_attr=self.components_attr,
                 readonly=False,
-                generics=["summaryState", "settingVersions", "heartbeat"],
+                generics=["summaryState", "configurationsAvailable", "heartbeat"],
                 mtptg=[
                     "azElTarget",
                     "raDecTarget",
@@ -1293,7 +1293,7 @@ class MTCS(BaseTCS):
                     "exitControl",
                     "enterControl",
                     "summaryState",
-                    "settingVersions",
+                    "configurationsAvailable",
                     "heartbeat",
                 ],
                 mtptg=["azElTarget", "stopTracking", "focusNameSelected"],
@@ -1317,7 +1317,7 @@ class MTCS(BaseTCS):
                     "exitControl",
                     "enterControl",
                     "summaryState",
-                    "settingVersions",
+                    "configurationsAvailable",
                     "heartbeat",
                 ],
                 mtptg=["azElTarget", "stopTracking", "focusNameSelected"],
@@ -1341,7 +1341,7 @@ class MTCS(BaseTCS):
                     "exitControl",
                     "enterControl",
                     "summaryState",
-                    "settingVersions",
+                    "configurationsAvailable",
                     "heartbeat",
                 ],
             )

@@ -99,28 +99,28 @@ class TestBaseGroup(RemoteGroupTestCase, unittest.IsolatedAsyncioTestCase):
             usage=Usages.StateTransition + Usages.MonitorHeartBeat
         ):
 
-            settings = await self.basegroup.inspect_settings()
+            overrides = await self.basegroup.inspect_settings()
 
             for comp in self.basegroup.components_attr:
-                with self.subTest(msg=f"Check settings for {comp}", component=comp):
-                    assert comp in settings
-                    assert len(settings[comp]) > 0
+                with self.subTest(msg=f"Check overrides for {comp}", component=comp):
+                    assert comp in overrides
+                    assert len(overrides[comp]) > 0
 
             for comp in self.basegroup.components_attr:
                 not_this = self.basegroup.components_attr.copy()
                 not_this.remove(comp)
-                settings = await self.basegroup.inspect_settings([comp])
+                overrides = await self.basegroup.inspect_settings([comp])
                 with self.subTest(
-                    msg=f"Check individual settings for {comp}", component=comp
+                    msg=f"Check individual overrides for {comp}", component=comp
                 ):
-                    assert comp in settings
-                    assert len(settings[comp]) > 0
+                    assert comp in overrides
+                    assert len(overrides[comp]) > 0
 
                 for not_comp in not_this:
                     with self.subTest(
-                        msg="{not_comp} not in settings.", component=comp
+                        msg="{not_comp} not in overrides.", component=comp
                     ):
-                        assert not_comp not in settings
+                        assert not_comp not in overrides
 
             with pytest.raises(RuntimeError):
                 await self.basegroup.inspect_settings(["nocomp"])

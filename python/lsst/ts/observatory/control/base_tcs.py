@@ -1713,14 +1713,14 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
         raise NotImplementedError()
 
     @abc.abstractmethod
-    async def prepare_for_onsky(self, settings=None):
+    async def prepare_for_onsky(self, overrides=None):
         """Prepare telescope for on-sky operations.
 
         Parameters
         ----------
-        settings: `dict`
-            Dictionary with settings to apply.  If `None` use the recommended
-            settings.
+        overrides: `dict`
+            Dictionary with overrides to apply.  If `None` use the recommended
+            overrides.
         """
         raise NotImplementedError
 

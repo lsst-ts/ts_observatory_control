@@ -17,6 +17,7 @@
 # GNU General Public License for more details.
 #
 # You should have received a copy of the GNU General Public License
+
 import copy
 import types
 import asyncio
@@ -33,14 +34,360 @@ from astroquery.simbad import Simbad
 
 from lsst.ts import idl
 from lsst.ts.idl.enums import ATMCS, ATPtg, ATPneumatics, ATDome
-from lsst.ts import utils
 from lsst.ts import salobj
+from lsst.ts import utils
 
 from lsst.ts.observatory.control.auxtel.atcs import ATCS, ATCSUsages
 from lsst.ts.observatory.control.utils import RotType
 
 
 class TestATTCS(unittest.IsolatedAsyncioTestCase):
+    @classmethod
+    def setUpClass(cls):
+        """This classmethod is only called once, when preparing the unit
+        test.
+        """
+
+        cls.log = logging.getLogger(__name__)
+
+        # Pass in a string as domain to prevent ATCS from trying to create a
+        # domain by itself. When using DryTest usage, the class won't create
+        # any remote. When this method is called there is no event loop
+        # running so all asyncio facilities will fail to create. This is later
+        # rectified in the asyncSetUp.
+        cls.atcs = ATCS(
+            domain="FakeDomain", log=cls.log, intended_usage=ATCSUsages.DryTest
+        )
+
+        # Decrease telescope settle time to speed up unit test
+        cls.atcs.tel_settle_time = 0.25
+
+        # Gather metadada information, needed to validate topics versions
+        cls.components_metadata = dict(
+            [
+                (
+                    component,
+                    salobj.parse_idl(
+                        component,
+                        idl.get_idl_dir()
+                        / f"sal_revCoded_{component.split(':')[0]}.idl",
+                    ),
+                )
+                for component in cls.atcs.components
+            ]
+        )
+
+        cls.track_id_gen = utils.index_generator(1)
+
+    def run(self, result=None):
+        """Override `run` to set a random LSST_DDS_PARTITION_PREFIX
+        and set LSST_SITE=test for every test.
+
+        https://stackoverflow.com/a/11180583
+        """
+        salobj.set_random_lsst_dds_partition_prefix()
+        with utils.modify_environ(LSST_SITE="test"):
+            super().run(result)
+
+    async def asyncSetUp(self):
+        # Setup asyncio facilities that probably failed while setting up class
+        self.atcs._create_asyncio_events()
+
+        # Setup required ATAOS data
+        self._ataos_evt_correction_enabled = types.SimpleNamespace(
+            m1=False,
+            hexapod=False,
+            m2=False,
+            focus=False,
+            atspectrograph=False,
+            moveWhileExposing=False,
+        )
+
+        # Setup required ATPtg data
+        self._atptg_evt_focus_name_selected = types.SimpleNamespace(
+            focus=ATPtg.Foci.NASMYTH2
+        )
+
+        # Setup required ATMCS data
+        self._telescope_position = types.SimpleNamespace(
+            elevationCalculatedAngle=np.zeros(100) + 80.0,
+            azimuthCalculatedAngle=np.zeros(100),
+        )
+
+        self._atmcs_tel_mount_nasmyth_encoders = types.SimpleNamespace(
+            nasmyth1CalculatedAngle=np.zeros(100), nasmyth2CalculatedAngle=np.zeros(100)
+        )
+
+        self._telescope_target_position = types.SimpleNamespace(
+            trackId=next(self.track_id_gen),
+            elevation=80.0,
+            azimuth=0.0,
+            nasmyth1RotatorAngle=0.0,
+            nasmyth2RotatorAngle=0.0,
+        )
+
+        self._atmcs_all_axes_in_position = types.SimpleNamespace(inPosition=True)
+
+        self._atmcs_evt_at_mount_state = types.SimpleNamespace(
+            state=int(ATMCS.AtMountState.TRACKINGDISABLED)
+        )
+
+        # Setup required ATDome data
+        self._atdome_position = types.SimpleNamespace(azimuthPosition=0.0)
+
+        self._atdome_azimth_commanded_state = types.SimpleNamespace(azimuth=0.0)
+
+        self._atdome_evt_azimuth_state = types.SimpleNamespace(
+            homing=False, _taken=False
+        )
+
+        self._atdome_evt_scb_link = types.SimpleNamespace(active=True)
+
+        self._atdome_evt_main_door_state = types.SimpleNamespace(
+            state=ATDome.ShutterDoorState.CLOSED
+        )
+
+        # Setup rquired ATDomeTrajectory data
+        self._atdometrajectory_dome_following = types.SimpleNamespace(enabled=False)
+
+        # Setup required ATPneumatics data
+        self._atpneumatics_evt_m1_cover_state = types.SimpleNamespace(
+            state=ATPneumatics.MirrorCoverState.CLOSED
+        )
+
+        self._atpneumatics_evt_m1_vents_position = types.SimpleNamespace(
+            position=ATPneumatics.VentsPosition.CLOSED
+        )
+
+        self._atpneumatics_evt_instrument_state = types.SimpleNamespace(
+            state=ATPneumatics.AirValveState.CLOSED
+        )
+
+        self._atpneumatics_evt_main_valve_state = types.SimpleNamespace(
+            state=ATPneumatics.AirValveState.CLOSED
+        )
+
+        # Setup data to support summary state manipulation
+        self.summary_state = dict(
+            [
+                (comp, types.SimpleNamespace(summaryState=int(salobj.State.ENABLED)))
+                for comp in self.atcs.components_attr
+            ]
+        )
+
+        self.summary_state_queue = dict(
+            [
+                (comp, [types.SimpleNamespace(summaryState=int(salobj.State.ENABLED))])
+                for comp in self.atcs.components_attr
+            ]
+        )
+
+        self.summary_state_queue_event = dict(
+            [(comp, asyncio.Event()) for comp in self.atcs.components_attr]
+        )
+
+        # Setup AsyncMock. The idea is to replace the placeholder for the
+        # remotes (in atcs.rem) by AsyncMock. The remote for each component is
+        # replaced by an AsyncMock and later augmented to emulate the behavior
+        # of the Remote->Controller interaction with side_effect and
+        # return_value.
+        # By default all mocks are augmented to handle summary state setting.
+        for component in self.atcs.components_attr:
+            setattr(
+                self.atcs.rem,
+                component,
+                unittest.mock.AsyncMock(
+                    **{
+                        "cmd_start.set_start.side_effect": self.set_summary_state_for(
+                            component, salobj.State.DISABLED
+                        ),
+                        "cmd_enable.start.side_effect": self.set_summary_state_for(
+                            component, salobj.State.ENABLED
+                        ),
+                        "cmd_disable.start.side_effect": self.set_summary_state_for(
+                            component, salobj.State.DISABLED
+                        ),
+                        "cmd_standby.start.side_effect": self.set_summary_state_for(
+                            component, salobj.State.STANDBY
+                        ),
+                        "evt_summaryState.next.side_effect": self.next_summary_state_for(
+                            component
+                        ),
+                        "evt_summaryState.aget.side_effect": self.get_summary_state_for(
+                            component
+                        ),
+                        "evt_heartbeat.next.side_effect": self.get_heartbeat,
+                        "evt_heartbeat.aget.side_effect": self.get_heartbeat,
+                        "evt_configurationsAvailable.aget.return_value": None,
+                    }
+                ),
+            )
+            # A trick to support calling a regular method (flush) from an
+            # AsyncMock. Basically, attach a regular Mock.
+            getattr(self.atcs.rem, f"{component}").evt_summaryState.attach_mock(
+                unittest.mock.Mock(),
+                "flush",
+            )
+
+        # Augment ataos mock.
+        self.atcs.rem.ataos.configure_mock(
+            **{
+                "evt_correctionEnabled.aget.side_effect": self.ataos_evt_correction_enabled
+            }
+        )
+        # Augment atptg mock.
+        self.atcs.rem.atptg.configure_mock(
+            **{
+                "evt_focusNameSelected.aget.side_effect": self.atptg_evt_focus_name_selected,
+                "cmd_stopTracking.start.side_effect": self.atmcs_stop_tracking,
+            }
+        )
+
+        self.atcs.rem.atptg.attach_mock(
+            unittest.mock.AsyncMock(),
+            "cmd_raDecTarget",
+        )
+
+        self.atcs.rem.atptg.cmd_raDecTarget.attach_mock(
+            unittest.mock.Mock(
+                **{
+                    "return_value": types.SimpleNamespace(
+                        **self.components_metadata["ATPtg"]
+                        .topic_info["command_raDecTarget"]
+                        .field_info
+                    )
+                }
+            ),
+            "DataType",
+        )
+
+        self.atcs.rem.atptg.cmd_poriginOffset.attach_mock(
+            unittest.mock.Mock(),
+            "set",
+        )
+
+        self.atcs.rem.atptg.cmd_raDecTarget.attach_mock(
+            unittest.mock.Mock(),
+            "set",
+        )
+
+        self.atcs.rem.atptg.cmd_azElTarget.attach_mock(
+            unittest.mock.Mock(),
+            "set",
+        )
+
+        # Augment atmcs mock
+        self.atcs.rem.atmcs.configure_mock(
+            **{
+                "tel_mount_Nasmyth_Encoders.aget.side_effect": self.atmcs_tel_mount_nasmyth_encoders,
+                "tel_mount_Nasmyth_Encoders.next.side_effect": self.atmcs_tel_mount_nasmyth_encoders,
+                "evt_allAxesInPosition.next.side_effect": self.atmcs_all_axes_in_position,
+                "evt_allAxesInPosition.aget.side_effect": self.atmcs_all_axes_in_position,
+                "evt_atMountState.aget.side_effect": self.atmcs_evt_at_mount_state,
+            }
+        )
+
+        self.atcs.rem.atmcs.evt_allAxesInPosition.attach_mock(
+            unittest.mock.Mock(),
+            "flush",
+        )
+
+        self.atcs.rem.atmcs.evt_atMountState.attach_mock(
+            unittest.mock.Mock(),
+            "flush",
+        )
+
+        self.atcs._tel_position = self._telescope_position
+        self.atcs._tel_target = self._telescope_target_position
+
+        self.atcs.next_telescope_position = unittest.mock.AsyncMock(
+            side_effect=self.next_telescope_position
+        )
+
+        self.atcs.next_telescope_target = unittest.mock.AsyncMock(
+            side_effect=self.next_telescope_target
+        )
+
+        # Augment atdome mock
+        self.atcs.rem.atdome.configure_mock(
+            **{
+                "tel_position.next.side_effect": self.atdome_tel_position,
+                "tel_position.aget.side_effect": self.atdome_tel_position,
+                "evt_azimuthCommandedState.aget.side_effect": self.atdome_evt_azimuth_commanded_state,
+                "evt_azimuthCommandedState.next.side_effect": self.atdome_evt_azimuth_commanded_state,
+                "evt_azimuthState.next.side_effect": self.atdome_evt_azimuth_state,
+                "evt_scbLink.aget.side_effect": self.atdome_evt_scb_link,
+                "evt_mainDoorState.aget.side_effect": self.atdome_evt_main_door_state,
+                "evt_mainDoorState.next.side_effect": self.atdome_evt_main_door_state,
+                "cmd_homeAzimuth.start.side_effect": self.atdome_cmd_home_azimuth,
+                "cmd_moveShutterMainDoor.set_start.side_effect": self.atdome_cmd_move_shutter_main_door,
+                "cmd_closeShutter.set_start.side_effect": self.atdome_cmd_close_shutter,
+            }
+        )
+
+        self.atcs.rem.atdome.evt_azimuthInPosition.attach_mock(
+            unittest.mock.Mock(),
+            "flush",
+        )
+
+        self.atcs.rem.atdome.evt_azimuthState.attach_mock(
+            unittest.mock.Mock(side_effect=self.atdome_evt_azimuth_state_flush),
+            "flush",
+        )
+
+        self.atcs.rem.atdome.evt_mainDoorState.attach_mock(
+            unittest.mock.Mock(),
+            "flush",
+        )
+
+        # Augment atdometrajectory mock
+        self.atcs.rem.atdometrajectory.configure_mock(
+            **{
+                "evt_followingMode.aget.side_effect": self.atdometrajectory_following_mode,
+                "cmd_setFollowingMode.set_start.side_effect": self.atdometrajectory_cmd_set_following_mode,
+            }
+        )
+
+        # Augment atpneumatics mock
+        self.atcs.rem.atpneumatics.configure_mock(
+            **{
+                "evt_m1CoverState.aget.side_effect": self.atpneumatics_evt_m1_cover_state,
+                "evt_m1CoverState.next.side_effect": self.atpneumatics_evt_m1_cover_state,
+                "evt_m1VentsPosition.aget.side_effect": self.atpneumatics_evt_m1_vents_position,
+                "evt_m1VentsPosition.next.side_effect": self.atpneumatics_evt_m1_vents_position,
+                "evt_instrumentState.aget.side_effect": self.atpneumatics_evt_instrument_state,
+                "evt_instrumentState.next.side_effect": self.atpneumatics_evt_instrument_state,
+                "evt_mainValveState.aget.side_effect": self.atpneumatics_evt_main_valve_state,
+                "evt_mainValveState.next.side_effect": self.atpneumatics_evt_main_valve_state,
+                "cmd_openInstrumentAirValve.start.side_effect": self.atpneumatics_open_air_valve,
+                "cmd_openMasterAirSupply.start.side_effect": self.atpneumatics_open_main_valve,
+                "cmd_closeM1Cover.start.side_effect": self.atpneumatics_close_m1_cover,
+                "cmd_openM1Cover.start.side_effect": self.atpneumatics_open_m1_cover,
+                "cmd_openM1CellVents.start.side_effect": self.atpneumatics_open_m1_cell_vents,
+                "cmd_closeM1CellVents.start.side_effect": self.atpneumatics_close_m1_cell_vents,
+            }
+        )
+
+        self.atcs.rem.atpneumatics.evt_m1CoverState.attach_mock(
+            unittest.mock.Mock(),
+            "flush",
+        )
+
+        self.atcs.rem.atpneumatics.evt_m1VentsPosition.attach_mock(
+            unittest.mock.Mock(),
+            "flush",
+        )
+
+        self.atcs.rem.atpneumatics.evt_instrumentState.attach_mock(
+            unittest.mock.Mock(),
+            "flush",
+        )
+
+        self.atcs.rem.atpneumatics.evt_mainValveState.attach_mock(
+            unittest.mock.Mock(),
+            "flush",
+        )
+
     def get_all_checks(self):
         check = copy.copy(self.atcs.check)
         for comp in self.atcs.components_attr:
@@ -1807,343 +2154,6 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
                 attribute
                 in self.components_metadata[component].topic_info[topic].field_info
             )
-
-    @classmethod
-    def setUpClass(cls):
-        """This classmethod is only called once, when preparing the unit
-        test.
-        """
-
-        cls.log = logging.getLogger(__name__)
-
-        # Pass in a string as domain to prevent ATCS from trying to create a
-        # domain by itself. When using DryTest usage, the class won't create
-        # any remote. When this method is called there is no event loop
-        # running so all asyncio facilities will fail to create. This is later
-        # rectified in the asyncSetUp.
-        cls.atcs = ATCS(
-            domain="FakeDomain", log=cls.log, intended_usage=ATCSUsages.DryTest
-        )
-
-        # Decrease telescope settle time to speed up unit test
-        cls.atcs.tel_settle_time = 0.25
-
-        # Gather metadada information, needed to validate topics versions
-        cls.components_metadata = dict(
-            [
-                (
-                    component,
-                    salobj.parse_idl(
-                        component,
-                        idl.get_idl_dir()
-                        / f"sal_revCoded_{component.split(':')[0]}.idl",
-                    ),
-                )
-                for component in cls.atcs.components
-            ]
-        )
-
-        cls.track_id_gen = utils.index_generator(1)
-
-    async def asyncSetUp(self):
-
-        # Setup asyncio facilities that probably failed while setting up class
-        self.atcs._create_asyncio_events()
-
-        # Setup required ATAOS data
-        self._ataos_evt_correction_enabled = types.SimpleNamespace(
-            m1=False,
-            hexapod=False,
-            m2=False,
-            focus=False,
-            atspectrograph=False,
-            moveWhileExposing=False,
-        )
-
-        # Setup required ATPtg data
-        self._atptg_evt_focus_name_selected = types.SimpleNamespace(
-            focus=ATPtg.Foci.NASMYTH2
-        )
-
-        # Setup required ATMCS data
-        self._telescope_position = types.SimpleNamespace(
-            elevationCalculatedAngle=np.zeros(100) + 80.0,
-            azimuthCalculatedAngle=np.zeros(100),
-        )
-
-        self._atmcs_tel_mount_nasmyth_encoders = types.SimpleNamespace(
-            nasmyth1CalculatedAngle=np.zeros(100), nasmyth2CalculatedAngle=np.zeros(100)
-        )
-
-        self._telescope_target_position = types.SimpleNamespace(
-            trackId=next(self.track_id_gen),
-            elevation=80.0,
-            azimuth=0.0,
-            nasmyth1RotatorAngle=0.0,
-            nasmyth2RotatorAngle=0.0,
-        )
-
-        self._atmcs_all_axes_in_position = types.SimpleNamespace(inPosition=True)
-
-        self._atmcs_evt_at_mount_state = types.SimpleNamespace(
-            state=int(ATMCS.AtMountState.TRACKINGDISABLED)
-        )
-
-        # Setup required ATDome data
-        self._atdome_position = types.SimpleNamespace(azimuthPosition=0.0)
-
-        self._atdome_azimth_commanded_state = types.SimpleNamespace(azimuth=0.0)
-
-        self._atdome_evt_azimuth_state = types.SimpleNamespace(
-            homing=False, _taken=False
-        )
-
-        self._atdome_evt_scb_link = types.SimpleNamespace(active=True)
-
-        self._atdome_evt_main_door_state = types.SimpleNamespace(
-            state=ATDome.ShutterDoorState.CLOSED
-        )
-
-        # Setup rquired ATDomeTrajectory data
-        self._atdometrajectory_dome_following = types.SimpleNamespace(enabled=False)
-
-        # Setup required ATPneumatics data
-        self._atpneumatics_evt_m1_cover_state = types.SimpleNamespace(
-            state=ATPneumatics.MirrorCoverState.CLOSED
-        )
-
-        self._atpneumatics_evt_m1_vents_position = types.SimpleNamespace(
-            position=ATPneumatics.VentsPosition.CLOSED
-        )
-
-        self._atpneumatics_evt_instrument_state = types.SimpleNamespace(
-            state=ATPneumatics.AirValveState.CLOSED
-        )
-
-        self._atpneumatics_evt_main_valve_state = types.SimpleNamespace(
-            state=ATPneumatics.AirValveState.CLOSED
-        )
-
-        # Setup data to support summary state manipulation
-        self.summary_state = dict(
-            [
-                (comp, types.SimpleNamespace(summaryState=int(salobj.State.ENABLED)))
-                for comp in self.atcs.components_attr
-            ]
-        )
-
-        self.summary_state_queue = dict(
-            [
-                (comp, [types.SimpleNamespace(summaryState=int(salobj.State.ENABLED))])
-                for comp in self.atcs.components_attr
-            ]
-        )
-
-        self.summary_state_queue_event = dict(
-            [(comp, asyncio.Event()) for comp in self.atcs.components_attr]
-        )
-
-        # Setup AsyncMock. The idea is to replace the placeholder for the
-        # remotes (in atcs.rem) by AsyncMock. The remote for each component is
-        # replaced by an AsyncMock and later augmented to emulate the behavior
-        # of the Remote->Controller interaction with side_effect and
-        # return_value.
-        # By default all mocks are augmented to handle summary state setting.
-        for component in self.atcs.components_attr:
-            setattr(
-                self.atcs.rem,
-                component,
-                unittest.mock.AsyncMock(
-                    **{
-                        "cmd_start.set_start.side_effect": self.set_summary_state_for(
-                            component, salobj.State.DISABLED
-                        ),
-                        "cmd_enable.start.side_effect": self.set_summary_state_for(
-                            component, salobj.State.ENABLED
-                        ),
-                        "cmd_disable.start.side_effect": self.set_summary_state_for(
-                            component, salobj.State.DISABLED
-                        ),
-                        "cmd_standby.start.side_effect": self.set_summary_state_for(
-                            component, salobj.State.STANDBY
-                        ),
-                        "evt_summaryState.next.side_effect": self.next_summary_state_for(
-                            component
-                        ),
-                        "evt_summaryState.aget.side_effect": self.get_summary_state_for(
-                            component
-                        ),
-                        "evt_heartbeat.next.side_effect": self.get_heartbeat,
-                        "evt_heartbeat.aget.side_effect": self.get_heartbeat,
-                        "evt_settingVersions.aget.return_value": None,
-                    }
-                ),
-            )
-            # A trick to support calling a regular method (flush) from an
-            # AsyncMock. Basically, attach a regular Mock.
-            getattr(self.atcs.rem, f"{component}").evt_summaryState.attach_mock(
-                unittest.mock.Mock(),
-                "flush",
-            )
-
-        # Augment ataos mock.
-        self.atcs.rem.ataos.configure_mock(
-            **{
-                "evt_correctionEnabled.aget.side_effect": self.ataos_evt_correction_enabled
-            }
-        )
-        # Augment atptg mock.
-        self.atcs.rem.atptg.configure_mock(
-            **{
-                "evt_focusNameSelected.aget.side_effect": self.atptg_evt_focus_name_selected,
-                "cmd_stopTracking.start.side_effect": self.atmcs_stop_tracking,
-            }
-        )
-
-        self.atcs.rem.atptg.attach_mock(
-            unittest.mock.AsyncMock(),
-            "cmd_raDecTarget",
-        )
-
-        self.atcs.rem.atptg.cmd_raDecTarget.attach_mock(
-            unittest.mock.Mock(
-                **{
-                    "return_value": types.SimpleNamespace(
-                        **self.components_metadata["ATPtg"]
-                        .topic_info["command_raDecTarget"]
-                        .field_info
-                    )
-                }
-            ),
-            "DataType",
-        )
-
-        self.atcs.rem.atptg.cmd_poriginOffset.attach_mock(
-            unittest.mock.Mock(),
-            "set",
-        )
-
-        self.atcs.rem.atptg.cmd_raDecTarget.attach_mock(
-            unittest.mock.Mock(),
-            "set",
-        )
-
-        self.atcs.rem.atptg.cmd_azElTarget.attach_mock(
-            unittest.mock.Mock(),
-            "set",
-        )
-
-        # Augment atmcs mock
-        self.atcs.rem.atmcs.configure_mock(
-            **{
-                "tel_mount_Nasmyth_Encoders.aget.side_effect": self.atmcs_tel_mount_nasmyth_encoders,
-                "tel_mount_Nasmyth_Encoders.next.side_effect": self.atmcs_tel_mount_nasmyth_encoders,
-                "evt_allAxesInPosition.next.side_effect": self.atmcs_all_axes_in_position,
-                "evt_allAxesInPosition.aget.side_effect": self.atmcs_all_axes_in_position,
-                "evt_atMountState.aget.side_effect": self.atmcs_evt_at_mount_state,
-            }
-        )
-
-        self.atcs.rem.atmcs.evt_allAxesInPosition.attach_mock(
-            unittest.mock.Mock(),
-            "flush",
-        )
-
-        self.atcs.rem.atmcs.evt_atMountState.attach_mock(
-            unittest.mock.Mock(),
-            "flush",
-        )
-
-        self.atcs._tel_position = self._telescope_position
-        self.atcs._tel_target = self._telescope_target_position
-
-        self.atcs.next_telescope_position = unittest.mock.AsyncMock(
-            side_effect=self.next_telescope_position
-        )
-
-        self.atcs.next_telescope_target = unittest.mock.AsyncMock(
-            side_effect=self.next_telescope_target
-        )
-
-        # Augment atdome mock
-        self.atcs.rem.atdome.configure_mock(
-            **{
-                "tel_position.next.side_effect": self.atdome_tel_position,
-                "tel_position.aget.side_effect": self.atdome_tel_position,
-                "evt_azimuthCommandedState.aget.side_effect": self.atdome_evt_azimuth_commanded_state,
-                "evt_azimuthCommandedState.next.side_effect": self.atdome_evt_azimuth_commanded_state,
-                "evt_azimuthState.next.side_effect": self.atdome_evt_azimuth_state,
-                "evt_scbLink.aget.side_effect": self.atdome_evt_scb_link,
-                "evt_mainDoorState.aget.side_effect": self.atdome_evt_main_door_state,
-                "evt_mainDoorState.next.side_effect": self.atdome_evt_main_door_state,
-                "cmd_homeAzimuth.start.side_effect": self.atdome_cmd_home_azimuth,
-                "cmd_moveShutterMainDoor.set_start.side_effect": self.atdome_cmd_move_shutter_main_door,
-                "cmd_closeShutter.set_start.side_effect": self.atdome_cmd_close_shutter,
-            }
-        )
-
-        self.atcs.rem.atdome.evt_azimuthInPosition.attach_mock(
-            unittest.mock.Mock(),
-            "flush",
-        )
-
-        self.atcs.rem.atdome.evt_azimuthState.attach_mock(
-            unittest.mock.Mock(side_effect=self.atdome_evt_azimuth_state_flush),
-            "flush",
-        )
-
-        self.atcs.rem.atdome.evt_mainDoorState.attach_mock(
-            unittest.mock.Mock(),
-            "flush",
-        )
-
-        # Augment atdometrajectory mock
-        self.atcs.rem.atdometrajectory.configure_mock(
-            **{
-                "evt_followingMode.aget.side_effect": self.atdometrajectory_following_mode,
-                "cmd_setFollowingMode.set_start.side_effect": self.atdometrajectory_cmd_set_following_mode,
-            }
-        )
-
-        # Augment atpneumatics mock
-        self.atcs.rem.atpneumatics.configure_mock(
-            **{
-                "evt_m1CoverState.aget.side_effect": self.atpneumatics_evt_m1_cover_state,
-                "evt_m1CoverState.next.side_effect": self.atpneumatics_evt_m1_cover_state,
-                "evt_m1VentsPosition.aget.side_effect": self.atpneumatics_evt_m1_vents_position,
-                "evt_m1VentsPosition.next.side_effect": self.atpneumatics_evt_m1_vents_position,
-                "evt_instrumentState.aget.side_effect": self.atpneumatics_evt_instrument_state,
-                "evt_instrumentState.next.side_effect": self.atpneumatics_evt_instrument_state,
-                "evt_mainValveState.aget.side_effect": self.atpneumatics_evt_main_valve_state,
-                "evt_mainValveState.next.side_effect": self.atpneumatics_evt_main_valve_state,
-                "cmd_openInstrumentAirValve.start.side_effect": self.atpneumatics_open_air_valve,
-                "cmd_openMasterAirSupply.start.side_effect": self.atpneumatics_open_main_valve,
-                "cmd_closeM1Cover.start.side_effect": self.atpneumatics_close_m1_cover,
-                "cmd_openM1Cover.start.side_effect": self.atpneumatics_open_m1_cover,
-                "cmd_openM1CellVents.start.side_effect": self.atpneumatics_open_m1_cell_vents,
-                "cmd_closeM1CellVents.start.side_effect": self.atpneumatics_close_m1_cell_vents,
-            }
-        )
-
-        self.atcs.rem.atpneumatics.evt_m1CoverState.attach_mock(
-            unittest.mock.Mock(),
-            "flush",
-        )
-
-        self.atcs.rem.atpneumatics.evt_m1VentsPosition.attach_mock(
-            unittest.mock.Mock(),
-            "flush",
-        )
-
-        self.atcs.rem.atpneumatics.evt_instrumentState.attach_mock(
-            unittest.mock.Mock(),
-            "flush",
-        )
-
-        self.atcs.rem.atpneumatics.evt_mainValveState.attach_mock(
-            unittest.mock.Mock(),
-            "flush",
-        )
 
     async def get_heartbeat(self, *args, **kwargs):
         """Emulate heartbeat functionality."""

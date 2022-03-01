@@ -142,10 +142,10 @@ class MTCSMock(BaseGroupMock):
 
         self.tracking = False
         self.acting = False
-        self.controllers.mtmount.evt_axesInPosition.set_put(
+        await self.controllers.mtmount.evt_axesInPosition.set_write(
             elevation=False, azimuth=False
         )
-        self.controllers.mtrotator.evt_inPosition.set_put(inPosition=False)
+        await self.controllers.mtrotator.evt_inPosition.set_write(inPosition=False)
 
         await asyncio.sleep(HEARTBEAT_INTERVAL)
 
@@ -212,17 +212,21 @@ class MTCSMock(BaseGroupMock):
 
     async def mount_telemetry(self):
 
-        self.controllers.mtmount.evt_elevationMotionState.set_put(
+        await self.controllers.mtmount.evt_elevationMotionState.set_write(
             state=MTMount.AxisMotionState.STOPPED
         )
-        self.controllers.mtmount.evt_azimuthMotionState.set_put(
+        await self.controllers.mtmount.evt_azimuthMotionState.set_write(
             state=MTMount.AxisMotionState.STOPPED
         )
-        self.controllers.mtmount.evt_cameraCableWrapMotionState.set_put(
+        await self.controllers.mtmount.evt_cameraCableWrapMotionState.set_write(
             state=MTMount.AxisMotionState.STOPPED
         )
-        self.controllers.mtmount.evt_cameraCableWrapFollowing.set_put(enabled=True)
-        self.controllers.mtmount.evt_connected.set_put(command=True, replies=True)
+        await self.controllers.mtmount.evt_cameraCableWrapFollowing.set_write(
+            enabled=True
+        )
+        await self.controllers.mtmount.evt_connected.set_write(
+            command=True, replies=True
+        )
 
         while self.run_telemetry_loop:
             if (
@@ -283,45 +287,45 @@ class MTCSMock(BaseGroupMock):
                 in_position_azimuth = np.abs(az_dif) < 1e-1 * u.deg
 
                 if self.acting:
-                    self.controllers.mtmount.evt_elevationMotionState.set_put(
+                    await self.controllers.mtmount.evt_elevationMotionState.set_write(
                         state=MTMount.AxisMotionState.TRACKING
                     )
-                    self.controllers.mtmount.evt_azimuthMotionState.set_put(
+                    await self.controllers.mtmount.evt_azimuthMotionState.set_write(
                         state=MTMount.AxisMotionState.TRACKING
                     )
-                    self.controllers.mtmount.evt_cameraCableWrapMotionState.set_put(
+                    await self.controllers.mtmount.evt_cameraCableWrapMotionState.set_write(
                         state=MTMount.AxisMotionState.TRACKING
                     )
-                    self.controllers.mtmount.evt_elevationInPosition.set_put(
+                    await self.controllers.mtmount.evt_elevationInPosition.set_write(
                         inPosition=in_position_elevation
                     )
-                    self.controllers.mtmount.evt_azimuthInPosition.set_put(
+                    await self.controllers.mtmount.evt_azimuthInPosition.set_write(
                         inPosition=in_position_azimuth
                     )
-                    self.controllers.mtmount.evt_cameraCableWrapInPosition.set_put(
+                    await self.controllers.mtmount.evt_cameraCableWrapInPosition.set_write(
                         inPosition=True
                     )
                 elif (
                     self.controllers.mtmount.evt_elevationMotionState.data.state
-                    == MTMount.AxisState.TRACKING
+                    == MTMount.AxisMotionState.TRACKING
                 ):
-                    self.controllers.mtmount.evt_elevationMotionState.set_put(
+                    await self.controllers.mtmount.evt_elevationMotionState.set_write(
                         state=MTMount.AxisMotionState.STOPPING
                     )
-                    self.controllers.mtmount.evt_azimuthMotionState.set_put(
+                    await self.controllers.mtmount.evt_azimuthMotionState.set_write(
                         state=MTMount.AxisMotionState.STOPPING
                     )
-                    self.controllers.mtmount.evt_cameraCableWrapMotionState.set_put(
+                    await self.controllers.mtmount.evt_cameraCableWrapMotionState.set_write(
                         state=MTMount.AxisMotionState.STOPPING
                     )
                 else:
-                    self.controllers.mtmount.evt_elevationMotionState.set_put(
+                    await self.controllers.mtmount.evt_elevationMotionState.set_write(
                         state=MTMount.AxisMotionState.STOPPED
                     )
-                    self.controllers.mtmount.evt_azimuthMotionState.set_put(
+                    await self.controllers.mtmount.evt_azimuthMotionState.set_write(
                         state=MTMount.AxisMotionState.STOPPED
                     )
-                    self.controllers.mtmount.evt_cameraCableWrapMotionState.set_put(
+                    await self.controllers.mtmount.evt_cameraCableWrapMotionState.set_write(
                         state=MTMount.AxisMotionState.STOPPED
                     )
                 # The following computation of angleActual is to emulate a
@@ -335,14 +339,14 @@ class MTCSMock(BaseGroupMock):
                 # achieved in one loop. By reducing STEP_FACTOR we can emulate
                 # a slew that takes a certain number of iterations to be
                 # completed.
-                self.controllers.mtmount.tel_azimuth.set_put(
+                await self.controllers.mtmount.tel_azimuth.set_write(
                     **{
                         self.mtmount_actual_position_name: az_actual
                         + az_induced_error
                         + az_dif.deg * STEP_FACTOR
                     }
                 )
-                self.controllers.mtmount.tel_elevation.set_put(
+                await self.controllers.mtmount.tel_elevation.set_write(
                     **{
                         self.mtmount_actual_position_name: el_actual
                         + el_induced_error
@@ -350,7 +354,7 @@ class MTCSMock(BaseGroupMock):
                     }
                 )
 
-                self.controllers.mtmount.tel_azimuthDrives.set_put(
+                await self.controllers.mtmount.tel_azimuthDrives.set_write(
                     current=np.random.normal(
                         loc=0.5,
                         scale=0.01,
@@ -361,7 +365,7 @@ class MTCSMock(BaseGroupMock):
                     timestamp=current_tai(),
                 )
 
-                self.controllers.mtmount.tel_elevationDrives.set_put(
+                await self.controllers.mtmount.tel_elevationDrives.set_write(
                     current=np.random.normal(
                         loc=0.5,
                         scale=0.01,
@@ -372,25 +376,25 @@ class MTCSMock(BaseGroupMock):
                     timestamp=current_tai(),
                 )
 
-                self.controllers.mtmount.tel_cameraCableWrap.set_put(
+                await self.controllers.mtmount.tel_cameraCableWrap.set_write(
                     actualPosition=self.controllers.mtrotator.tel_rotation.data.actualPosition,
                     timestamp=current_tai(),
                 )
-                self.controllers.mtmount.evt_cameraCableWrapTarget.set_put(
+                await self.controllers.mtmount.evt_cameraCableWrapTarget.set_write(
                     position=self.controllers.mtrotator.tel_rotation.data.actualPosition,
                     taiTime=current_tai(),
                     force_output=True,
                 )
 
-                self.controllers.mtmount.evt_target.put()
+                await self.controllers.mtmount.evt_target.write()
 
             await asyncio.sleep(HEARTBEAT_INTERVAL)
 
     async def rotator_telemetry(self):
 
-        self.controllers.mtrotator.tel_electrical.set_put()
-        self.controllers.mtrotator.evt_connected.set_put(command=True, telemetry=True)
-        self.controllers.mtrotator.evt_configuration.set_put(
+        await self.controllers.mtrotator.tel_electrical.set_write()
+        await self.controllers.mtrotator.evt_connected.set_write(connected=True)
+        await self.controllers.mtrotator.evt_configuration.set_write(
             positionAngleUpperLimit=90.0,
             velocityLimit=3.0,
             accelerationLimit=1.0,
@@ -400,14 +404,14 @@ class MTCSMock(BaseGroupMock):
             trackingSuccessPositionThreshold=0.01,
             trackingLostTimeout=5.0,
         )
-        self.controllers.mtrotator.evt_controllerState.set_put(
+        await self.controllers.mtrotator.evt_controllerState.set_write(
             controllerState=0,
             offlineSubstate=1,
             enabledSubstate=0,
             applicationStatus=1024,
         )
 
-        self.controllers.mtrotator.evt_interlock.set_put(detail="Disengaged")
+        await self.controllers.mtrotator.evt_interlock.set_write(engaged=False)
 
         while self.run_telemetry_loop:
             if (
@@ -426,11 +430,11 @@ class MTCSMock(BaseGroupMock):
                 position = self.controllers.mtrotator.tel_rotation.data.actualPosition
                 dif = angle_diff(demand, position)
 
-                self.controllers.mtrotator.tel_rotation.set_put(
+                await self.controllers.mtrotator.tel_rotation.set_write(
                     actualPosition=position + error + dif.deg / 1.1
                 )
 
-                self.controllers.mtrotator.tel_motors.set_put(
+                await self.controllers.mtrotator.tel_motors.set_write(
                     calibrated=np.zeros(2)
                     + self.controllers.mtrotator.tel_rotation.data.actualPosition,
                     raw=27.4e6
@@ -440,22 +444,26 @@ class MTCSMock(BaseGroupMock):
                     ),
                 )
 
-                self.controllers.mtrotator.tel_ccwFollowingError.set_put(
+                await self.controllers.mtrotator.tel_ccwFollowingError.set_write(
                     timestamp=current_tai()
                 )
 
                 if self.acting:
-                    self.controllers.mtrotator.evt_target.set_put(
+                    await self.controllers.mtrotator.evt_target.set_write(
                         position=position,
                         velocity=0.0,
                         tai=current_tai(),
                     )
-                    self.controllers.mtrotator.evt_tracking.set_put(tracking=True)
-                    self.controllers.mtrotator.evt_inPosition.set_put(
+                    await self.controllers.mtrotator.evt_tracking.set_write(
+                        tracking=True
+                    )
+                    await self.controllers.mtrotator.evt_inPosition.set_write(
                         inPosition=np.abs(dif) < ROT_IN_POSITION_DELTA
                     )
                 else:
-                    self.controllers.mtrotator.evt_tracking.set_put(tracking=False)
+                    await self.controllers.mtrotator.evt_tracking.set_write(
+                        tracking=False
+                    )
 
             await asyncio.sleep(HEARTBEAT_INTERVAL)
 
@@ -506,9 +514,9 @@ class MTCSMock(BaseGroupMock):
                     positionActual=dome_el_pos + error_el + diff_el.deg / 1.1,
                 )
 
-                self.controllers.mtdome.tel_azimuth.put()
+                await self.controllers.mtdome.tel_azimuth.write()
 
-                self.controllers.mtdome.tel_lightWindScreen.put()
+                await self.controllers.mtdome.tel_lightWindScreen.write()
 
             await asyncio.sleep(HEARTBEAT_INTERVAL)
 
@@ -520,25 +528,11 @@ class MTCSMock(BaseGroupMock):
                 == salobj.State.ENABLED
             ):
                 now = Time.now()
-                time_and_date = self.controllers.mtptg.tel_timeAndDate.DataType()
-                time_and_date.timestamp = now.tai.mjd
-                time_and_date.utc = (
-                    now.utc.value.hour
-                    + now.utc.value.minute / 60.0
-                    + (now.utc.value.second + now.utc.value.microsecond / 1e3)
-                    / 60.0
-                    / 60.0
+                await self.controllers.mtptg.tel_timeAndDate.set_write(
+                    timestamp=now.unix_tai,
+                    utc=now.utc.mjd,
+                    lst=now.sidereal_time("mean", self.location.lon).value,
                 )
-                if type(time_and_date.lst) is str:
-                    time_and_date.lst = Angle(
-                        now.sidereal_time("mean", self.location.lon)
-                    ).to_string(sep=":")
-                else:
-                    time_and_date.lst = now.sidereal_time(
-                        "mean", self.location.lon
-                    ).value
-
-                self.controllers.mtptg.tel_timeAndDate.put(time_and_date)
 
                 if self.tracking:
                     radec_icrs = ICRS(
@@ -556,7 +550,7 @@ class MTCSMock(BaseGroupMock):
 
                     alt_az = radec_icrs.transform_to(coord_frame_altaz)
 
-                    self.controllers.mtptg.evt_currentTarget.set_put(
+                    await self.controllers.mtptg.evt_currentTarget.set_write(
                         timestamp=now.tai.mjd,
                         azDegs=alt_az.az.deg,
                         elDegs=alt_az.alt.deg,
@@ -614,7 +608,9 @@ class MTCSMock(BaseGroupMock):
 
                 accelerometer_data.accelerometer = accelerometer_data.rawAccelerometer
 
-                self.controllers.mtm1m3.tel_accelerometerData.put(accelerometer_data)
+                await self.controllers.mtm1m3.tel_accelerometerData.write(
+                    accelerometer_data
+                )
 
                 force_actuator_data = (
                     self.controllers.mtm1m3.tel_forceActuatorData.DataType()
@@ -650,7 +646,9 @@ class MTCSMock(BaseGroupMock):
                     + force_actuator_data.fz ** 2
                 )
 
-                self.controllers.mtm1m3.tel_forceActuatorData.put(force_actuator_data)
+                await self.controllers.mtm1m3.tel_forceActuatorData.write(
+                    force_actuator_data
+                )
 
                 hardpoint_actuator_data = (
                     self.controllers.mtm1m3.tel_hardpointActuatorData.DataType()
@@ -680,7 +678,7 @@ class MTCSMock(BaseGroupMock):
                 hardpoint_actuator_data.yRotation = np.random.normal()
                 hardpoint_actuator_data.zRotation = np.random.normal()
 
-                self.controllers.mtm1m3.tel_hardpointActuatorData.put(
+                await self.controllers.mtm1m3.tel_hardpointActuatorData.write(
                     hardpoint_actuator_data
                 )
 
@@ -720,7 +718,7 @@ class MTCSMock(BaseGroupMock):
                     size=len(hardpoint_monitor_data.pressureSensor3),
                 )
 
-                self.controllers.mtm1m3.tel_hardpointMonitorData.put(
+                await self.controllers.mtm1m3.tel_hardpointMonitorData.write(
                     hardpoint_monitor_data
                 )
 
@@ -747,7 +745,7 @@ class MTCSMock(BaseGroupMock):
                     dtype=int,
                 )
             # This will only publish if there is a change in the topic.
-            self.controllers.mtm1m3.evt_forceActuatorState.set_put(
+            await self.controllers.mtm1m3.evt_forceActuatorState.set_write(
                 **self.m1m3_force_actuator_state
             )
 
@@ -795,7 +793,7 @@ class MTCSMock(BaseGroupMock):
                 m1m3_topic_samples[topic_sample].pop(topic_attr)
 
             try:
-                getattr(self.controllers.mtm1m3, f"evt_{topic_sample}").set_put(
+                await getattr(self.controllers.mtm1m3, f"evt_{topic_sample}").set_write(
                     **m1m3_topic_samples[topic_sample]
                 )
             except Exception:
