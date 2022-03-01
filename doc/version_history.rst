@@ -11,6 +11,9 @@ v0.15.0
 
 * Update for ts_salobj v7, which is required.
   This also requires ts_xml 11.
+* Rename ``settings`` to ``overrides``.
+* `RemoteGroup`: use "" as the default override for all components.
+  Remove the ``inspect_settings`` method and rename ``expand_settings`` to ``expand_overrides``.
 
 v0.14.0
 -------
