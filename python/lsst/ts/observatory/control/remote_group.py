@@ -20,7 +20,6 @@
 
 import asyncio
 import logging
-import re
 import traceback
 import types
 
@@ -611,93 +610,25 @@ class RemoteGroup:
 
         assert len(exceptions) == 0, f"No heartbeat from {exceptions}."
 
-    async def inspect_settings(self, components_attr=None):
-        """Return available overrides.
+    async def expand_overrides(self, overrides=None):
+        """Expand an overrides dict with entries for every component.
 
-        Inspect `configurationsAvailable` from CSCs and return dictionary
-        with all the available overrides.
-
-        Parameters
-        ----------
-        components_attr : `list` of `str` or `None`
-            List of CSC names from the group to inspect overrides. If `None`
-            inspect all components in the group. The name of the CSC must be as
-            it appears in the `components_attr` attribute, which is the name of
-            the CSC in lowercase, replacing ":" by "_" for indexed components,
-            e.g. "Hexapod:1" -> "hexapod_1" or "ATHexapod" -> "athexapod".
-
-        Returns
-        -------
-        overrides : `dict`
-            Dictionary with valid overrides. The dictionary key will be the csc
-            name and the value a list of strings. The name of the CSC as it
-            appears in the `components_attr` attribute, which is the name of
-            the CSC in lowercase, replacing ":" by "_" for indexed components,
-            e.g. "Hexapod:1" -> "hexapod_1" or "ATHexapod" -> "athexapod".
-
-        Raises
-        ------
-        RuntimeError
-            If an item in the parameter `components` list is not a CSC in the
-            group.
-
-        """
-
-        overrides = dict()
-
-        for comp in (
-            self.components_attr if components_attr is None else components_attr
-        ):
-            if comp not in self.components_attr:
-                raise RuntimeError(
-                    f"{comp} not in group. Must be one of {self.components_attr}."
-                )
-            elif getattr(self.check, comp):
-                overrides[comp] = None
-            else:
-                self.log.info(f"{comp} check is disabled, skipping.")
-
-        for comp in overrides:
-            try:
-                if (
-                    "configurationsAvailable"
-                    in getattr(self.rem, comp).salinfo.event_names
-                ):
-                    sv = await getattr(self.rem, comp).evt_configurationsAvailable.aget(
-                        timeout=self.fast_timeout
-                    )
-                else:
-                    sv = None
-            except asyncio.TimeoutError:
-                sv = None
-
-            if sv is not None:
-                overrides[comp] = re.split(", *", sv.overrides)
-            else:
-                self.log.debug(
-                    "Couldn't get configurationsAvailable event. Using empty settings."
-                )
-                overrides[comp] = [""]
-
-        return overrides
-
-    async def expand_settings(self, overrides=None):
-        """Take an incomplete overrides dict and fills it out according to
-        events published by components.
+        Any components that have no specified override are set to "".
 
         Parameters
         ----------
         overrides : `dict` or `None`
-            A dictionary with (name, overrides) pair or `None`. The name of the
-            as it appears in the `components_attr` attribute, which is the name
-            of the CSC in lowercase, replacing ":" by "_" for indexed
-            components, e.g. "Hexapod:1" -> "hexapod_1" or "ATHexapod" ->
-            "athexapod".
+            A dictionary with (component name, overrides) pair or `None`.
+            The component name is as it appears in the `components_attr`
+            attribute, which is the name of the CSC in lowercase,
+            replacing ":" by "_" for indexed components, e.g.
+            "Hexapod:1" -> "hexapod_1" or "ATHexapod" -> "athexapod".
 
         Returns
         -------
-        complete_settings : `dict`
-            Dictionary with complete overrides.
+        complete_overrides : `dict`
+            Dictionary with overrides for every component in the group.
+            Unspecifies components have override "".
 
         Raises
         ------
@@ -706,31 +637,21 @@ class RemoteGroup:
             the group.
 
         """
-        self.log.debug("Gathering overrides.")
+        self.log.debug(f"Expand overrides {overrides!r}")
+        if overrides is None:
+            overrides = dict()
+        else:
+            bad_components = overrides.keys() - set(self.components_attr)
+            if bad_components:
+                raise RuntimeError(
+                    f"{bad_components} not in group {self.components_attr}."
+                )
 
-        complete_settings = {}
-        if overrides is not None:
-            self.log.debug(f"Received overrides from users.: {overrides}")
-            complete_settings = overrides.copy()
-            for comp in complete_settings:
-                if comp not in self.components_attr:
-                    raise RuntimeError(
-                        f"{comp} not in group. Must be one of {self.components_attr}."
-                    )
-
-        incomplete_settings = await self.inspect_settings(
-            components_attr=[
-                comp for comp in self.components_attr if comp not in complete_settings
-            ]
-        )
-
-        for comp in incomplete_settings:
-            self.log.debug(f"Complete overrides for {comp}.")
-            complete_settings[comp] = incomplete_settings[comp][0]
-
-        self.log.debug(f"Settings versions: {complete_settings}")
-
-        return complete_settings
+        complete_overrides = {
+            comp: overrides.get(comp, "") for comp in self.components_attr
+        }
+        self.log.debug(f"Complete overrides: {complete_overrides}")
+        return complete_overrides
 
     async def set_state(self, state, overrides=None, components=None):
         """Set summary state for all components.
@@ -910,9 +831,9 @@ class RemoteGroup:
 
         self.log.info("Enabling all components")
 
-        overrides_all = await self.expand_settings(overrides)
+        complete_overrides = await self.expand_overrides(overrides)
 
-        await self.set_state(salobj.State.ENABLED, overrides=overrides_all)
+        await self.set_state(salobj.State.ENABLED, overrides=complete_overrides)
 
     async def standby(self):
         """Put all CSCs in standby."""
