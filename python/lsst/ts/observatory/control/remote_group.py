@@ -18,10 +18,10 @@
 #
 # You should have received a copy of the GNU General Public License
 
-import types
 import asyncio
 import logging
 import traceback
+import types
 
 from lsst.ts import salobj
 from .utils import handle_exception_in_dict_items
@@ -81,7 +81,7 @@ class UsagesResources:
     `Usages.StateTransition`. It is relevant to all CSCs in the group,
     requires the generic state transition commands (`start`, `enable`,
     `disable`, `standby`) and the generic events `summaryState` and
-    `settingVersions`. To represent these resources for
+    `configurationsAvailable`. To represent these resources for
     `Usages.StateTransition` we create a `UsagesResources` with those
     requirements, e.g.::
 
@@ -94,7 +94,7 @@ class UsagesResources:
                         "disable",
                         "standby",
                         "summaryState",
-                        "settingVersions"
+                        "configurationsAvailable"
                        ]
             )
 
@@ -610,125 +610,50 @@ class RemoteGroup:
 
         assert len(exceptions) == 0, f"No heartbeat from {exceptions}."
 
-    async def inspect_settings(self, components_attr=None):
-        """Return available settings.
+    async def expand_overrides(self, overrides=None):
+        """Expand an overrides dict with entries for every component.
 
-        Inspect `settingVersions` from CSCs and return dictionary with all the
-        available settings.
+        Any components that have no specified override are set to "".
 
         Parameters
         ----------
-        components_attr : `list` of `str` or `None`
-            List of CSC names from the group to inspect settings. If `None`
-            inspect all components in the group. The name of the CSC must be as
-            it appears in the `components_attr` attribute, which is the name of
-            the CSC in lowercase, replacing ":" by "_" for indexed components,
-            e.g. "Hexapod:1" -> "hexapod_1" or "ATHexapod" -> "athexapod".
+        overrides : `dict` or `None`
+            A dictionary with (component name, overrides) pair or `None`.
+            The component name is as it appears in the `components_attr`
+            attribute, which is the name of the CSC in lowercase,
+            replacing ":" by "_" for indexed components, e.g.
+            "Hexapod:1" -> "hexapod_1" or "ATHexapod" -> "athexapod".
 
         Returns
         -------
-        settings : `dict`
-            Dictionary with valid settings. The dictionary key will be the csc
-            name and the value a list of strings. The name of the CSC as it
-            appears in the `components_attr` attribute, which is the name of
-            the CSC in lowercase, replacing ":" by "_" for indexed components,
-            e.g. "Hexapod:1" -> "hexapod_1" or "ATHexapod" -> "athexapod".
+        complete_overrides : `dict`
+            Dictionary with overrides for every component in the group.
+            Unspecifies components have override "".
 
         Raises
         ------
         RuntimeError
-            If an item in the parameter `components` list is not a CSC in the
-            group.
-
-        """
-
-        settings = dict()
-
-        for comp in (
-            self.components_attr if components_attr is None else components_attr
-        ):
-            if comp not in self.components_attr:
-                raise RuntimeError(
-                    f"{comp} not in group. Must be one of {self.components_attr}."
-                )
-            elif getattr(self.check, comp):
-                settings[comp] = None
-            else:
-                self.log.info(f"{comp} check is disabled, skipping.")
-
-        for comp in settings:
-            try:
-                if "settingVersions" in getattr(self.rem, comp).salinfo.event_names:
-                    sv = await getattr(self.rem, comp).evt_settingVersions.aget(
-                        timeout=self.fast_timeout
-                    )
-                else:
-                    sv = None
-            except asyncio.TimeoutError:
-                sv = None
-
-            if sv is not None:
-                settings[comp] = sv.recommendedSettingsLabels.split(",")
-            else:
-                self.log.debug(
-                    "Couldn't get settingVersions event. Using empty settings."
-                )
-                settings[comp] = [""]
-
-        return settings
-
-    async def expand_settings(self, settings=None):
-        """Take an incomplete settings dict and fills it out according to
-        events published by components.
-
-        Parameters
-        ----------
-        settings : `dict` or `None`
-            A dictionary with (name, settings) pair or `None`. The name of the
-            as it appears in the `components_attr` attribute, which is the name
-            of the CSC in lowercase, replacing ":" by "_" for indexed
-            components, e.g. "Hexapod:1" -> "hexapod_1" or "ATHexapod" ->
-            "athexapod".
-
-        Returns
-        -------
-        complete_settings : `dict`
-            Dictionary with complete settings.
-
-        Raises
-        ------
-        RuntimeError
-            If an item in the parameter `settings` dictionary is not a CSC in
+            If an item in the parameter `overrides` dictionary is not a CSC in
             the group.
 
         """
-        self.log.debug("Gathering settings.")
+        self.log.debug(f"Expand overrides {overrides!r}")
+        if overrides is None:
+            overrides = dict()
+        else:
+            bad_components = overrides.keys() - set(self.components_attr)
+            if bad_components:
+                raise RuntimeError(
+                    f"{bad_components} not in group {self.components_attr}."
+                )
 
-        complete_settings = {}
-        if settings is not None:
-            self.log.debug(f"Received settings from users.: {settings}")
-            complete_settings = settings.copy()
-            for comp in complete_settings:
-                if comp not in self.components_attr:
-                    raise RuntimeError(
-                        f"{comp} not in group. Must be one of {self.components_attr}."
-                    )
+        complete_overrides = {
+            comp: overrides.get(comp, "") for comp in self.components_attr
+        }
+        self.log.debug(f"Complete overrides: {complete_overrides}")
+        return complete_overrides
 
-        incomplete_settings = await self.inspect_settings(
-            components_attr=[
-                comp for comp in self.components_attr if comp not in complete_settings
-            ]
-        )
-
-        for comp in incomplete_settings:
-            self.log.debug(f"Complete settings for {comp}.")
-            complete_settings[comp] = incomplete_settings[comp][0]
-
-        self.log.debug(f"Settings versions: {complete_settings}")
-
-        return complete_settings
-
-    async def set_state(self, state, settings=None, components=None):
+    async def set_state(self, state, overrides=None, components=None):
         """Set summary state for all components.
 
         Parameters
@@ -736,7 +661,7 @@ class RemoteGroup:
         state : `salobj.State`
             Desired state.
 
-        settings : `dict`
+        overrides : `dict` or None
             Settings to apply for each component.
 
         components : `list[`str`]`
@@ -754,23 +679,18 @@ class RemoteGroup:
         """
         work_components = self.get_work_components(components)
 
-        if settings is not None:
-            settings_all = settings
-        else:
-            settings_all = dict([(comp, "") for comp in work_components])
+        if overrides is None:
+            overrides = dict()
 
         set_ss_tasks = []
 
         for comp in work_components:
             if getattr(self.check, comp):
-                settingsToApply = settings_all[comp]
-                if settingsToApply is None:
-                    settingsToApply = ""
                 set_ss_tasks.append(
                     salobj.set_summary_state(
-                        getattr(self.rem, comp),
-                        salobj.State(state),
-                        settingsToApply=settingsToApply,
+                        remote=getattr(self.rem, comp),
+                        state=salobj.State(state),
+                        override=overrides.get(comp, ""),
                         timeout=self.long_long_timeout,
                     )
                 )
@@ -896,26 +816,24 @@ class RemoteGroup:
 
         return software_versions
 
-    async def enable(self, settings=None):
+    async def enable(self, overrides=None):
         """Enable all components.
 
         This method will enable all group components. Users can provide
-        settings for the start command (in a dictionary). If no setting
-        is given for a component, it will use the first available setting
-        in `evt_settingVersions.recommendedSettingsLabels`.
+        overrides for the start command (in a dictionary).
 
         Parameters
         ----------
-        settings: `dict`
-            Dictionary with settings to apply.  If `None` use recommended
-            settings.
+        overrides: `dict`
+            Dictionary with overrides to apply.  If `None` use recommended
+            overrides.
         """
 
         self.log.info("Enabling all components")
 
-        settings_all = await self.expand_settings(settings)
+        complete_overrides = await self.expand_overrides(overrides)
 
-        await self.set_state(salobj.State.ENABLED, settings=settings_all)
+        await self.set_state(salobj.State.ENABLED, overrides=complete_overrides)
 
     async def standby(self):
         """Put all CSCs in standby."""
@@ -1085,7 +1003,7 @@ class RemoteGroup:
                         "exitControl",
                         "enterControl",
                         "summaryState",
-                        "settingVersions",
+                        "configurationsAvailable",
                         "heartbeat",
                         "simulationMode",
                         "softwareVersions",
@@ -1102,7 +1020,7 @@ class RemoteGroup:
                         "exitControl",
                         "enterControl",
                         "summaryState",
-                        "settingVersions",
+                        "configurationsAvailable",
                     ],
                 ),
                 self.valid_use_cases.MonitorState: UsagesResources(

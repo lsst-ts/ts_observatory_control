@@ -42,6 +42,7 @@ from .utils import (
     get_catalogs_path,
 )
 
+from lsst.ts import utils
 from lsst.ts import salobj
 
 
@@ -89,7 +90,7 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
             lon=-70.747698 * u.deg, lat=-30.244728 * u.deg, height=2663.0 * u.m
         )
 
-        self.track_id_gen = salobj.index_generator()
+        self.track_id_gen = utils.index_generator()
 
         self.instrument_focus = InstrumentFocus.Prime
 
@@ -441,7 +442,7 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
         az_wrap_strategy=None,
         time_on_target=0.0,
         slew_timeout=240.0,
-        stop_before_slew=True,
+        stop_before_slew=False,
         wait_settle=True,
     ):
         """Slew the telescope and start tracking an Ra/Dec target in ICRS
@@ -635,7 +636,7 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
         az_wrap_strategy=None,
         time_on_target=0.0,
         slew_timeout=1200.0,
-        stop_before_slew=True,
+        stop_before_slew=False,
         wait_settle=True,
         offset_x=0.0,
         offset_y=0.0,
@@ -1579,7 +1580,7 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
             return target_info
 
     async def _handle_in_position(
-        self, in_position_event, timeout, settle_time=0.0, component_name=""
+        self, in_position_event, timeout, settle_time=5.0, component_name=""
     ):
         """Handle inPosition event.
 
@@ -1612,8 +1613,8 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
             )
             try:
                 in_position = await in_position_event.next(
-                    flush=False,
-                    timeout=settle_time if settle_time > 0.0 else self.fast_timeout,
+                    flush=True,
+                    timeout=settle_time,
                 )
                 self.log.info(
                     f"{component_name} in position: {in_position.inPosition}."
@@ -1621,15 +1622,33 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
             except asyncio.TimeoutError:
                 self.log.debug(
                     "No new in position event in the last "
-                    f"{settle_time if settle_time > 0.0 else self.fast_timeout}s. "
+                    f"{settle_time}s. "
                     f"Assuming {component_name} in position."
                 )
+            except Exception:
+                self.log.exception("Error handling potential race condition.")
 
         while not in_position.inPosition:
 
-            in_position = await in_position_event.next(flush=False, timeout=timeout)
+            try:
+                in_position = await in_position_event.next(flush=False, timeout=timeout)
+            except asyncio.TimeoutError:
+                self.log.debug(
+                    "No new in position event in the last "
+                    f"{timeout}s. "
+                    f"Assuming {component_name} in position."
+                )
+                break
+            else:
+                self.log.info(
+                    f"{component_name} in position: {in_position.inPosition}."
+                )
 
-            self.log.info(f"{component_name} in position: {in_position.inPosition}.")
+        self.log.debug(
+            f"{component_name} in position {in_position.inPosition}. "
+            f"Waiting settle time {settle_time}s"
+        )
+        await asyncio.sleep(settle_time)
 
         return f"{component_name} in position."
 
@@ -1694,14 +1713,14 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
         raise NotImplementedError()
 
     @abc.abstractmethod
-    async def prepare_for_onsky(self, settings=None):
+    async def prepare_for_onsky(self, overrides=None):
         """Prepare telescope for on-sky operations.
 
         Parameters
         ----------
-        settings: `dict`
-            Dictionary with settings to apply.  If `None` use the recommended
-            settings.
+        overrides: `dict`
+            Dictionary with overrides to apply.  If `None` use the recommended
+            overrides.
         """
         raise NotImplementedError
 
@@ -1741,7 +1760,7 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
         slew_cmd,
         slew_timeout,
         offset_cmd=None,
-        stop_before_slew=True,
+        stop_before_slew=False,
         wait_settle=True,
         check=None,
     ):

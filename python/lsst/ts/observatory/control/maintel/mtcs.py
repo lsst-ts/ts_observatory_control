@@ -27,6 +27,7 @@ import numpy as np
 import astropy.units as u
 from astropy.coordinates import Angle
 
+from lsst.ts import utils
 from lsst.ts import salobj
 from lsst.ts.utils import angle_diff
 from lsst.ts.idl.enums import MTM1M3, MTPtg
@@ -212,36 +213,40 @@ class MTCS(BaseTCS):
             try:
                 await self.stop_tracking()
 
-                # TODO DM-32546: Remove work around to rotator trajectory
-                # problem that cannot complete 2 subsequent moves. The work
-                # around consist of sending a move command to the rotator
-                # current position then stopping, thus resetting the
-                # trajectory.
-                await self.rem.mtrotator.cmd_stop.start(timeout=self.fast_timeout)
-
-                self.log.debug(f"Wait {self.fast_timeout}s for rotator to settle down.")
-                await asyncio.sleep(self.fast_timeout)
-
-                rotator_position = await self.rem.mtrotator.tel_rotation.aget(
-                    timeout=self.fast_timeout
-                )
-
-                self.log.debug(
-                    "Workaround for rotator trajectory problem. "
-                    f"Moving rotator to its current position: {rotator_position.actualPosition:0.2f}"
-                )
-
-                await self.rem.mtrotator.cmd_move.set_start(
-                    position=rotator_position.actualPosition, timeout=self.fast_timeout
-                )
-                await self._handle_in_position(
-                    in_position_event=self.rem.mtrotator.evt_inPosition,
-                    timeout=self.long_timeout,
-                    settle_time=self.fast_timeout,
-                    component_name="MTRotator",
-                )
             except Exception:
-                self.log.exception("Error while stop/tracking resetting the rotator.")
+                self.log.exception("Error stop tracking.")
+
+        try:
+            # TODO DM-32546: Remove work around to rotator trajectory
+            # problem that cannot complete 2 subsequent moves. The work
+            # around consist of sending a move command to the rotator
+            # current position then stopping, thus resetting the
+            # trajectory.
+            await self.rem.mtrotator.cmd_stop.start(timeout=self.fast_timeout)
+
+            self.log.debug(f"Wait {self.fast_timeout}s for rotator to settle down.")
+            await asyncio.sleep(self.fast_timeout)
+
+            rotator_position = await self.rem.mtrotator.tel_rotation.aget(
+                timeout=self.fast_timeout
+            )
+
+            self.log.debug(
+                "Workaround for rotator trajectory problem. "
+                f"Moving rotator to its current position: {rotator_position.actualPosition:0.2f}"
+            )
+
+            await self.rem.mtrotator.cmd_move.set_start(
+                position=rotator_position.actualPosition, timeout=self.fast_timeout
+            )
+            await self._handle_in_position(
+                in_position_event=self.rem.mtrotator.evt_inPosition,
+                timeout=self.long_timeout,
+                settle_time=self.fast_timeout,
+                component_name="MTRotator",
+            )
+        except Exception:
+            self.log.exception("Error trying to reset rotator position.")
 
         track_id = next(self.track_id_gen)
 
@@ -250,7 +255,7 @@ class MTCS(BaseTCS):
                 flush=True, timeout=self.fast_timeout
             )
             if track_id <= current_target.trackId:
-                self.track_id_gen = salobj.index_generator(current_target.trackId + 1)
+                self.track_id_gen = utils.index_generator(current_target.trackId + 1)
                 track_id = next(self.track_id_gen)
 
         except asyncio.TimeoutError:
@@ -618,7 +623,7 @@ class MTCS(BaseTCS):
         # TODO: Implement (DM-21336).
         raise NotImplementedError("# TODO: Implement (DM-21336).")
 
-    def prepare_for_onsky(self, settings=None):
+    def prepare_for_onsky(self, overrides=None):
         # TODO: Implement (DM-21336).
         raise NotImplementedError("# TODO: Implement (DM-21336).")
 
@@ -1221,7 +1226,7 @@ class MTCS(BaseTCS):
                     "exitControl",
                     "enterControl",
                     "summaryState",
-                    "settingVersions",
+                    "configurationsAvailable",
                     "heartbeat",
                 ],
                 mtptg=[
@@ -1251,7 +1256,7 @@ class MTCS(BaseTCS):
             usages[self.valid_use_cases.Slew] = UsagesResources(
                 components_attr=self.components_attr,
                 readonly=False,
-                generics=["summaryState", "settingVersions", "heartbeat"],
+                generics=["summaryState", "configurationsAvailable", "heartbeat"],
                 mtptg=[
                     "azElTarget",
                     "raDecTarget",
@@ -1288,7 +1293,7 @@ class MTCS(BaseTCS):
                     "exitControl",
                     "enterControl",
                     "summaryState",
-                    "settingVersions",
+                    "configurationsAvailable",
                     "heartbeat",
                 ],
                 mtptg=["azElTarget", "stopTracking", "focusNameSelected"],
@@ -1312,7 +1317,7 @@ class MTCS(BaseTCS):
                     "exitControl",
                     "enterControl",
                     "summaryState",
-                    "settingVersions",
+                    "configurationsAvailable",
                     "heartbeat",
                 ],
                 mtptg=["azElTarget", "stopTracking", "focusNameSelected"],
@@ -1336,7 +1341,7 @@ class MTCS(BaseTCS):
                     "exitControl",
                     "enterControl",
                     "summaryState",
-                    "settingVersions",
+                    "configurationsAvailable",
                     "heartbeat",
                 ],
             )

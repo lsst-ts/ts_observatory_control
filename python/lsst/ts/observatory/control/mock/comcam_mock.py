@@ -25,10 +25,10 @@ import logging
 
 import astropy
 
-from lsst.ts import salobj
+from lsst.ts import utils
 from .base_group_mock import BaseGroupMock
 
-index_gen = salobj.index_generator()
+index_gen = utils.index_generator()
 
 
 class ComCamMock(BaseGroupMock):
@@ -99,13 +99,13 @@ class ComCamMock(BaseGroupMock):
             )
         )
 
-        self.cccamera.evt_endReadout.set_put(
+        await self.cccamera.evt_endReadout.set_write(
             imageName=image_name,
             additionalKeys=":".join([key.strip() for key in additional_keys]),
             additionalValues=":".join([value.strip() for value in additional_values]),
         )
         self.log.debug("sending LFOA")
-        self.ccheaderservice.evt_largeFileObjectAvailable.put()
+        await self.ccheaderservice.evt_largeFileObjectAvailable.write()
         self.log.debug("end_readout done")
 
     async def cmd_setFilter_callback(self, data):
@@ -115,7 +115,7 @@ class ComCamMock(BaseGroupMock):
     async def end_set_filter(self, data):
         """Wait for the filter to change and send endSetFilter event."""
         await asyncio.sleep(1)
-        self.cccamera.evt_endSetFilter.set_put(filterName=data.name)
+        await self.cccamera.evt_endSetFilter.set_write(filterName=data.name)
         self.log.debug("sending endSetFilter")
         self.camera_filter = data.name
 

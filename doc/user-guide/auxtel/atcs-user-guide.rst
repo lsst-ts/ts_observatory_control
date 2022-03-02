@@ -86,7 +86,7 @@ This method will perform the following tasks subsequently;
   #.  Once dome is open, open primary mirror cover and vent gates.
   #.  Enable ``ATAOS`` corrections.
 
-In general, it is advised to make sure all components are in ``ENABLED`` state before running :py:meth:`prepare_for_onsky <lsst.ts.observatory.control.auxtel.ATCS.prepare_for_onsky>`, but the method also accepts a dictionary of ``settings`` and calls :py:meth:`enable <lsst.ts.observatory.control.RemoteGroup.enable>` at the beginning.
+In general, it is advised to make sure all components are in ``ENABLED`` state before running :py:meth:`prepare_for_onsky <lsst.ts.observatory.control.auxtel.ATCS.prepare_for_onsky>`, but the method also accepts a dictionary of ``overrides`` and calls :py:meth:`enable <lsst.ts.observatory.control.RemoteGroup.enable>` at the beginning.
 
 .. code:: python
 
@@ -101,18 +101,18 @@ In general, it is advised to make sure all components are in ``ENABLED`` state b
 
 Following up on what was shown in :ref:`user-guide-generic-csc-group-behavior`, the following is also a valid way of running :py:meth:`prepare_for_onsky <lsst.ts.observatory.control.auxtel.ATCS.prepare_for_onsky>`.
 
-Overriding the settings for a single component (e.g. ATAOS):
+Overriding the overrides for a single component (e.g. ATAOS):
 
 .. code:: python
 
-    await atcs.prepare_for_onsky(settings={"ataos": "constant_hex"})
+    await atcs.prepare_for_onsky(overrides={"ataos": "constant_hex"})
 
-Or Overriding the settings for all components:
+Or Overriding the overrides for all components:
 
 .. code:: python
 
     await atcs.prepare_for_onsky(
-        settings={
+        overrides={
             "ataos": "current",
             "atmcs": "",
             "atptg": "",
@@ -124,7 +124,7 @@ Or Overriding the settings for all components:
     )
 
 It is important to remember that, if the components are already enabled, they will be left in the ``ENABLED`` state and will not be re-cycled.
-If you need to change the settings for a specific CSC, you will have to send it to ``STANDBY`` state first.
+If you need to change the overrides for a specific CSC, you will have to send it to ``STANDBY`` state first.
 See :ref:`user-guide-generic-csc-group-behavior` for an example of how to use :py:meth:`set_state <lsst.ts.observatory.control.RemoteGroup.set_state>` to send individual CSCs in the group to ``STANDBY`` state.
 
 All the slew methods discussed in :ref:`user-guide-generic-telescope-control-operations` are available in :py:class:`ATCS <lsst.ts.observatory.control.auxtel.ATCS>`, which can be used with :py:attr:`ATCSUsages.Slew <lsst.ts.observatory.control.auxtel.ATCSUsages.Slew>` to limit resource allocation, e.g.;

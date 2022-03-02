@@ -32,6 +32,7 @@ from ..base_tcs import BaseTCS
 from ..constants import atcs_constants
 from ..utils import InstrumentFocus
 
+from lsst.ts import utils
 from lsst.ts import salobj
 from lsst.ts.utils import angle_diff
 from lsst.ts.idl.enums import ATPtg, ATDome, ATPneumatics, ATMCS
@@ -323,7 +324,7 @@ class ATCS(BaseTCS):
 
         task_list = [
             asyncio.create_task(
-                self.wait_for_inposition(timeout=self.long_long_timeout)
+                self.wait_for_atdome_inposition(timeout=self.long_long_timeout)
             ),
             asyncio.create_task(self.monitor_position(check=_check)),
         ]
@@ -441,7 +442,7 @@ class ATCS(BaseTCS):
 
         return stop_results
 
-    async def prepare_for_onsky(self, settings=None):
+    async def prepare_for_onsky(self, overrides=None):
         """Prepare Auxiliary Telescope for on-sky operations.
 
         This method will perform the start of the night procedure for the
@@ -450,9 +451,9 @@ class ATCS(BaseTCS):
 
         Parameters
         ----------
-        settings: `dict`
-            Dictionary with settings to apply.  If `None` use the recommended
-            settings.
+        overrides: `dict`
+            Dictionary with overrides to apply.  If `None` use the recommended
+            overrides.
         """
 
         await self.assert_all_enabled(
@@ -1217,7 +1218,7 @@ class ATCS(BaseTCS):
         slew_cmd,
         slew_timeout,
         offset_cmd=None,
-        stop_before_slew=True,
+        stop_before_slew=False,
         wait_settle=True,
         check=None,
     ):
@@ -1262,7 +1263,7 @@ class ATCS(BaseTCS):
         try:
             current_target = await self.next_telescope_target(self.fast_timeout)
             if track_id <= current_target.trackId:
-                self.track_id_gen = salobj.index_generator(current_target.trackId + 1)
+                self.track_id_gen = utils.index_generator(current_target.trackId + 1)
                 track_id = next(self.track_id_gen)
 
         except asyncio.TimeoutError:
@@ -1494,28 +1495,12 @@ class ATCS(BaseTCS):
         asyncio.TimeoutError
             If does not get a status update in less then `timeout` seconds.
         """
-        while True:
-
-            in_position = await self.rem.atmcs.evt_allAxesInPosition.next(
-                flush=False, timeout=timeout
-            )
-
-            # make sure timestamp of event is after command was acknowledged.
-            if (
-                cmd_ack is not None
-                and in_position.private_sndStamp < cmd_ack.private_sndStamp
-            ):
-                self.log.debug("Received old event. Ignoring.")
-            else:
-                self.log.info(f"Got {in_position.inPosition}")
-                if in_position.inPosition:
-                    if wait_settle:
-                        self.log.info("Waiting for telescope to settle.")
-                        await asyncio.sleep(self.tel_settle_time)
-                    self.log.info("Telescope in position.")
-                    return "Telescope in position."
-                else:
-                    self.log.debug("Telescope not in position")
+        return await self._handle_in_position(
+            in_position_event=self.rem.atmcs.evt_allAxesInPosition,
+            timeout=timeout,
+            settle_time=self.tel_settle_time,
+            component_name="ATMCS",
+        )
 
     async def wait_for_atdome_inposition(self, timeout, cmd_ack=None):
         """Wait until the telescope is cleared by the dome.
@@ -1608,7 +1593,7 @@ class ATCS(BaseTCS):
             self.log.warning("Monitor disabled. Enabling and starting monitoring loop.")
             self.enable_monitor()
 
-        while not in_position and self.is_monitor_enabled():
+        while self.is_monitor_enabled():
             if _check.atmcs:
                 comm_pos = await self.next_telescope_target(timeout=self.long_timeout)
                 tel_pos = await self.next_telescope_position(timeout=self.fast_timeout)
@@ -1948,7 +1933,7 @@ class ATCS(BaseTCS):
                     "exitControl",
                     "enterControl",
                     "summaryState",
-                    "settingVersions",
+                    "configurationsAvailable",
                     "heartbeat",
                 ],
                 atmcs=[
@@ -2022,7 +2007,7 @@ class ATCS(BaseTCS):
             usages[self.valid_use_cases.Slew] = UsagesResources(
                 components_attr=self.components_attr,
                 readonly=False,
-                generics=["summaryState", "settingVersions", "heartbeat"],
+                generics=["summaryState", "configurationsAvailable", "heartbeat"],
                 atmcs=[
                     "allAxesInPosition",
                     "atMountState",
@@ -2069,7 +2054,7 @@ class ATCS(BaseTCS):
                     "exitControl",
                     "enterControl",
                     "summaryState",
-                    "settingVersions",
+                    "configurationsAvailable",
                     "heartbeat",
                 ],
                 atmcs=[
@@ -2130,7 +2115,7 @@ class ATCS(BaseTCS):
                     "exitControl",
                     "enterControl",
                     "summaryState",
-                    "settingVersions",
+                    "configurationsAvailable",
                     "heartbeat",
                 ],
                 atmcs=[
@@ -2179,7 +2164,7 @@ class ATCS(BaseTCS):
                     "exitControl",
                     "enterControl",
                     "summaryState",
-                    "settingVersions",
+                    "configurationsAvailable",
                     "heartbeat",
                 ],
                 atmcs=[

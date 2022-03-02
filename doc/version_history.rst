@@ -6,6 +6,35 @@
 Version History
 ###############
 
+v0.15.0
+-------
+
+* Update for ts_salobj v7, which is required.
+  This also requires ts_xml 11.
+* Rename ``settings`` to ``overrides``.
+* `RemoteGroup`: use "" as the default override for all components.
+  Remove the ``inspect_settings`` method and rename ``expand_settings`` to ``expand_overrides``.
+
+v0.14.0
+-------
+
+* Remove usage of deprecated methods from salobj.
+* In `BaseTCS`:
+  * Fix handle in position event to use `flush=True` when dealing with potential race condition.
+  * Change default value of `stop_before_slew` parameter in slew commands from `True` to `False`.
+* In `ATCS`: 
+  * Remove secondary check for in position condition.
+    This check was a workaround for a problem we had with the ATMCS `inPosition` event long ago but it was now causing problems.
+  * Fix `monitor_position` unit tests.
+  * Implement `handle_in_position_event` for ATMCS.
+  * Update unit tests for new default value of `stop_before_slew`.
+  * Mark `test_find_target` as flaky. This test reaches Simbad remote server, which can be flaky sometimes.
+  * Augment atdometrajectory mocks in tests/auxtel/test_atcs.py.
+  * In `slew_dome_to`, wait only for atdome to arrive in position.
+* In `MTCS`:
+  * Move rotator synchronization to outside "stop_before_slew".
+  * Update unit tests for new default value of `stop_before_slew`.
+
 v0.13.2
 -------
 
