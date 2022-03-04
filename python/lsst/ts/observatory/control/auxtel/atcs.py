@@ -154,6 +154,8 @@ class ATCS(BaseTCS):
         self.dome_flat_az = 20.0
         self.dome_slew_tolerance = Angle(5.1 * u.deg)
 
+        self._dome_slew_max_iter = 4
+
         self.azimuth_open_dome = 90.0
 
         if hasattr(self.rem.atmcs, "tel_mount_AzEl_Encoders"):
@@ -322,19 +324,42 @@ class ATCS(BaseTCS):
         # edit here and let it as is.
         _check.atmcs = False
 
-        task_list = [
-            asyncio.create_task(
-                self._handle_in_position(
+        monitor_position_task = self.monitor_position(check=_check)
+
+        try:
+            for i in range(self._dome_slew_max_iter):
+
+                self.log.debug(
+                    f"[{i+1/self._dome_slew_max_iter}] Slewing dome to {az}..."
+                )
+
+                await self._handle_in_position(
                     in_position_event=self.rem.atdome.evt_azimuthInPosition,
                     timeout=self.long_long_timeout,
                     settle_time=self.tel_settle_time,
                     component_name="ATDome",
                 )
-            ),
-            asyncio.create_task(self.monitor_position(check=_check)),
-        ]
+                dome_azimuth_in_position = (
+                    await self.rem.atdome.evt_azimuthInPosition.aget(
+                        timeout=self.fast_timeout
+                    )
+                )
 
-        await self.process_as_completed(task_list)
+                if dome_azimuth_in_position.inPosition:
+                    self.log.debug("Dome in position.")
+                    break
+                else:
+                    self.log.debug(
+                        "Dome not in position, probably overshoot. Repositioning..."
+                    )
+                    await self.rem.atdome.cmd_moveAzimuth.set_start(
+                        azimuth=target_az, timeout=self.long_long_timeout
+                    )
+        finally:
+
+            self.stop_monitor()
+
+            await monitor_position_task
 
     async def prepare_for_flatfield(self, check=None):
         """A high level method to position the telescope and dome for flat
