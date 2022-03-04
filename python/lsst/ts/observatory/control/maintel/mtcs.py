@@ -531,27 +531,14 @@ class MTCS(BaseTCS):
             After receiving the in position command add an addional settle
             wait? (default: True)
         """
-        self.log.debug("Wait for rotator in position event.")
-
-        while True:
-
-            in_position = await self.rem.mtrotator.evt_inPosition.next(
-                flush=False, timeout=timeout
-            )
-
-            # make sure timestamp of event is after command was acknowledged.
-            if (
-                cmd_ack is not None
-                and in_position.private_sndStamp < cmd_ack.private_sndStamp
-            ):
-                self.log.debug("Received old event. Ignoring.")
-            else:
-                self.log.info(f"Got {in_position.inPosition}")
-                if in_position.inPosition:
-                    self.log.info("Rotator in position.")
-                    return "Rotator in position."
-                else:
-                    self.log.debug("Rotator not in position")
+        return (
+            await self._handle_in_position(
+                self.rem.mtrotator.evt_inPosition,
+                timeout=timeout,
+                settle_time=self.tel_settle_time,
+                component_name="MTRotator",
+            ),
+        )
 
     async def dome_az_in_position(self):
         """Wait for `_dome_az_in_position` event to be set and return a string
