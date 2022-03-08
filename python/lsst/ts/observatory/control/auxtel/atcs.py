@@ -324,7 +324,7 @@ class ATCS(BaseTCS):
         # edit here and let it as is.
         _check.atmcs = False
 
-        monitor_position_task = self.monitor_position(check=_check)
+        monitor_position_task = asyncio.create_task(self.monitor_position(check=_check))
 
         try:
             for i in range(self._dome_slew_max_iter):
