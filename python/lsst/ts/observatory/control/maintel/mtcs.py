@@ -231,13 +231,17 @@ class MTCS(BaseTCS):
                 timeout=self.fast_timeout
             )
 
+            rotator_reset_position = rotator_position.actualPosition + (
+                0.1 if rotator_position.actualPosition < 0.0 else -0.1
+            )
+
             self.log.debug(
                 "Workaround for rotator trajectory problem. "
-                f"Moving rotator to its current position: {rotator_position.actualPosition:0.2f}"
+                f"Moving rotator to its current position: {rotator_reset_position:0.2f}"
             )
 
             await self.rem.mtrotator.cmd_move.set_start(
-                position=rotator_position.actualPosition, timeout=self.fast_timeout
+                position=rotator_reset_position, timeout=self.fast_timeout
             )
             await self._handle_in_position(
                 in_position_event=self.rem.mtrotator.evt_inPosition,
