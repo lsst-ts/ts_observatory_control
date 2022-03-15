@@ -1617,7 +1617,9 @@ class ATCS(BaseTCS):
                     "Check component for errors."
                 )
 
-        if not self.check_dome_following() and _check.atdome:
+        dome_following = await self.check_dome_following()
+
+        if not dome_following and _check.atdome:
             self.log.warning(
                 "Dome following disabled and check dome enabled. "
                 "Disabling dome check."
