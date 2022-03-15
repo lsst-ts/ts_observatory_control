@@ -1617,6 +1617,13 @@ class ATCS(BaseTCS):
                     "Check component for errors."
                 )
 
+        if not self.check_dome_following() and _check.atdome:
+            self.log.warning(
+                "Dome following disabled and check dome enabled. "
+                "Disabling dome check."
+            )
+            _check.atdome = False
+
         in_position = False
 
         if not self.is_monitor_enabled():
