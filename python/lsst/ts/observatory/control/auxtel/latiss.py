@@ -35,10 +35,10 @@ class LATISSUsages(Usages):
     Additional usages definition:
 
     * TakeImage: Enable Camera-only take image operations. Exclude
-                 HeaderService, ATSpectrograph and Archiver data.
+                 HeaderService, ATSpectrograph and OODS data.
     * Setup: Enable ATSpectrograph setup operations.
     * TakeImageFull: Enable all take image operations with additional support
-                     events from HeaderService and Archiver
+                     events from HeaderService and OODS
     """
 
     TakeImage = 1 << 3
@@ -66,7 +66,7 @@ class LATISS(BaseCamera):
     """LSST Auxiliary Telescope Image and Slit less Spectrograph (LATISS).
 
     LATISS encapsulates core functionality from the following CSCs ATCamera,
-    ATSpectrograph, ATHeaderService and ATArchiver CSCs.
+    ATSpectrograph, ATHeaderService and ATOODS CSCs.
 
     Parameters
     ----------
@@ -91,7 +91,7 @@ class LATISS(BaseCamera):
     ):
 
         super().__init__(
-            components=["ATCamera", "ATSpectrograph", "ATHeaderService", "ATArchiver"],
+            components=["ATCamera", "ATSpectrograph", "ATHeaderService", "ATOODS"],
             instrument_setup_attributes=["filter", "grating", "linear_stage"],
             domain=domain,
             log=log,

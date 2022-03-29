@@ -6,6 +6,11 @@
 Version History
 ###############
 
+v0.16.0
+-------
+
+* Change archiver references to oods ones due to image creation process change (DMTN-143).
+
 v0.15.0
 -------
 

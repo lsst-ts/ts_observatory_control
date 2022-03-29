@@ -38,9 +38,9 @@ class ComCamMock(BaseGroupMock):
     """
 
     def __init__(self):
-        self.components = ("cccamera", "ccheaderservice", "ccarchiver")
+        self.components = ("cccamera", "ccheaderservice", "ccoods")
 
-        super().__init__(["CCCamera", "CCHeaderService", "CCArchiver"])
+        super().__init__(["CCCamera", "CCHeaderService", "CCOODS"])
 
         self.cccamera.cmd_takeImages.callback = self.cmd_take_images_callback
         self.cccamera.cmd_setFilter.callback = self.cmd_setFilter_callback
@@ -70,8 +70,8 @@ class ComCamMock(BaseGroupMock):
         return self.controllers.ccheaderservice
 
     @property
-    def ccarchiver(self):
-        return self.controllers.ccarchiver
+    def ccoods(self):
+        return self.controllers.ccoods
 
     async def cmd_take_images_callback(self, data):
         """Emulate take image command."""
