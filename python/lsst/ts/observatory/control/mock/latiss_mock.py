@@ -41,11 +41,9 @@ class LATISSMock(BaseGroupMock):
 
     def __init__(self):
 
-        self.components = ("atspec", "atcam", "atheaderservice", "atarchiver")
+        self.components = ("atspec", "atcam", "atheaderservice", "atoods")
 
-        super().__init__(
-            ["ATSpectrograph", "ATCamera", "ATHeaderService", "ATArchiver"]
-        )
+        super().__init__(["ATSpectrograph", "ATCamera", "ATHeaderService", "ATOODS"])
 
         self.atcam.cmd_takeImages.callback = self.cmd_take_images_callback
         self.atspec.cmd_changeFilter.callback = self.cmd_changeFilter_callback
@@ -81,8 +79,8 @@ class LATISSMock(BaseGroupMock):
         return self.controllers.atheaderservice
 
     @property
-    def atarchiver(self):
-        return self.controllers.atarchiver
+    def atoods(self):
+        return self.controllers.atoods
 
     async def cmd_take_images_callback(self, data):
         """Emulate take image command."""

@@ -35,9 +35,9 @@ class ComCamUsages(Usages):
     Additional usages definition:
 
     * TakeImage: Enable Camera-only take image operations. Exclude
-                 HeaderService and Archiver data.
+                 HeaderService and OODS data.
     * TakeImageFull: Enable all take image operations with additional support
-                     events from HeaderService and Archiver
+                     events from HeaderService and OODS
     """
 
     TakeImage = 1 << 3
@@ -61,7 +61,7 @@ class ComCam(BaseCamera):
     """Commissioning Camera (ComCam).
 
     ComCam encapsulates core functionality from the following CSCs CCCamera,
-    CCHeaderService and CCArchiver CSCs.
+    CCHeaderService and CCOODS CSCs.
 
     Parameters
     ----------
@@ -76,7 +76,7 @@ class ComCam(BaseCamera):
     ):
 
         super().__init__(
-            components=["CCCamera", "CCHeaderService", "CCArchiver"],
+            components=["CCCamera", "CCHeaderService", "CCOODS"],
             instrument_setup_attributes=["filter"],
             domain=domain,
             log=log,

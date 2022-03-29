@@ -124,17 +124,17 @@ class UsagesResources:
     strings with the name of the topics for the individual CSC. For example,::
 
         UsagesResources(
-            components=["atcamera", "atarchiver", "atheaderservice"],
+            components=["atcamera", "atoods", "atheaderservice"],
             readonly=False,
             generics=["summaryState"],
             atcamera=["takeImages", "endReadout"],
             atheaderservice=["largeFileObjectAvailable"],
         )
 
-    Will include the `summaryState` event for ATCamera, ATArchiver and
+    Will include the `summaryState` event for ATCamera, ATOODS and
     ATHeaderService components, plus `takeImages` and `endReadout` from
     ATCamera and `largeFileObjectAvailable` from ATHeaderService. No particular
-    topic for ATArchiver would be included.
+    topic for ATOODS would be included.
 
     Raises
     ------
