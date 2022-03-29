@@ -6,6 +6,11 @@
 Version History
 ###############
 
+v0.16.1
+-------
+
+* Update to black 22.
+
 v0.16.0
 -------
 
