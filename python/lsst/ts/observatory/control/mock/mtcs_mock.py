@@ -641,9 +641,9 @@ class MTCSMock(BaseGroupMock):
                 force_actuator_data.mz = np.random.rand()
 
                 force_actuator_data.forceMagnitude = np.sqrt(
-                    force_actuator_data.fx ** 2
-                    + force_actuator_data.fy ** 2
-                    + force_actuator_data.fz ** 2
+                    force_actuator_data.fx**2
+                    + force_actuator_data.fy**2
+                    + force_actuator_data.fz**2
                 )
 
                 await self.controllers.mtm1m3.tel_forceActuatorData.write(
