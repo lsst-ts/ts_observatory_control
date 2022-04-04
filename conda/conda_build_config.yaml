@@ -1,4 +1,4 @@
-ts-idl:
+idl_version: 
   - 3.7.0_10.2.0_6.1.0
-ts-salobj:
+salobj_version:
   - 6.9.1
