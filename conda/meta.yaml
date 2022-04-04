@@ -17,7 +17,7 @@ build:
 
 test:
   requires:
-    - ts-conda-build =0.3
+    - ts-conda-build =0.3.1
     - astroquery
     - pandas
     - scipy
