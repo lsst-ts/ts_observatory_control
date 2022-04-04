@@ -834,7 +834,7 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
             timeout=self.atcs.fast_timeout
         )
 
-    async def test_monitor_position(self):
+    async def test_monitor_position_dome_following_enabled(self):
 
         original_check = copy.copy(self.atcs.check)
 
@@ -850,6 +850,8 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
                 end_az,
                 len(self._telescope_position.azimuthCalculatedAngle),
             )
+
+            self._atdometrajectory_dome_following.enabled = True
 
             task = asyncio.create_task(self.atcs.monitor_position())
 
@@ -894,6 +896,65 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
         self.atcs.rem.atdome.evt_azimuthCommandedState.aget.assert_called_with(
             timeout=self.atcs.fast_timeout
         )
+
+    async def test_monitor_position_dome_following_disabled(self):
+
+        original_check = copy.copy(self.atcs.check)
+
+        self.atcs.check = self.get_all_checks()
+
+        try:
+
+            start_az = 1.0
+            end_az = 0.9
+
+            self._telescope_position.azimuthCalculatedAngle = np.linspace(
+                start_az,
+                end_az,
+                len(self._telescope_position.azimuthCalculatedAngle),
+            )
+
+            self._atdometrajectory_dome_following.enabled = False
+
+            task = asyncio.create_task(self.atcs.monitor_position())
+
+            await asyncio.sleep(2.0)
+
+            assert not task.done()
+
+            start_az = 0.1
+            end_az = 0.0
+
+            self._telescope_position.azimuthCalculatedAngle = np.linspace(
+                start_az,
+                end_az,
+                len(self._telescope_position.azimuthCalculatedAngle),
+            )
+
+            await asyncio.sleep(2.0)
+
+            assert not task.done()
+
+            self.atcs.stop_monitor()
+
+            await asyncio.wait_for(task, timeout=self.atcs.fast_timeout)
+
+            assert task.exception() is None
+        finally:
+            self.atcs.check = original_check
+
+        self.atcs.next_telescope_target.assert_called_with(
+            timeout=self.atcs.long_timeout
+        )
+        self.atcs.next_telescope_position.assert_called_with(
+            timeout=self.atcs.fast_timeout
+        )
+        self.atcs.rem.atmcs.tel_mount_Nasmyth_Encoders.next.assert_called_with(
+            flush=True, timeout=self.atcs.fast_timeout
+        )
+
+        self.atcs.rem.atdome.tel_position.next.assert_not_called()
+        self.atcs.rem.atdome.evt_azimuthCommandedState.aget.assert_not_called()
 
     async def test_slew_icrs(self):
 
