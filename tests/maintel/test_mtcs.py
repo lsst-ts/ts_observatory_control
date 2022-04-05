@@ -1120,6 +1120,24 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
         with pytest.raises(AssertionError):
             await self.mtcs.enable_compensation_mode(component="mtm1m3")
 
+    async def test_move_rotator(self):
+
+        position = 10.0
+
+        await self.mtcs.move_rotator(position=position)
+
+        self.mtcs.rem.mtrotator.cmd_move.set_start.assert_awaited_with(
+            position=position, timeout=self.mtcs.long_timeout
+        )
+        self.mtcs.rem.mtrotator.evt_inPosition.aget.assert_awaited_with(
+            timeout=self.mtcs.fast_timeout
+        )
+        self.mtcs.rem.mtrotator.evt_inPosition.flush.assert_called()
+
+        self.mtcs.rem.mtrotator.evt_inPosition.next.assert_awaited_with(
+            timeout=self.mtcs.long_long_timeout, flush=False
+        )
+
     async def test_move_camera_hexapod(self):
 
         hexapod_positions = dict([(axis, np.random.rand()) for axis in "xyzuv"])
@@ -1573,6 +1591,8 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
                 "tel_rotation.next.side_effect": self.mtrotator_tel_rotation_next,
                 "tel_rotation.aget.side_effect": self.mtrotator_tel_rotation_next,
                 "evt_inPosition.next.side_effect": self.mtrotator_evt_in_position_next,
+                "evt_inPosition.aget.side_effect": self.mtrotator_evt_in_position_next,
+                "cmd_move.set_start.side_effect": self.mtrotator_cmd_move,
             }
         )
 
@@ -1743,10 +1763,33 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
     async def mtmout_cmd_disable_ccw_following(self, *args, **kwargs):
         self._mtmount_evt_cameraCableWrapFollowing.enabled = 0
 
+    async def mtrotator_cmd_move(self, *args, **kwargs):
+
+        asyncio.create_task(self._mtrotator_move(position=kwargs.get("position", 0.0)))
+
+    async def _mtrotator_move(self, position):
+
+        self._mtrotator_evt_in_position.inPosition = False
+
+        position_vector = (
+            np.arange(self._mtrotator_tel_rotation.actualPosition, position, 0.5)
+            if self._mtrotator_tel_rotation.actualPosition < position
+            else np.arange(position, self._mtrotator_tel_rotation.actualPosition, 0.5)
+        )
+
+        for actual_position in position_vector:
+            await asyncio.sleep(0.1)
+            self._mtrotator_tel_rotation.actualPosition = actual_position
+
+        self._mtrotator_tel_rotation.actualPosition = position
+        self._mtrotator_evt_in_position.inPosition = True
+
     async def mtrotator_tel_rotation_next(self, *args, **kwargs):
+        await asyncio.sleep(self.heartbeat_time)
         return self._mtrotator_tel_rotation
 
     async def mtrotator_evt_in_position_next(self, *args, **kwargs):
+        await asyncio.sleep(self.heartbeat_time)
         return self._mtrotator_evt_in_position
 
     async def mtdome_tel_azimuth_next(self, *args, **kwargs):
