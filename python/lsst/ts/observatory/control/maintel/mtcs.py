@@ -240,15 +240,7 @@ class MTCS(BaseTCS):
                 f"Moving rotator to its current position: {rotator_reset_position:0.2f}"
             )
 
-            await self.rem.mtrotator.cmd_move.set_start(
-                position=rotator_reset_position, timeout=self.fast_timeout
-            )
-            await self._handle_in_position(
-                in_position_event=self.rem.mtrotator.evt_inPosition,
-                timeout=self.long_timeout,
-                settle_time=self.fast_timeout,
-                component_name="MTRotator",
-            )
+            await self.move_rotator(position=rotator_reset_position)
         except Exception:
             self.log.exception("Error trying to reset rotator position.")
 
@@ -1068,6 +1060,26 @@ class MTCS(BaseTCS):
             in_position_event=self.rem.mthexapod_1.evt_inPosition,
             timeout=self.long_timeout,
             component_name="Camera Hexapod",
+        )
+
+    async def move_rotator(self, position):
+        """Move rotator to specified position and wait for movement to
+        complete.
+
+        Parameters
+        ----------
+        position : `float`
+            Desired rotator position (deg).
+        """
+
+        await self.rem.mtrotator.cmd_move.set_start(
+            position=position, timeout=self.long_timeout
+        )
+
+        await self._handle_in_position(
+            in_position_event=self.rem.mtrotator.evt_inPosition,
+            timeout=self.long_long_timeout,
+            component_name="MTRotator",
         )
 
     async def move_m2_hexapod(self, x, y, z, u, v, w=0.0, sync=True):
