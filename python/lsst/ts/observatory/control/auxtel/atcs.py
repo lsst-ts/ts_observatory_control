@@ -1494,9 +1494,12 @@ class ATCS(BaseTCS):
         # needs to be verified at each stage of the process.
         _check = copy.copy(self.check) if check is None else copy.copy(check)
 
+        self.log.debug(f"Check: {_check}")
+
         tasks = list()
 
         if _check.atmcs:
+            self.log.debug("Add ATMCS in position check...")
             tasks.append(
                 self.wait_for_atmcs_inposition(
                     timeout=timeout, cmd_ack=cmd_ack, wait_settle=wait_settle
@@ -1504,6 +1507,7 @@ class ATCS(BaseTCS):
             )
 
         if _check.atdome:
+            self.log.debug("Add ATDome in position check...")
             tasks.append(self.wait_for_atdome_inposition(timeout, cmd_ack))
 
         return await asyncio.gather(*tasks)
@@ -1526,12 +1530,15 @@ class ATCS(BaseTCS):
         asyncio.TimeoutError
             If does not get a status update in less then `timeout` seconds.
         """
-        return await self._handle_in_position(
+        self.log.debug("Wait ATMCS in position...")
+        status = await self._handle_in_position(
             in_position_event=self.rem.atmcs.evt_allAxesInPosition,
             timeout=timeout,
             settle_time=self.tel_settle_time,
             component_name="ATMCS",
         )
+        self.log.debug("ATMCS in position")
+        return status
 
     async def wait_for_atdome_inposition(self, timeout, cmd_ack=None):
         """Wait until the telescope is cleared by the dome.
