@@ -1310,12 +1310,15 @@ class ATCS(BaseTCS):
 
         self.scheduled_coro.append(
             asyncio.ensure_future(
-                self.wait_for_inposition(timeout=slew_timeout, wait_settle=wait_settle)
+                self.wait_for_inposition(
+                    timeout=slew_timeout,
+                    wait_settle=wait_settle,
+                    check=_check,
+                )
             )
         )
-        self.scheduled_coro.append(
-            asyncio.ensure_future(self.monitor_position(check=_check))
-        )
+
+        asyncio.ensure_future(self.monitor_position(check=_check))
 
         for comp in self.components_attr:
             if getattr(_check, comp):
@@ -1325,6 +1328,8 @@ class ATCS(BaseTCS):
                 )
 
         await self.process_as_completed(self.scheduled_coro)
+
+        self.stop_monitor()
 
     async def get_bore_sight_angle(self):
         """Get the instrument bore sight angle with respect to the telescope
