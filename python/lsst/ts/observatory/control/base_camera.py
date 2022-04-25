@@ -23,7 +23,6 @@ __all__ = ["BaseCamera"]
 import abc
 import asyncio
 
-import numpy as np
 import astropy
 
 from . import RemoteGroup
@@ -485,8 +484,6 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
                 f"{self.valid_imagetype!r}"
             )
 
-        exp_ids = np.zeros(n, dtype=int)
-
         if group_id is None:
             self.log.debug("Generating group_id")
             group_id = self.next_group_id()
@@ -511,32 +508,21 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
         else:
             self.log.debug(f"imagetype: {imgtype}, skip TCS synchronization.")
 
-        for i in range(n):
-            tag = f"{imgtype} {i+1:04} - {n:04}"
+        if checkpoint is not None:
+            await checkpoint(f"Expose {n} {imgtype}")
 
-            if checkpoint is not None:
-                await checkpoint(tag)
-            else:
-                self.log.debug(tag)
-
-            end_readout = await self.expose(
-                exp_time=exptime if imgtype != "BIAS" else 0.0,
-                shutter=imgtype not in ["BIAS", "DARK"],
-                image_type=imgtype,
-                group_id=group_id,
-                test_type=test_type,
-                reason=reason,
-                program=program,
-                sensors=sensors,
-                note=note,
-            )
-            # parse out visitID from filename -
-            # (Patrick comment) this is highly annoying
-            _, _, i_prefix, i_suffix = end_readout.imageName.split("_")
-
-            exp_ids[i] = int((i_prefix + i_suffix[1:]))
-
-        return exp_ids
+        return await self.expose(
+            exp_time=exptime if imgtype != "BIAS" else 0.0,
+            shutter=imgtype not in ["BIAS", "DARK"],
+            image_type=imgtype,
+            group_id=group_id,
+            n=n,
+            test_type=test_type,
+            reason=reason,
+            program=program,
+            sensors=sensors,
+            note=note,
+        )
 
     def check_kwargs(self, **kwags):
         """Utility method to verify that kwargs are in
@@ -640,6 +626,7 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
         shutter,
         image_type,
         group_id,
+        n=1,
         test_type=None,
         reason=None,
         program=None,
@@ -662,6 +649,8 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
             XTALK, CCOB, SPOT...)
         group_id : `str`
             Image groupId. Used to fill in FITS GROUPID header
+        n : `int`, optional
+            Number of frames to take (default = 1).
         test_type : `str`, optional
             The classifier for the testing type. Usually the same as
             `image_type`.
@@ -691,6 +680,8 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
         setup_instrument: Set up instrument.
 
         """
+        exp_ids = []
+
         async with self.cmd_lock:
 
             if image_type == "BIAS" and exp_time > 0.0:
@@ -711,7 +702,7 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
             )
 
             self.camera.cmd_takeImages.set(
-                numImages=1,
+                numImages=n,
                 expTime=float(exp_time),
                 shutter=bool(shutter),
                 keyValueMap=key_value_map,
@@ -719,13 +710,29 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
                 obsNote="" if note is None else note,
             )
 
-            timeout = self.read_out_time + self.long_timeout + self.long_long_timeout
+            take_images_timeout = (
+                float(exp_time) + self.read_out_time
+            ) * n + self.long_long_timeout
+
             self.camera.evt_endReadout.flush()
-            await self.camera.cmd_takeImages.start(timeout=timeout + exp_time)
-            end_readout = await self.camera.evt_endReadout.next(
-                flush=False, timeout=timeout
-            )
-            return end_readout
+            await self.camera.cmd_takeImages.start(timeout=take_images_timeout)
+
+            for _ in range(n):
+                try:
+                    end_readout = await self.camera.evt_endReadout.next(
+                        flush=False, timeout=self.long_long_timeout
+                    )
+                except asyncio.TimeoutError:
+                    raise RuntimeError(
+                        f"Timeout waiting for endReadout event. Expected {n} got {len(exp_ids)}."
+                    )
+                # parse out visitID from filename
+                # (Patrick comment) this is highly annoying
+                _, _, i_prefix, i_suffix = end_readout.imageName.split("_")
+
+                exp_ids.append(int((i_prefix + i_suffix[1:])))
+
+        return exp_ids
 
     @staticmethod
     def next_group_id():
