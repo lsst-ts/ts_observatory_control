@@ -75,11 +75,15 @@ class ComCamMock(BaseGroupMock):
 
     async def cmd_take_images_callback(self, data):
         """Emulate take image command."""
-        one_exp_time = data.expTime + self.readout_time
-        if data.shutter:
-            one_exp_time += self.shutter_time
-        await asyncio.sleep(one_exp_time * data.numImages)
-        self.end_readout_task = asyncio.create_task(self.end_readout(data))
+
+        for i in range(data.numImages):
+            one_exp_time = data.expTime
+            if data.shutter:
+                one_exp_time += self.shutter_time
+            await asyncio.sleep(one_exp_time)
+            self.end_readout_task = asyncio.create_task(self.end_readout(data))
+            if i < data.numImages - 1:
+                await self.end_readout_task
 
     async def end_readout(self, data):
         """Wait `self.readout_time` and send endReadout event."""

@@ -231,20 +231,16 @@ class MTCS(BaseTCS):
                 timeout=self.fast_timeout
             )
 
-            self.log.debug(
-                "Workaround for rotator trajectory problem. "
-                f"Moving rotator to its current position: {rotator_position.actualPosition:0.2f}"
+            rotator_reset_position = rotator_position.actualPosition + (
+                0.1 if rotator_position.actualPosition < 0.0 else -0.1
             )
 
-            await self.rem.mtrotator.cmd_move.set_start(
-                position=rotator_position.actualPosition, timeout=self.fast_timeout
+            self.log.debug(
+                "Workaround for rotator trajectory problem. "
+                f"Moving rotator to its current position: {rotator_reset_position:0.2f}"
             )
-            await self._handle_in_position(
-                in_position_event=self.rem.mtrotator.evt_inPosition,
-                timeout=self.long_timeout,
-                settle_time=self.fast_timeout,
-                component_name="MTRotator",
-            )
+
+            await self.move_rotator(position=rotator_reset_position)
         except Exception:
             self.log.exception("Error trying to reset rotator position.")
 
@@ -531,27 +527,14 @@ class MTCS(BaseTCS):
             After receiving the in position command add an addional settle
             wait? (default: True)
         """
-        self.log.debug("Wait for rotator in position event.")
-
-        while True:
-
-            in_position = await self.rem.mtrotator.evt_inPosition.next(
-                flush=False, timeout=timeout
-            )
-
-            # make sure timestamp of event is after command was acknowledged.
-            if (
-                cmd_ack is not None
-                and in_position.private_sndStamp < cmd_ack.private_sndStamp
-            ):
-                self.log.debug("Received old event. Ignoring.")
-            else:
-                self.log.info(f"Got {in_position.inPosition}")
-                if in_position.inPosition:
-                    self.log.info("Rotator in position.")
-                    return "Rotator in position."
-                else:
-                    self.log.debug("Rotator not in position")
+        return (
+            await self._handle_in_position(
+                self.rem.mtrotator.evt_inPosition,
+                timeout=timeout,
+                settle_time=self.tel_settle_time,
+                component_name="MTRotator",
+            ),
+        )
 
     async def dome_az_in_position(self):
         """Wait for `_dome_az_in_position` event to be set and return a string
@@ -1077,6 +1060,26 @@ class MTCS(BaseTCS):
             in_position_event=self.rem.mthexapod_1.evt_inPosition,
             timeout=self.long_timeout,
             component_name="Camera Hexapod",
+        )
+
+    async def move_rotator(self, position):
+        """Move rotator to specified position and wait for movement to
+        complete.
+
+        Parameters
+        ----------
+        position : `float`
+            Desired rotator position (deg).
+        """
+
+        await self.rem.mtrotator.cmd_move.set_start(
+            position=position, timeout=self.long_timeout
+        )
+
+        await self._handle_in_position(
+            in_position_event=self.rem.mtrotator.evt_inPosition,
+            timeout=self.long_long_timeout,
+            component_name="MTRotator",
         )
 
     async def move_m2_hexapod(self, x, y, z, u, v, w=0.0, sync=True):

@@ -6,6 +6,30 @@
 Version History
 ###############
 
+v0.17.0
+-------
+
+* In `test_atcs`, rename `test_monitor` -> `test_monitor_position_dome_following_enabled`, and make sure dome following is enabled before running test.
+  Add `test_monitor_position_dome_following_disabled` test to check condition when dome following is disabled.
+* Update ComCamMock to correctly take into account `numImages > 1`.
+* In `tests/maintel/test_mtcs.py`:
+  * Add unit test for `MTCS.move_rotator` method.
+  * Fix typo `mtmout` -> `mtmount` in two method names.
+* In ATCS, update how _slew handles monitor.
+* In MTCS, add `move_rotator` method to handle moving the rotator and waiting for the movement to complete.
+* In `BaseCamera`, use `numImages` feature from Camera to take multiple images, instead of looping.
+* In `ATCS.monitor_position`, handle condition when dome following is disabled but dome checking is enabled.
+* In `MTCS._slew_to`, juggle rotator position by 0.1 degrees when working around trajectory problem.
+  This will make sure the rotator moves a bit, thus resetting the trajectory.
+* In `ATCS.slew_dome_to`, fix handling of `monitor_position` by creating a background task.
+* In `ATCS.slew_dome_to`, improve handling dome positioning.
+  The ATDome will overshoot if slew is large enough, the method will send a move command, use `_handle_in_position` to determine when the dome is in position and then check that the dome is still in position afterwards.
+  If it is not, it will iterate up to `_dome_slew_max_iter` times.
+  The method is also not using the internal dome in position flag, which only checks if the dome is obscuring the telescope or not.
+  This algorithm is only suitable for on sky slewing operation and not for when we are positioning the dome.
+* In `ATCS.slew_dome_to`, use `_handle_in_position` to determine when dome is in position.
+* Update `MTCS.wait_for_rotator_inposition` to use `_handle_in_position`.
+
 v0.16.1
 -------
 
