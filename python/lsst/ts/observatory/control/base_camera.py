@@ -22,10 +22,12 @@ __all__ = ["BaseCamera"]
 
 import abc
 import asyncio
+import typing
 
 import astropy
 
 from . import RemoteGroup
+from .utils import CameraExposure
 
 
 class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
@@ -757,7 +759,7 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
         if checkpoint is not None:
             await checkpoint(f"Expose {n} {imgtype}")
 
-        return await self.expose(
+        camera_exposure = CameraExposure(
             exp_time=exptime if imgtype != "BIAS" else 0.0,
             shutter=imgtype not in ["BIAS", "DARK"],
             image_type=imgtype,
@@ -769,6 +771,8 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
             sensors=sensors,
             note=note,
         )
+
+        return await self.expose(camera_exposure=camera_exposure)
 
     def check_kwargs(self, **kwags):
         """Utility method to verify that kwargs are in
@@ -787,46 +791,6 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
                     f"Invalid argument {key}."
                     f" Must be one of {self.instrument_setup_attributes}."
                 )
-
-    def get_key_value_map(
-        self,
-        image_type,
-        group_id,
-        test_type=None,
-        reason=None,
-        program=None,
-    ):
-        """Parse inputs into a valid key-value string for the cameras.
-
-        Parameters
-        ----------
-        image_type : `str`
-            Image type (a.k.a. IMGTYPE) (e.g. e.g. BIAS, DARK, FLAT, FE55,
-            XTALK, CCOB, SPOT...)
-        group_id : `str`
-            Image groupId. Used to fill in FITS GROUPID header
-        test_type : `str`, optional
-            The classifier for the testing type. Usually the same as
-            `image_type`.
-        reason : `str`, optional
-            Reason for the data being taken. This must be a short tag-like
-            string that can be used to disambiguate a set of observations.
-        program : `str`, optional
-            Name of the program this data belongs to, e.g. WFD, DD, etc.
-        """
-
-        key_value_map = (
-            f"imageType: {image_type}, groupId: {group_id}, "
-            f"testType: {image_type if test_type is None else test_type}"
-        )
-
-        if reason is not None:
-            key_value_map += f", reason: {reason}"
-
-        if program is not None:
-            key_value_map += f", program: {program}"
-
-        return key_value_map
 
     @property
     @abc.abstractmethod
@@ -866,19 +830,7 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
         """
         raise NotImplementedError()
 
-    async def expose(
-        self,
-        exp_time,
-        shutter,
-        image_type,
-        group_id,
-        n=1,
-        test_type=None,
-        reason=None,
-        program=None,
-        sensors=None,
-        note=None,
-    ):
+    async def expose(self, camera_exposure: CameraExposure):
         """Encapsulates the take image command.
 
         This basically consists of configuring and sending a takeImages
@@ -886,29 +838,8 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
 
         Parameters
         ----------
-        exp_time : `float`
-            The exposure time for the image, in seconds.
-        shutter : `bool`
-            Should activate the shutter? (False for bias and dark)
-        image_type : `str`
-            Image type (a.k.a. IMGTYPE) (e.g. e.g. BIAS, DARK, FLAT, FE55,
-            XTALK, CCOB, SPOT...)
-        group_id : `str`
-            Image groupId. Used to fill in FITS GROUPID header
-        n : `int`, optional
-            Number of frames to take (default = 1).
-        test_type : `str`, optional
-            The classifier for the testing type. Usually the same as
-            `image_type`.
-        reason : `str`, optional
-            Reason for the data being taken. This must be a short tag-like
-            string that can be used to disambiguate a set of observations.
-        program : `str`, optional
-            Name of the program this data belongs to, e.g. WFD, DD, etc.
-        sensors : `str`, optional
-            A colon delimited list of sensor names to use for the image.
-        note : `str`, optional
-            A freeform string containing small notes about the image.
+        camera_exposure : CameraExposure
+            Camera exposure definitions.
 
         Returns
         -------
@@ -924,61 +855,118 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
         take_engtest: Take series of engineering test observations.
         take_imgtype: Take series of images by image type.
         setup_instrument: Set up instrument.
-
         """
         exp_ids = []
 
         async with self.cmd_lock:
 
-            if image_type == "BIAS" and exp_time > 0.0:
+            if camera_exposure.image_type == "BIAS" and camera_exposure.exp_time > 0.0:
                 self.log.warning("Image type is BIAS, ignoring exptime.")
-                exp_time = 0.0
-            elif bool(shutter) and exp_time < self.min_exptime:
+                camera_exposure.exp_time = 0.0
+            elif (
+                bool(camera_exposure.shutter)
+                and camera_exposure.exp_time < self.min_exptime
+            ):
                 raise RuntimeError(
                     f"Minimum allowed open-shutter exposure time "
-                    f"is {self.min_exptime}. Got {exp_time}."
+                    f"is {self.min_exptime}. Got {camera_exposure.exp_time}."
                 )
 
-            key_value_map = self.get_key_value_map(
-                image_type=image_type,
-                group_id=group_id,
-                test_type=test_type,
-                reason=reason,
-                program=program,
-            )
-
-            self.camera.cmd_takeImages.set(
-                numImages=n,
-                expTime=float(exp_time),
-                shutter=bool(shutter),
-                keyValueMap=key_value_map,
-                sensors=self.parse_sensors(sensors),
-                obsNote="" if note is None else note,
-            )
-
-            take_images_timeout = (
-                float(exp_time) + self.read_out_time
-            ) * n + self.long_long_timeout
-
-            self.camera.evt_endReadout.flush()
-            await self.camera.cmd_takeImages.start(timeout=take_images_timeout)
-
-            for _ in range(n):
-                try:
-                    end_readout = await self.camera.evt_endReadout.next(
-                        flush=False, timeout=self.long_long_timeout
-                    )
-                except asyncio.TimeoutError:
-                    raise RuntimeError(
-                        f"Timeout waiting for endReadout event. Expected {n} got {len(exp_ids)}."
-                    )
-                # parse out visitID from filename
-                # (Patrick comment) this is highly annoying
-                _, _, i_prefix, i_suffix = end_readout.imageName.split("_")
-
-                exp_ids.append(int((i_prefix + i_suffix[1:])))
+            exp_ids = await self.handle_take_images(camera_exposure=camera_exposure)
 
         return exp_ids
+
+    async def handle_take_images(
+        self, camera_exposure: CameraExposure
+    ) -> typing.List[int]:
+        """Handle take images command.
+
+        Parameters
+        ----------
+        camera_exposure : CameraExposure
+            Camera exposure definitions.
+
+        Returns
+        -------
+        exp_ids : list of int
+            List of exposure ids.
+        """
+
+        return await self._handle_take_images(camera_exposure=camera_exposure)
+
+    async def _handle_take_images(
+        self, camera_exposure: CameraExposure
+    ) -> typing.List[int]:
+        """Handle taking series of images using the camera takeImages command.
+
+        Parameters
+        ----------
+        camera_exposure : CameraExposure
+            Camera exposure definitions.
+
+        Returns
+        -------
+        exp_ids : list of int
+            List of exposure ids.
+
+        Raises
+        ------
+        RuntimeError:
+            If timeout waiting for endReadout event from the camera.
+        """
+        key_value_map = camera_exposure.get_key_value_map()
+
+        self.camera.cmd_takeImages.set(
+            numImages=camera_exposure.n,
+            expTime=float(camera_exposure.exp_time),
+            shutter=bool(camera_exposure.shutter),
+            keyValueMap=key_value_map,
+            sensors=self.parse_sensors(camera_exposure.sensors),
+            obsNote="" if camera_exposure.note is None else camera_exposure.note,
+        )
+
+        take_images_timeout = (
+            float(camera_exposure.exp_time) + self.read_out_time
+        ) * camera_exposure.n + self.long_long_timeout
+
+        self.camera.evt_endReadout.flush()
+        await self.camera.cmd_takeImages.start(timeout=take_images_timeout)
+
+        exp_ids = []
+
+        for _ in range(camera_exposure.n):
+            try:
+                exp_id = await self.next_exposure_id()
+            except asyncio.TimeoutError:
+                raise RuntimeError(
+                    "Timeout waiting for endReadout event. "
+                    f"Expected {camera_exposure.n} got {len(exp_ids)}."
+                )
+
+            exp_ids.append(exp_id)
+
+        return exp_ids
+
+    async def next_exposure_id(self) -> int:
+        """Get the exposure id from the next endReadout event.
+
+        Await for the next `camera.evt_endReadout` event, without flushing,
+        parse the `imageName` into YYYYMMDD and sequence number and construct
+        an integer that represents the exposude id.
+
+        Returns
+        -------
+        int
+            Exposure id from next endReadout event.
+        """
+        end_readout = await self.camera.evt_endReadout.next(
+            flush=False, timeout=self.long_long_timeout
+        )
+        # parse out visitID from filename
+        # (Patrick comment) this is highly annoying
+        _, _, yyyymmdd, seq_num = end_readout.imageName.split("_")
+
+        return int((yyyymmdd + seq_num[1:]))
 
     @staticmethod
     def next_group_id():
