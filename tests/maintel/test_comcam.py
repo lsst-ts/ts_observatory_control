@@ -520,3 +520,55 @@ class TestComCam(RemoteGroupTestCase, unittest.IsolatedAsyncioTestCase):
             assert (
                 end_readout.additionalValues == f"SPOT:{group_id}:LSPOT:UNIT TEST:UTEST"
             )
+
+    async def test_take_focus(self):
+        async with self.make_group(usage=ComCamUsages.TakeImage):
+            group_id = self.comcam.next_group_id()
+
+            await self.comcam.take_focus(
+                n=1,
+                exptime=1.0,
+                group_id=group_id,
+            )
+
+            self.assert_last_end_readout(
+                additional_keys="imageType:groupId:testType",
+                additional_values=f"FOCUS:{group_id}:FOCUS",
+            )
+
+    async def test_take_cwfs(self):
+        async with self.make_group(usage=ComCamUsages.TakeImage):
+            group_id = self.comcam.next_group_id()
+
+            await self.comcam.take_cwfs(
+                n=1,
+                exptime=1.0,
+                group_id=group_id,
+            )
+
+            self.assert_last_end_readout(
+                additional_keys="imageType:groupId:testType",
+                additional_values=f"CWFS:{group_id}:CWFS",
+            )
+
+    async def test_take_acq(self):
+        async with self.make_group(usage=ComCamUsages.TakeImage):
+            group_id = self.comcam.next_group_id()
+
+            await self.comcam.take_acq(
+                n=1,
+                exptime=1.0,
+                group_id=group_id,
+            )
+
+            self.assert_last_end_readout(
+                additional_keys="imageType:groupId:testType",
+                additional_values=f"ACQ:{group_id}:ACQ",
+            )
+
+    def assert_last_end_readout(self, additional_keys, additional_values):
+
+        end_readout = self.comcam.camera.evt_endReadout.get()
+
+        assert end_readout.additionalKeys == additional_keys
+        assert end_readout.additionalValues == additional_values
