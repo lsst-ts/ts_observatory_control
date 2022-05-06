@@ -87,8 +87,10 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
             "ACQ",
             "CWFS",
             "FOCUS",
+            "STUTTERED",
         ]
 
+        self._stuttered_imgtype = {"STUTTERED"}
 
         self.instrument_setup_attributes = set(instrument_setup_attributes)
 
@@ -668,11 +670,100 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
             **kwargs,
         )
 
+    async def take_stuttered(
+        self,
+        exptime,
+        n_shift,
+        row_shift,
+        n=1,
+        group_id=None,
+        test_type=None,
+        reason=None,
+        program=None,
+        sensors=None,
+        note=None,
+        checkpoint=None,
+        **kwargs,
+    ):
+        """Take stuttered images.
+
+        Stuttered image consists of starting an acquisition "manually", then
+        doing subsequent row-shifts of the image readout for a given number of
+        times. This allows one to take rapid sequence of observations of
+        sources as the detector does not need to readout completely, but the
+        images end up with an odd appearence, as the field offsets at each
+        iteration.
+
+        Parameters
+        ----------
+        exptime : `float`
+            Exposure time (in seconds).
+        n_shift : `int`
+            Number of shift-expose sequences.
+        row_shift : `int`
+            How many rows to shift at each sequence.
+        n : `int`, optional
+            Number of frames to take.
+        group_id : `str`, optional
+            Optional group id for the data sequence. Will generate a common
+            one for all the data if none is given.
+        test_type : `str`, optional
+            Optional string to be added to the keyword testType image header.
+        reason : `str`, optional
+            Reason for the data being taken. This must be a short tag-like
+            string that can be used to disambiguate a set of observations.
+        program : `str`, optional
+            Name of the program this data belongs to, e.g. WFD, DD, etc.
+        sensors : `str`
+            A colon delimited list of sensor names to use for the image.
+        note : `str`
+            Optional observer note to be added to the image header.
+        checkpoint : `coro`
+            A optional awaitable callback that accepts one string argument
+            that is called before each bias is taken.
+        **kwargs
+            Arbitrary keyword arguments.
+
+        See Also
+        --------
+        take_bias: Take series of bias.
+        take_darks: Take series of darks.
+        take_flats: Take series of flat-field images.
+        take_engtest: Take series of engineering test observations.
+        take_object: Take series of object observations.
+        take_imgtype: Take series of images by image type.
+        setup_instrument: Set up instrument.
+        expose: Low level expose method.
+
+        """
+
+        self.check_kwargs(**kwargs)
+
+        await self.setup_instrument(**kwargs)
+
+        return await self.take_imgtype(
+            imgtype="STUTTERED",
+            exptime=exptime,
+            n=n,
+            n_shift=n_shift,
+            row_shift=row_shift,
+            group_id=group_id,
+            test_type=test_type,
+            reason=reason,
+            program=program,
+            sensors=sensors,
+            note=note,
+            checkpoint=checkpoint,
+            **kwargs,
+        )
+
     async def take_imgtype(
         self,
         imgtype,
         exptime,
         n,
+        n_shift=None,
+        row_shift=None,
         group_id=None,
         test_type=None,
         reason=None,
@@ -692,6 +783,11 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
             Number of frames to take.
         test_type : `str`
             Optional string to be added to the keyword testType image header.
+        n_shift : `int`, optional
+            Number of shift-expose sequences. Only used for stuttered images.
+        row_shift : `int`, optional
+            How many rows to shift at each sequence. Only used for stuttered
+            images.
         reason : `str`, optional
             Reason for the data being taken. This must be a short tag-like
             string that can be used to disambiguate a set of observations.
@@ -765,6 +861,8 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
             image_type=imgtype,
             group_id=group_id,
             n=n,
+            n_shift=n_shift,
+            row_shift=row_shift,
             test_type=test_type,
             reason=reason,
             program=program,
@@ -892,7 +990,10 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
             List of exposure ids.
         """
 
-        return await self._handle_take_images(camera_exposure=camera_exposure)
+        if camera_exposure.image_type not in self._stuttered_imgtype:
+            return await self._handle_take_images(camera_exposure=camera_exposure)
+        else:
+            return await self._handle_take_stuttered(camera_exposure=camera_exposure)
 
     async def _handle_take_images(
         self, camera_exposure: CameraExposure
@@ -946,6 +1047,84 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
             exp_ids.append(exp_id)
 
         return exp_ids
+
+    async def _handle_take_stuttered(
+        self, camera_exposure: CameraExposure
+    ) -> typing.List[int]:
+        """Handle taking series of images using a combination of shift/discard
+        rows.
+
+        This method makes sure that enable/disable and start/end of stuttered
+        images are protected. If, for any reason, the operation is cancelled
+        while executing, it will still end the exposure and disable calibration
+        mode.
+
+        Parameters
+        ----------
+        camera_exposure : CameraExposure
+            Camera exposure definitions.
+
+        Returns
+        -------
+        exp_ids : list of int
+            List of exposure ids.
+        """
+        self.log.info("Enabling camera calibration mode.")
+        await self.camera.cmd_enableCalibration.start(timeout=self.long_timeout)
+
+        exp_ids = []
+
+        key_value_map = camera_exposure.get_key_value_map()
+
+        try:
+            for i in range(camera_exposure.n):
+
+                await self.camera.cmd_clear.set_start(
+                    nClears=2, timeout=self.long_timeout
+                )
+
+                self.camera.evt_endReadout.flush()
+
+                self.log.info(f"Start exposure {i+1} of {camera_exposure.n}")
+
+                await self.camera.cmd_startImage.set_start(
+                    shutter=camera_exposure.shutter,
+                    keyValueMap=key_value_map,
+                    timeout=self.fast_timeout,
+                )
+                try:
+                    await self._handle_expose_shift(camera_exposure)
+                finally:
+                    self.log.info(f"End exposure {i+1} of {camera_exposure.n}")
+                    await self.camera.cmd_endImage.start(timeout=self.long_timeout)
+
+                exp_ids.append(await self.next_exposure_id())
+        finally:
+            self.log.info("Disabling camera calibration mode.")
+            await self.camera.cmd_disableCalibration.start(timeout=self.long_timeout)
+
+        return exp_ids
+
+    async def _handle_expose_shift(self, camera_exposure: CameraExposure) -> None:
+        """Handle exposing and shifting the camera register.
+
+        Parameters
+        ----------
+        camera_exposure : CameraExposure
+        """
+
+        for i in range(camera_exposure.n_shift - 1):
+            self.log.debug(
+                f"Exposing {i+1} of {camera_exposure.n_shift} for {camera_exposure.exp_time} seconds."
+            )
+            await asyncio.sleep(camera_exposure.exp_time)
+            self.log.debug(f"Shifting {camera_exposure.row_shift} rows.")
+            await self.camera.cmd_discardRows.set_start(
+                nRows=camera_exposure.row_shift, timeout=self.long_timeout
+            )
+
+        self.log.debug("Last shift-expose sequence.")
+        await asyncio.sleep(camera_exposure.exp_time)
 
     async def next_exposure_id(self) -> int:
         """Get the exposure id from the next endReadout event.
