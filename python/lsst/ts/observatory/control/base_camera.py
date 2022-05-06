@@ -135,14 +135,17 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
 
         See Also
         --------
-        take_darks: Take series of darks.
-        take_flats: Take series of flat-field images
-        take_object: Take series of object observations.
-        take_engtest: Take series of engineering test observations.
-        take_imgtype: Take series of images by image type.
+        take_darks: Take series of darks images.
+        take_flats: Take series of flats images.
+        take_object: Take series of object images.
+        take_engtest: Take series of engineering test images.
+        take_focus: Take series of focus images.
+        take_cwfs: Take series of curvature wavefront sensing images.
+        take_acq: Take series of acquisition images.
+        take_stuttered: Take series of stuttered images.
+        take_imgtype: Take series of images of specified imgage type.
         setup_instrument: Set up instrument.
         expose: Low level expose method.
-
         """
         return await self.take_imgtype(
             imgtype="BIAS",
@@ -197,14 +200,17 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
 
         See Also
         --------
-        take_bias: Take series of bias.
-        take_flats: Take series of flat-field images.
-        take_object: Take series of object observations.
-        take_engtest: Take series of engineering test observations.
-        take_imgtype: Take series of images by image type.
+        take_bias: Take series of bias images.
+        take_flats: Take series of flats images.
+        take_object: Take series of object images.
+        take_engtest: Take series of engineering test images.
+        take_focus: Take series of focus images.
+        take_cwfs: Take series of curvature wavefront sensing images.
+        take_acq: Take series of acquisition images.
+        take_stuttered: Take series of stuttered images.
+        take_imgtype: Take series of images of specified imgage type.
         setup_instrument: Set up instrument.
         expose: Low level expose method.
-
         """
         return await self.take_imgtype(
             imgtype="DARK",
@@ -267,14 +273,17 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
 
         See Also
         --------
-        take_bias: Take series of bias.
-        take_darks: Take series of darks.
-        take_object: Take series of object observations.
-        take_engtest: Take series of engineering test observations.
-        take_imgtype: Take series of images by image type.
+        take_bias: Take series of bias images.
+        take_darks: Take series of darks images.
+        take_object: Take series of object images.
+        take_engtest: Take series of engineering test images.
+        take_focus: Take series of focus images.
+        take_cwfs: Take series of curvature wavefront sensing images.
+        take_acq: Take series of acquisition images.
+        take_stuttered: Take series of stuttered images.
+        take_imgtype: Take series of images of specified imgage type.
         setup_instrument: Set up instrument.
         expose: Low level expose method.
-
         """
 
         self.check_kwargs(**kwargs)
@@ -339,15 +348,17 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
 
         See Also
         --------
-        take_bias: Take series of bias.
-        take_darks: Take series of darks.
-        take_flats: Take series of flat-field images.
-        take_engtest: Take series of engineering test observations.
+        take_bias: Take series of bias images.
+        take_darks: Take series of darks images.
+        take_flats: Take series of flats images.
+        take_engtest: Take series of engineering test images.
+        take_focus: Take series of focus images.
+        take_cwfs: Take series of curvature wavefront sensing images.
         take_acq: Take series of acquisition images.
-        take_imgtype: Take series of images by image type.
+        take_stuttered: Take series of stuttered images.
+        take_imgtype: Take series of images of specified imgage type.
         setup_instrument: Set up instrument.
         expose: Low level expose method.
-
         """
 
         self.check_kwargs(**kwargs)
@@ -409,15 +420,17 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
 
         See Also
         --------
-        take_bias: Take series of bias.
-        take_darks: Take series of darks.
-        take_flats: Take series of flat-field images.
+        take_bias: Take series of bias images.
+        take_darks: Take series of darks images.
+        take_flats: Take series of flats images.
+        take_object: Take series of object images.
+        take_focus: Take series of focus images.
+        take_cwfs: Take series of curvature wavefront sensing images.
         take_acq: Take series of acquisition images.
-        take_object: Take series of object observations.
-        take_imgtype: Take series of images by image type.
+        take_stuttered: Take series of stuttered images.
+        take_imgtype: Take series of images of specified imgage type.
         setup_instrument: Set up instrument.
         expose: Low level expose method.
-
         """
 
         self.check_kwargs(**kwargs)
@@ -488,16 +501,17 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
 
         See Also
         --------
-        take_bias: Take series of bias.
-        take_darks: Take series of darks.
-        take_flats: Take series of flat-field images.
-        take_engtest: Take series of engineering test observations.
-        take_cwfs: Take series of images for curvature wavefront sensing.
-        take_object: Take series of object observations.
-        take_imgtype: Take series of images by image type.
+        take_bias: Take series of bias images.
+        take_darks: Take series of darks images.
+        take_flats: Take series of flats images.
+        take_object: Take series of object images.
+        take_engtest: Take series of engineering test images.
+        take_cwfs: Take series of curvature wavefront sensing images.
+        take_acq: Take series of acquisition images.
+        take_stuttered: Take series of stuttered images.
+        take_imgtype: Take series of images of specified imgage type.
         setup_instrument: Set up instrument.
         expose: Low level expose method.
-
         """
 
         self.check_kwargs(**kwargs)
@@ -564,16 +578,17 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
 
         See Also
         --------
-        take_bias: Take series of bias.
-        take_darks: Take series of darks.
-        take_flats: Take series of flat-field images.
-        take_engtest: Take series of engineering test observations.
-        take_focus: Take series of images for classical focus sequence.
-        take_object: Take series of object observations.
-        take_imgtype: Take series of images by image type.
+        take_bias: Take series of bias images.
+        take_darks: Take series of darks images.
+        take_flats: Take series of flats images.
+        take_object: Take series of object images.
+        take_engtest: Take series of engineering test images.
+        take_focus: Take series of focus images.
+        take_acq: Take series of acquisition images.
+        take_stuttered: Take series of stuttered images.
+        take_imgtype: Take series of images of specified imgage type.
         setup_instrument: Set up instrument.
         expose: Low level expose method.
-
         """
 
         self.check_kwargs(**kwargs)
@@ -643,15 +658,17 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
 
         See Also
         --------
-        take_bias: Take series of bias.
-        take_darks: Take series of darks.
-        take_flats: Take series of flat-field images.
-        take_engtest: Take series of engineering test observations.
-        take_object: Take series of object observations.
-        take_imgtype: Take series of images by image type.
+        take_bias: Take series of bias images.
+        take_darks: Take series of darks images.
+        take_flats: Take series of flats images.
+        take_object: Take series of object images.
+        take_engtest: Take series of engineering test images.
+        take_focus: Take series of focus images.
+        take_cwfs: Take series of curvature wavefront sensing images.
+        take_stuttered: Take series of stuttered images.
+        take_imgtype: Take series of images of specified imgage type.
         setup_instrument: Set up instrument.
         expose: Low level expose method.
-
         """
 
         self.check_kwargs(**kwargs)
@@ -726,15 +743,17 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
 
         See Also
         --------
-        take_bias: Take series of bias.
-        take_darks: Take series of darks.
-        take_flats: Take series of flat-field images.
-        take_engtest: Take series of engineering test observations.
-        take_object: Take series of object observations.
-        take_imgtype: Take series of images by image type.
+        take_bias: Take series of bias images.
+        take_darks: Take series of darks images.
+        take_flats: Take series of flats images.
+        take_object: Take series of object images.
+        take_engtest: Take series of engineering test images.
+        take_focus: Take series of focus images.
+        take_cwfs: Take series of curvature wavefront sensing images.
+        take_acq: Take series of acquisition images.
+        take_imgtype: Take series of images of specified imgage type.
         setup_instrument: Set up instrument.
         expose: Low level expose method.
-
         """
 
         self.check_kwargs(**kwargs)
@@ -805,19 +824,22 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
 
         See Also
         --------
-        take_bias: Take series of bias.
-        take_darks: Take series of darks.
-        take_flats: Take series of flat-field images.
-        take_object: Take series of object observations.
-        take_engtest: Take series of engineering test observations.
+        take_bias: Take series of bias images.
+        take_darks: Take series of darks images.
+        take_flats: Take series of flats images.
+        take_object: Take series of object images.
+        take_engtest: Take series of engineering test images.
+        take_focus: Take series of focus images.
+        take_cwfs: Take series of curvature wavefront sensing images.
+        take_acq: Take series of acquisition images.
+        take_stuttered: Take series of stuttered images.
         setup_instrument: Set up instrument.
         expose: Low level expose method.
 
         Raises
         ------
         RuntimeError
-            If TCS takes took long to report
-
+            If TCS takes took long to report.
         """
 
         self.check_kwargs(**kwargs)
@@ -907,14 +929,17 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
 
         See Also
         --------
-        take_bias: Take series of bias.
-        take_darks: Take series of darks.
-        take_flats: Take series of flat-field images.
-        take_object: Take series of object observations.
-        take_engtest: Take series of engineering test observations.
-        take_imgtype: Take series of images by image type.
+        take_bias: Take series of bias images.
+        take_darks: Take series of darks images.
+        take_flats: Take series of flats images.
+        take_object: Take series of object images.
+        take_engtest: Take series of engineering test images.
+        take_focus: Take series of focus images.
+        take_cwfs: Take series of curvature wavefront sensing images.
+        take_acq: Take series of acquisition images.
+        take_stuttered: Take series of stuttered images.
+        take_imgtype: Take series of images of specified imgage type.
         expose: Low level expose method.
-
         """
         raise NotImplementedError()
 
@@ -946,12 +971,16 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
 
         See Also
         --------
-        take_bias: Take series of bias.
-        take_darks: Take series of darks.
-        take_flats: Take series of flat-field images.
-        take_object: Take series of object observations.
-        take_engtest: Take series of engineering test observations.
-        take_imgtype: Take series of images by image type.
+        take_bias: Take series of bias images.
+        take_darks: Take series of darks images.
+        take_flats: Take series of flats images.
+        take_object: Take series of object images.
+        take_engtest: Take series of engineering test images.
+        take_focus: Take series of focus images.
+        take_cwfs: Take series of curvature wavefront sensing images.
+        take_acq: Take series of acquisition images.
+        take_stuttered: Take series of stuttered images.
+        take_imgtype: Take series of images of specified imgage type.
         setup_instrument: Set up instrument.
         """
         exp_ids = []
