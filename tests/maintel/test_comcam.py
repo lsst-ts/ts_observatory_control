@@ -566,6 +566,23 @@ class TestComCam(RemoteGroupTestCase, unittest.IsolatedAsyncioTestCase):
                 additional_values=f"ACQ:{group_id}:ACQ",
             )
 
+    async def test_take_stuttered(self):
+        async with self.make_group(usage=ComCamUsages.TakeImage):
+            group_id = self.comcam.next_group_id()
+
+            await self.comcam.take_stuttered(
+                n=1,
+                exptime=1.0,
+                n_shift=20,
+                row_shift=100,
+                group_id=group_id,
+            )
+
+            self.assert_last_end_readout(
+                additional_keys="imageType:groupId:testType",
+                additional_values=f"STUTTERED:{group_id}:STUTTERED",
+            )
+
     def assert_last_end_readout(self, additional_keys, additional_values):
 
         end_readout = self.comcam.camera.evt_endReadout.get()
