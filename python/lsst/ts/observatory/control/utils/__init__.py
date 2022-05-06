@@ -19,6 +19,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+from .camera_exposure import *
 from .enums import *
 from .utils import *
 from .remote_group_test_case import *
