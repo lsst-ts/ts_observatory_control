@@ -6,6 +6,34 @@
 Version History
 ###############
 
+v0.18.0
+-------
+
+* In `BaseCamera`:
+
+  * Add support for new images types: ACQ, CWFS, FOCUS.
+
+  * Refactor `BaseCamera.expose` to use the new `CameraExposure` data class and break it down into smaller pieces.
+
+  * Add support for stuttered image.
+    This image type opens the camera shutter, start the exposure manually and then allow users to shift the readout manually.
+    This allow us to produce "stuttered" images with starts shifting in the read direction at each iteration.
+
+* Add unit tests for stuttered images for ComCam.
+
+* Add unit tests for stuttered images for LATISS.
+
+* Add support for stuttered images in `ComCamMock`.
+
+* Add support for stuttered image in `LatissMock`.
+
+* Add new dataclass CameraExposure to host parameters for exposures.
+
+* Add unit test for new image types for ComCam.
+
+* Add unit tests for new image types for LATISS.
+
+
 v0.17.0
 -------
 
