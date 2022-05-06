@@ -76,7 +76,17 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
         # Maximum time to wait for the tcs to report as ready to take data
         self.max_tcs_wait_time = 30.0
 
-        self.valid_imagetype = ["BIAS", "DARK", "FLAT", "OBJECT", "ENGTEST"]
+        self.valid_imagetype = [
+            "BIAS",
+            "DARK",
+            "FLAT",
+            "OBJECT",
+            "ENGTEST",
+            "ACQ",
+            "CWFS",
+            "FOCUS",
+        ]
+
 
         self.instrument_setup_attributes = set(instrument_setup_attributes)
 
@@ -329,6 +339,7 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
         take_darks: Take series of darks.
         take_flats: Take series of flat-field images.
         take_engtest: Take series of engineering test observations.
+        take_acq: Take series of acquisition images.
         take_imgtype: Take series of images by image type.
         setup_instrument: Set up instrument.
         expose: Low level expose method.
@@ -397,6 +408,7 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
         take_bias: Take series of bias.
         take_darks: Take series of darks.
         take_flats: Take series of flat-field images.
+        take_acq: Take series of acquisition images.
         take_object: Take series of object observations.
         take_imgtype: Take series of images by image type.
         setup_instrument: Set up instrument.
@@ -408,6 +420,240 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
 
         return await self.take_imgtype(
             imgtype="ENGTEST",
+            exptime=exptime,
+            n=n,
+            group_id=group_id,
+            test_type=test_type,
+            reason=reason,
+            program=program,
+            sensors=sensors,
+            note=note,
+            checkpoint=checkpoint,
+            **kwargs,
+        )
+
+    async def take_focus(
+        self,
+        exptime,
+        n=1,
+        group_id=None,
+        test_type=None,
+        reason=None,
+        program=None,
+        sensors=None,
+        note=None,
+        checkpoint=None,
+        **kwargs,
+    ):
+        """Take images for classical focus sequence.
+
+        Focus sequence consists of applying an initialy large focus offset,
+        then, continually take data and move focus back in the direction of to
+        the original position, until it has passed it by a similar amount in
+        that direction.
+
+        By detecting a bright source in a focus sequence and finding the
+        focus position with smaller full-width-half-maximum, we can estimate
+        the best focus position.
+
+        Parameters
+        ----------
+        exptime : `float`
+            Exposure time for flats.
+        n : `int`
+            Number of frames to take.
+        group_id : `str`
+            Optional group id for the data sequence. Will generate a common
+            one for all the data if none is given.
+        test_type : `str`
+            Optional string to be added to the keyword testType image header.
+        reason : `str`, optional
+            Reason for the data being taken. This must be a short tag-like
+            string that can be used to disambiguate a set of observations.
+        program : `str`, optional
+            Name of the program this data belongs to, e.g. WFD, DD, etc.
+        sensors : `str`
+            A colon delimited list of sensor names to use for the image.
+        note : `str`
+            Optional observer note to be added to the image header.
+        checkpoint : `coro`
+            A optional awaitable callback that accepts one string argument
+            that is called before each bias is taken.
+        **kwargs
+            Arbitrary keyword arguments.
+
+        See Also
+        --------
+        take_bias: Take series of bias.
+        take_darks: Take series of darks.
+        take_flats: Take series of flat-field images.
+        take_engtest: Take series of engineering test observations.
+        take_cwfs: Take series of images for curvature wavefront sensing.
+        take_object: Take series of object observations.
+        take_imgtype: Take series of images by image type.
+        setup_instrument: Set up instrument.
+        expose: Low level expose method.
+
+        """
+
+        self.check_kwargs(**kwargs)
+
+        return await self.take_imgtype(
+            imgtype="FOCUS",
+            exptime=exptime,
+            n=n,
+            group_id=group_id,
+            test_type=test_type,
+            reason=reason,
+            program=program,
+            sensors=sensors,
+            note=note,
+            checkpoint=checkpoint,
+            **kwargs,
+        )
+
+    async def take_cwfs(
+        self,
+        exptime,
+        n=1,
+        group_id=None,
+        test_type=None,
+        reason=None,
+        program=None,
+        sensors=None,
+        note=None,
+        checkpoint=None,
+        **kwargs,
+    ):
+        """Take images for curvature wavefront sensing.
+
+        Curvature wavefront sensing images are usually extremely out of focus
+        images that are processed to determine the wavefront errors of the
+        telescope optics. These results can later be processed thought a
+        sensitivity matrix to yield optical corrections.
+
+        Parameters
+        ----------
+        exptime : `float`
+            Exposure time for flats.
+        n : `int`
+            Number of frames to take.
+        group_id : `str`
+            Optional group id for the data sequence. Will generate a common
+            one for all the data if none is given.
+        test_type : `str`
+            Optional string to be added to the keyword testType image header.
+        reason : `str`, optional
+            Reason for the data being taken. This must be a short tag-like
+            string that can be used to disambiguate a set of observations.
+        program : `str`, optional
+            Name of the program this data belongs to, e.g. WFD, DD, etc.
+        sensors : `str`
+            A colon delimited list of sensor names to use for the image.
+        note : `str`
+            Optional observer note to be added to the image header.
+        checkpoint : `coro`
+            A optional awaitable callback that accepts one string argument
+            that is called before each bias is taken.
+        **kwargs
+            Arbitrary keyword arguments.
+
+        See Also
+        --------
+        take_bias: Take series of bias.
+        take_darks: Take series of darks.
+        take_flats: Take series of flat-field images.
+        take_engtest: Take series of engineering test observations.
+        take_focus: Take series of images for classical focus sequence.
+        take_object: Take series of object observations.
+        take_imgtype: Take series of images by image type.
+        setup_instrument: Set up instrument.
+        expose: Low level expose method.
+
+        """
+
+        self.check_kwargs(**kwargs)
+
+        return await self.take_imgtype(
+            imgtype="CWFS",
+            exptime=exptime,
+            n=n,
+            group_id=group_id,
+            test_type=test_type,
+            reason=reason,
+            program=program,
+            sensors=sensors,
+            note=note,
+            checkpoint=checkpoint,
+            **kwargs,
+        )
+
+    async def take_acq(
+        self,
+        exptime=1.0,
+        n=1,
+        group_id=None,
+        test_type=None,
+        reason=None,
+        program=None,
+        sensors=None,
+        note=None,
+        checkpoint=None,
+        **kwargs,
+    ):
+        """Take acquisition images.
+
+        Acquisition images are generaly used to check the position of the
+        targets in the FoV, the image quality after a focus/cwfs sequence
+        or any other quick verification purposes.
+
+        Because they are supposed to be short exposures, this method provide a
+        default value for the exposure time of 1 second, so one can call it
+        with no argument.
+
+        Parameters
+        ----------
+        exptime : `float`, optional
+            Exposure time for flats.
+        n : `int`, optional
+            Number of frames to take.
+        group_id : `str`, optional
+            Optional group id for the data sequence. Will generate a common
+            one for all the data if none is given.
+        test_type : `str`, optional
+            Optional string to be added to the keyword testType image header.
+        reason : `str`, optional
+            Reason for the data being taken. This must be a short tag-like
+            string that can be used to disambiguate a set of observations.
+        program : `str`, optional
+            Name of the program this data belongs to, e.g. WFD, DD, etc.
+        sensors : `str`
+            A colon delimited list of sensor names to use for the image.
+        note : `str`
+            Optional observer note to be added to the image header.
+        checkpoint : `coro`
+            A optional awaitable callback that accepts one string argument
+            that is called before each bias is taken.
+        **kwargs
+            Arbitrary keyword arguments.
+
+        See Also
+        --------
+        take_bias: Take series of bias.
+        take_darks: Take series of darks.
+        take_flats: Take series of flat-field images.
+        take_engtest: Take series of engineering test observations.
+        take_object: Take series of object observations.
+        take_imgtype: Take series of images by image type.
+        setup_instrument: Set up instrument.
+        expose: Low level expose method.
+
+        """
+
+        self.check_kwargs(**kwargs)
+
+        return await self.take_imgtype(
+            imgtype="ACQ",
             exptime=exptime,
             n=n,
             group_id=group_id,
