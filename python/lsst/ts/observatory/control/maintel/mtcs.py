@@ -1154,11 +1154,9 @@ class MTCS(BaseTCS):
             timeout=self.fast_timeout
         )
 
-    def _ready_to_take_data(self):
+    async def _ready_to_take_data(self):
         """Placeholder, still needs to be implemented."""
         # TODO: Finish implementation.
-        if not self._ready_to_take_data_future.done():
-            self._ready_to_take_data_future.set_result(True)
 
     @property
     def compensation_mode_components(self):

@@ -1763,39 +1763,25 @@ class ATCS(BaseTCS):
         return check
 
     async def _ready_to_take_data(self):
-        """Wait until ATCS is ready to take data.
-
-        If cancelled or some condition times out or raises an exeception it
-        will set the result of the future to the exception so it propagates to
-        whomever is waiting on it.
-        """
+        """Wait until ATCS is ready to take data."""
         # Things to check
         # 1 - ATMCS evt_allAxesInPosition.inPosition == True
         # 2 - All ATAOS corrections are applied
         # 3 - ATMCS and ATDome positions are within specified range.
         ready = False
-        try:
-            while not ready:
-                # This loop will run until all conditions are met. Note that it
-                # may happen that one condition will be met when we run it the
-                # first time and then not when we run the second time.
-                check = await asyncio.gather(
-                    self.atmcs_in_position(),
-                    self.ataos_corrections_completed(),
-                    self.dome_az_in_position.wait(),
-                )
-                self.log.debug(
-                    f"Ready to take data:: atmcs={check[0]}, ataos={check[1]}, atdome={check[2]}."
-                )
-                ready = all(check)
-        except asyncio.CancelledError as e:
-            self._ready_to_take_data_future.set_exception(e)
-        except asyncio.TimeoutError as e:
-            self._ready_to_take_data_future.set_exception(e)
-        except Exception as e:
-            self._ready_to_take_data_future.set_exception(e)
-        else:
-            self._ready_to_take_data_future.set_result(True)
+        while not ready:
+            # This loop will run until all conditions are met. Note that it
+            # may happen that one condition will be met when we run it the
+            # first time and then not when we run the second time.
+            check = await asyncio.gather(
+                self.atmcs_in_position(),
+                self.ataos_corrections_completed(),
+                self.dome_az_in_position.wait(),
+            )
+            self.log.debug(
+                f"Ready to take data:: atmcs={check[0]}, ataos={check[1]}, atdome={check[2]}."
+            )
+            ready = all(check)
 
     async def ataos_corrections_completed(self):
         """Check that all ATAOS corrections completed.
