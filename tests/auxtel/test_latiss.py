@@ -52,11 +52,13 @@ class FakeATCS:
 
     async def wait_and_set_future(self):
         await asyncio.sleep(5.0)
-        self._future.set_result(True)
+        if not self._future.done():
+            self._future.set_result(True)
 
     async def wait_and_fail_future(self):
         await asyncio.sleep(5.0)
-        self._future.set_exception(RuntimeError("Failed."))
+        if not self._future.done():
+            self._future.set_exception(RuntimeError("Failed."))
 
 
 class TestLATISS(RemoteGroupTestCase, unittest.IsolatedAsyncioTestCase):

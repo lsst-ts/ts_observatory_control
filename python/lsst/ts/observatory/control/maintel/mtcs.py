@@ -1157,7 +1157,8 @@ class MTCS(BaseTCS):
     def _ready_to_take_data(self):
         """Placeholder, still needs to be implemented."""
         # TODO: Finish implementation.
-        self._ready_to_take_data_future.set_result(True)
+        if not self._ready_to_take_data_future.done():
+            self._ready_to_take_data_future.set_result(True)
 
     @property
     def compensation_mode_components(self):

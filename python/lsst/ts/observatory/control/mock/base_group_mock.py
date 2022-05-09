@@ -311,7 +311,8 @@ class BaseGroupMock:
 
             if all(is_offline):
                 print("Closing mock controller.")
-                self.done_task.set_result(None)
+                if not self.done_task.done():
+                    self.done_task.set_result(None)
 
     async def publish_heartbeats_for(self, comp):
         while self.run_telemetry_loop:
