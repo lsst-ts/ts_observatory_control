@@ -63,10 +63,8 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
             [
                 (
                     component,
-                    salobj.parse_idl(
-                        component,
-                        idl.get_idl_dir()
-                        / f"sal_revCoded_{component.split(':')[0]}.idl",
+                    salobj.ComponentInfo(
+                        name=salobj.name_to_name_index(component)[0], topic_subname=""
                     ),
                 )
                 for component in cls.mtcs.components
@@ -233,13 +231,11 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
 
         self.mtcs.rem.mtptg.cmd_raDecTarget.attach_mock(
             unittest.mock.Mock(
-                **{
-                    "return_value": types.SimpleNamespace(
-                        **self.components_metadata["MTPtg"]
-                        .topic_info["command_raDecTarget"]
-                        .field_info
-                    )
-                }
+                return_value=(
+                    self.components_metadata["MTPtg"]
+                    .topics["cmd_raDecTarget"]
+                    .make_dataclass()()
+                )
             ),
             "DataType",
         )
@@ -323,36 +319,33 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
 
         self.mtcs.rem.mtm1m3.cmd_lowerM1M3.attach_mock(
             unittest.mock.Mock(
-                return_value=types.SimpleNamespace(
-                    **self.components_metadata["MTM1M3"]
-                    .topic_info["command_lowerM1M3"]
-                    .field_info
+                return_value=(
+                    self.components_metadata["MTM1M3"]
+                    .topics["cmd_lowerM1M3"]
+                    .make_dataclass()()
                 )
             ),
             "DataType",
         )
         self.mtcs.rem.mtm1m3.cmd_raiseM1M3.attach_mock(
             unittest.mock.Mock(
-                return_value=types.SimpleNamespace(
-                    **self.components_metadata["MTM1M3"]
-                    .topic_info["command_raiseM1M3"]
-                    .field_info
+                return_value=(
+                    self.components_metadata["MTM1M3"]
+                    .topics["cmd_raiseM1M3"]
+                    .make_dataclass()()
                 )
             ),
             "DataType",
         )
-        data_type_apply_aberration_forces = types.SimpleNamespace(
-            **self.components_metadata["MTM1M3"]
-            .topic_info["command_applyAberrationForces"]
-            .field_info
-        )
-
-        data_type_apply_aberration_forces.zForces = np.zeros(
-            data_type_apply_aberration_forces.zForces.array_length
-        )
 
         self.mtcs.rem.mtm1m3.cmd_applyAberrationForces.attach_mock(
-            unittest.mock.Mock(return_value=data_type_apply_aberration_forces),
+            unittest.mock.Mock(
+                return_value=(
+                    self.components_metadata["MTM1M3"]
+                    .topics["cmd_applyAberrationForces"]
+                    .make_dataclass()()
+                )
+            ),
             "DataType",
         )
 
@@ -1393,9 +1386,9 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
 
         fz = np.zeros(
             self.components_metadata["MTM1M3"]
-            .topic_info["command_applyAberrationForces"]
-            .field_info["zForces"]
-            .array_length
+            .topics["cmd_applyAberrationForces"]
+            .fields["zForces"]
+            .count
         )
         self.mtcs.rem.mtm1m3.cmd_applyAberrationForces.set_start.assert_awaited_once()
         assert_array_equal(
@@ -1639,14 +1632,14 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
         component = "MTMount"
 
         self.check_topic_attribute(
-            attributes={"actualPosition"}, topic="elevation", component=component
+            attributes={"actualPosition"}, topic="tel_elevation", component=component
         )
         self.check_topic_attribute(
-            attributes={"actualPosition"}, topic="azimuth", component=component
+            attributes={"actualPosition"}, topic="tel_azimuth", component=component
         )
         self.check_topic_attribute(
             attributes={"enabled"},
-            topic="logevent_cameraCableWrapFollowing",
+            topic="evt_cameraCableWrapFollowing",
             component=component,
         )
 
@@ -1654,9 +1647,7 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
         for attribute in {"actualPosition"}:
             assert (
                 attribute
-                in self.components_metadata["MTRotator"]
-                .topic_info["rotation"]
-                .field_info
+                in self.components_metadata["MTRotator"].topics["tel_rotation"].fields
             )
 
     def test_check_mtptg_interface(self):
@@ -1683,9 +1674,7 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
         }:
             assert (
                 attribute
-                in self.components_metadata["MTPtg"]
-                .topic_info["command_raDecTarget"]
-                .field_info
+                in self.components_metadata["MTPtg"].topics["cmd_raDecTarget"].fields
             )
 
         for attribute in {
@@ -1696,9 +1685,7 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
         }:
             assert (
                 attribute
-                in self.components_metadata["MTPtg"]
-                .topic_info["command_azElTarget"]
-                .field_info
+                in self.components_metadata["MTPtg"].topics["cmd_azElTarget"].fields
             )
 
         for attribute in {
@@ -1708,41 +1695,32 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
         }:
             assert (
                 attribute
-                in self.components_metadata["MTPtg"]
-                .topic_info["command_poriginOffset"]
-                .field_info
+                in self.components_metadata["MTPtg"].topics["cmd_poriginOffset"].fields
             )
 
         for attribute in {"type", "off1", "off2", "num"}:
             assert (
                 attribute
-                in self.components_metadata["MTPtg"]
-                .topic_info["command_offsetRADec"]
-                .field_info
+                in self.components_metadata["MTPtg"].topics["cmd_offsetRADec"].fields
             )
 
         for attribute in {"az", "el", "num"}:
             assert (
                 attribute
-                in self.components_metadata["MTPtg"]
-                .topic_info["command_offsetAzEl"]
-                .field_info
+                in self.components_metadata["MTPtg"].topics["cmd_offsetAzEl"].fields
             )
 
     def test_check_mtm1m3_interface(self):
 
         self.check_topic_attribute(
             attributes=["detailedState"],
-            topic="logevent_detailedState",
+            topic="evt_detailedState",
             component="MTM1M3",
         )
 
     def check_topic_attribute(self, attributes, topic, component):
         for attribute in attributes:
-            assert (
-                attribute
-                in self.components_metadata[component].topic_info[topic].field_info
-            )
+            assert attribute in self.components_metadata[component].topics[topic].fields
 
     async def get_heartbeat(self, *args, **kwargs):
         """Emulate heartbeat functionality."""

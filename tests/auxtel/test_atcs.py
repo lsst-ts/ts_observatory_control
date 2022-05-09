@@ -32,7 +32,6 @@ from astropy.coordinates import ICRS, Angle
 
 from astroquery.simbad import Simbad
 
-from lsst.ts import idl
 from lsst.ts.idl.enums import ATMCS, ATPtg, ATPneumatics, ATDome
 from lsst.ts import salobj
 from lsst.ts import utils
@@ -67,10 +66,8 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
             [
                 (
                     component,
-                    salobj.parse_idl(
-                        component,
-                        idl.get_idl_dir()
-                        / f"sal_revCoded_{component.split(':')[0]}.idl",
+                    salobj.ComponentInfo(
+                        name=salobj.name_to_name_index(component)[0], topic_subname=""
                     ),
                 )
                 for component in cls.atcs.components
@@ -250,13 +247,11 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
 
         self.atcs.rem.atptg.cmd_raDecTarget.attach_mock(
             unittest.mock.Mock(
-                **{
-                    "return_value": types.SimpleNamespace(
-                        **self.components_metadata["ATPtg"]
-                        .topic_info["command_raDecTarget"]
-                        .field_info
-                    )
-                }
+                return_value=(
+                    self.components_metadata["ATPtg"]
+                    .topics["cmd_raDecTarget"]
+                    .make_dataclass()()
+                )
             ),
             "DataType",
         )
@@ -1930,7 +1925,7 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
     def test_check_interface_atmcs(self):
         self.check_topic_attribute(
             attributes={"elevationCalculatedAngle", "azimuthCalculatedAngle"},
-            topic="mount_AzEl_Encoders",
+            topic="tel_mount_AzEl_Encoders",
             component="ATMCS",
         )
 
@@ -1942,31 +1937,31 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
                 "nasmyth1RotatorAngle",
                 "nasmyth2RotatorAngle",
             },
-            topic="logevent_target",
+            topic="evt_target",
             component="ATMCS",
         )
 
         self.check_topic_attribute(
             attributes={"inPosition"},
-            topic="logevent_allAxesInPosition",
+            topic="evt_allAxesInPosition",
             component="ATMCS",
         )
 
         self.check_topic_attribute(
             attributes={"state"},
-            topic="logevent_atMountState",
+            topic="evt_atMountState",
             component="ATMCS",
         )
 
         self.check_topic_attribute(
             attributes={"private_sndStamp"},
-            topic="command_stopTracking",
+            topic="cmd_stopTracking",
             component="ATMCS",
         )
 
         self.check_topic_attribute(
             attributes={"nasmyth1CalculatedAngle", "nasmyth2CalculatedAngle"},
-            topic="mount_Nasmyth_Encoders",
+            topic="tel_mount_Nasmyth_Encoders",
             component="ATMCS",
         )
 
@@ -1974,7 +1969,7 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
 
         self.check_topic_attribute(
             attributes={"private_sndStamp"},
-            topic="logevent_positionUpdate",
+            topic="evt_positionUpdate",
             component="ATHexapod",
         )
 
@@ -1982,31 +1977,31 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
 
         self.check_topic_attribute(
             attributes={"private_sndStamp"},
-            topic="command_applyFocusOffset",
+            topic="cmd_applyFocusOffset",
             component="ATAOS",
         )
 
         self.check_topic_attribute(
             attributes={"m1", "m2", "atspectrograph"},
-            topic="command_enableCorrection",
+            topic="cmd_enableCorrection",
             component="ATAOS",
         )
 
         self.check_topic_attribute(
             attributes={"disableAll"},
-            topic="command_disableCorrection",
+            topic="cmd_disableCorrection",
             component="ATAOS",
         )
 
         self.check_topic_attribute(
             attributes={"private_sndStamp"},
-            topic="logevent_atspectrographCorrectionStarted",
+            topic="evt_atspectrographCorrectionStarted",
             component="ATAOS",
         )
 
         self.check_topic_attribute(
             attributes={"private_sndStamp"},
-            topic="logevent_atspectrographCorrectionCompleted",
+            topic="evt_atspectrographCorrectionCompleted",
             component="ATAOS",
         )
 
@@ -2014,7 +2009,7 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
 
         self.check_topic_attribute(
             attributes={"enable"},
-            topic="command_setFollowingMode",
+            topic="cmd_setFollowingMode",
             component="ATDomeTrajectory",
         )
 
@@ -2022,55 +2017,55 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
 
         self.check_topic_attribute(
             attributes={"private_sndStamp"},
-            topic="logevent_azimuthInPosition",
+            topic="evt_azimuthInPosition",
             component="ATDome",
         )
 
         self.check_topic_attribute(
             attributes={"azimuth"},
-            topic="command_moveAzimuth",
+            topic="cmd_moveAzimuth",
             component="ATDome",
         )
 
         self.check_topic_attribute(
             attributes={"private_sndStamp"},
-            topic="command_stopMotion",
+            topic="cmd_stopMotion",
             component="ATDome",
         )
 
         self.check_topic_attribute(
             attributes={"active"},
-            topic="logevent_scbLink",
+            topic="evt_scbLink",
             component="ATDome",
         )
 
         self.check_topic_attribute(
             attributes={"state"},
-            topic="logevent_mainDoorState",
+            topic="evt_mainDoorState",
             component="ATDome",
         )
 
         self.check_topic_attribute(
             attributes={"open"},
-            topic="command_moveShutterMainDoor",
+            topic="cmd_moveShutterMainDoor",
             component="ATDome",
         )
 
         self.check_topic_attribute(
             attributes={"homing"},
-            topic="logevent_azimuthState",
+            topic="evt_azimuthState",
             component="ATDome",
         )
 
         self.check_topic_attribute(
             attributes={"private_sndStamp"},
-            topic="command_closeShutter",
+            topic="cmd_closeShutter",
             component="ATDome",
         )
 
         self.check_topic_attribute(
             attributes={"inPosition"},
-            topic="logevent_shutterInPosition",
+            topic="evt_shutterInPosition",
             component="ATDome",
         )
 
@@ -2097,7 +2092,7 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
                 "dDec",
                 "rotMode",
             },
-            topic="command_raDecTarget",
+            topic="cmd_raDecTarget",
             component="ATPtg",
         )
 
@@ -2108,7 +2103,7 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
                 "elDegs",
                 "rotPA",
             },
-            topic="command_azElTarget",
+            topic="cmd_azElTarget",
             component="ATPtg",
         )
 
@@ -2118,19 +2113,19 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
                 "dy",
                 "num",
             },
-            topic="command_poriginOffset",
+            topic="cmd_poriginOffset",
             component="ATPtg",
         )
 
         self.check_topic_attribute(
             attributes={"type", "off1", "off2", "num"},
-            topic="command_offsetRADec",
+            topic="cmd_offsetRADec",
             component="ATPtg",
         )
 
         self.check_topic_attribute(
             attributes={"az", "el", "num"},
-            topic="command_offsetAzEl",
+            topic="cmd_offsetAzEl",
             component="ATPtg",
         )
 
@@ -2139,82 +2134,79 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
 
         self.check_topic_attribute(
             attributes={"state"},
-            topic="logevent_m1CoverState",
+            topic="evt_m1CoverState",
             component=component,
         )
 
         self.check_topic_attribute(
             attributes={"position"},
-            topic="logevent_m1VentsPosition",
+            topic="evt_m1VentsPosition",
             component=component,
         )
 
         self.check_topic_attribute(
             attributes={"state"},
-            topic="logevent_mainValveState",
+            topic="evt_mainValveState",
             component=component,
         )
 
         self.check_topic_attribute(
             attributes={"state"},
-            topic="logevent_instrumentState",
+            topic="evt_instrumentState",
             component=component,
         )
 
         self.check_topic_attribute(
             attributes={"private_sndStamp"},
-            topic="command_openM1Cover",
+            topic="cmd_openM1Cover",
             component=component,
         )
 
         self.check_topic_attribute(
             attributes={"private_sndStamp"},
-            topic="command_closeM1Cover",
+            topic="cmd_closeM1Cover",
             component=component,
         )
 
         self.check_topic_attribute(
             attributes={"private_sndStamp"},
-            topic="command_openM1CellVents",
+            topic="cmd_openM1CellVents",
             component=component,
         )
 
         self.check_topic_attribute(
             attributes={"private_sndStamp"},
-            topic="command_closeM1CellVents",
+            topic="cmd_closeM1CellVents",
             component=component,
         )
 
         self.check_topic_attribute(
             attributes={"private_sndStamp"},
-            topic="command_openMasterAirSupply",
+            topic="cmd_openMasterAirSupply",
             component=component,
         )
 
         self.check_topic_attribute(
             attributes={"private_sndStamp"},
-            topic="command_closeMasterAirSupply",
+            topic="cmd_closeMasterAirSupply",
             component=component,
         )
 
         self.check_topic_attribute(
             attributes={"private_sndStamp"},
-            topic="command_openInstrumentAirValve",
+            topic="cmd_openInstrumentAirValve",
             component=component,
         )
 
         self.check_topic_attribute(
             attributes={"private_sndStamp"},
-            topic="command_m1CloseAirValve",
+            topic="cmd_m1CloseAirValve",
             component=component,
         )
 
     def check_topic_attribute(self, attributes, topic, component):
         for attribute in attributes:
-            assert (
-                attribute
-                in self.components_metadata[component].topic_info[topic].field_info
-            )
+            assert attribute in self.components_metadata[component].topics[topic].fields
 
     async def get_heartbeat(self, *args, **kwargs):
         """Emulate heartbeat functionality."""
