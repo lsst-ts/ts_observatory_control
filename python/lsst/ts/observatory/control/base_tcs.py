@@ -1200,11 +1200,8 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
         await asyncio.sleep(self.tel_settle_time)
         self.log.debug("Done")
 
-    def ready_to_take_data(self):
-        """Return a future object that will be done when the ATCS is ready to
-        take data or raise an exception if something wrong happens while trying
-        to determine the condition of the system.
-        """
+    async def ready_to_take_data(self):
+        """Wait for the telescope control system to be ready to take data."""
         if (
             self._ready_to_take_data_task is None
             or self._ready_to_take_data_task.done()
@@ -1212,7 +1209,7 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
             self._ready_to_take_data_task = asyncio.create_task(
                 self._ready_to_take_data()
             )
-        return self._ready_to_take_data_task
+        await self._ready_to_take_data_task
 
     async def enable_dome_following(self, check=None):
         """Enabled dome following mode."""

@@ -67,8 +67,9 @@ class ComCam(BaseCamera):
     ----------
     domain : `lsst.ts.salobj.Domain`
         Domain for remotes. If `None` create a domain.
-    tcs_ready_to_take_data: `function`
-        A function that returns an `asyncio.Future` object.
+    tcs_ready_to_take_data: `coroutine`
+        A coroutine that waits for the telescope control system to be ready
+        to take data.
     """
 
     def __init__(
