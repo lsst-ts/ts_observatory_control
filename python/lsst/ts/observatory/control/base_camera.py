@@ -51,8 +51,9 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
         used to limit the resources allocated by the class by gathering some
         knowledge about the usage intention. By default allocates all
         resources.
-    tcs_ready_to_take_data: `function`
-        A function that returns an `asyncio.Future` object.
+    tcs_ready_to_take_data: `coroutine`
+        A coroutine that waits for the telescope control system to be ready
+        to take data.
     """
 
     def __init__(

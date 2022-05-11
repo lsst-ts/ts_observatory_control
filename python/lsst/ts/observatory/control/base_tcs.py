@@ -106,7 +106,6 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
         self.parity_x = 1.0
         self.parity_y = 1.0
 
-        self._ready_to_take_data_future = None
         self._ready_to_take_data_task = None
 
         # Dictionary to store name->coordinates of objects
@@ -1201,20 +1200,16 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
         await asyncio.sleep(self.tel_settle_time)
         self.log.debug("Done")
 
-    def ready_to_take_data(self):
-        """Return a future object that will be done when the ATCS is ready to
-        take data or raise an exception if something wrong happens while trying
-        to determine the condition of the system.
-        """
+    async def ready_to_take_data(self):
+        """Wait for the telescope control system to be ready to take data."""
         if (
-            self._ready_to_take_data_future is None
-            or self._ready_to_take_data_future.done()
+            self._ready_to_take_data_task is None
+            or self._ready_to_take_data_task.done()
         ):
-            self._ready_to_take_data_future = asyncio.Future()
             self._ready_to_take_data_task = asyncio.create_task(
                 self._ready_to_take_data()
             )
-        return self._ready_to_take_data_future
+        await self._ready_to_take_data_task
 
     async def enable_dome_following(self, check=None):
         """Enabled dome following mode."""
@@ -1842,9 +1837,10 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
 
     @abc.abstractmethod
     async def _ready_to_take_data(self):
-        """Return a future object that will be done when the TCS is ready to
-        take data or raise an exception if something wrong happens while trying
-        to determine the condition of the system.
+        """Wait until the TCS is ready to take data.
+
+        Raise an exception if something goes wrong while trying to determine
+        the condition of the system.
         """
         raise NotImplementedError()
 

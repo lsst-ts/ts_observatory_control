@@ -17,6 +17,7 @@ bin/
 tests/.tests
 pytest_session.txt
 .cache/
+.hypothesis
 .pytest_cache
 .coverage
 
