@@ -30,6 +30,7 @@ class CameraExposure:
     image_type: str
     group_id: str
     n: int
+    n_snaps: int
     n_shift: int
     row_shift: int
     test_type: str
