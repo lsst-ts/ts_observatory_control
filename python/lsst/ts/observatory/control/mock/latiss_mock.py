@@ -46,12 +46,25 @@ class LATISSMock(BaseGroupMock):
         super().__init__(["ATSpectrograph", "ATCamera", "ATHeaderService", "ATOODS"])
 
         self.atcam.cmd_takeImages.callback = self.cmd_take_images_callback
+        self.atcam.cmd_enableCalibration.callback = self.cmd_enable_calibration_callback
+        self.atcam.cmd_clear.callback = self.cmd_clear_callback
+        self.atcam.cmd_startImage.callback = self.cmd_start_image_callback
+        self.atcam.cmd_endImage.callback = self.cmd_end_image_callback
+        self.atcam.cmd_disableCalibration.callback = (
+            self.cmd_disable_calibration_callback
+        )
+        self.atcam.cmd_discardRows.callback = self.cmd_discard_rows_callback
         self.atspec.cmd_changeFilter.callback = self.cmd_changeFilter_callback
         self.atspec.cmd_changeDisperser.callback = self.cmd_changeDisperser_callback
         self.atspec.cmd_moveLinearStage.callback = self.cmd_moveLinearStage_callback
 
+        self.atcam_start_image_time = None
+        self.atcam_calibration_mode = False
+        self.atcam_image_started = False
+
         self.readout_time = 1.0
         self.shutter_time = 0.5
+        self.short_time = 0.1
 
         self.nimages = 0
         self.exptime_list = []
@@ -62,6 +75,7 @@ class LATISSMock(BaseGroupMock):
         self.latiss_grating_name = None
         self.latiss_linear_stage = None
 
+        self.end_readout_coro = None
         self.end_readout_task = None
 
         self.log = logging.getLogger(__name__)
@@ -84,10 +98,18 @@ class LATISSMock(BaseGroupMock):
 
     async def cmd_take_images_callback(self, data):
         """Emulate take image command."""
+        if self.atcam_calibration_mode:
+            raise RuntimeError("Calibration mode on, cannot run takeImages.")
+
         if data.numImages == 0:
             raise RuntimeError("numImages must be larger than 0.")
 
         for i in range(data.numImages):
+
+            if self.atcam_image_started:
+                raise RuntimeError("Image started, cannot take image.")
+
+            self.atcam_image_started = True
             one_exp_time = data.expTime
             if data.shutter:
                 one_exp_time += self.shutter_time
@@ -96,15 +118,46 @@ class LATISSMock(BaseGroupMock):
             if i < data.numImages - 1:
                 await self.end_readout_task
 
+    async def cmd_enable_calibration_callback(self, data):
+        self.atcam_calibration_mode = True
+        await asyncio.sleep(self.short_time)
+
+    async def cmd_clear_callback(self, data):
+        await asyncio.sleep(self.short_time)
+
+    async def cmd_start_image_callback(self, data):
+        await asyncio.sleep(self.short_time)
+        self.atcam_image_started = True
+        self.atcam_start_image_time = utils.current_tai()
+        self.end_readout_coro = self.end_readout(data)
+
+    async def cmd_end_image_callback(self, data):
+        await asyncio.sleep(self.short_time)
+        self.end_readout_task = asyncio.create_task(self.end_readout_coro)
+
+    async def cmd_disable_calibration_callback(self, data):
+        self.atcam_calibration_mode = True
+        await asyncio.sleep(self.short_time)
+
+    async def cmd_discard_rows_callback(self, data):
+        await asyncio.sleep(self.short_time)
+
     async def end_readout(self, data):
         """Wait `self.readout_time` and send endReadout event."""
         self.log.debug(f"end_readout started: sleep {self.readout_time}")
         await asyncio.sleep(self.readout_time)
+
+        self.atcam_image_started = False
         self.nimages += 1
-        self.exptime_list.append(data.expTime)
+        if hasattr(data, "expTime"):
+            self.exptime_list.append(data.expTime)
+        elif self.atcam_image_started is not None:
+            self.exptime_list.append(utils.current_tai() - self.atcam_image_started)
+            self.atcam_image_started = None
+
         date_id = astropy.time.Time.now().tai.isot.split("T")[0].replace("-", "")
         image_name = f"test_latiss_{date_id}_{next(index_gen)}"
-        self.log.debug(f"sending endReadout: {image_name}")
+        self.log.debug(f"sending endReadout: {image_name} :: {data}")
 
         additional_keys, additional_values = list(
             zip(

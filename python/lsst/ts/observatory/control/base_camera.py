@@ -22,10 +22,12 @@ __all__ = ["BaseCamera"]
 
 import abc
 import asyncio
+import typing
 
 import astropy
 
 from . import RemoteGroup
+from .utils import CameraExposure
 
 
 class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
@@ -49,8 +51,9 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
         used to limit the resources allocated by the class by gathering some
         knowledge about the usage intention. By default allocates all
         resources.
-    tcs_ready_to_take_data: `function`
-        A function that returns an `asyncio.Future` object.
+    tcs_ready_to_take_data: `coroutine`
+        A coroutine that waits for the telescope control system to be ready
+        to take data.
     """
 
     def __init__(
@@ -76,13 +79,27 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
         # Maximum time to wait for the tcs to report as ready to take data
         self.max_tcs_wait_time = 30.0
 
-        self.valid_imagetype = ["BIAS", "DARK", "FLAT", "OBJECT", "ENGTEST"]
+        self.valid_imagetype = [
+            "BIAS",
+            "DARK",
+            "FLAT",
+            "OBJECT",
+            "ENGTEST",
+            "ACQ",
+            "CWFS",
+            "FOCUS",
+            "STUTTERED",
+        ]
+
+        self._stuttered_imgtype = {"STUTTERED"}
 
         self.instrument_setup_attributes = set(instrument_setup_attributes)
 
         self.cmd_lock = asyncio.Lock()
 
         self.ready_to_take_data = tcs_ready_to_take_data
+
+        self.max_n_snaps_warning = 2
 
     async def take_bias(
         self,
@@ -121,14 +138,17 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
 
         See Also
         --------
-        take_darks: Take series of darks.
-        take_flats: Take series of flat-field images
-        take_object: Take series of object observations.
-        take_engtest: Take series of engineering test observations.
-        take_imgtype: Take series of images by image type.
+        take_darks: Take series of darks images.
+        take_flats: Take series of flats images.
+        take_object: Take series of object images.
+        take_engtest: Take series of engineering test images.
+        take_focus: Take series of focus images.
+        take_cwfs: Take series of curvature wavefront sensing images.
+        take_acq: Take series of acquisition images.
+        take_stuttered: Take series of stuttered images.
+        take_imgtype: Take series of images of specified imgage type.
         setup_instrument: Set up instrument.
         expose: Low level expose method.
-
         """
         return await self.take_imgtype(
             imgtype="BIAS",
@@ -183,14 +203,17 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
 
         See Also
         --------
-        take_bias: Take series of bias.
-        take_flats: Take series of flat-field images.
-        take_object: Take series of object observations.
-        take_engtest: Take series of engineering test observations.
-        take_imgtype: Take series of images by image type.
+        take_bias: Take series of bias images.
+        take_flats: Take series of flats images.
+        take_object: Take series of object images.
+        take_engtest: Take series of engineering test images.
+        take_focus: Take series of focus images.
+        take_cwfs: Take series of curvature wavefront sensing images.
+        take_acq: Take series of acquisition images.
+        take_stuttered: Take series of stuttered images.
+        take_imgtype: Take series of images of specified imgage type.
         setup_instrument: Set up instrument.
         expose: Low level expose method.
-
         """
         return await self.take_imgtype(
             imgtype="DARK",
@@ -253,14 +276,17 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
 
         See Also
         --------
-        take_bias: Take series of bias.
-        take_darks: Take series of darks.
-        take_object: Take series of object observations.
-        take_engtest: Take series of engineering test observations.
-        take_imgtype: Take series of images by image type.
+        take_bias: Take series of bias images.
+        take_darks: Take series of darks images.
+        take_object: Take series of object images.
+        take_engtest: Take series of engineering test images.
+        take_focus: Take series of focus images.
+        take_cwfs: Take series of curvature wavefront sensing images.
+        take_acq: Take series of acquisition images.
+        take_stuttered: Take series of stuttered images.
+        take_imgtype: Take series of images of specified imgage type.
         setup_instrument: Set up instrument.
         expose: Low level expose method.
-
         """
 
         self.check_kwargs(**kwargs)
@@ -283,6 +309,7 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
         self,
         exptime,
         n=1,
+        n_snaps=1,
         group_id=None,
         test_type=None,
         reason=None,
@@ -301,23 +328,25 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
         ----------
         exptime : `float`
             Exposure time for flats.
-        n : `int`
-            Number of frames to take.
-        group_id : `str`
+        n : `int`, optional
+            Number of frames to take (default=1).
+        n_snaps : `int`
+            Number of snaps to take (default=1).
+        group_id : `str`, optional
             Optional group id for the data sequence. Will generate a common
             one for all the data if none is given.
-        test_type : `str`
+        test_type : `str`, optional
             Optional string to be added to the keyword testType image header.
         reason : `str`, optional
             Reason for the data being taken. This must be a short tag-like
             string that can be used to disambiguate a set of observations.
         program : `str`, optional
             Name of the program this data belongs to, e.g. WFD, DD, etc.
-        sensors : `str`
+        sensors : `str`, optional
             A colon delimited list of sensor names to use for the image.
-        note : `str`
+        note : `str`, optional
             Optional observer note to be added to the image header.
-        checkpoint : `coro`
+        checkpoint : `coro`, optional
             A optional awaitable callback that accepts one string argument
             that is called before each bias is taken.
         **kwargs
@@ -325,14 +354,34 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
 
         See Also
         --------
-        take_bias: Take series of bias.
-        take_darks: Take series of darks.
-        take_flats: Take series of flat-field images.
-        take_engtest: Take series of engineering test observations.
-        take_imgtype: Take series of images by image type.
+        take_bias: Take series of bias images.
+        take_darks: Take series of darks images.
+        take_flats: Take series of flats images.
+        take_engtest: Take series of engineering test images.
+        take_focus: Take series of focus images.
+        take_cwfs: Take series of curvature wavefront sensing images.
+        take_acq: Take series of acquisition images.
+        take_stuttered: Take series of stuttered images.
+        take_imgtype: Take series of images of specified imgage type.
         setup_instrument: Set up instrument.
         expose: Low level expose method.
 
+        Notes
+        -----
+
+        Object images support two nested ways of sequencing images; a regular
+        sequence of independent observations (controlled by the `n` parameter)
+        and sequence of snaps (controlled by the `n_snaps` parameter).
+
+        In fact the `n` parameter specify the number of "snaps" and `n_snaps`
+        specify how many images per "snap". Therefore, `n=2` and `n_snaps=2` is
+        interpreted as 2 sequences of snaps, each snap with 2 images,
+        accounting for 2x2=4 images total.
+
+        Snaps provide a special way of data aggregation employed by the data
+        reduction pipeline and should be used only in specific cases. In
+        general snaps are either 1 or 2 images, larger numbers are allowed but
+        discouraged (and will result in a warning message).
         """
 
         self.check_kwargs(**kwargs)
@@ -341,6 +390,7 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
             imgtype="OBJECT",
             exptime=exptime,
             n=n,
+            n_snaps=n_snaps,
             group_id=group_id,
             test_type=test_type,
             reason=reason,
@@ -394,14 +444,17 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
 
         See Also
         --------
-        take_bias: Take series of bias.
-        take_darks: Take series of darks.
-        take_flats: Take series of flat-field images.
-        take_object: Take series of object observations.
-        take_imgtype: Take series of images by image type.
+        take_bias: Take series of bias images.
+        take_darks: Take series of darks images.
+        take_flats: Take series of flats images.
+        take_object: Take series of object images.
+        take_focus: Take series of focus images.
+        take_cwfs: Take series of curvature wavefront sensing images.
+        take_acq: Take series of acquisition images.
+        take_stuttered: Take series of stuttered images.
+        take_imgtype: Take series of images of specified imgage type.
         setup_instrument: Set up instrument.
         expose: Low level expose method.
-
         """
 
         self.check_kwargs(**kwargs)
@@ -420,11 +473,341 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
             **kwargs,
         )
 
+    async def take_focus(
+        self,
+        exptime,
+        n=1,
+        group_id=None,
+        test_type=None,
+        reason=None,
+        program=None,
+        sensors=None,
+        note=None,
+        checkpoint=None,
+        **kwargs,
+    ):
+        """Take images for classical focus sequence.
+
+        Focus sequence consists of applying an initialy large focus offset,
+        then, continually take data and move focus back in the direction of to
+        the original position, until it has passed it by a similar amount in
+        that direction.
+
+        By detecting a bright source in a focus sequence and finding the
+        focus position with smaller full-width-half-maximum, we can estimate
+        the best focus position.
+
+        Parameters
+        ----------
+        exptime : `float`
+            Exposure time for flats.
+        n : `int`
+            Number of frames to take.
+        group_id : `str`
+            Optional group id for the data sequence. Will generate a common
+            one for all the data if none is given.
+        test_type : `str`
+            Optional string to be added to the keyword testType image header.
+        reason : `str`, optional
+            Reason for the data being taken. This must be a short tag-like
+            string that can be used to disambiguate a set of observations.
+        program : `str`, optional
+            Name of the program this data belongs to, e.g. WFD, DD, etc.
+        sensors : `str`
+            A colon delimited list of sensor names to use for the image.
+        note : `str`
+            Optional observer note to be added to the image header.
+        checkpoint : `coro`
+            A optional awaitable callback that accepts one string argument
+            that is called before each bias is taken.
+        **kwargs
+            Arbitrary keyword arguments.
+
+        See Also
+        --------
+        take_bias: Take series of bias images.
+        take_darks: Take series of darks images.
+        take_flats: Take series of flats images.
+        take_object: Take series of object images.
+        take_engtest: Take series of engineering test images.
+        take_cwfs: Take series of curvature wavefront sensing images.
+        take_acq: Take series of acquisition images.
+        take_stuttered: Take series of stuttered images.
+        take_imgtype: Take series of images of specified imgage type.
+        setup_instrument: Set up instrument.
+        expose: Low level expose method.
+        """
+
+        self.check_kwargs(**kwargs)
+
+        return await self.take_imgtype(
+            imgtype="FOCUS",
+            exptime=exptime,
+            n=n,
+            group_id=group_id,
+            test_type=test_type,
+            reason=reason,
+            program=program,
+            sensors=sensors,
+            note=note,
+            checkpoint=checkpoint,
+            **kwargs,
+        )
+
+    async def take_cwfs(
+        self,
+        exptime,
+        n=1,
+        group_id=None,
+        test_type=None,
+        reason=None,
+        program=None,
+        sensors=None,
+        note=None,
+        checkpoint=None,
+        **kwargs,
+    ):
+        """Take images for curvature wavefront sensing.
+
+        Curvature wavefront sensing images are usually extremely out of focus
+        images that are processed to determine the wavefront errors of the
+        telescope optics. These results can later be processed thought a
+        sensitivity matrix to yield optical corrections.
+
+        Parameters
+        ----------
+        exptime : `float`
+            Exposure time for flats.
+        n : `int`
+            Number of frames to take.
+        group_id : `str`
+            Optional group id for the data sequence. Will generate a common
+            one for all the data if none is given.
+        test_type : `str`
+            Optional string to be added to the keyword testType image header.
+        reason : `str`, optional
+            Reason for the data being taken. This must be a short tag-like
+            string that can be used to disambiguate a set of observations.
+        program : `str`, optional
+            Name of the program this data belongs to, e.g. WFD, DD, etc.
+        sensors : `str`
+            A colon delimited list of sensor names to use for the image.
+        note : `str`
+            Optional observer note to be added to the image header.
+        checkpoint : `coro`
+            A optional awaitable callback that accepts one string argument
+            that is called before each bias is taken.
+        **kwargs
+            Arbitrary keyword arguments.
+
+        See Also
+        --------
+        take_bias: Take series of bias images.
+        take_darks: Take series of darks images.
+        take_flats: Take series of flats images.
+        take_object: Take series of object images.
+        take_engtest: Take series of engineering test images.
+        take_focus: Take series of focus images.
+        take_acq: Take series of acquisition images.
+        take_stuttered: Take series of stuttered images.
+        take_imgtype: Take series of images of specified imgage type.
+        setup_instrument: Set up instrument.
+        expose: Low level expose method.
+        """
+
+        self.check_kwargs(**kwargs)
+
+        return await self.take_imgtype(
+            imgtype="CWFS",
+            exptime=exptime,
+            n=n,
+            group_id=group_id,
+            test_type=test_type,
+            reason=reason,
+            program=program,
+            sensors=sensors,
+            note=note,
+            checkpoint=checkpoint,
+            **kwargs,
+        )
+
+    async def take_acq(
+        self,
+        exptime=1.0,
+        n=1,
+        group_id=None,
+        test_type=None,
+        reason=None,
+        program=None,
+        sensors=None,
+        note=None,
+        checkpoint=None,
+        **kwargs,
+    ):
+        """Take acquisition images.
+
+        Acquisition images are generaly used to check the position of the
+        targets in the FoV, the image quality after a focus/cwfs sequence
+        or any other quick verification purposes.
+
+        Because they are supposed to be short exposures, this method provide a
+        default value for the exposure time of 1 second, so one can call it
+        with no argument.
+
+        Parameters
+        ----------
+        exptime : `float`, optional
+            Exposure time for flats.
+        n : `int`, optional
+            Number of frames to take.
+        group_id : `str`, optional
+            Optional group id for the data sequence. Will generate a common
+            one for all the data if none is given.
+        test_type : `str`, optional
+            Optional string to be added to the keyword testType image header.
+        reason : `str`, optional
+            Reason for the data being taken. This must be a short tag-like
+            string that can be used to disambiguate a set of observations.
+        program : `str`, optional
+            Name of the program this data belongs to, e.g. WFD, DD, etc.
+        sensors : `str`
+            A colon delimited list of sensor names to use for the image.
+        note : `str`
+            Optional observer note to be added to the image header.
+        checkpoint : `coro`
+            A optional awaitable callback that accepts one string argument
+            that is called before each bias is taken.
+        **kwargs
+            Arbitrary keyword arguments.
+
+        See Also
+        --------
+        take_bias: Take series of bias images.
+        take_darks: Take series of darks images.
+        take_flats: Take series of flats images.
+        take_object: Take series of object images.
+        take_engtest: Take series of engineering test images.
+        take_focus: Take series of focus images.
+        take_cwfs: Take series of curvature wavefront sensing images.
+        take_stuttered: Take series of stuttered images.
+        take_imgtype: Take series of images of specified imgage type.
+        setup_instrument: Set up instrument.
+        expose: Low level expose method.
+        """
+
+        self.check_kwargs(**kwargs)
+
+        return await self.take_imgtype(
+            imgtype="ACQ",
+            exptime=exptime,
+            n=n,
+            group_id=group_id,
+            test_type=test_type,
+            reason=reason,
+            program=program,
+            sensors=sensors,
+            note=note,
+            checkpoint=checkpoint,
+            **kwargs,
+        )
+
+    async def take_stuttered(
+        self,
+        exptime,
+        n_shift,
+        row_shift,
+        n=1,
+        group_id=None,
+        test_type=None,
+        reason=None,
+        program=None,
+        sensors=None,
+        note=None,
+        checkpoint=None,
+        **kwargs,
+    ):
+        """Take stuttered images.
+
+        Stuttered image consists of starting an acquisition "manually", then
+        doing subsequent row-shifts of the image readout for a given number of
+        times. This allows one to take rapid sequence of observations of
+        sources as the detector does not need to readout completely, but the
+        images end up with an odd appearence, as the field offsets at each
+        iteration.
+
+        Parameters
+        ----------
+        exptime : `float`
+            Exposure time (in seconds).
+        n_shift : `int`
+            Number of shift-expose sequences.
+        row_shift : `int`
+            How many rows to shift at each sequence.
+        n : `int`, optional
+            Number of frames to take.
+        group_id : `str`, optional
+            Optional group id for the data sequence. Will generate a common
+            one for all the data if none is given.
+        test_type : `str`, optional
+            Optional string to be added to the keyword testType image header.
+        reason : `str`, optional
+            Reason for the data being taken. This must be a short tag-like
+            string that can be used to disambiguate a set of observations.
+        program : `str`, optional
+            Name of the program this data belongs to, e.g. WFD, DD, etc.
+        sensors : `str`
+            A colon delimited list of sensor names to use for the image.
+        note : `str`
+            Optional observer note to be added to the image header.
+        checkpoint : `coro`
+            A optional awaitable callback that accepts one string argument
+            that is called before each bias is taken.
+        **kwargs
+            Arbitrary keyword arguments.
+
+        See Also
+        --------
+        take_bias: Take series of bias images.
+        take_darks: Take series of darks images.
+        take_flats: Take series of flats images.
+        take_object: Take series of object images.
+        take_engtest: Take series of engineering test images.
+        take_focus: Take series of focus images.
+        take_cwfs: Take series of curvature wavefront sensing images.
+        take_acq: Take series of acquisition images.
+        take_imgtype: Take series of images of specified imgage type.
+        setup_instrument: Set up instrument.
+        expose: Low level expose method.
+        """
+
+        self.check_kwargs(**kwargs)
+
+        await self.setup_instrument(**kwargs)
+
+        return await self.take_imgtype(
+            imgtype="STUTTERED",
+            exptime=exptime,
+            n=n,
+            n_shift=n_shift,
+            row_shift=row_shift,
+            group_id=group_id,
+            test_type=test_type,
+            reason=reason,
+            program=program,
+            sensors=sensors,
+            note=note,
+            checkpoint=checkpoint,
+            **kwargs,
+        )
+
     async def take_imgtype(
         self,
         imgtype,
         exptime,
         n,
+        n_snaps=1,
+        n_shift=None,
+        row_shift=None,
         group_id=None,
         test_type=None,
         reason=None,
@@ -442,8 +825,15 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
             Exposure time for flats.
         n : `int`
             Number of frames to take.
+        n_snaps : `int`
+            Number of snaps to take (default=1).
         test_type : `str`
             Optional string to be added to the keyword testType image header.
+        n_shift : `int`, optional
+            Number of shift-expose sequences. Only used for stuttered images.
+        row_shift : `int`, optional
+            How many rows to shift at each sequence. Only used for stuttered
+            images.
         reason : `str`, optional
             Reason for the data being taken. This must be a short tag-like
             string that can be used to disambiguate a set of observations.
@@ -461,19 +851,22 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
 
         See Also
         --------
-        take_bias: Take series of bias.
-        take_darks: Take series of darks.
-        take_flats: Take series of flat-field images.
-        take_object: Take series of object observations.
-        take_engtest: Take series of engineering test observations.
+        take_bias: Take series of bias images.
+        take_darks: Take series of darks images.
+        take_flats: Take series of flats images.
+        take_object: Take series of object images.
+        take_engtest: Take series of engineering test images.
+        take_focus: Take series of focus images.
+        take_cwfs: Take series of curvature wavefront sensing images.
+        take_acq: Take series of acquisition images.
+        take_stuttered: Take series of stuttered images.
         setup_instrument: Set up instrument.
         expose: Low level expose method.
 
         Raises
         ------
         RuntimeError
-            If TCS takes took long to report
-
+            If TCS takes took long to report.
         """
 
         self.check_kwargs(**kwargs)
@@ -511,18 +904,23 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
         if checkpoint is not None:
             await checkpoint(f"Expose {n} {imgtype}")
 
-        return await self.expose(
+        camera_exposure = CameraExposure(
             exp_time=exptime if imgtype != "BIAS" else 0.0,
             shutter=imgtype not in ["BIAS", "DARK"],
             image_type=imgtype,
             group_id=group_id,
             n=n,
+            n_snaps=n_snaps,
+            n_shift=n_shift,
+            row_shift=row_shift,
             test_type=test_type,
             reason=reason,
             program=program,
             sensors=sensors,
             note=note,
         )
+
+        return await self.expose(camera_exposure=camera_exposure)
 
     def check_kwargs(self, **kwags):
         """Utility method to verify that kwargs are in
@@ -542,46 +940,6 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
                     f" Must be one of {self.instrument_setup_attributes}."
                 )
 
-    def get_key_value_map(
-        self,
-        image_type,
-        group_id,
-        test_type=None,
-        reason=None,
-        program=None,
-    ):
-        """Parse inputs into a valid key-value string for the cameras.
-
-        Parameters
-        ----------
-        image_type : `str`
-            Image type (a.k.a. IMGTYPE) (e.g. e.g. BIAS, DARK, FLAT, FE55,
-            XTALK, CCOB, SPOT...)
-        group_id : `str`
-            Image groupId. Used to fill in FITS GROUPID header
-        test_type : `str`, optional
-            The classifier for the testing type. Usually the same as
-            `image_type`.
-        reason : `str`, optional
-            Reason for the data being taken. This must be a short tag-like
-            string that can be used to disambiguate a set of observations.
-        program : `str`, optional
-            Name of the program this data belongs to, e.g. WFD, DD, etc.
-        """
-
-        key_value_map = (
-            f"imageType: {image_type}, groupId: {group_id}, "
-            f"testType: {image_type if test_type is None else test_type}"
-        )
-
-        if reason is not None:
-            key_value_map += f", reason: {reason}"
-
-        if program is not None:
-            key_value_map += f", program: {program}"
-
-        return key_value_map
-
     @property
     @abc.abstractmethod
     def camera(self):
@@ -599,14 +957,17 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
 
         See Also
         --------
-        take_bias: Take series of bias.
-        take_darks: Take series of darks.
-        take_flats: Take series of flat-field images.
-        take_object: Take series of object observations.
-        take_engtest: Take series of engineering test observations.
-        take_imgtype: Take series of images by image type.
+        take_bias: Take series of bias images.
+        take_darks: Take series of darks images.
+        take_flats: Take series of flats images.
+        take_object: Take series of object images.
+        take_engtest: Take series of engineering test images.
+        take_focus: Take series of focus images.
+        take_cwfs: Take series of curvature wavefront sensing images.
+        take_acq: Take series of acquisition images.
+        take_stuttered: Take series of stuttered images.
+        take_imgtype: Take series of images of specified imgage type.
         expose: Low level expose method.
-
         """
         raise NotImplementedError()
 
@@ -620,19 +981,7 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
         """
         raise NotImplementedError()
 
-    async def expose(
-        self,
-        exp_time,
-        shutter,
-        image_type,
-        group_id,
-        n=1,
-        test_type=None,
-        reason=None,
-        program=None,
-        sensors=None,
-        note=None,
-    ):
+    async def expose(self, camera_exposure: CameraExposure):
         """Encapsulates the take image command.
 
         This basically consists of configuring and sending a takeImages
@@ -640,29 +989,8 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
 
         Parameters
         ----------
-        exp_time : `float`
-            The exposure time for the image, in seconds.
-        shutter : `bool`
-            Should activate the shutter? (False for bias and dark)
-        image_type : `str`
-            Image type (a.k.a. IMGTYPE) (e.g. e.g. BIAS, DARK, FLAT, FE55,
-            XTALK, CCOB, SPOT...)
-        group_id : `str`
-            Image groupId. Used to fill in FITS GROUPID header
-        n : `int`, optional
-            Number of frames to take (default = 1).
-        test_type : `str`, optional
-            The classifier for the testing type. Usually the same as
-            `image_type`.
-        reason : `str`, optional
-            Reason for the data being taken. This must be a short tag-like
-            string that can be used to disambiguate a set of observations.
-        program : `str`, optional
-            Name of the program this data belongs to, e.g. WFD, DD, etc.
-        sensors : `str`, optional
-            A colon delimited list of sensor names to use for the image.
-        note : `str`, optional
-            A freeform string containing small notes about the image.
+        camera_exposure : CameraExposure
+            Camera exposure definitions.
 
         Returns
         -------
@@ -671,68 +999,235 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
 
         See Also
         --------
-        take_bias: Take series of bias.
-        take_darks: Take series of darks.
-        take_flats: Take series of flat-field images.
-        take_object: Take series of object observations.
-        take_engtest: Take series of engineering test observations.
-        take_imgtype: Take series of images by image type.
+        take_bias: Take series of bias images.
+        take_darks: Take series of darks images.
+        take_flats: Take series of flats images.
+        take_object: Take series of object images.
+        take_engtest: Take series of engineering test images.
+        take_focus: Take series of focus images.
+        take_cwfs: Take series of curvature wavefront sensing images.
+        take_acq: Take series of acquisition images.
+        take_stuttered: Take series of stuttered images.
+        take_imgtype: Take series of images of specified imgage type.
         setup_instrument: Set up instrument.
-
         """
         exp_ids = []
 
         async with self.cmd_lock:
 
-            if image_type == "BIAS" and exp_time > 0.0:
+            if camera_exposure.image_type == "BIAS" and camera_exposure.exp_time > 0.0:
                 self.log.warning("Image type is BIAS, ignoring exptime.")
-                exp_time = 0.0
-            elif bool(shutter) and exp_time < self.min_exptime:
+                camera_exposure.exp_time = 0.0
+            elif (
+                bool(camera_exposure.shutter)
+                and camera_exposure.exp_time < self.min_exptime
+            ):
                 raise RuntimeError(
                     f"Minimum allowed open-shutter exposure time "
-                    f"is {self.min_exptime}. Got {exp_time}."
+                    f"is {self.min_exptime}. Got {camera_exposure.exp_time}."
                 )
 
-            key_value_map = self.get_key_value_map(
-                image_type=image_type,
-                group_id=group_id,
-                test_type=test_type,
-                reason=reason,
-                program=program,
-            )
-
-            self.camera.cmd_takeImages.set(
-                numImages=n,
-                expTime=float(exp_time),
-                shutter=bool(shutter),
-                keyValueMap=key_value_map,
-                sensors=self.parse_sensors(sensors),
-                obsNote="" if note is None else note,
-            )
-
-            take_images_timeout = (
-                float(exp_time) + self.read_out_time
-            ) * n + self.long_long_timeout
-
-            self.camera.evt_endReadout.flush()
-            await self.camera.cmd_takeImages.start(timeout=take_images_timeout)
-
-            for _ in range(n):
-                try:
-                    end_readout = await self.camera.evt_endReadout.next(
-                        flush=False, timeout=self.long_long_timeout
-                    )
-                except asyncio.TimeoutError:
-                    raise RuntimeError(
-                        f"Timeout waiting for endReadout event. Expected {n} got {len(exp_ids)}."
-                    )
-                # parse out visitID from filename
-                # (Patrick comment) this is highly annoying
-                _, _, i_prefix, i_suffix = end_readout.imageName.split("_")
-
-                exp_ids.append(int((i_prefix + i_suffix[1:])))
+            exp_ids = await self.handle_take_images(camera_exposure=camera_exposure)
 
         return exp_ids
+
+    async def handle_take_images(
+        self, camera_exposure: CameraExposure
+    ) -> typing.List[int]:
+        """Handle take images command.
+
+        Parameters
+        ----------
+        camera_exposure : CameraExposure
+            Camera exposure definitions.
+
+        Returns
+        -------
+        exp_ids : list of int
+            List of exposure ids.
+        """
+
+        if camera_exposure.image_type not in self._stuttered_imgtype:
+            return await self._handle_take_images(camera_exposure=camera_exposure)
+        else:
+            return await self._handle_take_stuttered(camera_exposure=camera_exposure)
+
+    async def _handle_take_images(
+        self, camera_exposure: CameraExposure
+    ) -> typing.List[int]:
+        """Handle taking series of images using the camera takeImages command.
+
+        Parameters
+        ----------
+        camera_exposure : CameraExposure
+            Camera exposure definitions.
+
+        Returns
+        -------
+        exp_ids : list of int
+            List of exposure ids.
+        """
+        if camera_exposure.n_snaps > self.max_n_snaps_warning:
+            self.log.warning(
+                f"Specified number of snaps {camera_exposure.n_snaps} larger "
+                f"than maximum recommended value {self.max_n_snaps_warning}."
+            )
+
+        exp_ids = []
+        for _ in range(camera_exposure.n):
+            exp_ids += await self._handle_snaps(camera_exposure)
+
+        return exp_ids
+
+    async def _handle_snaps(self, camera_exposure: CameraExposure) -> typing.List[int]:
+        """Handle taking snaps using camera takeImages command.
+
+        Parameters
+        ----------
+        camera_exposure : CameraExposure
+            Camera exposure definitions.
+
+        Returns
+        -------
+        exp_ids : list of int
+            List of exposure ids.
+
+        Raises
+        ------
+        RuntimeError:
+            If timeout waiting for endReadout event from the camera.
+        """
+        key_value_map = camera_exposure.get_key_value_map()
+
+        self.camera.cmd_takeImages.set(
+            numImages=camera_exposure.n_snaps,
+            expTime=float(camera_exposure.exp_time),
+            shutter=bool(camera_exposure.shutter),
+            keyValueMap=key_value_map,
+            sensors=self.parse_sensors(camera_exposure.sensors),
+            obsNote="" if camera_exposure.note is None else camera_exposure.note,
+        )
+
+        take_images_timeout = (
+            float(camera_exposure.exp_time) + self.read_out_time
+        ) * camera_exposure.n + self.long_long_timeout
+
+        self.camera.evt_endReadout.flush()
+        await self.camera.cmd_takeImages.start(timeout=take_images_timeout)
+
+        exp_ids = []
+
+        for _ in range(camera_exposure.n_snaps):
+            try:
+                exp_id = await self.next_exposure_id()
+            except asyncio.TimeoutError:
+                raise RuntimeError(
+                    "Timeout waiting for endReadout event. "
+                    f"Expected {camera_exposure.n_snaps} got {len(exp_ids)}."
+                )
+
+            exp_ids.append(exp_id)
+
+        return exp_ids
+
+    async def _handle_take_stuttered(
+        self, camera_exposure: CameraExposure
+    ) -> typing.List[int]:
+        """Handle taking series of images using a combination of shift/discard
+        rows.
+
+        This method makes sure that enable/disable and start/end of stuttered
+        images are protected. If, for any reason, the operation is cancelled
+        while executing, it will still end the exposure and disable calibration
+        mode.
+
+        Parameters
+        ----------
+        camera_exposure : CameraExposure
+            Camera exposure definitions.
+
+        Returns
+        -------
+        exp_ids : list of int
+            List of exposure ids.
+        """
+        self.log.info("Enabling camera calibration mode.")
+        await self.camera.cmd_enableCalibration.start(timeout=self.long_timeout)
+
+        exp_ids = []
+
+        key_value_map = camera_exposure.get_key_value_map()
+
+        try:
+            for i in range(camera_exposure.n):
+
+                await self.camera.cmd_clear.set_start(
+                    nClears=2, timeout=self.long_timeout
+                )
+
+                self.camera.evt_endReadout.flush()
+
+                self.log.info(f"Start exposure {i+1} of {camera_exposure.n}")
+
+                await self.camera.cmd_startImage.set_start(
+                    shutter=camera_exposure.shutter,
+                    keyValueMap=key_value_map,
+                    timeout=self.fast_timeout,
+                )
+                try:
+                    await self._handle_expose_shift(camera_exposure)
+                finally:
+                    self.log.info(f"End exposure {i+1} of {camera_exposure.n}")
+                    await self.camera.cmd_endImage.start(timeout=self.long_timeout)
+
+                exp_ids.append(await self.next_exposure_id())
+        finally:
+            self.log.info("Disabling camera calibration mode.")
+            await self.camera.cmd_disableCalibration.start(timeout=self.long_timeout)
+
+        return exp_ids
+
+    async def _handle_expose_shift(self, camera_exposure: CameraExposure) -> None:
+        """Handle exposing and shifting the camera register.
+
+        Parameters
+        ----------
+        camera_exposure : CameraExposure
+        """
+
+        for i in range(camera_exposure.n_shift - 1):
+            self.log.debug(
+                f"Exposing {i+1} of {camera_exposure.n_shift} for {camera_exposure.exp_time} seconds."
+            )
+            await asyncio.sleep(camera_exposure.exp_time)
+            self.log.debug(f"Shifting {camera_exposure.row_shift} rows.")
+            await self.camera.cmd_discardRows.set_start(
+                nRows=camera_exposure.row_shift, timeout=self.long_timeout
+            )
+
+        self.log.debug("Last shift-expose sequence.")
+        await asyncio.sleep(camera_exposure.exp_time)
+
+    async def next_exposure_id(self) -> int:
+        """Get the exposure id from the next endReadout event.
+
+        Await for the next `camera.evt_endReadout` event, without flushing,
+        parse the `imageName` into YYYYMMDD and sequence number and construct
+        an integer that represents the exposude id.
+
+        Returns
+        -------
+        int
+            Exposure id from next endReadout event.
+        """
+        end_readout = await self.camera.evt_endReadout.next(
+            flush=False, timeout=self.long_long_timeout
+        )
+        # parse out visitID from filename
+        # (Patrick comment) this is highly annoying
+        _, _, yyyymmdd, seq_num = end_readout.imageName.split("_")
+
+        return int((yyyymmdd + seq_num[1:]))
 
     @staticmethod
     def next_group_id():

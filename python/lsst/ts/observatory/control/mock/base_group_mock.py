@@ -295,7 +295,7 @@ class BaseGroupMock:
                     detailedState=salobj.State.ENABLED
                 )
             except Exception:
-                self.log.exception("Cannot publish detailed state.")
+                self.log.exception(f"Cannot publish detailed state for {component}.")
 
     async def check_done(self):
         """If all CSCs are in OFFLINE state, close group mock."""
@@ -311,7 +311,8 @@ class BaseGroupMock:
 
             if all(is_offline):
                 print("Closing mock controller.")
-                self.done_task.set_result(None)
+                if not self.done_task.done():
+                    self.done_task.set_result(None)
 
     async def publish_heartbeats_for(self, comp):
         while self.run_telemetry_loop:
