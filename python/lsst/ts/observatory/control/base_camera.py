@@ -99,6 +99,8 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
 
         self.ready_to_take_data = tcs_ready_to_take_data
 
+        self.max_n_snaps_warning = 2
+
     async def take_bias(
         self,
         nbias,
@@ -307,6 +309,7 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
         self,
         exptime,
         n=1,
+        n_snaps=1,
         group_id=None,
         test_type=None,
         reason=None,
@@ -325,23 +328,25 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
         ----------
         exptime : `float`
             Exposure time for flats.
-        n : `int`
-            Number of frames to take.
-        group_id : `str`
+        n : `int`, optional
+            Number of frames to take (default=1).
+        n_snaps : `int`
+            Number of snaps to take (default=1).
+        group_id : `str`, optional
             Optional group id for the data sequence. Will generate a common
             one for all the data if none is given.
-        test_type : `str`
+        test_type : `str`, optional
             Optional string to be added to the keyword testType image header.
         reason : `str`, optional
             Reason for the data being taken. This must be a short tag-like
             string that can be used to disambiguate a set of observations.
         program : `str`, optional
             Name of the program this data belongs to, e.g. WFD, DD, etc.
-        sensors : `str`
+        sensors : `str`, optional
             A colon delimited list of sensor names to use for the image.
-        note : `str`
+        note : `str`, optional
             Optional observer note to be added to the image header.
-        checkpoint : `coro`
+        checkpoint : `coro`, optional
             A optional awaitable callback that accepts one string argument
             that is called before each bias is taken.
         **kwargs
@@ -360,6 +365,23 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
         take_imgtype: Take series of images of specified imgage type.
         setup_instrument: Set up instrument.
         expose: Low level expose method.
+
+        Notes
+        -----
+
+        Object images support two nested ways of sequencing images; a regular
+        sequence of independent observations (controlled by the `n` parameter)
+        and sequence of snaps (controlled by the `n_snaps` parameter).
+
+        In fact the `n` parameter specify the number of "snaps" and `n_snaps`
+        specify how many images per "snap". Therefore, `n=2` and `n_snaps=2` is
+        interpreted as 2 sequences of snaps, each snap with 2 images,
+        accounting for 2x2=4 images total.
+
+        Snaps provide a special way of data aggregation employed by the data
+        reduction pipeline and should be used only in specific cases. In
+        general snaps are either 1 or 2 images, larger numbers are allowed but
+        discouraged (and will result in a warning message).
         """
 
         self.check_kwargs(**kwargs)
@@ -368,6 +390,7 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
             imgtype="OBJECT",
             exptime=exptime,
             n=n,
+            n_snaps=n_snaps,
             group_id=group_id,
             test_type=test_type,
             reason=reason,
@@ -782,6 +805,7 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
         imgtype,
         exptime,
         n,
+        n_snaps=1,
         n_shift=None,
         row_shift=None,
         group_id=None,
@@ -801,6 +825,8 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
             Exposure time for flats.
         n : `int`
             Number of frames to take.
+        n_snaps : `int`
+            Number of snaps to take (default=1).
         test_type : `str`
             Optional string to be added to the keyword testType image header.
         n_shift : `int`, optional
@@ -884,6 +910,7 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
             image_type=imgtype,
             group_id=group_id,
             n=n,
+            n_snaps=n_snaps,
             n_shift=n_shift,
             row_shift=row_shift,
             test_type=test_type,
@@ -1039,6 +1066,31 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
         -------
         exp_ids : list of int
             List of exposure ids.
+        """
+        if camera_exposure.n_snaps > self.max_n_snaps_warning:
+            self.log.warning(
+                f"Specified number of snaps {camera_exposure.n_snaps} larger "
+                f"than maximum recommended value {self.max_n_snaps_warning}."
+            )
+
+        exp_ids = []
+        for _ in range(camera_exposure.n):
+            exp_ids += await self._handle_snaps(camera_exposure)
+
+        return exp_ids
+
+    async def _handle_snaps(self, camera_exposure: CameraExposure) -> typing.List[int]:
+        """Handle taking snaps using camera takeImages command.
+
+        Parameters
+        ----------
+        camera_exposure : CameraExposure
+            Camera exposure definitions.
+
+        Returns
+        -------
+        exp_ids : list of int
+            List of exposure ids.
 
         Raises
         ------
@@ -1048,7 +1100,7 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
         key_value_map = camera_exposure.get_key_value_map()
 
         self.camera.cmd_takeImages.set(
-            numImages=camera_exposure.n,
+            numImages=camera_exposure.n_snaps,
             expTime=float(camera_exposure.exp_time),
             shutter=bool(camera_exposure.shutter),
             keyValueMap=key_value_map,
@@ -1065,13 +1117,13 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
 
         exp_ids = []
 
-        for _ in range(camera_exposure.n):
+        for _ in range(camera_exposure.n_snaps):
             try:
                 exp_id = await self.next_exposure_id()
             except asyncio.TimeoutError:
                 raise RuntimeError(
                     "Timeout waiting for endReadout event. "
-                    f"Expected {camera_exposure.n} got {len(exp_ids)}."
+                    f"Expected {camera_exposure.n_snaps} got {len(exp_ids)}."
                 )
 
             exp_ids.append(exp_id)
