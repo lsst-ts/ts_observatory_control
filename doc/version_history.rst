@@ -19,6 +19,8 @@ v0.18.0
     This image type opens the camera shutter, start the exposure manually and then allow users to shift the readout manually.
     This allow us to produce "stuttered" images with starts shifting in the read direction at each iteration.
 
+  * Add support for taking snaps in `take_object`.
+
 * Add unit tests for stuttered images for ComCam.
 
 * Add unit tests for stuttered images for LATISS.
