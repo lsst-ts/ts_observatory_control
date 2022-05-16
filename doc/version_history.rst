@@ -6,6 +6,11 @@
 Version History
 ###############
 
+v0.18.1
+-------
+
+* `MTCSMock`: stop calling lsst.ts.salobj.topics.WriteTopic.write with arguments.
+
 v0.18.0
 -------
 

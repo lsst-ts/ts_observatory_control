@@ -21,6 +21,7 @@
 __all__ = ["MTCSMock"]
 
 import asyncio
+import math
 
 from .base_group_mock import BaseGroupMock
 from .m1m3_topic_samples import get_m1m3_topic_samples_data
@@ -585,13 +586,11 @@ class MTCSMock(BaseGroupMock):
                 == salobj.State.ENABLED
             ):
 
-                accelerometer_data = (
+                raw_accelerometer_data = (
                     self.controllers.mtm1m3.tel_accelerometerData.DataType()
                 )
 
-                accelerometer_data.timestamp = current_tai()
-
-                raw_accelerometer = np.sin(
+                nominal_raw_accelerometer = np.sin(
                     np.radians(
                         getattr(
                             self.controllers.mtmount.tel_elevation.data,
@@ -600,126 +599,112 @@ class MTCSMock(BaseGroupMock):
                     )
                 )
 
-                accelerometer_data.rawAccelerometer = np.random.normal(
-                    loc=raw_accelerometer,
+                raw_accelerometer_arr = np.random.normal(
+                    loc=nominal_raw_accelerometer,
                     scale=self.m1m3_accelerometer_error,
-                    size=len(accelerometer_data.rawAccelerometer),
+                    size=len(raw_accelerometer_data.rawAccelerometer),
                 )
 
-                accelerometer_data.accelerometer = accelerometer_data.rawAccelerometer
-
-                await self.controllers.mtm1m3.tel_accelerometerData.write(
-                    accelerometer_data
+                await self.controllers.mtm1m3.tel_accelerometerData.set_write(
+                    timestamp=current_tai(),
+                    rawAccelerometer=raw_accelerometer_arr,
+                    accelerometer=raw_accelerometer_arr,
                 )
 
                 force_actuator_data = (
                     self.controllers.mtm1m3.tel_forceActuatorData.DataType()
                 )
 
-                force_actuator_data.timestamp = current_tai()
+                fx = np.random.rand()
+                fy = np.random.rand()
+                fz = np.random.rand()
 
-                force_actuator_data.primaryCylinderForce = np.random.rand(
-                    len(force_actuator_data.primaryCylinderForce)
-                )
-                force_actuator_data.secondaryCylinderForce = np.random.rand(
-                    len(force_actuator_data.secondaryCylinderForce)
-                )
-                force_actuator_data.xForce = np.random.rand(
-                    len(force_actuator_data.xForce)
-                )
-                force_actuator_data.yForce = np.random.rand(
-                    len(force_actuator_data.yForce)
-                )
-                force_actuator_data.zForce = np.random.rand(
-                    len(force_actuator_data.zForce)
-                )
-                force_actuator_data.fx = np.random.rand()
-                force_actuator_data.fy = np.random.rand()
-                force_actuator_data.fz = np.random.rand()
-                force_actuator_data.mx = np.random.rand()
-                force_actuator_data.my = np.random.rand()
-                force_actuator_data.mz = np.random.rand()
-
-                force_actuator_data.forceMagnitude = np.sqrt(
-                    force_actuator_data.fx**2
-                    + force_actuator_data.fy**2
-                    + force_actuator_data.fz**2
-                )
-
-                await self.controllers.mtm1m3.tel_forceActuatorData.write(
-                    force_actuator_data
+                await self.controllers.mtm1m3.tel_forceActuatorData.set_write(
+                    timestamp=current_tai(),
+                    primaryCylinderForce=np.random.rand(
+                        len(force_actuator_data.primaryCylinderForce)
+                    ),
+                    secondaryCylinderForce=np.random.rand(
+                        len(force_actuator_data.secondaryCylinderForce)
+                    ),
+                    xForce=np.random.rand(len(force_actuator_data.xForce)),
+                    yForce=np.random.rand(len(force_actuator_data.yForce)),
+                    zForce=np.random.rand(len(force_actuator_data.zForce)),
+                    fx=fx,
+                    fy=fy,
+                    fz=fz,
+                    mx=np.random.rand(),
+                    my=np.random.rand(),
+                    mz=np.random.rand(),
+                    forceMagnitude=math.hypot(fx, fy, fz),
                 )
 
                 hardpoint_actuator_data = (
                     self.controllers.mtm1m3.tel_hardpointActuatorData.DataType()
                 )
 
-                hardpoint_actuator_data.timestamp = current_tai()
-                hardpoint_actuator_data.measuredForce = np.random.normal(
-                    size=len(hardpoint_actuator_data.measuredForce)
-                )
-                hardpoint_actuator_data.encoder = np.array(
-                    [32438, 37387, 43686, 44733, 34862, 40855], dtype=int
-                )
-                hardpoint_actuator_data.displacement = np.random.normal(
-                    size=len(hardpoint_actuator_data.displacement)
-                )
-                hardpoint_actuator_data.fx = np.random.normal()
-                hardpoint_actuator_data.fy = np.random.normal()
-                hardpoint_actuator_data.fz = np.random.normal()
-                hardpoint_actuator_data.mx = np.random.normal()
-                hardpoint_actuator_data.my = np.random.normal()
-                hardpoint_actuator_data.mz = np.random.normal()
-                hardpoint_actuator_data.forceMagnitude = np.random.normal()
-                hardpoint_actuator_data.xPosition = np.random.normal()
-                hardpoint_actuator_data.yPosition = np.random.normal()
-                hardpoint_actuator_data.zPosition = np.random.normal()
-                hardpoint_actuator_data.xRotation = np.random.normal()
-                hardpoint_actuator_data.yRotation = np.random.normal()
-                hardpoint_actuator_data.zRotation = np.random.normal()
-
-                await self.controllers.mtm1m3.tel_hardpointActuatorData.write(
-                    hardpoint_actuator_data
+                await self.controllers.mtm1m3.tel_hardpointActuatorData.set_write(
+                    timestamp=current_tai(),
+                    measuredForce=np.random.normal(
+                        size=len(hardpoint_actuator_data.measuredForce)
+                    ),
+                    encoder=np.array(
+                        [32438, 37387, 43686, 44733, 34862, 40855], dtype=int
+                    ),
+                    displacement=np.random.normal(
+                        size=len(hardpoint_actuator_data.displacement)
+                    ),
+                    fx=np.random.normal(),
+                    fy=np.random.normal(),
+                    fz=np.random.normal(),
+                    mx=np.random.normal(),
+                    my=np.random.normal(),
+                    mz=np.random.normal(),
+                    forceMagnitude=np.random.normal(),
+                    xPosition=np.random.normal(),
+                    yPosition=np.random.normal(),
+                    zPosition=np.random.normal(),
+                    xRotation=np.random.normal(),
+                    yRotation=np.random.normal(),
+                    zRotation=np.random.normal(),
                 )
 
                 hardpoint_monitor_data = (
                     self.controllers.mtm1m3.tel_hardpointMonitorData.DataType()
                 )
 
-                hardpoint_monitor_data.timestamp = current_tai()
-                hardpoint_monitor_data.breakawayLVDT = np.random.normal(
-                    loc=self.m1m3_breakaway_lvdt,
-                    scale=self.m1m3_breakaway_lvdt / 10.0,
-                    size=len(hardpoint_monitor_data.breakawayLVDT),
-                )
-                hardpoint_monitor_data.displacementLVDT = np.random.normal(
-                    loc=self.m1m3_displacement_lvdt,
-                    scale=self.m1m3_displacement_lvdt / 10.0,
-                    size=len(hardpoint_monitor_data.displacementLVDT),
-                )
-                hardpoint_monitor_data.breakawayPressure = np.random.normal(
-                    loc=self.m1m3_breakaway_pressure,
-                    scale=self.m1m3_breakaway_pressure / 10.0,
-                    size=len(hardpoint_monitor_data.breakawayPressure),
-                )
-                hardpoint_monitor_data.pressureSensor1 = np.random.normal(
-                    loc=self.m1m3_pressure_sensor_1,
-                    scale=self.m1m3_pressure_sensor_1 / 10.0,
-                    size=len(hardpoint_monitor_data.pressureSensor1),
-                )
-                hardpoint_monitor_data.pressureSensor2 = np.random.normal(
-                    loc=self.m1m3_pressure_sensor_2,
-                    scale=self.m1m3_pressure_sensor_2 / 10.0,
-                    size=len(hardpoint_monitor_data.pressureSensor2),
-                )
-                hardpoint_monitor_data.pressureSensor3 = np.random.normal(
-                    loc=self.m1m3_pressure_sensor_3,
-                    scale=self.m1m3_pressure_sensor_3 / 10.0,
-                    size=len(hardpoint_monitor_data.pressureSensor3),
-                )
-
-                await self.controllers.mtm1m3.tel_hardpointMonitorData.write(
-                    hardpoint_monitor_data
+                await self.controllers.mtm1m3.tel_hardpointMonitorData.set_write(
+                    timestamp=current_tai(),
+                    breakawayLVDT=np.random.normal(
+                        loc=self.m1m3_breakaway_lvdt,
+                        scale=self.m1m3_breakaway_lvdt / 10.0,
+                        size=len(hardpoint_monitor_data.breakawayLVDT),
+                    ),
+                    displacementLVDT=np.random.normal(
+                        loc=self.m1m3_displacement_lvdt,
+                        scale=self.m1m3_displacement_lvdt / 10.0,
+                        size=len(hardpoint_monitor_data.displacementLVDT),
+                    ),
+                    breakawayPressure=np.random.normal(
+                        loc=self.m1m3_breakaway_pressure,
+                        scale=self.m1m3_breakaway_pressure / 10.0,
+                        size=len(hardpoint_monitor_data.breakawayPressure),
+                    ),
+                    pressureSensor1=np.random.normal(
+                        loc=self.m1m3_pressure_sensor_1,
+                        scale=self.m1m3_pressure_sensor_1 / 10.0,
+                        size=len(hardpoint_monitor_data.pressureSensor1),
+                    ),
+                    pressureSensor2=np.random.normal(
+                        loc=self.m1m3_pressure_sensor_2,
+                        scale=self.m1m3_pressure_sensor_2 / 10.0,
+                        size=len(hardpoint_monitor_data.pressureSensor2),
+                    ),
+                    pressureSensor3=np.random.normal(
+                        loc=self.m1m3_pressure_sensor_3,
+                        scale=self.m1m3_pressure_sensor_3 / 10.0,
+                        size=len(hardpoint_monitor_data.pressureSensor3),
+                    ),
                 )
 
                 self.controllers.mtm1m3.evt_forceActuatorState.data.ilcState = (
