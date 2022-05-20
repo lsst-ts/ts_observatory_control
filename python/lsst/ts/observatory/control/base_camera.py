@@ -1169,11 +1169,19 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
 
                 self.log.info(f"Start exposure {i+1} of {camera_exposure.n}")
 
-                await self.camera.cmd_startImage.set_start(
+                # We need to set the timeout parameter in the startImage
+                # command. This only works if we call set first and then start.
+                self.camera.cmd_startImage.set(
                     shutter=camera_exposure.shutter,
                     keyValueMap=key_value_map,
-                    timeout=self.fast_timeout,
+                    timeout=(
+                        self.fast_timeout
+                        + camera_exposure.exp_time * (camera_exposure.n_shift + 1)
+                    ),
                 )
+
+                await self.camera.cmd_startImage.start(timeout=self.fast_timeout)
+
                 try:
                     await self._handle_expose_shift(camera_exposure)
                 finally:
