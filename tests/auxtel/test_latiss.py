@@ -79,7 +79,7 @@ class TestLATISS(RemoteGroupTestCase, unittest.IsolatedAsyncioTestCase):
 
             end_readout = self.latiss_remote.camera.evt_endReadout.get()
 
-            assert end_readout.additionalKeys == "imageType:groupId:testType"
+            assert end_readout.additionalKeys == self.expected_additional_keys
 
             assert self.latiss_mock.nimages == nbias
             assert len(self.latiss_mock.exptime_list) == nbias
@@ -102,8 +102,8 @@ class TestLATISS(RemoteGroupTestCase, unittest.IsolatedAsyncioTestCase):
 
             end_readout = self.latiss_remote.camera.evt_endReadout.get()
 
-            assert end_readout.additionalKeys == "imageType:groupId:testType"
-            assert end_readout.additionalValues == f"BIAS:{group_id}:BIAS"
+            assert end_readout.additionalKeys == self.expected_additional_keys
+            assert end_readout.additionalValues == f"BIAS:{group_id}:BIAS:0:0:0.0"
 
             await self.latiss_remote.take_bias(
                 nbias=1,
@@ -113,8 +113,8 @@ class TestLATISS(RemoteGroupTestCase, unittest.IsolatedAsyncioTestCase):
 
             end_readout = self.latiss_remote.camera.evt_endReadout.get()
 
-            assert end_readout.additionalKeys == "imageType:groupId:testType"
-            assert end_readout.additionalValues == f"BIAS:{group_id}:LBIAS"
+            assert end_readout.additionalKeys == self.expected_additional_keys
+            assert end_readout.additionalValues == f"BIAS:{group_id}:LBIAS:0:0:0.0"
 
             await self.latiss_remote.take_bias(
                 nbias=1,
@@ -124,9 +124,12 @@ class TestLATISS(RemoteGroupTestCase, unittest.IsolatedAsyncioTestCase):
 
             end_readout = self.latiss_remote.camera.evt_endReadout.get()
 
-            assert end_readout.additionalKeys == "imageType:groupId:testType:reason"
             assert (
-                end_readout.additionalValues == f"BIAS:{group_id}:BIAS:DAYLIGHT CALIB"
+                end_readout.additionalKeys == self.expected_additional_keys + ":reason"
+            )
+            assert (
+                end_readout.additionalValues
+                == f"BIAS:{group_id}:BIAS:0:0:0.0:DAYLIGHT CALIB"
             )
 
             await self.latiss_remote.take_bias(
@@ -137,8 +140,10 @@ class TestLATISS(RemoteGroupTestCase, unittest.IsolatedAsyncioTestCase):
 
             end_readout = self.latiss_remote.camera.evt_endReadout.get()
 
-            assert end_readout.additionalKeys == "imageType:groupId:testType:program"
-            assert end_readout.additionalValues == f"BIAS:{group_id}:BIAS:CALIB"
+            assert (
+                end_readout.additionalKeys == self.expected_additional_keys + ":program"
+            )
+            assert end_readout.additionalValues == f"BIAS:{group_id}:BIAS:0:0:0.0:CALIB"
 
             await self.latiss_remote.take_bias(
                 nbias=1,
@@ -152,11 +157,11 @@ class TestLATISS(RemoteGroupTestCase, unittest.IsolatedAsyncioTestCase):
 
             assert (
                 end_readout.additionalKeys
-                == "imageType:groupId:testType:reason:program"
+                == self.expected_additional_keys + ":reason:program"
             )
             assert (
                 end_readout.additionalValues
-                == f"BIAS:{group_id}:LBIAS:DAYLIGHT CALIB:CALIB"
+                == f"BIAS:{group_id}:LBIAS:0:0:0.0:DAYLIGHT CALIB:CALIB"
             )
 
     async def test_take_darks(self):
@@ -167,7 +172,7 @@ class TestLATISS(RemoteGroupTestCase, unittest.IsolatedAsyncioTestCase):
 
             end_readout = self.latiss_remote.camera.evt_endReadout.get()
 
-            assert end_readout.additionalKeys == "imageType:groupId:testType"
+            assert end_readout.additionalKeys == self.expected_additional_keys
             assert self.latiss_mock.nimages == ndarks
             assert len(self.latiss_mock.exptime_list) == ndarks
             for i in range(ndarks):
@@ -190,8 +195,8 @@ class TestLATISS(RemoteGroupTestCase, unittest.IsolatedAsyncioTestCase):
 
             end_readout = self.latiss_remote.camera.evt_endReadout.get()
 
-            assert end_readout.additionalKeys == "imageType:groupId:testType"
-            assert end_readout.additionalValues == f"DARK:{group_id}:DARK"
+            assert end_readout.additionalKeys == self.expected_additional_keys
+            assert end_readout.additionalValues == f"DARK:{group_id}:DARK:0:0:0.0"
 
             await self.latiss_remote.take_darks(
                 ndarks=1,
@@ -202,8 +207,8 @@ class TestLATISS(RemoteGroupTestCase, unittest.IsolatedAsyncioTestCase):
 
             end_readout = self.latiss_remote.camera.evt_endReadout.get()
 
-            assert end_readout.additionalKeys == "imageType:groupId:testType"
-            assert end_readout.additionalValues == f"DARK:{group_id}:LDARK"
+            assert end_readout.additionalKeys == self.expected_additional_keys
+            assert end_readout.additionalValues == f"DARK:{group_id}:LDARK:0:0:0.0"
 
             await self.latiss_remote.take_darks(
                 ndarks=1,
@@ -214,9 +219,12 @@ class TestLATISS(RemoteGroupTestCase, unittest.IsolatedAsyncioTestCase):
 
             end_readout = self.latiss_remote.camera.evt_endReadout.get()
 
-            assert end_readout.additionalKeys == "imageType:groupId:testType:reason"
             assert (
-                end_readout.additionalValues == f"DARK:{group_id}:DARK:DAYLIGHT CALIB"
+                end_readout.additionalKeys == self.expected_additional_keys + ":reason"
+            )
+            assert (
+                end_readout.additionalValues
+                == f"DARK:{group_id}:DARK:0:0:0.0:DAYLIGHT CALIB"
             )
 
             await self.latiss_remote.take_darks(
@@ -228,8 +236,10 @@ class TestLATISS(RemoteGroupTestCase, unittest.IsolatedAsyncioTestCase):
 
             end_readout = self.latiss_remote.camera.evt_endReadout.get()
 
-            assert end_readout.additionalKeys == "imageType:groupId:testType:program"
-            assert end_readout.additionalValues == f"DARK:{group_id}:DARK:CALIB"
+            assert (
+                end_readout.additionalKeys == self.expected_additional_keys + ":program"
+            )
+            assert end_readout.additionalValues == f"DARK:{group_id}:DARK:0:0:0.0:CALIB"
 
             await self.latiss_remote.take_darks(
                 ndarks=1,
@@ -244,11 +254,11 @@ class TestLATISS(RemoteGroupTestCase, unittest.IsolatedAsyncioTestCase):
 
             assert (
                 end_readout.additionalKeys
-                == "imageType:groupId:testType:reason:program"
+                == self.expected_additional_keys + ":reason:program"
             )
             assert (
                 end_readout.additionalValues
-                == f"DARK:{group_id}:LDARK:DAYLIGHT CALIB:CALIB"
+                == f"DARK:{group_id}:LDARK:0:0:0.0:DAYLIGHT CALIB:CALIB"
             )
 
     async def test_take_flats(self):
@@ -271,7 +281,7 @@ class TestLATISS(RemoteGroupTestCase, unittest.IsolatedAsyncioTestCase):
 
             end_readout = self.latiss_remote.camera.evt_endReadout.get()
 
-            assert end_readout.additionalKeys == "imageType:groupId:testType"
+            assert end_readout.additionalKeys == self.expected_additional_keys
 
             (
                 current_filter,
@@ -305,8 +315,8 @@ class TestLATISS(RemoteGroupTestCase, unittest.IsolatedAsyncioTestCase):
 
             end_readout = self.latiss_remote.camera.evt_endReadout.get()
 
-            assert end_readout.additionalKeys == "imageType:groupId:testType"
-            assert end_readout.additionalValues == f"FLAT:{group_id}:FLAT"
+            assert end_readout.additionalKeys == self.expected_additional_keys
+            assert end_readout.additionalValues == f"FLAT:{group_id}:FLAT:0:0:0.0"
 
             await self.latiss_remote.take_flats(
                 nflats=1,
@@ -317,8 +327,8 @@ class TestLATISS(RemoteGroupTestCase, unittest.IsolatedAsyncioTestCase):
 
             end_readout = self.latiss_remote.camera.evt_endReadout.get()
 
-            assert end_readout.additionalKeys == "imageType:groupId:testType"
-            assert end_readout.additionalValues == f"FLAT:{group_id}:LFLAT"
+            assert end_readout.additionalKeys == self.expected_additional_keys
+            assert end_readout.additionalValues == f"FLAT:{group_id}:LFLAT:0:0:0.0"
 
             await self.latiss_remote.take_flats(
                 nflats=1,
@@ -329,9 +339,12 @@ class TestLATISS(RemoteGroupTestCase, unittest.IsolatedAsyncioTestCase):
 
             end_readout = self.latiss_remote.camera.evt_endReadout.get()
 
-            assert end_readout.additionalKeys == "imageType:groupId:testType:reason"
             assert (
-                end_readout.additionalValues == f"FLAT:{group_id}:FLAT:DAYLIGHT CALIB"
+                end_readout.additionalKeys == self.expected_additional_keys + ":reason"
+            )
+            assert (
+                end_readout.additionalValues
+                == f"FLAT:{group_id}:FLAT:0:0:0.0:DAYLIGHT CALIB"
             )
 
             await self.latiss_remote.take_flats(
@@ -343,8 +356,10 @@ class TestLATISS(RemoteGroupTestCase, unittest.IsolatedAsyncioTestCase):
 
             end_readout = self.latiss_remote.camera.evt_endReadout.get()
 
-            assert end_readout.additionalKeys == "imageType:groupId:testType:program"
-            assert end_readout.additionalValues == f"FLAT:{group_id}:FLAT:CALIB"
+            assert (
+                end_readout.additionalKeys == self.expected_additional_keys + ":program"
+            )
+            assert end_readout.additionalValues == f"FLAT:{group_id}:FLAT:0:0:0.0:CALIB"
 
             await self.latiss_remote.take_flats(
                 nflats=1,
@@ -359,11 +374,11 @@ class TestLATISS(RemoteGroupTestCase, unittest.IsolatedAsyncioTestCase):
 
             assert (
                 end_readout.additionalKeys
-                == "imageType:groupId:testType:reason:program"
+                == self.expected_additional_keys + ":reason:program"
             )
             assert (
                 end_readout.additionalValues
-                == f"FLAT:{group_id}:LFLAT:DAYLIGHT CALIB:CALIB"
+                == f"FLAT:{group_id}:LFLAT:0:0:0.0:DAYLIGHT CALIB:CALIB"
             )
 
     async def test_take_object(self):
@@ -387,7 +402,7 @@ class TestLATISS(RemoteGroupTestCase, unittest.IsolatedAsyncioTestCase):
 
             end_readout = self.latiss_remote.camera.evt_endReadout.get()
 
-            assert end_readout.additionalKeys == "imageType:groupId:testType"
+            assert end_readout.additionalKeys == self.expected_additional_keys
 
             (
                 current_filter,
@@ -472,8 +487,8 @@ class TestLATISS(RemoteGroupTestCase, unittest.IsolatedAsyncioTestCase):
 
             end_readout = self.latiss_remote.camera.evt_endReadout.get()
 
-            assert end_readout.additionalKeys == "imageType:groupId:testType"
-            assert end_readout.additionalValues == f"OBJECT:{group_id}:OBJECT"
+            assert end_readout.additionalKeys == self.expected_additional_keys
+            assert end_readout.additionalValues == f"OBJECT:{group_id}:OBJECT:0:0:0.0"
 
             await self.latiss_remote.take_object(
                 n=1,
@@ -484,8 +499,8 @@ class TestLATISS(RemoteGroupTestCase, unittest.IsolatedAsyncioTestCase):
 
             end_readout = self.latiss_remote.camera.evt_endReadout.get()
 
-            assert end_readout.additionalKeys == "imageType:groupId:testType"
-            assert end_readout.additionalValues == f"OBJECT:{group_id}:LOBJECT"
+            assert end_readout.additionalKeys == self.expected_additional_keys
+            assert end_readout.additionalValues == f"OBJECT:{group_id}:LOBJECT:0:0:0.0"
 
             await self.latiss_remote.take_object(
                 n=1,
@@ -496,8 +511,13 @@ class TestLATISS(RemoteGroupTestCase, unittest.IsolatedAsyncioTestCase):
 
             end_readout = self.latiss_remote.camera.evt_endReadout.get()
 
-            assert end_readout.additionalKeys == "imageType:groupId:testType:reason"
-            assert end_readout.additionalValues == f"OBJECT:{group_id}:OBJECT:UNIT TEST"
+            assert (
+                end_readout.additionalKeys == self.expected_additional_keys + ":reason"
+            )
+            assert (
+                end_readout.additionalValues
+                == f"OBJECT:{group_id}:OBJECT:0:0:0.0:UNIT TEST"
+            )
 
             await self.latiss_remote.take_object(
                 n=1,
@@ -508,8 +528,13 @@ class TestLATISS(RemoteGroupTestCase, unittest.IsolatedAsyncioTestCase):
 
             end_readout = self.latiss_remote.camera.evt_endReadout.get()
 
-            assert end_readout.additionalKeys == "imageType:groupId:testType:program"
-            assert end_readout.additionalValues == f"OBJECT:{group_id}:OBJECT:UTEST"
+            assert (
+                end_readout.additionalKeys == self.expected_additional_keys + ":program"
+            )
+            assert (
+                end_readout.additionalValues
+                == f"OBJECT:{group_id}:OBJECT:0:0:0.0:UTEST"
+            )
 
             await self.latiss_remote.take_object(
                 n=1,
@@ -524,11 +549,11 @@ class TestLATISS(RemoteGroupTestCase, unittest.IsolatedAsyncioTestCase):
 
             assert (
                 end_readout.additionalKeys
-                == "imageType:groupId:testType:reason:program"
+                == self.expected_additional_keys + ":reason:program"
             )
             assert (
                 end_readout.additionalValues
-                == f"OBJECT:{group_id}:LOBJECT:UNIT TEST:UTEST"
+                == f"OBJECT:{group_id}:LOBJECT:0:0:0.0:UNIT TEST:UTEST"
             )
 
     async def test_take_engtest_additional_keywords(self):
@@ -545,8 +570,8 @@ class TestLATISS(RemoteGroupTestCase, unittest.IsolatedAsyncioTestCase):
 
             end_readout = self.latiss_remote.camera.evt_endReadout.get()
 
-            assert end_readout.additionalKeys == "imageType:groupId:testType"
-            assert end_readout.additionalValues == f"ENGTEST:{group_id}:ENGTEST"
+            assert end_readout.additionalKeys == self.expected_additional_keys
+            assert end_readout.additionalValues == f"ENGTEST:{group_id}:ENGTEST:0:0:0.0"
 
             await self.latiss_remote.take_engtest(
                 n=1,
@@ -557,8 +582,10 @@ class TestLATISS(RemoteGroupTestCase, unittest.IsolatedAsyncioTestCase):
 
             end_readout = self.latiss_remote.camera.evt_endReadout.get()
 
-            assert end_readout.additionalKeys == "imageType:groupId:testType"
-            assert end_readout.additionalValues == f"ENGTEST:{group_id}:LENGTEST"
+            assert end_readout.additionalKeys == self.expected_additional_keys
+            assert (
+                end_readout.additionalValues == f"ENGTEST:{group_id}:LENGTEST:0:0:0.0"
+            )
 
             await self.latiss_remote.take_engtest(
                 n=1,
@@ -569,9 +596,12 @@ class TestLATISS(RemoteGroupTestCase, unittest.IsolatedAsyncioTestCase):
 
             end_readout = self.latiss_remote.camera.evt_endReadout.get()
 
-            assert end_readout.additionalKeys == "imageType:groupId:testType:reason"
             assert (
-                end_readout.additionalValues == f"ENGTEST:{group_id}:ENGTEST:UNIT TEST"
+                end_readout.additionalKeys == self.expected_additional_keys + ":reason"
+            )
+            assert (
+                end_readout.additionalValues
+                == f"ENGTEST:{group_id}:ENGTEST:0:0:0.0:UNIT TEST"
             )
 
             await self.latiss_remote.take_engtest(
@@ -583,8 +613,13 @@ class TestLATISS(RemoteGroupTestCase, unittest.IsolatedAsyncioTestCase):
 
             end_readout = self.latiss_remote.camera.evt_endReadout.get()
 
-            assert end_readout.additionalKeys == "imageType:groupId:testType:program"
-            assert end_readout.additionalValues == f"ENGTEST:{group_id}:ENGTEST:UTEST"
+            assert (
+                end_readout.additionalKeys == self.expected_additional_keys + ":program"
+            )
+            assert (
+                end_readout.additionalValues
+                == f"ENGTEST:{group_id}:ENGTEST:0:0:0.0:UTEST"
+            )
 
             await self.latiss_remote.take_engtest(
                 n=1,
@@ -599,11 +634,11 @@ class TestLATISS(RemoteGroupTestCase, unittest.IsolatedAsyncioTestCase):
 
             assert (
                 end_readout.additionalKeys
-                == "imageType:groupId:testType:reason:program"
+                == self.expected_additional_keys + ":reason:program"
             )
             assert (
                 end_readout.additionalValues
-                == f"ENGTEST:{group_id}:LENGTEST:UNIT TEST:UTEST"
+                == f"ENGTEST:{group_id}:LENGTEST:0:0:0.0:UNIT TEST:UTEST"
             )
 
     async def test_instrument_parameters(self):
@@ -639,8 +674,8 @@ class TestLATISS(RemoteGroupTestCase, unittest.IsolatedAsyncioTestCase):
             )
 
             self.assert_last_end_readout(
-                additional_keys="imageType:groupId:testType",
-                additional_values=f"FOCUS:{group_id}:FOCUS",
+                additional_keys=self.expected_additional_keys,
+                additional_values=f"FOCUS:{group_id}:FOCUS:0:0:0.0",
             )
 
     async def test_take_cwfs(self):
@@ -654,8 +689,8 @@ class TestLATISS(RemoteGroupTestCase, unittest.IsolatedAsyncioTestCase):
             )
 
             self.assert_last_end_readout(
-                additional_keys="imageType:groupId:testType",
-                additional_values=f"CWFS:{group_id}:CWFS",
+                additional_keys=self.expected_additional_keys,
+                additional_values=f"CWFS:{group_id}:CWFS:0:0:0.0",
             )
 
     async def test_take_acq(self):
@@ -669,8 +704,8 @@ class TestLATISS(RemoteGroupTestCase, unittest.IsolatedAsyncioTestCase):
             )
 
             self.assert_last_end_readout(
-                additional_keys="imageType:groupId:testType",
-                additional_values=f"ACQ:{group_id}:ACQ",
+                additional_keys=self.expected_additional_keys,
+                additional_values=f"ACQ:{group_id}:ACQ:0:0:0.0",
             )
 
     async def test_take_stuttered(self):
@@ -686,8 +721,8 @@ class TestLATISS(RemoteGroupTestCase, unittest.IsolatedAsyncioTestCase):
             )
 
             self.assert_last_end_readout(
-                additional_keys="imageType:groupId:testType",
-                additional_values=f"STUTTERED:{group_id}:STUTTERED",
+                additional_keys=self.expected_additional_keys,
+                additional_values=f"STUTTERED:{group_id}:STUTTERED:100:20:1.0",
             )
 
     def assert_last_end_readout(self, additional_keys, additional_values):
@@ -696,3 +731,7 @@ class TestLATISS(RemoteGroupTestCase, unittest.IsolatedAsyncioTestCase):
 
         assert end_readout.additionalKeys == additional_keys
         assert end_readout.additionalValues == additional_values
+
+    @property
+    def expected_additional_keys(self):
+        return "imageType:groupId:testType:stutterRows:stutterNShifts:stutterDelay"
