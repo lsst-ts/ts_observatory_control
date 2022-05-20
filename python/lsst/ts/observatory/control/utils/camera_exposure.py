@@ -40,11 +40,20 @@ class CameraExposure:
     note: str
 
     def get_key_value_map(self) -> str:
-        """Parse inputs into a valid key-value string for the cameras."""
+        """Parse inputs into a valid key-value string for the cameras.
+
+        Returns
+        -------
+        key_value_map : str
+            Key value map for camera exposure.
+        """
 
         key_value_map = (
             f"imageType: {self.image_type}, groupId: {self.group_id}, "
-            f"testType: {self.image_type if self.test_type is None else self.test_type}"
+            f"testType: {self.image_type if self.test_type is None else self.test_type}, "
+            f"stutterRows: {self.get_row_shift()}, "
+            f"stutterNShifts: {self.get_n_shift()}, "
+            f"stutterDelay: {self.get_stutter_delay()}"
         )
 
         if self.reason is not None:
@@ -54,3 +63,43 @@ class CameraExposure:
             key_value_map += f", program: {self.program}"
 
         return key_value_map
+
+    def is_stutter(self) -> bool:
+        """Check if image is stutter
+
+        Returns
+        -------
+        bool
+            True if image type is STUTTERED.
+        """
+        return self.image_type == "STUTTERED"
+
+    def get_n_shift(self) -> int:
+        """Return valid n_shift.
+
+        Returns
+        -------
+        int
+            n_shift if image type is STUTTERED, else 0.
+        """
+        return self.n_shift if self.is_stutter() else 0
+
+    def get_row_shift(self) -> int:
+        """Return valid row_shift.
+
+        Returns
+        -------
+        int
+            row_shift if image type is STUTTERED, else 0.
+        """
+        return self.row_shift if self.is_stutter() else 0
+
+    def get_stutter_delay(self) -> float:
+        """Return the stutter image delay.
+
+        Returns
+        -------
+        float
+            The stutter image delay if image type is STUTTERED, else 0
+        """
+        return self.exp_time if self.is_stutter() else 0.0
