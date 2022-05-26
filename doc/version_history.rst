@@ -6,6 +6,14 @@
 Version History
 ###############
 
+v0.18.2
+-------
+
+* Add support for stuttered image keywords.
+* In ``BaseCamera``:
+
+  * Update ``_handle_take_stuttered`` method to call ``set`` and then ``start`` separately, so it can set the ``timeout`` parameter.
+
 v0.18.1
 -------
 
