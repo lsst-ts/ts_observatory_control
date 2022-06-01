@@ -114,7 +114,13 @@ class RemoteGroupTestCase(metaclass=abc.ABCMeta):
         )
         try:
             await self.wait_for(
-                asyncio.gather(*[item.start_task for item in items_to_await]),
+                asyncio.gather(
+                    *[
+                        item.start_task
+                        for item in items_to_await
+                        if item.start_task is not None
+                    ]
+                ),
                 timeout=timeout,
                 description=f"item.start_task for {len(items_to_await)} items",
                 verbose=verbose,
