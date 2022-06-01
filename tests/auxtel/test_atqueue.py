@@ -1,6 +1,6 @@
-# This file is part of ts_observatory_control.
+# This file is part of ts_observatory_control
 #
-# Developed for the Vera Rubin Observatory Telescope and Site Systems.
+# Developed for the Vera Rubin Observatory Telescope and Site Subsystem.
 # This product includes software developed by the LSST Project
 # (https://www.lsst.org).
 # See the COPYRIGHT file at the top-level directory of this distribution
@@ -17,10 +17,22 @@
 # GNU General Public License for more details.
 #
 # You should have received a copy of the GNU General Public License
+# along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-from .base_group_mock import *
-from .latiss_mock import *
-from .atcs_mock import *
-from .mtcs_mock import *
-from .comcam_mock import *
-from .remote_group_async_mock import *
+import unittest
+
+from lsst.ts.idl.enums.ScriptQueue import SalIndex
+
+from lsst.ts.observatory.control import Usages
+from lsst.ts.observatory.control.auxtel import ATQueue
+
+HB_TIMEOUT = 5  # Heartbeat timeout (sec)
+MAKE_TIMEOUT = 60  # Timeout for make_script (sec)
+
+
+class TestATQueue(unittest.IsolatedAsyncioTestCase):
+    async def test_constructor(self):
+
+        atqueue = ATQueue(domain="FakeDomain", intended_usage=Usages.DryTest)
+
+        assert f"ScriptQueue:{SalIndex.AUX_TEL}" in atqueue.components

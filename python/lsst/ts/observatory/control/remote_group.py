@@ -1044,7 +1044,7 @@ class RemoteGroup:
                     generics=["softwareVersions"],
                 ),
                 self.valid_use_cases.DryTest: UsagesResources(
-                    components_attr=self.components_attr,
+                    components_attr=(),
                     readonly=True,
                 ),
             }
@@ -1105,7 +1105,8 @@ class RemoteGroup:
             await self.domain.close()
 
     async def __aenter__(self):
-        await self.start_task
+        if self.start_task is not None:
+            await self.start_task
         return self
 
     async def __aexit__(self, *args):

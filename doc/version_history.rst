@@ -6,6 +6,11 @@
 Version History
 ###############
 
+v0.19.0
+-------
+
+* Add new high-level class to interact with the ``ScriptQueue``, and child classes to interact with ATQueue and MTQueue.
+
 v0.18.2
 -------
 
