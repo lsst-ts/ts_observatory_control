@@ -1,2 +1,2 @@
 @Library('JenkinsShared')_
-CondaPipeline(["ts_config_ocs"], "ts-observatory-control", "lsst.ts.observatory.control")
+CondaPipeline(["ts_config_ocs"], "ts-observatory-control", "lsst.ts.observatory.control", "noarch")

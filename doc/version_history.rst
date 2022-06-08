@@ -6,6 +6,11 @@
 Version History
 ###############
 
+v0.19.1
+-------
+
+* Update build configuration to use ``pyproject.toml``.
+
 v0.19.0
 -------
 
