@@ -22,10 +22,12 @@ __all__ = ["ComCamMock"]
 
 import asyncio
 import logging
+import typing
 
 import astropy
 
 from lsst.ts import utils
+from lsst.ts import salobj
 from .base_group_mock import BaseGroupMock
 
 index_gen = utils.index_generator()
@@ -37,7 +39,7 @@ class ComCamMock(BaseGroupMock):
     This is useful for unit testing.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.components = ("cccamera", "ccheaderservice", "ccoods")
 
         super().__init__(["CCCamera", "CCHeaderService", "CCOODS"])
@@ -64,12 +66,12 @@ class ComCamMock(BaseGroupMock):
         self.short_time = 0.1
 
         self.nimages = 0
-        self.exptime_list = []
+        self.exptime_list: typing.List[float] = []
 
         self.log = logging.getLogger(__name__)
 
-        self.end_readout_coro = None
-        self.end_readout_task = None
+        self.end_readout_coro: typing.Optional[typing.Awaitable] = None
+        self.end_readout_task: typing.Optional[asyncio.Task] = None
 
         self.camera_filter = None
 
@@ -78,18 +80,20 @@ class ComCamMock(BaseGroupMock):
         )
 
     @property
-    def cccamera(self):
+    def cccamera(self) -> salobj.Controller:
         return self.controllers.cccamera
 
     @property
-    def ccheaderservice(self):
+    def ccheaderservice(self) -> salobj.Controller:
         return self.controllers.ccheaderservice
 
     @property
-    def ccoods(self):
+    def ccoods(self) -> salobj.Controller:
         return self.controllers.ccoods
 
-    async def cmd_take_images_callback(self, data):
+    async def cmd_take_images_callback(
+        self, data: salobj.type_hints.BaseMsgType
+    ) -> None:
         """Emulate take image command."""
 
         if self.cccamera_calibration_mode:
@@ -108,31 +112,40 @@ class ComCamMock(BaseGroupMock):
             if i < data.numImages - 1:
                 await self.end_readout_task
 
-    async def cmd_enable_calibration_callback(self, data):
+    async def cmd_enable_calibration_callback(
+        self, data: salobj.type_hints.BaseMsgType
+    ) -> None:
         self.cccamera_calibration_mode = True
         await asyncio.sleep(self.short_time)
 
-    async def cmd_clear_callback(self, data):
+    async def cmd_clear_callback(self, data: salobj.type_hints.BaseMsgType) -> None:
         await asyncio.sleep(self.short_time)
 
-    async def cmd_start_image_callback(self, data):
+    async def cmd_start_image_callback(
+        self, data: salobj.type_hints.BaseMsgType
+    ) -> None:
         await asyncio.sleep(self.short_time)
         self.cccamera_image_started = True
         self.cccamera_start_image_time = utils.current_tai()
         self.end_readout_coro = self.end_readout(data)
 
-    async def cmd_end_image_callback(self, data):
+    async def cmd_end_image_callback(self, data: salobj.type_hints.BaseMsgType) -> None:
         await asyncio.sleep(self.short_time)
+        assert self.end_readout_coro is not None
         self.end_readout_task = asyncio.create_task(self.end_readout_coro)
 
-    async def cmd_disable_calibration_callback(self, data):
+    async def cmd_disable_calibration_callback(
+        self, data: salobj.type_hints.BaseMsgType
+    ) -> None:
         self.cccamera_calibration_mode = True
         await asyncio.sleep(self.short_time)
 
-    async def cmd_discard_rows_callback(self, data):
+    async def cmd_discard_rows_callback(
+        self, data: salobj.type_hints.BaseMsgType
+    ) -> None:
         await asyncio.sleep(self.short_time)
 
-    async def end_readout(self, data):
+    async def end_readout(self, data: salobj.type_hints.BaseMsgType) -> None:
         """Wait `self.readout_time` and send endReadout event."""
         self.log.debug(f"end_readout started: sleep {self.readout_time}")
         await asyncio.sleep(self.readout_time)
@@ -168,18 +181,18 @@ class ComCamMock(BaseGroupMock):
         await self.ccheaderservice.evt_largeFileObjectAvailable.write()
         self.log.debug("end_readout done")
 
-    async def cmd_setFilter_callback(self, data):
+    async def cmd_setFilter_callback(self, data: salobj.type_hints.BaseMsgType) -> None:
         """Emulate the setFilter command."""
         self.end_set_filter_task = asyncio.create_task(self.end_set_filter(data))
 
-    async def end_set_filter(self, data):
+    async def end_set_filter(self, data: salobj.type_hints.BaseMsgType) -> None:
         """Wait for the filter to change and send endSetFilter event."""
         await asyncio.sleep(1)
         await self.cccamera.evt_endSetFilter.set_write(filterName=data.name)
         self.log.debug("sending endSetFilter")
         self.camera_filter = data.name
 
-    async def close(self):
+    async def close(self) -> None:
         if self.end_readout_task is not None:
             try:
                 await asyncio.wait_for(
