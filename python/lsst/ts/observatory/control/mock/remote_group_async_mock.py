@@ -27,6 +27,7 @@ import types
 import asyncio
 import typing
 import unittest
+import unittest.mock
 
 from lsst.ts import idl
 from lsst.ts import salobj
@@ -44,9 +45,15 @@ class RemoteGroupAsyncMock(
 ):
     """A utility class for unit tests with mocks."""
 
+    summary_state_queue_event: typing.Dict[str, asyncio.Event]
+    summary_state: typing.Dict[str, salobj.type_hints.BaseDdsDataType]
+    summary_state_queue: typing.Dict[
+        str, typing.List[salobj.type_hints.BaseDdsDataType]
+    ]
+
     @property
     @abc.abstractmethod
-    async def remote_group(self) -> RemoteGroup:
+    def remote_group(self) -> RemoteGroup:
         raise NotImplementedError()
 
     @staticmethod
@@ -97,10 +104,10 @@ class RemoteGroupAsyncMock(
         return await super().asyncSetUp()
 
     @abc.abstractmethod
-    async def setup_types(self):
+    async def setup_types(self) -> None:
         raise NotImplementedError()
 
-    async def setup_basic_mocks(self):
+    async def setup_basic_mocks(self) -> None:
         for component in self.remote_group.components_attr:
             setattr(
                 self.remote_group.rem,
@@ -139,17 +146,27 @@ class RemoteGroupAsyncMock(
             )
 
     @abc.abstractmethod
-    async def setup_mocks(self):
+    async def setup_mocks(self) -> None:
         raise NotImplementedError()
 
-    def get_summary_state_for(self, comp):
-        async def get_summary_state(timeout=None):
+    def get_summary_state_for(
+        self, comp: str
+    ) -> typing.Callable[
+        [typing.Optional[float]], typing.Coroutine[typing.Any, typing.Any, None]
+    ]:
+        async def get_summary_state(timeout: typing.Optional[float] = None) -> None:
             return self.summary_state[comp]
 
         return get_summary_state
 
-    def next_summary_state_for(self, comp):
-        async def next_summary_state(flush, timeout=None):
+    def next_summary_state_for(
+        self, comp: str
+    ) -> typing.Callable[
+        [bool, typing.Optional[float]], typing.Coroutine[typing.Any, typing.Any, None]
+    ]:
+        async def next_summary_state(
+            flush: bool, timeout: typing.Optional[float] = None
+        ) -> salobj.type_hints.BaseMsgType:
             if flush or len(self.summary_state_queue[comp]) == 0:
                 self.summary_state_queue_event[comp].clear()
                 self.summary_state_queue[comp] = []
@@ -160,8 +177,12 @@ class RemoteGroupAsyncMock(
 
         return next_summary_state
 
-    def set_summary_state_for(self, comp, state):
-        async def set_summary_state(*args, **kwargs):
+    def set_summary_state_for(
+        self, comp: str, state: salobj.State
+    ) -> typing.Callable[
+        [typing.Any, typing.Any], typing.Coroutine[typing.Any, typing.Any, None]
+    ]:
+        async def set_summary_state(*args: typing.Any, **kwargs: typing.Any) -> None:
             self.summary_state[comp].summaryState = int(state)
             self.summary_state_queue[comp].append(
                 copy.copy(self.summary_state[comp].summaryState)
@@ -170,7 +191,9 @@ class RemoteGroupAsyncMock(
 
         return set_summary_state
 
-    async def get_heartbeat(self, *args, **kwargs):
+    async def get_heartbeat(
+        self, *args: typing.Any, **kwargs: typing.Any
+    ) -> typing.Any:
         """Emulate heartbeat functionality."""
         await asyncio.sleep(1.0)
         return types.SimpleNamespace()
