@@ -17,6 +17,7 @@
 # GNU General Public License for more details.
 #
 # You should have received a copy of the GNU General Public License
+import typing
 import unittest
 
 from lsst.ts.observatory.control.maintel.comcam import ComCam, ComCamUsages
@@ -25,12 +26,14 @@ from lsst.ts.observatory.control.utils import RemoteGroupTestCase
 
 
 class TestComCam(RemoteGroupTestCase, unittest.IsolatedAsyncioTestCase):
-    async def basic_make_group(self, usage=None):
+    async def basic_make_group(
+        self, usage: typing.Optional[int] = None
+    ) -> typing.Tuple[ComCam, ComCamMock]:
         self.comcam = ComCam(intended_usage=usage)
         self.comcam_mock = ComCamMock()
         return (self.comcam, self.comcam_mock)
 
-    async def test_take_bias(self):
+    async def test_take_bias(self) -> None:
         async with self.make_group(usage=ComCamUsages.TakeImage):
             nbias = 3
             await self.comcam.take_bias(nbias=nbias)
@@ -40,7 +43,7 @@ class TestComCam(RemoteGroupTestCase, unittest.IsolatedAsyncioTestCase):
                 assert self.comcam_mock.exptime_list[i] == 0.0
             assert self.comcam_mock.camera_filter is None
 
-    async def test_take_bias_additional_keywords(self):
+    async def test_take_bias_additional_keywords(self) -> None:
 
         async with self.make_group(usage=ComCamUsages.TakeImage):
 
@@ -115,7 +118,7 @@ class TestComCam(RemoteGroupTestCase, unittest.IsolatedAsyncioTestCase):
                 == f"BIAS:{group_id}:LBIAS:0:0:0.0:DAYLIGHT CALIB:CALIB"
             )
 
-    async def test_take_darks(self):
+    async def test_take_darks(self) -> None:
         async with self.make_group(usage=ComCamUsages.TakeImage):
             ndarks = 3
             exptime = 1.0
@@ -126,7 +129,7 @@ class TestComCam(RemoteGroupTestCase, unittest.IsolatedAsyncioTestCase):
                 assert self.comcam_mock.exptime_list[i] == exptime
             assert self.comcam_mock.camera_filter is None
 
-    async def test_take_darks_additional_keywords(self):
+    async def test_take_darks_additional_keywords(self) -> None:
 
         async with self.make_group(usage=ComCamUsages.TakeImage):
 
@@ -206,7 +209,7 @@ class TestComCam(RemoteGroupTestCase, unittest.IsolatedAsyncioTestCase):
                 == f"DARK:{group_id}:LDARK:0:0:0.0:DAYLIGHT CALIB:CALIB"
             )
 
-    async def test_take_flats(self):
+    async def test_take_flats(self) -> None:
         async with self.make_group(usage=ComCamUsages.TakeImage):
             nflats = 3
             exptime = 1.0
@@ -221,7 +224,7 @@ class TestComCam(RemoteGroupTestCase, unittest.IsolatedAsyncioTestCase):
                 assert self.comcam_mock.exptime_list[i] == exptime
             assert self.comcam_mock.camera_filter is None
 
-    async def test_take_flats_additional_keywords(self):
+    async def test_take_flats_additional_keywords(self) -> None:
 
         async with self.make_group(usage=ComCamUsages.TakeImage):
 
@@ -301,7 +304,7 @@ class TestComCam(RemoteGroupTestCase, unittest.IsolatedAsyncioTestCase):
                 == f"FLAT:{group_id}:LFLAT:0:0:0.0:DAYLIGHT CALIB:CALIB"
             )
 
-    async def test_take_flats_with_filter(self):
+    async def test_take_flats_with_filter(self) -> None:
         async with self.make_group(usage=ComCamUsages.TakeImage):
             nflats = 3
             exptime = 1.0
@@ -316,7 +319,7 @@ class TestComCam(RemoteGroupTestCase, unittest.IsolatedAsyncioTestCase):
                 assert self.comcam_mock.exptime_list[i] == exptime
             assert self.comcam_mock.camera_filter == camera_filter
 
-    async def test_take_object_additional_keywords(self):
+    async def test_take_object_additional_keywords(self) -> None:
 
         async with self.make_group(usage=ComCamUsages.TakeImage):
 
@@ -399,7 +402,7 @@ class TestComCam(RemoteGroupTestCase, unittest.IsolatedAsyncioTestCase):
                 == f"OBJECT:{group_id}:LOBJECT:0:0:0.0:UNIT TEST:UTEST"
             )
 
-    async def test_take_engtest_additional_keywords(self):
+    async def test_take_engtest_additional_keywords(self) -> None:
 
         async with self.make_group(usage=ComCamUsages.TakeImage):
 
@@ -484,7 +487,7 @@ class TestComCam(RemoteGroupTestCase, unittest.IsolatedAsyncioTestCase):
                 == f"ENGTEST:{group_id}:LENGTEST:0:0:0.0:UNIT TEST:UTEST"
             )
 
-    async def test_take_spot_additional_keywords(self):
+    async def test_take_spot_additional_keywords(self) -> None:
 
         async with self.make_group(usage=ComCamUsages.TakeImage):
 
@@ -564,7 +567,7 @@ class TestComCam(RemoteGroupTestCase, unittest.IsolatedAsyncioTestCase):
                 == f"SPOT:{group_id}:LSPOT:0:0:0.0:UNIT TEST:UTEST"
             )
 
-    async def test_take_focus(self):
+    async def test_take_focus(self) -> None:
         async with self.make_group(usage=ComCamUsages.TakeImage):
             group_id = self.comcam.next_group_id()
 
@@ -579,7 +582,7 @@ class TestComCam(RemoteGroupTestCase, unittest.IsolatedAsyncioTestCase):
                 additional_values=f"FOCUS:{group_id}:FOCUS:0:0:0.0",
             )
 
-    async def test_take_cwfs(self):
+    async def test_take_cwfs(self) -> None:
         async with self.make_group(usage=ComCamUsages.TakeImage):
             group_id = self.comcam.next_group_id()
 
@@ -594,7 +597,7 @@ class TestComCam(RemoteGroupTestCase, unittest.IsolatedAsyncioTestCase):
                 additional_values=f"CWFS:{group_id}:CWFS:0:0:0.0",
             )
 
-    async def test_take_acq(self):
+    async def test_take_acq(self) -> None:
         async with self.make_group(usage=ComCamUsages.TakeImage):
             group_id = self.comcam.next_group_id()
 
@@ -609,7 +612,7 @@ class TestComCam(RemoteGroupTestCase, unittest.IsolatedAsyncioTestCase):
                 additional_values=f"ACQ:{group_id}:ACQ:0:0:0.0",
             )
 
-    async def test_take_stuttered(self):
+    async def test_take_stuttered(self) -> None:
         async with self.make_group(usage=ComCamUsages.TakeImage):
             group_id = self.comcam.next_group_id()
 
@@ -626,7 +629,9 @@ class TestComCam(RemoteGroupTestCase, unittest.IsolatedAsyncioTestCase):
                 additional_values=f"STUTTERED:{group_id}:STUTTERED:100:20:1.0",
             )
 
-    def assert_last_end_readout(self, additional_keys, additional_values):
+    def assert_last_end_readout(
+        self, additional_keys: str, additional_values: str
+    ) -> None:
 
         end_readout = self.comcam.camera.evt_endReadout.get()
 
@@ -634,5 +639,5 @@ class TestComCam(RemoteGroupTestCase, unittest.IsolatedAsyncioTestCase):
         assert end_readout.additionalValues == additional_values
 
     @property
-    def expected_additional_keys(self):
+    def expected_additional_keys(self) -> str:
         return "imageType:groupId:testType:stutterRows:stutterNShifts:stutterDelay"
