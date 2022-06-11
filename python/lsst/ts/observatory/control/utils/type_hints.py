@@ -1,6 +1,6 @@
 # This file is part of ts_observatory_control.
 #
-# Developed for the Vera Rubin Observatory Telescope and Site.
+# Developed for the Vera Rubin Observatory Telescope and Site Systems.
 # This product includes software developed by the LSST Project
 # (https://www.lsst.org).
 # See the COPYRIGHT file at the top-level directory of this distribution
@@ -19,8 +19,18 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-from .type_hints import *
-from .camera_exposure import *
-from .enums import *
-from .utils import *
-from .remote_group_test_case import *
+__all__ = [
+    "RotModeType",
+    "CoordFrameType",
+    "RotFrameType",
+    "WrapStrategyType",
+]
+
+import typing
+from lsst.ts.idl.enums import ATPtg, MTPtg
+
+
+RotModeType = typing.Union[ATPtg.RotMode, MTPtg.RotMode]
+CoordFrameType = typing.Union[ATPtg.CoordFrame, MTPtg.CoordFrame]
+RotFrameType = typing.Union[ATPtg.RotFrame, MTPtg.RotFrame]
+WrapStrategyType = typing.Union[ATPtg.WrapStrategy, MTPtg.WrapStrategy]
