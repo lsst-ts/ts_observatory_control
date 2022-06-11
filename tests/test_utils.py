@@ -33,7 +33,7 @@ from lsst.ts.observatory.control.utils import (
 
 
 class TestUtils(unittest.TestCase):
-    def test_calculate_parallactic_angle(self):
+    def test_calculate_parallactic_angle(self) -> None:
         # TODO: Implement test (DM-21336)
         radec_icrs = ICRS(Angle(0.0, unit=u.hourangle), Angle(-80.0, unit=u.deg))
 
@@ -53,7 +53,7 @@ class TestUtils(unittest.TestCase):
 
         assert par_angle is not None
 
-    def test_handle_exception_in_dict_items_nothing_to_handle(self):
+    def test_handle_exception_in_dict_items_nothing_to_handle(self) -> None:
 
         object_with_nothing_to_handle = dict(item1=1, item2=2, item3=3)
 
@@ -61,7 +61,7 @@ class TestUtils(unittest.TestCase):
         # assertion to make afterwards.
         handle_exception_in_dict_items(object_with_nothing_to_handle)
 
-    def test_handle_exception_in_dict_items_with_one_exception(self):
+    def test_handle_exception_in_dict_items_with_one_exception(self) -> None:
 
         object_with_one_exception_to_handle = dict(
             item1=1, item2=2, item3=TypeError("Raising some exception for testing.")
@@ -76,7 +76,7 @@ class TestUtils(unittest.TestCase):
                 "Proving some additional message for the exception.",
             )
 
-    def test_handle_exception_in_dict_items_with_two_exceptions(self):
+    def test_handle_exception_in_dict_items_with_two_exceptions(self) -> None:
 
         object_with_two_exceptions_to_handle = dict(
             item1=1,
