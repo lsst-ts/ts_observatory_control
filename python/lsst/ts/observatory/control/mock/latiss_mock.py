@@ -20,11 +20,13 @@
 
 __all__ = ["LATISSMock"]
 
+import typing
 import astropy
 import asyncio
 import logging
 
 from lsst.ts import utils
+from lsst.ts import salobj
 
 from .base_group_mock import BaseGroupMock
 
@@ -39,7 +41,7 @@ class LATISSMock(BaseGroupMock):
     This is useful for unit testing.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
 
         self.components = ("atspec", "atcam", "atheaderservice", "atoods")
 
@@ -67,7 +69,7 @@ class LATISSMock(BaseGroupMock):
         self.short_time = 0.1
 
         self.nimages = 0
-        self.exptime_list = []
+        self.exptime_list: typing.List[float] = []
 
         self.latiss_filter = None
         self.latiss_filter_name = None
@@ -75,28 +77,30 @@ class LATISSMock(BaseGroupMock):
         self.latiss_grating_name = None
         self.latiss_linear_stage = None
 
-        self.end_readout_coro = None
-        self.end_readout_task = None
+        self.end_readout_coro: typing.Optional[typing.Awaitable] = None
+        self.end_readout_task: typing.Optional[asyncio.Task] = None
 
         self.log = logging.getLogger(__name__)
 
     @property
-    def atspec(self):
+    def atspec(self) -> salobj.Controller:
         return self.controllers.atspectrograph
 
     @property
-    def atcam(self):
+    def atcam(self) -> salobj.Controller:
         return self.controllers.atcamera
 
     @property
-    def atheaderservice(self):
+    def atheaderservice(self) -> salobj.Controller:
         return self.controllers.atheaderservice
 
     @property
-    def atoods(self):
+    def atoods(self) -> salobj.Controller:
         return self.controllers.atoods
 
-    async def cmd_take_images_callback(self, data):
+    async def cmd_take_images_callback(
+        self, data: salobj.type_hints.BaseMsgType
+    ) -> None:
         """Emulate take image command."""
         if self.atcam_calibration_mode:
             raise RuntimeError("Calibration mode on, cannot run takeImages.")
@@ -118,31 +122,40 @@ class LATISSMock(BaseGroupMock):
             if i < data.numImages - 1:
                 await self.end_readout_task
 
-    async def cmd_enable_calibration_callback(self, data):
+    async def cmd_enable_calibration_callback(
+        self, data: salobj.type_hints.BaseMsgType
+    ) -> None:
         self.atcam_calibration_mode = True
         await asyncio.sleep(self.short_time)
 
-    async def cmd_clear_callback(self, data):
+    async def cmd_clear_callback(self, data: salobj.type_hints.BaseMsgType) -> None:
         await asyncio.sleep(self.short_time)
 
-    async def cmd_start_image_callback(self, data):
+    async def cmd_start_image_callback(
+        self, data: salobj.type_hints.BaseMsgType
+    ) -> None:
         await asyncio.sleep(self.short_time)
         self.atcam_image_started = True
         self.atcam_start_image_time = utils.current_tai()
         self.end_readout_coro = self.end_readout(data)
 
-    async def cmd_end_image_callback(self, data):
+    async def cmd_end_image_callback(self, data: salobj.type_hints.BaseMsgType) -> None:
         await asyncio.sleep(self.short_time)
+        assert self.end_readout_coro is not None
         self.end_readout_task = asyncio.create_task(self.end_readout_coro)
 
-    async def cmd_disable_calibration_callback(self, data):
+    async def cmd_disable_calibration_callback(
+        self, data: salobj.type_hints.BaseMsgType
+    ) -> None:
         self.atcam_calibration_mode = True
         await asyncio.sleep(self.short_time)
 
-    async def cmd_discard_rows_callback(self, data):
+    async def cmd_discard_rows_callback(
+        self, data: salobj.type_hints.BaseMsgType
+    ) -> None:
         await asyncio.sleep(self.short_time)
 
-    async def end_readout(self, data):
+    async def end_readout(self, data: salobj.type_hints.BaseMsgType) -> None:
         """Wait `self.readout_time` and send endReadout event."""
         self.log.debug(f"end_readout started: sleep {self.readout_time}")
         await asyncio.sleep(self.readout_time)
@@ -151,9 +164,8 @@ class LATISSMock(BaseGroupMock):
         self.nimages += 1
         if hasattr(data, "expTime"):
             self.exptime_list.append(data.expTime)
-        elif self.atcam_image_started is not None:
+        else:
             self.exptime_list.append(utils.current_tai() - self.atcam_image_started)
-            self.atcam_image_started = None
 
         date_id = astropy.time.Time.now().tai.isot.split("T")[0].replace("-", "")
         image_name = f"test_latiss_{date_id}_{next(index_gen)}"
@@ -177,7 +189,9 @@ class LATISSMock(BaseGroupMock):
         await self.atheaderservice.evt_largeFileObjectAvailable.write()
         self.log.debug("end_readout done")
 
-    async def cmd_changeFilter_callback(self, data):
+    async def cmd_changeFilter_callback(
+        self, data: salobj.type_hints.BaseMsgType
+    ) -> None:
         """Emulate change filter command"""
         await asyncio.sleep(0.1)
         await self.atspec.evt_filterInPosition.write()
@@ -186,7 +200,9 @@ class LATISSMock(BaseGroupMock):
         )
         self.latiss_filter = data.filter
 
-    async def cmd_changeDisperser_callback(self, data):
+    async def cmd_changeDisperser_callback(
+        self, data: salobj.type_hints.BaseMsgType
+    ) -> None:
         """Emulate change filter command"""
         await asyncio.sleep(0.1)
         await self.atspec.evt_disperserInPosition.write()
@@ -196,7 +212,9 @@ class LATISSMock(BaseGroupMock):
         )
         self.latiss_grating = data.disperser
 
-    async def cmd_moveLinearStage_callback(self, data):
+    async def cmd_moveLinearStage_callback(
+        self, data: salobj.type_hints.BaseMsgType
+    ) -> None:
         """Emulate change filter command"""
         await asyncio.sleep(0.1)
         await self.atspec.evt_linearStageInPosition.write()
@@ -205,7 +223,7 @@ class LATISSMock(BaseGroupMock):
         ),
         self.latiss_linear_stage = data.distanceFromHome
 
-    async def close(self):
+    async def close(self) -> None:
         if self.end_readout_task is not None:
             try:
                 await asyncio.wait_for(
