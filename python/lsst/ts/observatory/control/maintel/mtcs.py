@@ -22,6 +22,9 @@ __all__ = ["MTCS"]
 
 import copy
 import asyncio
+import enum
+import logging
+import typing
 
 import numpy as np
 import astropy.units as u
@@ -57,7 +60,7 @@ class MTCSUsages(Usages):
     PrepareForFlatfield = 1 << 6
     DryTest = 1 << 7
 
-    def __iter__(self):
+    def __iter__(self) -> typing.Iterator[int]:
 
         return iter(
             [
@@ -90,7 +93,12 @@ class MTCS(BaseTCS):
 
     """
 
-    def __init__(self, domain=None, log=None, intended_usage=None):
+    def __init__(
+        self,
+        domain: typing.Optional[salobj.Domain] = None,
+        log: typing.Optional[logging.Logger] = None,
+        intended_usage: typing.Optional[int] = None,
+    ) -> None:
 
         super().__init__(
             components=[
@@ -125,8 +133,8 @@ class MTCS(BaseTCS):
         self.dome_flat_el = self.dome_park_el
         self.dome_slew_tolerance = Angle(1.5 * u.deg)
 
-        self._dome_az_in_position = None
-        self._dome_el_in_position = None
+        self._dome_az_in_position: typing.Union[None, asyncio.Event] = None
+        self._dome_el_in_positio: typing.Union[None, asyncio.Event] = None
 
         self.m1m3_raise_timeout = 600.0  # timeout to raise m1m3, in seconds.
 
@@ -143,7 +151,7 @@ class MTCS(BaseTCS):
                 """
             )
 
-    def _create_asyncio_events(self):
+    def _create_asyncio_events(self) -> None:
         """Create asyncio event loop for internal data."""
         self._dome_az_in_position = asyncio.Event()
         self._dome_az_in_position.clear()
@@ -151,7 +159,7 @@ class MTCS(BaseTCS):
         self._dome_el_in_position = asyncio.Event()
         self._dome_el_in_position.clear()
 
-    async def enable_ccw_following(self):
+    async def enable_ccw_following(self) -> None:
         """Enable camera cable wrap following the rotator."""
 
         self.log.info("Enabling CCW following.")
@@ -160,7 +168,7 @@ class MTCS(BaseTCS):
             timeout=self.fast_timeout
         )
 
-    async def disable_ccw_following(self):
+    async def disable_ccw_following(self) -> None:
         """Disable camera cable wrap following the rotator."""
 
         self.log.warning("Disabling CCW following, slew activities will fail.")
@@ -171,13 +179,13 @@ class MTCS(BaseTCS):
 
     async def _slew_to(
         self,
-        slew_cmd,
-        slew_timeout,
-        offset_cmd=None,
-        stop_before_slew=True,
-        wait_settle=True,
-        check=None,
-    ):
+        slew_cmd: typing.Any,
+        slew_timeout: float,
+        offset_cmd: typing.Any = None,
+        stop_before_slew: bool = True,
+        wait_settle: bool = True,
+        check: typing.Any = None,
+    ) -> None:
         """Encapsulate "slew" activities.
 
         Parameters
@@ -197,6 +205,8 @@ class MTCS(BaseTCS):
             Override internal `check` attribute with a user-provided one.
             By default (`None`) use internal attribute.
         """
+
+        assert self._dome_az_in_position is not None
 
         _check = self.check if check is None else check
 
@@ -289,61 +299,60 @@ class MTCS(BaseTCS):
         await self.process_as_completed(self.scheduled_coro)
 
     async def wait_for_inposition(
-        self, timeout, cmd_ack=None, wait_settle=True, check=None
-    ):
+        self,
+        timeout: float,
+        wait_settle: bool = True,
+        check: typing.Optional[typing.Any] = None,
+    ) -> typing.List[str]:
         """Wait for Mount, Dome and Rotator to be in position.
 
         Parameters
         ----------
-        timeout: `float`
+        timeout : `float`
             How long should it wait before timing out.
-        cmd_ack: `CmdAck` or `None`
-            CmdAck from the command that started the slew process. This is an
-            experimental feature to discard events that where sent before the
-            slew starts.
-        wait_settle: `bool`
+        wait_settle : `bool`
             After slew complets, add an addional settle wait before returning.
         check : `types.SimpleNamespace` or `None`
             Override `self.check` for defining which resources are used.
 
         Returns
         -------
-        status: `str`
+        status : `list` of `str`
             String with final status.
         """
         # Creates a copy of check so it can be freely modified to control what
         # needs to be verified at each stage of the process.
         _check = copy.copy(self.check) if check is None else copy.copy(check)
 
-        status = list()
+        status_tasks: typing.List[asyncio.Task] = list()
 
         if _check.mtmount:
             # Note that this event comes from MTMount not NewMTMount,
             # but it is actually started by MTMount. For now MTMount should
             # always be unchecked and we will use NewMTMount to manage that.
-            status.append(
+            status_tasks.append(
                 asyncio.create_task(
-                    self.wait_for_mtmount_inposition(timeout, cmd_ack, wait_settle)
+                    self.wait_for_mtmount_inposition(timeout, wait_settle)
                 )
             )
 
         if _check.mtdome:
-            status.append(
-                asyncio.create_task(self.wait_for_dome_inposition(timeout, cmd_ack))
+            status_tasks.append(
+                asyncio.create_task(self.wait_for_dome_inposition(timeout))
             )
 
         if _check.mtrotator:
-            status.append(
-                asyncio.create_task(self.wait_for_rotator_inposition(timeout, cmd_ack))
+            status_tasks.append(
+                asyncio.create_task(self.wait_for_rotator_inposition(timeout))
             )
 
-        ret_val = ""
-        for s in await asyncio.gather(*status):
-            ret_val += f"{s!r}"
+        status: typing.List[str] = []
+        for s in await asyncio.gather(*status_tasks):
+            status.append(f"{s!r}")
 
-        return ret_val
+        return status
 
-    async def monitor_position(self, check=None):
+    async def monitor_position(self, check: typing.Optional[typing.Any] = None) -> None:
         """Monitor MTCS axis position.
 
         Monitor/log a selected set of axis from the main telescope. This is
@@ -354,8 +363,10 @@ class MTCS(BaseTCS):
         ----------
         check : `types.SimpleNamespace` or `None`
             Override `self.check` for defining which resources are used.
-
         """
+
+        assert self._dome_az_in_position is not None
+        assert self._dome_el_in_position is not None
         # Creates a copy of check so it can be freely modified to control what
         # needs to be verified at each stage of the process.
         _check = copy.copy(self.check) if check is None else copy.copy(check)
@@ -447,17 +458,14 @@ class MTCS(BaseTCS):
             await asyncio.sleep(self.fast_timeout)
 
     async def wait_for_mtmount_inposition(
-        self, timeout, cmd_ack=None, wait_settle=True
-    ):
+        self, timeout: float, wait_settle: bool = True
+    ) -> None:
         """Wait for the MTMount `inPosition` event.
 
         Parameters
         ----------
         timeout: `float`
             How to to wait for mount to be in position (in seconds).
-        cmd_ack: `CmdAck` or `None`
-            Slew command acknowledgment. This can be used by the method to
-            ignore rogue in position events. This is an experimental feature.
         wait_settle: `bool`
             After receiving the in position command add an addional settle
             wait? (default: True)
@@ -480,20 +488,26 @@ class MTCS(BaseTCS):
             ),
         )
 
-    async def wait_for_dome_inposition(self, timeout, cmd_ack=None, wait_settle=True):
+    async def wait_for_dome_inposition(
+        self, timeout: float, wait_settle: bool = True
+    ) -> str:
         """Wait for the Dome to be in position.
 
         Parameters
         ----------
         timeout: `float`
             How to to wait for mount to be in position (in seconds).
-        cmd_ack: `CmdAck` or `None`
-            Slew command acknowledgment. This can be used by the method to
-            ignore rogue in position events. This is an experimental feature.
         wait_settle: `bool`
             After receiving the in position command add an addional settle
             wait? (default: True)
+
+        Returns
+        -------
+        ret_val : `str`
+            String indicating that dome is in position.
         """
+        assert self._dome_az_in_position is not None
+        assert self._dome_el_in_position is not None
         self.log.debug("Wait for dome in position event.")
 
         self._dome_az_in_position.clear()
@@ -512,45 +526,48 @@ class MTCS(BaseTCS):
         return ret_val
 
     async def wait_for_rotator_inposition(
-        self, timeout, cmd_ack=None, wait_settle=True
-    ):
+        self,
+        timeout: float,
+        wait_settle: bool = True,
+    ) -> str:
         """Wait for the Rotator `inPosition` event.
 
         Parameters
         ----------
         timeout: `float`
             How to to wait for mount to be in position (in seconds).
-        cmd_ack: `CmdAck` or `None`
-            Slew command acknowledgment. This can be used by the method to
-            ignore rogue in position events. This is an experimental feature.
         wait_settle: `bool`
             After receiving the in position command add an addional settle
             wait? (default: True)
+
+        Returns
+        -------
+        `str`
+            Message indicating the component is in position.
         """
-        return (
-            await self._handle_in_position(
-                self.rem.mtrotator.evt_inPosition,
-                timeout=timeout,
-                settle_time=self.tel_settle_time,
-                component_name="MTRotator",
-            ),
+        return await self._handle_in_position(
+            self.rem.mtrotator.evt_inPosition,
+            timeout=timeout,
+            settle_time=self.tel_settle_time,
+            component_name="MTRotator",
         )
 
-    async def dome_az_in_position(self):
+    async def dome_az_in_position(self) -> str:
         """Wait for `_dome_az_in_position` event to be set and return a string
         indicating the dome azimuth is in position.
         """
+        assert self._dome_az_in_position is not None
         await self._dome_az_in_position.wait()
         return "Dome azimuth in position."
 
-    async def dome_el_in_position(self):
+    async def dome_el_in_position(self) -> str:
         """Wait for `_dome_el_in_position` event to be set and return a string
         indicating the dome elevation is in position.
         """
         await self._dome_el_in_position.wait()
         return "Dome elevation in position."
 
-    def set_azel_slew_checks(self, wait_dome):
+    def set_azel_slew_checks(self, wait_dome: bool) -> typing.Any:
         """Handle azEl slew to wait or not for the dome.
 
         Parameters
@@ -568,7 +585,7 @@ class MTCS(BaseTCS):
         check.mtdometrajectory = wait_dome
         return check
 
-    async def slew_dome_to(self, az, check=None):
+    async def slew_dome_to(self, az: float, check: typing.Any = None) -> None:
         """Utility method to slew dome to a specified position.
 
         Parameters
@@ -582,52 +599,54 @@ class MTCS(BaseTCS):
         # TODO: Implement (DM-21336).
         raise NotImplementedError("# TODO: Implement (DM-21336).")
 
-    def close_dome(self):
+    async def close_dome(self) -> None:
         # TODO: Implement (DM-21336).
         raise NotImplementedError("# TODO: Implement (DM-21336).")
 
-    def close_m1_cover(self):
+    async def close_m1_cover(self) -> None:
         # TODO: Implement (DM-21336).
         raise NotImplementedError("# TODO: Implement (DM-21336).")
 
-    def home_dome(self):
+    async def home_dome(self) -> None:
         # TODO: Implement (DM-21336).
         raise NotImplementedError("# TODO: Implement (DM-21336).")
 
-    def open_dome_shutter(self):
+    async def open_dome_shutter(self) -> None:
         # TODO: Implement (DM-21336).
         raise NotImplementedError("# TODO: Implement (DM-21336).")
 
-    def open_m1_cover(self):
+    async def open_m1_cover(self) -> None:
         # TODO: Implement (DM-21336).
         raise NotImplementedError("# TODO: Implement (DM-21336).")
 
-    def prepare_for_flatfield(self):
+    async def prepare_for_flatfield(self, check: typing.Any = None) -> None:
         # TODO: Implement (DM-21336).
         raise NotImplementedError("# TODO: Implement (DM-21336).")
 
-    def prepare_for_onsky(self, overrides=None):
+    async def prepare_for_onsky(
+        self, overrides: typing.Optional[typing.Dict[str, str]] = None
+    ) -> None:
         # TODO: Implement (DM-21336).
         raise NotImplementedError("# TODO: Implement (DM-21336).")
 
-    def shutdown(self):
+    async def shutdown(self) -> None:
         # TODO: Implement (DM-21336).
         raise NotImplementedError("# TODO: Implement (DM-21336).")
 
-    def stop_all(self):
+    async def stop_all(self) -> None:
         # TODO: Implement (DM-21336).
         raise NotImplementedError("# TODO: Implement (DM-21336).")
 
-    def flush_offset_events(self):
+    def flush_offset_events(self) -> None:
         """Abstract method to flush events before and offset is performed."""
         self.rem.mtmount.evt_elevationInPosition.flush()
         self.rem.mtmount.evt_azimuthInPosition.flush()
 
-    async def offset_done(self):
+    async def offset_done(self) -> None:
         """Wait for offset events."""
         await self.wait_for_mtmount_inposition(timeout=self.tel_settle_time)
 
-    async def get_bore_sight_angle(self):
+    async def get_bore_sight_angle(self) -> float:
         """Get the instrument bore sight angle with respect to the telescope
         axis.
         """
@@ -645,7 +664,7 @@ class MTCS(BaseTCS):
 
         return angle
 
-    async def raise_m1m3(self):
+    async def raise_m1m3(self) -> None:
         """Raise M1M3."""
         await self._execute_m1m3_detailed_state_change(
             execute_command=self._handle_raise_m1m3,
@@ -659,7 +678,7 @@ class MTCS(BaseTCS):
             },
         )
 
-    async def lower_m1m3(self):
+    async def lower_m1m3(self) -> None:
         """Lower M1M3."""
         await self._execute_m1m3_detailed_state_change(
             execute_command=self._handle_lower_m1m3,
@@ -673,7 +692,7 @@ class MTCS(BaseTCS):
             },
         )
 
-    async def abort_raise_m1m3(self):
+    async def abort_raise_m1m3(self) -> None:
         """Abort a raise m1m3 operation."""
         await self._execute_m1m3_detailed_state_change(
             execute_command=self._handle_abort_raise_m1m3,
@@ -688,8 +707,11 @@ class MTCS(BaseTCS):
         )
 
     async def _execute_m1m3_detailed_state_change(
-        self, execute_command, initial_detailed_states, final_detailed_states
-    ):
+        self,
+        execute_command: typing.Callable[[], typing.Awaitable],
+        initial_detailed_states: typing.Set[enum.IntEnum],
+        final_detailed_states: typing.Set[enum.IntEnum],
+    ) -> None:
         """Execute a command that causes M1M3 detailed state to change and
         handle detailed state changes.
 
@@ -721,7 +743,7 @@ class MTCS(BaseTCS):
                 "Cannot execute command."
             )
 
-    async def _handle_raise_m1m3(self):
+    async def _handle_raise_m1m3(self) -> None:
         """Handle raising m1m3."""
         self.rem.mtm1m3.evt_detailedState.flush()
 
@@ -740,7 +762,7 @@ class MTCS(BaseTCS):
             },
         )
 
-    async def _handle_lower_m1m3(self):
+    async def _handle_lower_m1m3(self) -> None:
         """Handle lowering m1m3."""
         self.rem.mtm1m3.evt_detailedState.flush()
 
@@ -754,21 +776,23 @@ class MTCS(BaseTCS):
 
         await self._handle_m1m3_detailed_state(
             expected_m1m3_detailed_state=MTM1M3.DetailedState.PARKED,
-            unexpected_m1m3_detailed_states={},
+            unexpected_m1m3_detailed_states=set(),
         )
 
-    async def _handle_abort_raise_m1m3(self):
+    async def _handle_abort_raise_m1m3(self) -> None:
         """Handle running the abort raise m1m3 command."""
         await self.rem.mtm1m3.cmd_abortRaiseM1M3.start(timeout=self.long_timeout)
 
         await self._handle_m1m3_detailed_state(
             expected_m1m3_detailed_state=MTM1M3.DetailedState.PARKED,
-            unexpected_m1m3_detailed_states={},
+            unexpected_m1m3_detailed_states=set(),
         )
 
     async def _handle_m1m3_detailed_state(
-        self, expected_m1m3_detailed_state, unexpected_m1m3_detailed_states
-    ):
+        self,
+        expected_m1m3_detailed_state: enum.IntEnum,
+        unexpected_m1m3_detailed_states: typing.Set[enum.IntEnum],
+    ) -> None:
         """Handle m1m3 detailed state.
 
         Parameters
@@ -795,8 +819,11 @@ class MTCS(BaseTCS):
         await self.process_as_completed(m1m3_raise_check_tasks)
 
     async def _wait_for_mtm1m3_detailed_state(
-        self, expected_m1m3_detailed_state, unexpected_m1m3_detailed_states, timeout
-    ):
+        self,
+        expected_m1m3_detailed_state: enum.IntEnum,
+        unexpected_m1m3_detailed_states: typing.Set[enum.IntEnum],
+        timeout: float,
+    ) -> None:
         """Wait for a specified m1m3 detailed state.
 
         Parameters
@@ -827,7 +854,7 @@ class MTCS(BaseTCS):
                 )
             self.log.debug(f"M1M3 detailed state {m1m3_detailed_state.detailedState!r}")
 
-    async def enable_m1m3_balance_system(self):
+    async def enable_m1m3_balance_system(self) -> None:
         """Enable m1m3 balance system."""
 
         applied_balance_forces = await self.rem.mtm1m3.evt_appliedBalanceForces.aget(
@@ -842,7 +869,7 @@ class MTCS(BaseTCS):
         else:
             self.log.warning("Hardpoint corrections already enabled. Nothing to do.")
 
-    async def wait_m1m3_force_balance_system(self, timeout):
+    async def wait_m1m3_force_balance_system(self, timeout: float) -> None:
         """Wait for m1m3 force balance system to stabilize.
 
         Parameters
@@ -864,7 +891,7 @@ class MTCS(BaseTCS):
             )
             await asyncio.sleep(self.fast_timeout)
 
-        timer_task = asyncio.create_task(asyncio.sleep(timeout))
+        timer_task: asyncio.Task = asyncio.create_task(asyncio.sleep(timeout))
 
         while not timer_task.done():
             applied_balance_forces_new = (
@@ -894,7 +921,7 @@ class MTCS(BaseTCS):
         if not timer_task:
             timer_task.cancel()
 
-    async def reset_m1m3_forces(self):
+    async def reset_m1m3_forces(self) -> None:
         """Reset M1M3 forces."""
 
         forces = np.zeros_like(
@@ -907,7 +934,7 @@ class MTCS(BaseTCS):
             zForces=forces, timeout=self.fast_timeout
         )
 
-    async def enable_m2_balance_system(self):
+    async def enable_m2_balance_system(self) -> None:
         """Enable m2 balance system."""
 
         m2_force_balance_system_status = (
@@ -929,11 +956,11 @@ class MTCS(BaseTCS):
         else:
             self.log.info("M2 force balance system already enabled. Nothing to do.")
 
-    async def reset_m2_forces(self):
+    async def reset_m2_forces(self) -> None:
         """Reset M2 forces."""
         await self.rem.mtm2.cmd_resetForceOffsets.start(timeout=self.long_timeout)
 
-    async def enable_compensation_mode(self, component):
+    async def enable_compensation_mode(self, component: str) -> None:
         """Enable compensation mode for one of the hexapods.
 
         Parameters
@@ -949,7 +976,7 @@ class MTCS(BaseTCS):
 
         await self._handle_set_compensation_mode(component, enable=True)
 
-    async def disable_compensation_mode(self, component):
+    async def disable_compensation_mode(self, component: str) -> None:
         """Disable compensation mode for one of the hexapods.
 
         Parameters
@@ -965,7 +992,7 @@ class MTCS(BaseTCS):
 
         await self._handle_set_compensation_mode(component, enable=False)
 
-    async def _handle_set_compensation_mode(self, component, enable):
+    async def _handle_set_compensation_mode(self, component: str, enable: bool) -> None:
         """Handle setting compensation mode.
 
         Parameters
@@ -1002,7 +1029,7 @@ class MTCS(BaseTCS):
                 f"Compensation mode for {component} already {enable}. Nothing to do."
             )
 
-    def assert_has_compensation_mode(self, component):
+    def assert_has_compensation_mode(self, component: str) -> None:
         """Assert that component is part of the set of components that supports
         compensation mode.
 
@@ -1022,7 +1049,16 @@ class MTCS(BaseTCS):
             f"Choose one of {self.compensation_mode_components}."
         )
 
-    async def move_camera_hexapod(self, x, y, z, u, v, w=0.0, sync=True):
+    async def move_camera_hexapod(
+        self,
+        x: float,
+        y: float,
+        z: float,
+        u: float,
+        v: float,
+        w: float = 0.0,
+        sync: bool = True,
+    ) -> None:
         """Move camera hexapod.
 
         When camera hexapod compensation mode is on move will act as offset.
@@ -1062,7 +1098,7 @@ class MTCS(BaseTCS):
             component_name="Camera Hexapod",
         )
 
-    async def move_rotator(self, position):
+    async def move_rotator(self, position: float) -> None:
         """Move rotator to specified position and wait for movement to
         complete.
 
@@ -1082,7 +1118,16 @@ class MTCS(BaseTCS):
             component_name="MTRotator",
         )
 
-    async def move_m2_hexapod(self, x, y, z, u, v, w=0.0, sync=True):
+    async def move_m2_hexapod(
+        self,
+        x: float,
+        y: float,
+        z: float,
+        u: float,
+        v: float,
+        w: float = 0.0,
+        sync: bool = True,
+    ) -> None:
         """Move m2 hexapod.
 
         When m2 hexapod compensation mode is on move will act as offset.
@@ -1122,16 +1167,18 @@ class MTCS(BaseTCS):
             component_name="M2 Hexapod",
         )
 
-    async def reset_camera_hexapod_position(self):
+    async def reset_camera_hexapod_position(self) -> None:
         """Reset position of the camera hexapod."""
 
         await self.move_camera_hexapod(x=0.0, y=0.0, z=0.0, u=0.0, v=0.0)
 
-    async def reset_m2_hexapod_position(self):
+    async def reset_m2_hexapod_position(self) -> None:
         """Reset position of the M2 hexapod."""
         await self.move_m2_hexapod(x=0.0, y=0.0, z=0.0, u=0.0, v=0.0)
 
-    async def get_compensation_mode_camera_hexapod(self):
+    async def get_compensation_mode_camera_hexapod(
+        self,
+    ) -> salobj.type_hints.BaseMsgType:
         """Return the last sample of `compensationMode` event from camera
         hexapod.
 
@@ -1143,7 +1190,7 @@ class MTCS(BaseTCS):
             timeout=self.fast_timeout
         )
 
-    async def get_compensation_mode_m2_hexapod(self):
+    async def get_compensation_mode_m2_hexapod(self) -> salobj.type_hints.BaseMsgType:
         """Return the last sample of `compensationMode` event from m2 hexapod.
 
         Returns
@@ -1154,54 +1201,54 @@ class MTCS(BaseTCS):
             timeout=self.fast_timeout
         )
 
-    async def _ready_to_take_data(self):
+    async def _ready_to_take_data(self) -> None:
         """Placeholder, still needs to be implemented."""
         # TODO: Finish implementation.
 
     @property
-    def compensation_mode_components(self):
+    def compensation_mode_components(self) -> typing.Set[str]:
         """Set with the name of the components that support compensation
         mode.
         """
         return {"mthexapod_1", "mthexapod_2"}
 
     @property
-    def plate_scale(self):
+    def plate_scale(self) -> float:
         """Plate scale in mm/arcsec."""
         return mtcs_constants.plate_scale
 
     @property
-    def ptg_name(self):
+    def ptg_name(self) -> str:
         """Return name of the pointing component."""
         return "mtptg"
 
     @property
-    def dome_trajectory_name(self):
+    def dome_trajectory_name(self) -> str:
         """Return name of the DomeTrajectory component."""
         return "mtdometrajectory"
 
     @property
-    def CoordFrame(self):
+    def CoordFrame(self) -> enum.IntEnum:
         """Return CoordFrame enumeration."""
         return MTPtg.CoordFrame
 
     @property
-    def RotFrame(self):
+    def RotFrame(self) -> enum.IntEnum:
         """Return RotFrame enumeration."""
         return MTPtg.RotFrame
 
     @property
-    def RotMode(self):
+    def RotMode(self) -> enum.IntEnum:
         """Return RotMode enumeration."""
         return MTPtg.RotMode
 
     @property
-    def WrapStrategy(self):
+    def WrapStrategy(self) -> enum.IntEnum:
         """Return WrapStrategy enumeration"""
         return MTPtg.WrapStrategy
 
     @property
-    def valid_use_cases(self):
+    def valid_use_cases(self) -> MTCSUsages:
         """Returns valid usages.
 
         Returns
@@ -1212,7 +1259,7 @@ class MTCS(BaseTCS):
         return MTCSUsages()
 
     @property
-    def usages(self):
+    def usages(self) -> typing.Dict[int, UsagesResources]:
 
         if self._usages is None:
             usages = super().usages
