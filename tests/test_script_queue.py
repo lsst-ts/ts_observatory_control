@@ -19,6 +19,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <https://www.gnu.org/licenses/>.
 
+import typing
 import yaml
 import types
 import asyncio
@@ -26,6 +27,7 @@ import logging
 import unittest
 
 from lsst.ts import idl
+from lsst.ts import salobj
 
 from lsst.ts.observatory.control import Usages
 from lsst.ts.observatory.control.script_queue import ScriptQueue
@@ -36,8 +38,12 @@ MAKE_TIMEOUT = 60  # Timeout for make_script (sec)
 
 
 class TestScriptQueue(RemoteGroupAsyncMock):
+    log: logging.Logger
+    script_queue: ScriptQueue
+    components_metadata: typing.Dict[str, salobj.IdlMetadata]
+
     @classmethod
-    def setUpClass(cls):
+    def setUpClass(cls) -> None:
         """This classmethod is only called once, when preparing the unit
         test.
         """
@@ -59,7 +65,7 @@ class TestScriptQueue(RemoteGroupAsyncMock):
         return super().setUpClass()
 
     @property
-    def remote_group(self):
+    def remote_group(self) -> ScriptQueue:
         return self.script_queue
 
     async def setup_types(self) -> None:
@@ -144,7 +150,7 @@ additionalProperties: false
             }
         )
 
-    async def test_list_standard_scripts(self):
+    async def test_list_standard_scripts(self) -> None:
 
         standard_scripts = await self.script_queue.list_standard_scripts()
 
@@ -158,7 +164,7 @@ additionalProperties: false
         )
         assert standard_scripts == self.available_scripts.standard.split(",")
 
-    async def test_list_external_scripts(self):
+    async def test_list_external_scripts(self) -> None:
 
         external_scripts = await self.script_queue.list_external_scripts()
 
@@ -173,7 +179,7 @@ additionalProperties: false
 
         assert external_scripts == self.available_scripts.external.split(",")
 
-    async def test_get_script_schema(self):
+    async def test_get_script_schema(self) -> None:
 
         schema = await self.script_queue.get_script_schema(
             is_standard=True,
@@ -183,7 +189,7 @@ additionalProperties: false
         self.assert_get_script_schema_calls()
         assert schema == self.config_schema.configSchema
 
-    async def test_validate_config_good(self):
+    async def test_validate_config_good(self) -> None:
 
         config = dict(ra=10, dec=-30, name="target")
 
@@ -195,7 +201,7 @@ additionalProperties: false
 
         self.assert_get_script_schema_calls()
 
-    async def test_validate_config_err(self):
+    async def test_validate_config_err(self) -> None:
 
         config = dict(ra=10, dec=-30)
 
@@ -210,7 +216,7 @@ additionalProperties: false
 
         self.assert_get_script_schema_calls()
 
-    async def test_add(self):
+    async def test_add(self) -> None:
 
         is_standard = True
         script = "std_script1"
@@ -228,7 +234,7 @@ additionalProperties: false
             config=config,
         )
 
-    async def test_add_standard(self):
+    async def test_add_standard(self) -> None:
 
         script = "std_script1"
         config = dict(ra=10, dec=-30, name="target")
@@ -244,7 +250,7 @@ additionalProperties: false
             config=config,
         )
 
-    async def test_add_external(self):
+    async def test_add_external(self) -> None:
 
         script = "ext_script1"
         config = dict(ra=10, dec=-30, name="target")
@@ -260,7 +266,7 @@ additionalProperties: false
             config=config,
         )
 
-    async def test_get_queue(self):
+    async def test_get_queue(self) -> None:
 
         queue = await self.script_queue.get_queue()
 
@@ -269,7 +275,7 @@ additionalProperties: false
             timeout=self.script_queue.fast_timeout
         )
 
-    async def test_wait_queue_paused_when_queue_paused(self):
+    async def test_wait_queue_paused_when_queue_paused(self) -> None:
 
         self.logevent_queue.running = False
 
@@ -281,7 +287,7 @@ additionalProperties: false
         )
         self.script_queue.rem.scriptqueue_1.evt_queue.next.assert_not_awaited()
 
-    async def test_wait_queue_paused_when_queue_running(self):
+    async def test_wait_queue_paused_when_queue_running(self) -> None:
 
         self.logevent_queue.running = True
 
@@ -302,7 +308,7 @@ additionalProperties: false
             timeout=self.script_queue.long_timeout,
         )
 
-    async def test_wait_queue_running_when_queue_paused(self):
+    async def test_wait_queue_running_when_queue_paused(self) -> None:
 
         self.logevent_queue.running = False
 
@@ -323,7 +329,7 @@ additionalProperties: false
             timeout=self.script_queue.long_timeout,
         )
 
-    async def test_wait_queue_running_when_queue_running(self):
+    async def test_wait_queue_running_when_queue_running(self) -> None:
 
         self.logevent_queue.running = True
 
@@ -335,7 +341,7 @@ additionalProperties: false
         )
         self.script_queue.rem.scriptqueue_1.evt_queue.next.assert_not_awaited()
 
-    async def test_pause_when_running(self):
+    async def test_pause_when_running(self) -> None:
 
         self.logevent_queue.running = True
 
@@ -352,7 +358,7 @@ additionalProperties: false
             flush=False, timeout=self.script_queue.long_timeout
         )
 
-    async def test_pause_when_paused(self):
+    async def test_pause_when_paused(self) -> None:
 
         self.logevent_queue.running = False
 
@@ -365,7 +371,7 @@ additionalProperties: false
         self.script_queue.rem.scriptqueue_1.cmd_pause.start.assert_not_awaited()
         self.script_queue.rem.scriptqueue_1.evt_queue.next.assert_not_awaited()
 
-    async def test_resume_when_running(self):
+    async def test_resume_when_running(self) -> None:
 
         self.logevent_queue.running = True
 
@@ -378,7 +384,7 @@ additionalProperties: false
         self.script_queue.rem.scriptqueue_1.cmd_resume.start.assert_not_awaited()
         self.script_queue.rem.scriptqueue_1.evt_queue.next.assert_not_awaited()
 
-    async def test_resume_when_paused(self):
+    async def test_resume_when_paused(self) -> None:
 
         self.logevent_queue.running = False
 
@@ -413,12 +419,12 @@ additionalProperties: false
 
     def assert_add(
         self,
-        is_standard,
-        script,
-        config,
-        description="",
-        log_level=logging.DEBUG,
-        pause_checkpoint="",
+        is_standard: bool,
+        script: str,
+        config: typing.Dict[str, typing.Any],
+        description: str = "",
+        log_level: int = logging.DEBUG,
+        pause_checkpoint: str = "",
     ) -> None:
 
         self.script_queue.rem.scriptqueue_1.cmd_add.set_start.assert_awaited_with(
@@ -432,16 +438,22 @@ additionalProperties: false
             timeout=self.script_queue.long_timeout,
         )
 
-    async def script_queue_cmd_pause(self, *args, **kwargs):
+    async def script_queue_cmd_pause(
+        self, *args: typing.Any, **kwargs: typing.Any
+    ) -> None:
         asyncio.create_task(self._set_queue_state(False))
 
-    async def script_queue_cmd_resume(self, *args, **kwargs):
+    async def script_queue_cmd_resume(
+        self, *args: typing.Any, **kwargs: typing.Any
+    ) -> None:
         asyncio.create_task(self._set_queue_state(True))
 
-    async def get_logevent_queue(self, *args, **kwargs):
+    async def get_logevent_queue(
+        self, *args: typing.Any, **kwargs: typing.Any
+    ) -> types.SimpleNamespace:
         await asyncio.sleep(1.0)
         return self.logevent_queue
 
-    async def _set_queue_state(self, state):
+    async def _set_queue_state(self, state: bool) -> None:
         await asyncio.sleep(2.0)
         self.logevent_queue.running = state
