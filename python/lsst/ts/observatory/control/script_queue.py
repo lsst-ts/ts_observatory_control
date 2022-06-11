@@ -29,7 +29,7 @@ import jsonschema
 from lsst.ts import idl
 from lsst.ts import salobj
 import yaml
-from .remote_group import RemoteGroup, Usages
+from .remote_group import RemoteGroup
 
 
 class ScriptQueue(RemoteGroup):
@@ -56,7 +56,7 @@ class ScriptQueue(RemoteGroup):
         queue_index: idl.enums.ScriptQueue.SalIndex,
         domain: typing.Optional[typing.Union[salobj.Domain, str]] = None,
         log: logging.Logger = None,
-        intended_usage: Usages = None,
+        intended_usage: int = None,
     ) -> None:
 
         self.queue_index = queue_index
