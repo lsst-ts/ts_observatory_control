@@ -735,11 +735,14 @@ class RemoteGroup:
                     f"Unable to transition {comp} to "
                     f"{salobj.State(state)!r} {traceback.format_exc()}.\n"
                 )
+                etype: typing.Type[BaseException] = type(ret_val[i])
+                value: BaseException = ret_val[i]
+                tb: types.TracebackType = ret_val[i].__traceback__
                 err_traceback = traceback.format_exception(
-                    etype=type(ret_val[i]),
-                    value=ret_val[i],
-                    tb=ret_val[i].__traceback__,
-                )
+                    etype=etype,
+                    value=value,
+                    tb=tb,
+                )  # type: ignore # noqa
                 for trace in err_traceback:
                     err_message += trace
                 self.log.error(err_message)
