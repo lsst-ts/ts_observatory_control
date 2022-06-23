@@ -27,7 +27,6 @@ import logging
 from lsst.ts import salobj
 from lsst.ts.idl.enums.ScriptQueue import SalIndex
 
-from ..remote_group import Usages
 from ..script_queue import ScriptQueue
 
 
@@ -51,7 +50,7 @@ class MTQueue(ScriptQueue):
     def __init__(
         self,
         domain: typing.Optional[typing.Union[salobj.Domain, str]] = None,
-        log: logging.Logger = None,
-        intended_usage: Usages = None,
+        log: typing.Optional[logging.Logger] = None,
+        intended_usage: typing.Optional[int] = None,
     ) -> None:
         super().__init__(SalIndex.MAIN_TEL, domain, log, intended_usage)

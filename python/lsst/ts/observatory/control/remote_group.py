@@ -22,11 +22,14 @@ import asyncio
 import logging
 import traceback
 import types
+import typing
 
 from lsst.ts import salobj
 from .utils import handle_exception_in_dict_items
 
 __all__ = ["Usages", "UsagesResources", "RemoteGroup"]
+
+TRemoteGroup = typing.TypeVar("TRemoteGroup", bound="RemoteGroup")
 
 
 class Usages:
@@ -59,7 +62,7 @@ class Usages:
     CheckSoftwareVersions = 1 << 4
     DryTest = 1 << 5
 
-    def __iter__(self):
+    def __iter__(self) -> typing.Iterator[int]:
         return iter(
             [
                 self.All,
@@ -144,7 +147,13 @@ class UsagesResources:
 
     """
 
-    def __init__(self, components_attr, readonly, generics=(), **kwargs):
+    def __init__(
+        self,
+        components_attr: typing.Iterable[str],
+        readonly: bool,
+        generics: typing.Iterable[str] = (),
+        **kwargs: typing.Iterable[str],
+    ) -> None:
 
         self.components_attr = frozenset(components_attr)
 
@@ -233,17 +242,16 @@ class RemoteGroup:
     `intended_usage=BaseUsages.All`. When set to `None` the class will load all
     available resources. When set to `BaseUsages.All`, the class will load the
     resources needed for all defined operations.
-
     """
 
     def __init__(
         self,
-        components,
-        domain=None,
-        log=None,
-        intended_usage=None,
-        concurrent_operation=True,
-    ):
+        components: typing.List[str],
+        domain: typing.Optional[salobj.Domain] = None,
+        log: typing.Optional[logging.Logger] = None,
+        intended_usage: typing.Optional[int] = None,
+        concurrent_operation: bool = True,
+    ) -> None:
 
         if log is None:
             self.log = logging.getLogger(type(self).__name__)
@@ -267,7 +275,7 @@ class RemoteGroup:
             (domain, False) if domain is not None else (salobj.Domain(), True)
         )
 
-        self._usages = None
+        self._usages: typing.Union[None, typing.Dict[int, UsagesResources]] = None
 
         self.rem = types.SimpleNamespace()
 
@@ -291,7 +299,7 @@ class RemoteGroup:
             else:
                 setattr(self.rem, rname, None)
 
-        self.scheduled_coro = []
+        self.scheduled_coro: typing.List[asyncio.Task] = []
 
         # Dict of component attribute name: remote, if present, else None
         attr_remotes = {attr: getattr(self.rem, attr) for attr in self.components_attr}
@@ -306,12 +314,11 @@ class RemoteGroup:
             remote.start_task for remote in attr_remotes.values() if remote is not None
         ]
 
-        if len(start_task_list) > 0:
-            self.start_task = asyncio.gather(*start_task_list)
-        else:
-            self.start_task = None
+        self.start_task = (
+            asyncio.gather(*start_task_list) if len(start_task_list) > 0 else None
+        )
 
-    def components_to_check(self):
+    def components_to_check(self) -> typing.List[str]:
         """Return components for which check is enabled.
 
         Returns
@@ -325,7 +332,9 @@ class RemoteGroup:
             if getattr(self.check, component)
         ]
 
-    def get_required_resources(self, component, intended_usage):
+    def get_required_resources(
+        self, component: str, intended_usage: typing.Union[None, int]
+    ) -> typing.Any:
         """Return the required resources based on the intended usage of the
         class.
 
@@ -338,7 +347,7 @@ class RemoteGroup:
             Name of the component, with index as it appears in
             `components_attr` attribute (e.g. test_1 for the Test component
             with index 1).
-        intended_usage: `int`
+        intended_usage: `int` or `None`
             An integer constructed from the `self.valid_use_cases`. Usages can
             be combined to enable combined operations (see base class
             documentation). If None, returns appropriate values to load all
@@ -406,7 +415,9 @@ class RemoteGroup:
         )
         return resources
 
-    async def get_state(self, component, ignore_timeout=False):
+    async def get_state(
+        self, component: str, ignore_timeout: bool = False
+    ) -> salobj.State:
         """Get summary state for component.
 
         Parameters
@@ -439,7 +450,7 @@ class RemoteGroup:
             else:
                 raise e
 
-    async def next_state(self, component):
+    async def next_state(self, component: str) -> salobj.State:
         """Get summary state for component.
 
         Parameters
@@ -458,8 +469,8 @@ class RemoteGroup:
         return salobj.State(ss.summaryState)
 
     async def check_component_state(
-        self, component, desired_state=salobj.State.ENABLED
-    ):
+        self, component: str, desired_state: salobj.State = salobj.State.ENABLED
+    ) -> None:
         """Monitor the summary state of a component and raises an exception if
         it is or goes to a state different than the desired state.
 
@@ -499,7 +510,7 @@ class RemoteGroup:
                 self.log.debug(f"{component}: {state!r}")
             data = await state_topic.next(flush=False)
 
-    async def get_heartbeat(self, component):
+    async def get_heartbeat(self, component: str) -> salobj.type_hints.BaseMsgType:
         """Get last heartbeat for component.
 
         Parameters
@@ -523,7 +534,7 @@ class RemoteGroup:
         else:
             return heartbeat
 
-    async def next_heartbeat(self, component):
+    async def next_heartbeat(self, component: str) -> salobj.type_hints.BaseMsgType:
         """Get next heartbeat for component.
 
         Parameters
@@ -547,7 +558,7 @@ class RemoteGroup:
         else:
             return heartbeat
 
-    async def check_comp_heartbeat(self, component):
+    async def check_comp_heartbeat(self, component: str) -> None:
         """Monitor heartbeats from the specified component and raises and
         exception if not.
 
@@ -580,7 +591,7 @@ class RemoteGroup:
                     f"No heartbeat from {component} received in {self.fast_timeout}s."
                 )
 
-    async def assert_liveliness(self):
+    async def assert_liveliness(self) -> None:
         """Assert liveliness of components belonging to the group.
 
         The assertion is done by waiting for a new heartbeat from the
@@ -610,7 +621,9 @@ class RemoteGroup:
 
         assert len(exceptions) == 0, f"No heartbeat from {exceptions}."
 
-    async def expand_overrides(self, overrides=None):
+    async def expand_overrides(
+        self, overrides: typing.Optional[typing.Dict[str, str]] = None
+    ) -> typing.Dict[str, str]:
         """Expand an overrides dict with entries for every component.
 
         Any components that have no specified override are set to "".
@@ -653,7 +666,12 @@ class RemoteGroup:
         self.log.debug(f"Complete overrides: {complete_overrides}")
         return complete_overrides
 
-    async def set_state(self, state, overrides=None, components=None):
+    async def set_state(
+        self,
+        state: salobj.State,
+        overrides: typing.Optional[typing.Dict[str, str]] = None,
+        components: typing.Optional[typing.List[str]] = None,
+    ) -> None:
         """Set summary state for all components.
 
         Parameters
@@ -717,10 +735,13 @@ class RemoteGroup:
                     f"Unable to transition {comp} to "
                     f"{salobj.State(state)!r} {traceback.format_exc()}.\n"
                 )
+                etype: typing.Type[BaseException] = type(ret_val[i])
+                value: BaseException = ret_val[i]
+                tb: types.TracebackType = ret_val[i].__traceback__
                 err_traceback = traceback.format_exception(
-                    etype=type(ret_val[i]),
-                    value=ret_val[i],
-                    tb=ret_val[i].__traceback__,
+                    etype,
+                    value,
+                    tb,
                 )
                 for trace in err_traceback:
                     err_message += trace
@@ -736,7 +757,7 @@ class RemoteGroup:
         else:
             self.log.info(f"All components in {salobj.State(state)!r}.")
 
-    async def assert_all_enabled(self, message=""):
+    async def assert_all_enabled(self, message: str = "") -> None:
         """Check if all components are in the enabled state.
 
         Parameters
@@ -761,7 +782,9 @@ class RemoteGroup:
             len(not_enabled) == 0
         ), f"The following components are not enabled: {not_enabled}. {message}"
 
-    async def get_simulation_mode(self, components=None):
+    async def get_simulation_mode(
+        self, components: typing.Optional[typing.List[str]] = None
+    ) -> typing.Dict[str, salobj.type_hints.BaseMsgType]:
         """Return a list with the simulation mode for components in the group.
 
         Parameters
@@ -788,7 +811,9 @@ class RemoteGroup:
 
         return simulation_mode
 
-    async def get_software_versions(self, components=None):
+    async def get_software_versions(
+        self, components: typing.Optional[typing.List[str]] = None
+    ) -> typing.Dict[str, salobj.type_hints.BaseMsgType]:
         """Return a list with the software versions for components in the
         group.
 
@@ -816,7 +841,9 @@ class RemoteGroup:
 
         return software_versions
 
-    async def enable(self, overrides=None):
+    async def enable(
+        self, overrides: typing.Optional[typing.Dict[str, str]] = None
+    ) -> None:
         """Enable all components.
 
         This method will enable all group components. Users can provide
@@ -835,17 +862,17 @@ class RemoteGroup:
 
         await self.set_state(salobj.State.ENABLED, overrides=complete_overrides)
 
-    async def standby(self):
+    async def standby(self) -> None:
         """Put all CSCs in standby."""
 
         await self.set_state(salobj.State.STANDBY)
 
-    async def offline(self):
+    async def offline(self) -> None:
         """Put all CSCs in offline."""
 
         await self.set_state(salobj.State.OFFLINE)
 
-    def set_rem_loglevel(self, level):
+    def set_rem_loglevel(self, level: int) -> None:
         """Set remotes log level.
 
         Useful to prevent the internal salobj warnings when read queues are
@@ -859,7 +886,9 @@ class RemoteGroup:
         for component in self.components:
             logging.getLogger(component).setLevel(level)
 
-    def get_work_components(self, components=None):
+    def get_work_components(
+        self, components: typing.Optional[typing.List[str]] = None
+    ) -> typing.List[str]:
         """Parse input into a list of valid components from the group.
 
         Parameters
@@ -892,7 +921,11 @@ class RemoteGroup:
 
         return work_components
 
-    async def _aget_topic_samples_for_components(self, topic_name, components=None):
+    async def _aget_topic_samples_for_components(
+        self,
+        topic_name: str,
+        components: typing.Optional[typing.List[str]] = None,
+    ) -> typing.Dict[str, salobj.type_hints.BaseMsgType]:
         """Get topic samples for a list of components.
 
         Parameters
@@ -928,7 +961,7 @@ class RemoteGroup:
         return topic_samples_for_components
 
     @property
-    def components(self):
+    def components(self) -> typing.List[str]:
         """List of components names.
 
         The name of the CSC follow the format used in the class constructor,
@@ -944,7 +977,7 @@ class RemoteGroup:
         return list(self._components.keys())
 
     @property
-    def components_attr(self):
+    def components_attr(self) -> typing.List[str]:
         """List of remotes names.
 
         The remotes names are reformatted to fit the requirements for object
@@ -961,7 +994,7 @@ class RemoteGroup:
         return list(self._components.values())
 
     @property
-    def valid_use_cases(self):
+    def valid_use_cases(self) -> Usages:
         """Define valid usages.
 
         When subclassing, overwrite this method to return the proper enum.
@@ -974,7 +1007,7 @@ class RemoteGroup:
         return Usages()
 
     @property
-    def usages(self):
+    def usages(self) -> typing.Dict[int, UsagesResources]:
         """Define class usages.
 
         This property defines what remote resources are needed for each class
@@ -1051,7 +1084,9 @@ class RemoteGroup:
 
         return self._usages
 
-    async def process_as_completed(self, tasks):
+    async def process_as_completed(
+        self, tasks: typing.List[asyncio.Task]
+    ) -> typing.Any:
         """Process tasks are they complete.
 
         If the first task that finishes completes successfully, it will
@@ -1064,6 +1099,10 @@ class RemoteGroup:
         tasks : `list`[`asyncio.Tasks`]
             List of asyncio tasks to process.
 
+        Returns
+        -------
+        ret_val : `object`
+            Return value from the first completed task.
         """
         self.log.debug("process as completed...")
 
@@ -1078,7 +1117,7 @@ class RemoteGroup:
                 return ret_val
 
     @staticmethod
-    async def cancel_not_done(tasks):
+    async def cancel_not_done(tasks: typing.List[asyncio.Task]) -> None:
         """Cancel all coroutines in `coro_list`.
 
         Remove futures from input tasks list and cancel them.
@@ -1092,7 +1131,7 @@ class RemoteGroup:
             task = tasks.pop()
             task.cancel()
 
-    async def close(self):
+    async def close(self) -> None:
         await self.cancel_not_done(self.scheduled_coro)
         await asyncio.gather(
             *[
@@ -1104,10 +1143,10 @@ class RemoteGroup:
         if self._close_domain:
             await self.domain.close()
 
-    async def __aenter__(self):
+    async def __aenter__(self: TRemoteGroup) -> TRemoteGroup:
         if self.start_task is not None:
             await self.start_task
         return self
 
-    async def __aexit__(self, *args):
+    async def __aexit__(self, *args: typing.Any) -> None:
         await self.close()

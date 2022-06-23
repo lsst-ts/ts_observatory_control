@@ -22,6 +22,7 @@ __all__ = ["MTCSMock"]
 
 import asyncio
 import math
+import typing
 
 from .base_group_mock import BaseGroupMock
 from .m1m3_topic_samples import get_m1m3_topic_samples_data
@@ -51,7 +52,7 @@ class MTCSMock(BaseGroupMock):
 
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
 
         super().__init__(
             components=[
@@ -80,17 +81,17 @@ class MTCSMock(BaseGroupMock):
         self.m1m3_pressure_sensor_2 = 1.0
         self.m1m3_pressure_sensor_3 = 1.0
 
-        self.m1m3_force_actuator_state = dict()
+        self.m1m3_force_actuator_state: typing.Dict[str, typing.Any] = dict()
 
         self.tracking = False
         self.acting = False
 
         # store radec offsets
-        self.radec_offsets = []
+        self.radec_offsets: typing.List[salobj.type_hints.BaseMsgType] = []
         # store azel offsets
-        self.azel_offsets = []
+        self.azel_offsets: typing.List[salobj.type_hints.BaseMsgType] = []
         # store poring offsets
-        self.poring_offsets = []
+        self.poring_offsets: typing.List[salobj.type_hints.BaseMsgType] = []
 
         self.controllers.mtptg.cmd_stopTracking.callback = (
             self.mtptg_stop_tracking_callback
@@ -122,24 +123,30 @@ class MTCSMock(BaseGroupMock):
             **{self.mtmount_demand_position_name: 80.0}
         )
 
-    async def offset_radec_callback(self, data):
+    async def offset_radec_callback(self, data: salobj.type_hints.BaseMsgType) -> None:
         self.radec_offsets.append(data)
 
-    async def offset_azel_callback(self, data):
+    async def offset_azel_callback(self, data: salobj.type_hints.BaseMsgType) -> None:
         self.azel_offsets.append(data)
 
-    async def offset_clear_callback(self, data):
+    async def offset_clear_callback(self, data: salobj.type_hints.BaseMsgType) -> None:
 
         self.azel_offsets = []
         self.radec_offsets = []
 
-    async def offset_porigin_callback(self, data):
+    async def offset_porigin_callback(
+        self, data: salobj.type_hints.BaseMsgType
+    ) -> None:
         self.poring_offsets.append(data)
 
-    async def poring_offset_clear_callback(self, data):
+    async def poring_offset_clear_callback(
+        self, data: salobj.type_hints.BaseMsgType
+    ) -> None:
         self.poring_offsets = []
 
-    async def mtptg_stop_tracking_callback(self, data):
+    async def mtptg_stop_tracking_callback(
+        self, data: salobj.type_hints.BaseMsgType
+    ) -> None:
 
         self.tracking = False
         self.acting = False
@@ -150,7 +157,7 @@ class MTCSMock(BaseGroupMock):
 
         await asyncio.sleep(HEARTBEAT_INTERVAL)
 
-    async def azel_target_callback(self, data):
+    async def azel_target_callback(self, data: salobj.type_hints.BaseMsgType) -> None:
 
         if (
             self.controllers.mtptg.evt_summaryState.data.summaryState
@@ -180,7 +187,7 @@ class MTCSMock(BaseGroupMock):
 
         self.controllers.mtrotator.tel_rotation.set(demandPosition=data.rotPA)
 
-    async def radec_target_callback(self, data):
+    async def radec_target_callback(self, data: salobj.type_hints.BaseMsgType) -> None:
 
         if (
             self.controllers.mtptg.evt_summaryState.data.summaryState
@@ -201,7 +208,7 @@ class MTCSMock(BaseGroupMock):
         self.tracking = True
         self.acting = True
 
-    async def start_task_publish(self):
+    async def start_task_publish(self) -> None:
 
         await super().start_task_publish()
 
@@ -211,7 +218,7 @@ class MTCSMock(BaseGroupMock):
         self.task_list.append(asyncio.create_task(self.dome_telemetry()))
         self.task_list.append(asyncio.create_task(self.m1m3_telemetry()))
 
-    async def mount_telemetry(self):
+    async def mount_telemetry(self) -> None:
 
         await self.controllers.mtmount.evt_elevationMotionState.set_write(
             state=MTMount.AxisMotionState.STOPPED
@@ -391,7 +398,7 @@ class MTCSMock(BaseGroupMock):
 
             await asyncio.sleep(HEARTBEAT_INTERVAL)
 
-    async def rotator_telemetry(self):
+    async def rotator_telemetry(self) -> None:
 
         await self.controllers.mtrotator.tel_electrical.set_write()
         await self.controllers.mtrotator.evt_connected.set_write(connected=True)
@@ -468,7 +475,7 @@ class MTCSMock(BaseGroupMock):
 
             await asyncio.sleep(HEARTBEAT_INTERVAL)
 
-    async def dome_telemetry(self):
+    async def dome_telemetry(self) -> None:
 
         while self.run_telemetry_loop:
             if (
@@ -521,7 +528,7 @@ class MTCSMock(BaseGroupMock):
 
             await asyncio.sleep(HEARTBEAT_INTERVAL)
 
-    async def mtptg_telemetry(self):
+    async def mtptg_telemetry(self) -> None:
 
         while self.run_telemetry_loop:
             if (
@@ -576,7 +583,7 @@ class MTCSMock(BaseGroupMock):
 
             await asyncio.sleep(HEARTBEAT_INTERVAL)
 
-    async def m1m3_telemetry(self):
+    async def m1m3_telemetry(self) -> None:
 
         await self.publish_m1m3_topic_samples()
 
@@ -736,7 +743,7 @@ class MTCSMock(BaseGroupMock):
 
             await asyncio.sleep(HEARTBEAT_INTERVAL)
 
-    async def publish_m1m3_topic_samples(self):
+    async def publish_m1m3_topic_samples(self) -> None:
         """Publish m1m3 topic samples."""
 
         self.log.debug("Publishing m1m3 topic samples.")

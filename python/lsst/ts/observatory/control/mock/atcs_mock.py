@@ -21,6 +21,7 @@
 __all__ = ["ATCSMock"]
 
 import asyncio
+import typing
 
 import numpy as np
 from itertools import cycle
@@ -46,7 +47,7 @@ class ATCSMock(BaseGroupMock):
 
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
 
         super().__init__(
             components=[
@@ -97,10 +98,10 @@ class ATCSMock(BaseGroupMock):
 
         self.track = False
 
-        self.atmcs_telemetry_task = None
-        self.atdome_telemetry_task = None
-        self.atptg_telemetry_task = None
-        self.ataos_telemetry_task = None
+        self.atmcs_telemetry_task: typing.Union[asyncio.Task, None] = None
+        self.atdome_telemetry_task: typing.Union[asyncio.Task, None] = None
+        self.atptg_telemetry_task: typing.Union[asyncio.Task, None] = None
+        self.ataos_telemetry_task: typing.Union[asyncio.Task, None] = None
 
         self.run_telemetry_loop = True
 
@@ -124,43 +125,43 @@ class ATCSMock(BaseGroupMock):
         }
 
     @property
-    def atmcs(self):
+    def atmcs(self) -> salobj.Remote:
         return self.controllers.atmcs
 
     @property
-    def atptg(self):
+    def atptg(self) -> salobj.Remote:
         return self.controllers.atptg
 
     @property
-    def ataos(self):
+    def ataos(self) -> salobj.Remote:
         return self.controllers.ataos
 
     @property
-    def atpneumatics(self):
+    def atpneumatics(self) -> salobj.Remote:
         return self.controllers.atpneumatics
 
     @property
-    def athexapod(self):
+    def athexapod(self) -> salobj.Remote:
         return self.controllers.athexapod
 
     @property
-    def atdome(self):
+    def atdome(self) -> salobj.Remote:
         return self.controllers.atdome
 
     @property
-    def atdometrajectory(self):
+    def atdometrajectory(self) -> salobj.Remote:
         return self.controllers.atdometrajectory
 
     @property
-    def m1_cover_state(self):
+    def m1_cover_state(self) -> ATPneumatics.MirrorCoverState:
         return ATPneumatics.MirrorCoverState(
             self.atpneumatics.evt_m1CoverState.data.state
         )
 
-    async def set_m1_cover_state(self, value):
+    async def set_m1_cover_state(self, value: int) -> None:
         await self.atpneumatics.evt_m1CoverState.set_write(state=value)
 
-    async def start_task_publish(self):
+    async def start_task_publish(self) -> None:
 
         if self.start_task.done():
             raise RuntimeError("Start task already completed.")
@@ -181,7 +182,7 @@ class ATCSMock(BaseGroupMock):
         self.atptg_telemetry_task = asyncio.create_task(self.atptg_telemetry())
         self.ataos_telemetry_task = asyncio.create_task(self.ataos_telemetry())
 
-    async def atmcs_telemetry(self):
+    async def atmcs_telemetry(self) -> None:
         while self.run_telemetry_loop:
 
             await self.atmcs.tel_mount_AzEl_Encoders.set_write(
@@ -200,13 +201,13 @@ class ATCSMock(BaseGroupMock):
 
             await asyncio.sleep(1.0)
 
-    async def atdome_telemetry(self):
+    async def atdome_telemetry(self) -> None:
         while self.run_telemetry_loop:
             await self.atdome.tel_position.set_write(azimuthPosition=self.dom_az)
             await self.atdome.evt_azimuthState.set_write(homing=self.is_dome_homming)
             await asyncio.sleep(1.0)
 
-    async def atptg_telemetry(self):
+    async def atptg_telemetry(self) -> None:
         while self.run_telemetry_loop:
             now = Time.now()
             await self.atptg.tel_timeAndDate.set_write(
@@ -216,7 +217,7 @@ class ATCSMock(BaseGroupMock):
             )
             await asyncio.sleep(1.0)
 
-    async def ataos_telemetry(self):
+    async def ataos_telemetry(self) -> None:
 
         await self.ataos.evt_correctionEnabled.set_write()
 
@@ -241,7 +242,7 @@ class ATCSMock(BaseGroupMock):
                         ).set_write(force_output=True)
             await asyncio.sleep(next(correction_times))
 
-    async def atmcs_wait_and_fault(self, wait_time):
+    async def atmcs_wait_and_fault(self, wait_time: float) -> None:
         await self.atmcs.evt_summaryState.set_write(
             summaryState=salobj.State.ENABLED, force_output=True
         )
@@ -250,7 +251,7 @@ class ATCSMock(BaseGroupMock):
             summaryState=salobj.State.FAULT, force_output=True
         )
 
-    async def atptg_wait_and_fault(self, wait_time):
+    async def atptg_wait_and_fault(self, wait_time: float) -> None:
         await self.atptg.evt_summaryState.set_write(
             summaryState=salobj.State.ENABLED, force_output=True
         )
@@ -259,7 +260,7 @@ class ATCSMock(BaseGroupMock):
             summaryState=salobj.State.FAULT, force_output=True
         )
 
-    async def open_m1_cover_callback(self, data):
+    async def open_m1_cover_callback(self, data: salobj.type_hints.BaseMsgType) -> None:
 
         if self.m1_cover_state != ATPneumatics.MirrorCoverState.CLOSED:
             raise RuntimeError(
@@ -268,7 +269,9 @@ class ATCSMock(BaseGroupMock):
 
         self.task_list.append(asyncio.create_task(self.open_m1_cover()))
 
-    async def close_m1_cover_callback(self, data):
+    async def close_m1_cover_callback(
+        self, data: salobj.type_hints.BaseMsgType
+    ) -> None:
         if self.m1_cover_state != ATPneumatics.MirrorCoverState.OPENED:
             raise RuntimeError(
                 f"M1 cover not opened. Current state is {self.m1_cover_state!r}"
@@ -276,7 +279,9 @@ class ATCSMock(BaseGroupMock):
 
         self.task_list.append(asyncio.create_task(self.close_m1_cover()))
 
-    async def open_m1_cell_vents_callback(self, data):
+    async def open_m1_cell_vents_callback(
+        self, data: salobj.type_hints.BaseMsgType
+    ) -> None:
         if (
             self.atpneumatics.evt_m1VentsPosition.data.position
             != ATPneumatics.VentsPosition.CLOSED
@@ -290,7 +295,9 @@ class ATCSMock(BaseGroupMock):
         else:
             self.task_list.append(asyncio.create_task(self.open_m1_cell_vents()))
 
-    async def close_m1_cell_vents_callback(self, data):
+    async def close_m1_cell_vents_callback(
+        self, data: salobj.type_hints.BaseMsgType
+    ) -> None:
         if (
             self.atpneumatics.evt_m1VentsPosition.data.position
             != ATPneumatics.VentsPosition.OPENED
@@ -304,23 +311,23 @@ class ATCSMock(BaseGroupMock):
         else:
             self.task_list.append(asyncio.create_task(self.close_m1_cell_vents()))
 
-    async def dome_home_callback(self, data):
+    async def dome_home_callback(self, data: salobj.type_hints.BaseMsgType) -> None:
         await asyncio.sleep(0.5)
         self.task_list.append(asyncio.create_task(self.home_dome()))
 
-    async def open_m1_cover(self):
+    async def open_m1_cover(self) -> None:
         await asyncio.sleep(0.5)
         await self.set_m1_cover_state(ATPneumatics.MirrorCoverState.INMOTION)
         await asyncio.sleep(5.0)
         await self.set_m1_cover_state(ATPneumatics.MirrorCoverState.OPENED)
 
-    async def close_m1_cover(self):
+    async def close_m1_cover(self) -> None:
         await asyncio.sleep(0.5)
         await self.set_m1_cover_state(ATPneumatics.MirrorCoverState.INMOTION)
         await asyncio.sleep(5.0)
         await self.set_m1_cover_state(ATPneumatics.MirrorCoverState.CLOSED)
 
-    async def open_m1_cell_vents(self):
+    async def open_m1_cell_vents(self) -> None:
         self.atpneumatics.evt_m1VentsPosition.set(
             position=ATPneumatics.VentsPosition.PARTIALLYOPENED
         )
@@ -329,7 +336,7 @@ class ATCSMock(BaseGroupMock):
             position=ATPneumatics.VentsPosition.OPENED
         )
 
-    async def close_m1_cell_vents(self):
+    async def close_m1_cell_vents(self) -> None:
         self.atpneumatics.evt_m1VentsPosition.set(
             position=ATPneumatics.VentsPosition.PARTIALLYOPENED
         )
@@ -338,7 +345,7 @@ class ATCSMock(BaseGroupMock):
             position=ATPneumatics.VentsPosition.CLOSED
         )
 
-    async def home_dome(self):
+    async def home_dome(self) -> None:
         print("Homing dome")
         await asyncio.sleep(0.5)
         self.is_dome_homming = True
@@ -354,7 +361,7 @@ class ATCSMock(BaseGroupMock):
         )
         self.is_dome_homming = False
 
-    async def slew_callback(self, data):
+    async def slew_callback(self, data: salobj.type_hints.BaseMsgType) -> None:
         """Fake slew waits 5 seconds, then reports all axes
         in position. Does not simulate the actual slew.
         """
@@ -369,7 +376,7 @@ class ATCSMock(BaseGroupMock):
         self.track = True
         self.task_list.append(asyncio.create_task(self.wait_and_send_inposition()))
 
-    async def move_dome(self, data):
+    async def move_dome(self, data: salobj.type_hints.BaseMsgType) -> None:
 
         print(f"Move dome {self.dom_az} -> {data.azimuth}")
         await self.atdome.evt_azimuthInPosition.set_write(
@@ -394,7 +401,7 @@ class ATCSMock(BaseGroupMock):
             inPosition=True, force_output=True
         )
 
-    async def stop_tracking_callback(self, data):
+    async def stop_tracking_callback(self, data: salobj.type_hints.BaseMsgType) -> None:
         print("Stop tracking start")
         await self.atmcs.evt_atMountState.set_write(state=ATMCS.AtMountState.STOPPING)
         await asyncio.sleep(0.5)
@@ -409,7 +416,7 @@ class ATCSMock(BaseGroupMock):
 
         print("Stop tracking end")
 
-    async def wait_and_send_inposition(self):
+    async def wait_and_send_inposition(self) -> None:
 
         await asyncio.sleep(self.slew_time)
         await self.atmcs.evt_allAxesInPosition.set_write(
@@ -424,7 +431,7 @@ class ATCSMock(BaseGroupMock):
             state=ATMCS.AtMountState.TRACKINGENABLED
         )
 
-    async def move_shutter_callback(self, data):
+    async def move_shutter_callback(self, data: salobj.type_hints.BaseMsgType) -> None:
         if data.open and self.dome_shutter_pos == 0.0:
             await self.open_shutter()
         elif not data.open and self.dome_shutter_pos == 1.0:
@@ -435,7 +442,7 @@ class ATCSMock(BaseGroupMock):
                 f"at {self.dome_shutter_pos}"
             )
 
-    async def close_shutter_callback(self, data):
+    async def close_shutter_callback(self, data: salobj.type_hints.BaseMsgType) -> None:
         if self.dome_shutter_pos == 1.0:
             await self.close_shutter()
         else:
@@ -443,7 +450,7 @@ class ATCSMock(BaseGroupMock):
                 f"Cannot close dome with dome " f"at {self.dome_shutter_pos}"
             )
 
-    async def open_shutter(self):
+    async def open_shutter(self) -> None:
         if self.atdome.evt_mainDoorState.data.state != ATDome.ShutterDoorState.CLOSED:
             raise RuntimeError(
                 f"Main door state is {self.atdome.evt_mainDoorState.data.state}. "
@@ -468,7 +475,7 @@ class ATCSMock(BaseGroupMock):
             state=ATDome.ShutterDoorState.OPENED
         )
 
-    async def close_shutter(self):
+    async def close_shutter(self) -> None:
         if self.atdome.evt_mainDoorState.data.state != ATDome.ShutterDoorState.OPENED:
             raise RuntimeError(
                 f"Main door state is {self.atdome.evt_mainDoorState.data.state}. "
@@ -493,7 +500,7 @@ class ATCSMock(BaseGroupMock):
             state=ATDome.ShutterDoorState.CLOSED
         )
 
-    async def atdome_start_callback(self, data):
+    async def atdome_start_callback(self, data: salobj.type_hints.BaseMsgType) -> None:
         """ATDome start commands do more than the generic callback."""
 
         ss = self.atdome.evt_summaryState
@@ -523,7 +530,9 @@ class ATCSMock(BaseGroupMock):
 
         await asyncio.sleep(HEARTBEAT_INTERVAL)
 
-    async def ataos_enable_corrections(self, data):
+    async def ataos_enable_corrections(
+        self, data: salobj.type_hints.BaseMsgType
+    ) -> None:
         """"""
         enable_corrections = dict()
 
@@ -532,7 +541,9 @@ class ATCSMock(BaseGroupMock):
                 enable_corrections[correction] = True
         await self.ataos.evt_correctionEnabled.set_write(**enable_corrections)
 
-    async def ataos_disable_corrections(self, data):
+    async def ataos_disable_corrections(
+        self, data: salobj.type_hints.BaseMsgType
+    ) -> None:
         """"""
         disable_corrections = dict()
 
@@ -541,7 +552,7 @@ class ATCSMock(BaseGroupMock):
                 disable_corrections[correction] = False
         await self.ataos.evt_correctionEnabled.set_write(**disable_corrections)
 
-    async def close(self):
+    async def close(self) -> None:
 
         # await all tasks created during runtime
 
@@ -556,6 +567,7 @@ class ATCSMock(BaseGroupMock):
                 self.atptg_telemetry_task,
                 self.ataos_telemetry_task,
             ):
+                assert task is not None
                 if not task.done():
                     print("Task not done. Cancelling it.")
                     task.cancel()

@@ -23,6 +23,7 @@ __all__ = [
     "get_m1m3_topic_samples_data_path",
 ]
 
+import typing
 import yaml
 import glob
 import pathlib
@@ -30,12 +31,22 @@ import pathlib
 import os.path
 
 
-def get_m1m3_topic_samples_data_path():
+def get_m1m3_topic_samples_data_path() -> pathlib.Path:
     """Return Path to the current directory."""
     return pathlib.Path(__file__).resolve().parents[0]
 
 
-def get_m1m3_topic_samples_data():
+def get_m1m3_topic_samples_data() -> typing.Dict[
+    str,
+    typing.Dict[
+        str,
+        typing.Union[
+            int,
+            float,
+            str,
+        ],
+    ],
+]:
     """Get all M1M3 topic data samples.
 
     Returns

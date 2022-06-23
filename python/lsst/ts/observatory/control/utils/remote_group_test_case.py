@@ -26,6 +26,7 @@ import asyncio
 import contextlib
 import random
 import time
+import typing
 
 from lsst.ts import utils
 from lsst.ts import salobj
@@ -54,7 +55,7 @@ class RemoteGroupTestCase(metaclass=abc.ABCMeta):
 
     _index_iter = utils.index_generator()
 
-    def run(self, result=None):
+    def run(self, result: typing.Any = None) -> None:
         """Override `run` to set a random LSST_DDS_PARTITION_PREFIX
         and set LSST_SITE=test for every test.
 
@@ -62,10 +63,10 @@ class RemoteGroupTestCase(metaclass=abc.ABCMeta):
         """
         salobj.set_random_lsst_dds_partition_prefix()
         with utils.modify_environ(LSST_SITE="test"):
-            super().run(result)
+            super().run(result)  # type: ignore
 
     @abc.abstractmethod
-    async def basic_make_group(self, usage=None):
+    async def basic_make_group(self, usage: typing.Optional[int] = None) -> None:
         """Make a group as self.group.
 
         Make all other controllers and remotes, as well
@@ -85,12 +86,17 @@ class RemoteGroupTestCase(metaclass=abc.ABCMeta):
         """
         raise NotImplementedError()
 
-    async def close(self):
+    async def close(self) -> None:
         """Optional cleanup before closing."""
         pass
 
     @contextlib.asynccontextmanager
-    async def make_group(self, timeout=MAKE_TIMEOUT, usage=None, verbose=False):
+    async def make_group(
+        self,
+        timeout: float = MAKE_TIMEOUT,
+        usage: typing.Optional[int] = None,
+        verbose: bool = False,
+    ) -> typing.AsyncGenerator:
         """Create a Group.
 
         The group is accessed as ``self.group``.
@@ -140,7 +146,9 @@ class RemoteGroupTestCase(metaclass=abc.ABCMeta):
                 verbose=verbose,
             )
 
-    async def wait_for(self, coro, timeout, description, verbose):
+    async def wait_for(
+        self, coro: typing.Awaitable, timeout: float, description: str, verbose: bool
+    ) -> typing.Any:
         """A wrapper around asyncio.wait_for that prints timing information.
 
         Parameters

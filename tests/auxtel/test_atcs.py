@@ -22,6 +22,7 @@ import copy
 import types
 import asyncio
 import logging
+import typing
 import unittest
 
 import numpy as np
@@ -42,8 +43,13 @@ from lsst.ts.observatory.control.utils import RotType
 
 
 class TestATTCS(unittest.IsolatedAsyncioTestCase):
+    log: logging.Logger
+    components_metadata: typing.Dict[str, salobj.IdlMetadata]
+    atcs: ATCS
+    track_id_gen: typing.Generator[int, None, None]
+
     @classmethod
-    def setUpClass(cls):
+    def setUpClass(cls) -> None:
         """This classmethod is only called once, when preparing the unit
         test.
         """
@@ -79,7 +85,7 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
 
         cls.track_id_gen = utils.index_generator(1)
 
-    def run(self, result=None):
+    def run(self, result: typing.Any = None) -> None:
         """Override `run` to set a random LSST_DDS_PARTITION_PREFIX
         and set LSST_SITE=test for every test.
 
@@ -89,7 +95,7 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
         with utils.modify_environ(LSST_SITE="test"):
             super().run(result)
 
-    async def asyncSetUp(self):
+    async def asyncSetUp(self) -> None:
         # Setup asyncio facilities that probably failed while setting up class
         self.atcs._create_asyncio_events()
 
@@ -388,14 +394,14 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
             "flush",
         )
 
-    def get_all_checks(self):
+    def get_all_checks(self) -> typing.Any:
         check = copy.copy(self.atcs.check)
         for comp in self.atcs.components_attr:
             setattr(check, comp, True)
 
         return check
 
-    def test_object_list_get(self):
+    def test_object_list_get(self) -> None:
 
         name = "HD 185975"
 
@@ -404,7 +410,7 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
         assert name in self.atcs._object_list
         assert object_table is not None
 
-    def test_object_list_clear(self):
+    def test_object_list_clear(self) -> None:
 
         name = "HD 185975"
 
@@ -417,7 +423,7 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
 
         assert len(self.atcs._object_list) == 0
 
-    def test_object_list_remove(self):
+    def test_object_list_remove(self) -> None:
 
         name = "HD 185975"
 
@@ -430,7 +436,7 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
 
         assert name not in self.atcs._object_list
 
-    def test_object_list_add(self):
+    def test_object_list_add(self) -> None:
 
         name = "HD 185975"
 
@@ -440,7 +446,7 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
 
         assert name in self.atcs._object_list
 
-    def test_object_list_get_from_catalog(self):
+    def test_object_list_get_from_catalog(self) -> None:
 
         self.atcs.load_catalog("hd_catalog_6th_mag")
 
@@ -462,13 +468,13 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
 
         assert len(self.atcs._object_list) == 0
 
-    def test_list_available_catalogs(self):
+    def test_list_available_catalogs(self) -> None:
 
         available_catalogs = self.atcs.list_available_catalogs()
 
         assert "hd_catalog_6th_mag" in available_catalogs
 
-    def test_load_catalog_and_clear_catalog(self):
+    def test_load_catalog_and_clear_catalog(self) -> None:
 
         # Need to clear the catalog in case it was loaded before by another
         # test
@@ -488,7 +494,7 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
         reason="Access to Simbad database is sometimes flaky.",
         raises=RuntimeError,
     )
-    async def test_find_target(self):
+    async def test_find_target(self) -> None:
 
         # Make sure it searches Simbad and not local catalog
         self.atcs.clear_catalog()
@@ -499,7 +505,7 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
 
         self.atcs.object_list_clear()
 
-    async def test_find_target_with_internal_catalog(self):
+    async def test_find_target_with_internal_catalog(self) -> None:
         # Clear catalog to make sure it was not loaded
         self.atcs.clear_catalog()
         # Load catalog
@@ -520,15 +526,15 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
 
         self.atcs.object_list_clear()
 
-    async def test_find_target_local_catalog_fail_not_loaded(self):
+    async def test_find_target_local_catalog_fail_not_loaded(self) -> None:
 
         # Clear catalog to make sure it was not loaded
         self.atcs.clear_catalog()
 
-        with pytest.raises(RuntimeError):
+        with pytest.raises(AssertionError):
             await self.atcs.find_target_local_catalog(az=-180.0, el=30.0, mag_limit=9.0)
 
-    async def test_find_target_local_catalog_fail_outside_mag_limit(self):
+    async def test_find_target_local_catalog_fail_outside_mag_limit(self) -> None:
 
         # Clear catalog to make sure it was not loaded
         self.atcs.clear_catalog()
@@ -543,7 +549,7 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
 
         assert "No target in local catalog with magnitude between" in str(excinfo.value)
 
-    async def test_find_target_local_catalog_fail_outside_radius(self):
+    async def test_find_target_local_catalog_fail_outside_radius(self) -> None:
 
         # Clear catalog to make sure it was not loaded
         self.atcs.clear_catalog()
@@ -559,7 +565,7 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
             excinfo.value
         )
 
-    async def test_find_target_local_catalog_loaded(self):
+    async def test_find_target_local_catalog_loaded(self) -> None:
 
         # Clear catalog to make sure it was not loaded
         self.atcs.clear_catalog()
@@ -578,7 +584,7 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
 
         self.atcs.object_list_clear()
 
-    async def test_slew_dome_to_check_false(self):
+    async def test_slew_dome_to_check_false(self) -> None:
 
         az = 45.0
         self.atcs.check.atdome = False
@@ -586,7 +592,7 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
         with pytest.raises(RuntimeError):
             await self.atcs.slew_dome_to(az=az)
 
-    async def test_slew_dome_to(self):
+    async def test_slew_dome_to(self) -> None:
         az = 45.0
         check = self.get_all_checks()
 
@@ -601,7 +607,7 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
             azimuth=az, timeout=self.atcs.long_long_timeout
         )
 
-    async def test_disable_dome_following_passing_check(self):
+    async def test_disable_dome_following_passing_check(self) -> None:
 
         check = self.get_all_checks()
 
@@ -611,7 +617,7 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
             enable=False, timeout=self.atcs.fast_timeout
         )
 
-    async def test_disable_dome_following_check_false(self):
+    async def test_disable_dome_following_check_false(self) -> None:
 
         original_check = copy.copy(self.atcs.check)
 
@@ -624,7 +630,7 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
         finally:
             self.atcs.check = original_check
 
-    async def test_disable_dome_following_check_true(self):
+    async def test_disable_dome_following_check_true(self) -> None:
 
         original_check = copy.copy(self.atcs.check)
 
@@ -639,7 +645,7 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
         finally:
             self.atcs.check = original_check
 
-    async def test_enable_dome_following_passing_check(self):
+    async def test_enable_dome_following_passing_check(self) -> None:
 
         check = self.get_all_checks()
 
@@ -649,7 +655,7 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
             enable=True, timeout=self.atcs.fast_timeout
         )
 
-    async def test_enable_dome_following_check_false(self):
+    async def test_enable_dome_following_check_false(self) -> None:
 
         self.atcs.check.atdometrajectory = False
 
@@ -657,7 +663,7 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
 
         self.atcs.rem.atdometrajectory.cmd_setFollowingMode.set_start.assert_not_awaited()
 
-    async def test_enable_dome_following_check_true(self):
+    async def test_enable_dome_following_check_true(self) -> None:
 
         self.atcs.check.atdometrajectory = True
 
@@ -667,7 +673,7 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
             enable=True, timeout=self.atcs.fast_timeout
         )
 
-    async def test_open_dome_shutter_when_closed(self):
+    async def test_open_dome_shutter_when_closed(self) -> None:
 
         self._atdome_evt_main_door_state.state = ATDome.ShutterDoorState.CLOSED
 
@@ -677,7 +683,7 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
             open=True, timeout=self.atcs.open_dome_shutter_time
         )
 
-    async def test_open_dome_shutter_when_open(self):
+    async def test_open_dome_shutter_when_open(self) -> None:
 
         self._atdome_evt_main_door_state.state = ATDome.ShutterDoorState.OPENED
 
@@ -685,14 +691,14 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
 
         self.atcs.rem.atdome.cmd_moveShutterMainDoor.set_start.assert_not_awaited()
 
-    async def test_open_dome_shutter_when_opening(self):
+    async def test_open_dome_shutter_when_opening(self) -> None:
 
         self._atdome_evt_main_door_state.state = ATDome.ShutterDoorState.OPENING
 
         with pytest.raises(RuntimeError):
             await self.atcs.open_dome_shutter()
 
-    async def test_close_dome_when_open(self):
+    async def test_close_dome_when_open(self) -> None:
 
         self._atdome_evt_main_door_state.state = ATDome.ShutterDoorState.OPENED
 
@@ -702,7 +708,7 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
             timeout=self.atcs.open_dome_shutter_time
         )
 
-    async def test_close_dome_when_closed(self):
+    async def test_close_dome_when_closed(self) -> None:
 
         self._atdome_evt_main_door_state.state = ATDome.ShutterDoorState.CLOSED
 
@@ -710,27 +716,27 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
 
         self.atcs.rem.atdome.cmd_closeShutter.set_start.assert_not_awaited()
 
-    async def test_close_dome_when_opening(self):
+    async def test_close_dome_when_opening(self) -> None:
 
         self._atdome_evt_main_door_state.state = ATDome.ShutterDoorState.OPENING
 
         with pytest.raises(RuntimeError):
             await self.atcs.close_dome()
 
-    async def test_assert_m1_correction_disable_when_off(self):
+    async def test_assert_m1_correction_disable_when_off(self) -> None:
 
         self._ataos_evt_correction_enabled.m1 = False
 
         await self.atcs.assert_m1_correction_disabled()
 
-    async def test_assert_m1_correction_disable_when_on(self):
+    async def test_assert_m1_correction_disable_when_on(self) -> None:
 
         self._ataos_evt_correction_enabled.m1 = True
 
         with pytest.raises(AssertionError):
             await self.atcs.assert_m1_correction_disabled()
 
-    async def test_open_m1_cover_when_cover_closed(self):
+    async def test_open_m1_cover_when_cover_closed(self) -> None:
 
         # make sure cover is closed
         self._atpneumatics_evt_m1_cover_state.state = (
@@ -762,7 +768,7 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
 
         self.atcs.rem.atptg.cmd_azElTarget.set.assert_not_called()
 
-    async def test_open_m1_cover_when_cover_closed_bellow_el_limit(self):
+    async def test_open_m1_cover_when_cover_closed_bellow_el_limit(self) -> None:
 
         # make sure cover is closed
         self._atpneumatics_evt_m1_cover_state.state = (
@@ -801,7 +807,7 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
             ),
         )
 
-    async def test_open_m1_cover_when_cover_opened(self):
+    async def test_open_m1_cover_when_cover_opened(self) -> None:
 
         # Make sure m1 cover is OPENED
         self._atpneumatics_evt_m1_cover_state.state = (
@@ -823,14 +829,14 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
         # Should not be called
         self.atcs.rem.atpneumatics.cmd_openM1Cover.start.assert_not_awaited()
 
-    async def test_open_m1_cover_when_m1_correction_enabled(self):
+    async def test_open_m1_cover_when_m1_correction_enabled(self) -> None:
 
         self._ataos_evt_correction_enabled.m1 = True
 
         with pytest.raises(AssertionError):
             await self.atcs.open_m1_cover()
 
-    async def test_close_m1_cover_when_cover_opened(self):
+    async def test_close_m1_cover_when_cover_opened(self) -> None:
 
         # make sure cover is opened
         self._atpneumatics_evt_m1_cover_state.state = (
@@ -852,7 +858,7 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
 
         self.atcs.rem.atptg.cmd_azElTarget.set.assert_not_called()
 
-    async def test_close_m1_cover_when_cover_opened_bellow_el_limit(self):
+    async def test_close_m1_cover_when_cover_opened_bellow_el_limit(self) -> None:
 
         # make sure cover is opened
         self._atpneumatics_evt_m1_cover_state.state = (
@@ -881,7 +887,7 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
             ),
         )
 
-    async def test_close_m1_cover_when_cover_closed(self):
+    async def test_close_m1_cover_when_cover_closed(self) -> None:
 
         # Make sure m1 cover is CLOSED
         self._atpneumatics_evt_m1_cover_state.state = (
@@ -893,14 +899,14 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
         # Should not be called
         self.atcs.rem.atpneumatics.cmd_closeM1Cover.start.assert_not_awaited()
 
-    async def test_close_m1_cover_when_m1_correction_enabled(self):
+    async def test_close_m1_cover_when_m1_correction_enabled(self) -> None:
 
         self._ataos_evt_correction_enabled.m1 = True
 
         with pytest.raises(AssertionError):
             await self.atcs.close_m1_cover()
 
-    async def test_open_m1_vent_when_closed(self):
+    async def test_open_m1_vent_when_closed(self) -> None:
 
         await self.atcs.open_m1_vent()
 
@@ -922,7 +928,7 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
             == ATPneumatics.VentsPosition.OPENED
         )
 
-    async def test_open_m1_vent_when_opened(self):
+    async def test_open_m1_vent_when_opened(self) -> None:
 
         self._atpneumatics_evt_m1_vents_position.position = (
             ATPneumatics.VentsPosition.OPENED
@@ -947,7 +953,7 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
             == ATPneumatics.VentsPosition.OPENED
         )
 
-    async def test_open_m1_vent_when_partiallyopened(self):
+    async def test_open_m1_vent_when_partiallyopened(self) -> None:
 
         self._atpneumatics_evt_m1_vents_position.position = (
             ATPneumatics.VentsPosition.PARTIALLYOPENED
@@ -956,14 +962,14 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
         with pytest.raises(RuntimeError):
             await self.atcs.open_m1_vent()
 
-    async def test_open_m1_vent_when_m1_correction_enabled(self):
+    async def test_open_m1_vent_when_m1_correction_enabled(self) -> None:
 
         self._ataos_evt_correction_enabled.m1 = True
 
         with pytest.raises(AssertionError):
             await self.atcs.open_m1_vent()
 
-    async def test_home_dome_pressing_home_switch(self):
+    async def test_home_dome_pressing_home_switch(self) -> None:
         """This is a test for a special condition when the dome is pressing the
         home switch.
         """
@@ -974,7 +980,7 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
 
         self.atcs.rem.atdome.cmd_homeAzimuth.start.assert_awaited()
 
-    async def test_home_dome_close_to_pressing_home_switch(self):
+    async def test_home_dome_close_to_pressing_home_switch(self) -> None:
         """This is a test for a special condition when the dome is close
         to pressing the home switch, but not exactly.
         """
@@ -991,7 +997,7 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
         for message in home_dome_log_messages.output:
             assert "WARNING" not in message
 
-    async def test_home_dome(self):
+    async def test_home_dome(self) -> None:
 
         self._atdome_position.azimuthPosition = 45
 
@@ -1006,7 +1012,7 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
         for message in home_dome_log_messages.output:
             assert "WARNING" not in message
 
-    async def test_prepare_for_flatfield(self):
+    async def test_prepare_for_flatfield(self) -> None:
 
         check = self.get_all_checks()
 
@@ -1038,7 +1044,7 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
             azimuth=self.atcs.dome_flat_az, timeout=self.atcs.long_long_timeout
         )
 
-    async def test_prepare_for_onsky(self):
+    async def test_prepare_for_onsky(self) -> None:
 
         original_check = copy.copy(self.atcs.check)
 
@@ -1071,7 +1077,7 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
             atdometreajectory_cmd_set_following_mode_expected_calls
         )
 
-    async def test_prepare_for_onsky_no_scb_link(self):
+    async def test_prepare_for_onsky_no_scb_link(self) -> None:
 
         original_check = copy.copy(self.atcs.check)
 
@@ -1084,7 +1090,7 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
         finally:
             self.atcs.check = original_check
 
-    async def test_shutdown(self):
+    async def test_shutdown(self) -> None:
 
         original_check = copy.copy(self.atcs.check)
 
@@ -1114,7 +1120,7 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
         )
         assert self._atdome_evt_main_door_state.state == ATDome.ShutterDoorState.CLOSED
 
-    async def test_set_azel_slew_checks(self):
+    async def test_set_azel_slew_checks(self) -> None:
 
         original_check = copy.copy(self.atcs.check)
 
@@ -1131,7 +1137,7 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
         for comp in {"atdome", "atdometrajectory"}:
             assert not getattr(check, comp)
 
-    async def test_enable(self):
+    async def test_enable(self) -> None:
         original_check = copy.copy(self.atcs.check)
 
         check = self.get_all_checks()
@@ -1141,7 +1147,7 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
         finally:
             self.atcs.check = original_check
 
-    async def test_enable_with_settings(self):
+    async def test_enable_with_settings(self) -> None:
         original_check = copy.copy(self.atcs.check)
 
         check = self.get_all_checks()
@@ -1153,7 +1159,7 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
         finally:
             self.atcs.check = original_check
 
-    async def test_standby(self):
+    async def test_standby(self) -> None:
         original_check = copy.copy(self.atcs.check)
 
         check = self.get_all_checks()
@@ -1163,7 +1169,7 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
         finally:
             self.atcs.check = original_check
 
-    async def test_stop_tracking(self):
+    async def test_stop_tracking(self) -> None:
 
         await self.atcs.stop_tracking()
 
@@ -1181,7 +1187,7 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
             timeout=self.atcs.fast_timeout
         )
 
-    async def test_monitor_position_dome_following_enabled(self):
+    async def test_monitor_position_dome_following_enabled(self) -> None:
 
         original_check = copy.copy(self.atcs.check)
 
@@ -1244,7 +1250,7 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
             timeout=self.atcs.fast_timeout
         )
 
-    async def test_monitor_position_dome_following_disabled(self):
+    async def test_monitor_position_dome_following_disabled(self) -> None:
 
         original_check = copy.copy(self.atcs.check)
 
@@ -1303,7 +1309,7 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
         self.atcs.rem.atdome.tel_position.next.assert_not_called()
         self.atcs.rem.atdome.evt_azimuthCommandedState.aget.assert_not_called()
 
-    async def test_slew_icrs(self):
+    async def test_slew_icrs(self) -> None:
 
         name = "HD 185975"
         ra = "20 28 18.7402"
@@ -1336,7 +1342,7 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
 
         self.atcs.rem.atptg.cmd_stopTracking.start.assert_not_awaited()
 
-    async def test_slew_object(self):
+    async def test_slew_object(self) -> None:
 
         name = "HD 185975"
 
@@ -1374,7 +1380,7 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
 
         self.atcs.rem.atptg.cmd_poriginOffset.set.assert_called_with(dx=0, dy=0, num=0)
 
-    async def test_slew_icrs_no_stop(self):
+    async def test_slew_icrs_no_stop(self) -> None:
 
         name = "HD 185975"
         ra = "20:28:18.74"
@@ -1414,7 +1420,7 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
             timeout=self.atcs.fast_timeout
         )
 
-    async def test_slew_icrs_rot(self):
+    async def test_slew_icrs_rot(self) -> None:
 
         name = "HD 185975"
         ra = "20:28:18.74"
@@ -1455,7 +1461,7 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
             timeout=self.atcs.fast_timeout
         )
 
-    async def test_slew_icrs_rot_physical(self):
+    async def test_slew_icrs_rot_physical(self) -> None:
 
         name = "HD 185975"
         ra = "20:28:18.74"
@@ -1494,7 +1500,7 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
             timeout=self.atcs.fast_timeout
         )
 
-    async def test_slew_icrs_rot_physical_sky(self):
+    async def test_slew_icrs_rot_physical_sky(self) -> None:
 
         name = "HD 185975"
         ra = "20:28:18.74"
@@ -1535,7 +1541,7 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
             timeout=self.atcs.fast_timeout
         )
 
-    async def test_slew_icrs_with_offset(self):
+    async def test_slew_icrs_with_offset(self) -> None:
 
         name = "HD 185975"
         ra = "20:28:18.74"
@@ -1581,7 +1587,7 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
             timeout=self.atcs.fast_timeout
         )
 
-    async def test_point_azel(self):
+    async def test_point_azel(self) -> None:
 
         az = 180.0
         el = 45.0
@@ -1603,7 +1609,7 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
 
         self.atcs.rem.atptg.cmd_stopTracking.start.assert_not_called()
 
-    async def test_offset_radec(self):
+    async def test_offset_radec(self) -> None:
 
         # Test offset_radec
         ra_offset, dec_offset = 10.0, -10.0
@@ -1613,7 +1619,7 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
             type=0, off1=ra_offset, off2=dec_offset, num=0
         )
 
-    async def test_offset_azel(self):
+    async def test_offset_azel(self) -> None:
 
         az_offset, el_offset = 10.0, -10.0
 
@@ -1624,7 +1630,7 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
             az=az_offset, el=el_offset, num=1
         )
 
-    async def test_offset_azel_with_defaults(self):
+    async def test_offset_azel_with_defaults(self) -> None:
 
         az_offset, el_offset = 10.0, -10.0
 
@@ -1637,7 +1643,7 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
             az=az_offset, el=el_offset, num=1
         )
 
-    async def test_offset_azel_not_relative(self):
+    async def test_offset_azel_not_relative(self) -> None:
 
         az_offset, el_offset = 10.0, -10.0
 
@@ -1650,7 +1656,7 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
             az=az_offset, el=el_offset, num=0
         )
 
-    async def test_offset_azel_relative_absorb(self):
+    async def test_offset_azel_relative_absorb(self) -> None:
 
         az_offset, el_offset = 10.0, -10.0
 
@@ -1674,7 +1680,7 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
             dx=x * self.atcs.plate_scale, dy=y * self.atcs.plate_scale, num=1
         )
 
-    async def test_offset_azel_absorb(self):
+    async def test_offset_azel_absorb(self) -> None:
 
         az_offset, el_offset = 10.0, -10.0
 
@@ -1699,7 +1705,7 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
             num=0,
         )
 
-    async def test_reset_offsets(self):
+    async def test_reset_offsets(self) -> None:
 
         await self.atcs.reset_offsets()
 
@@ -1719,7 +1725,7 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
             num=1, timeout=self.atcs.fast_timeout
         )
 
-    async def test_reset_offsets_absorbed(self):
+    async def test_reset_offsets_absorbed(self) -> None:
 
         await self.atcs.reset_offsets(absorbed=True, non_absorbed=False)
 
@@ -1733,7 +1739,7 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
 
         self.atcs.rem.atptg.cmd_offsetClear.set_start.assert_not_called()
 
-    async def test_reset_offsets_non_absorbed(self):
+    async def test_reset_offsets_non_absorbed(self) -> None:
 
         await self.atcs.reset_offsets(absorbed=False, non_absorbed=True)
 
@@ -1747,7 +1753,7 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
             num=1, timeout=self.atcs.fast_timeout
         )
 
-    async def test_offset_xy(self):
+    async def test_offset_xy(self) -> None:
 
         x_offset, y_offset = 10.0, -10.0
 
@@ -1769,7 +1775,7 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
             az=az, el=el, num=1
         )
 
-    async def test_offset_xy_with_defaults(self):
+    async def test_offset_xy_with_defaults(self) -> None:
 
         x_offset, y_offset = 10.0, -10.0
 
@@ -1791,7 +1797,7 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
             az=az, el=el, num=1
         )
 
-    async def test_offset_xy_not_relative(self):
+    async def test_offset_xy_not_relative(self) -> None:
 
         x_offset, y_offset = 10.0, -10.0
 
@@ -1813,7 +1819,7 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
             az=az, el=el, num=0
         )
 
-    async def test_offset_xy_relative_absorb(self):
+    async def test_offset_xy_relative_absorb(self) -> None:
 
         x_offset, y_offset = 10.0, -10.0
 
@@ -1826,7 +1832,7 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
             num=1,
         )
 
-    async def test_offset_xy_absorb(self):
+    async def test_offset_xy_absorb(self) -> None:
 
         x_offset, y_offset = 10.0, -10.0
 
@@ -1839,7 +1845,7 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
             num=0,
         )
 
-    async def test_open_valves(self):
+    async def test_open_valves(self) -> None:
 
         await self.atcs.open_valves()
 
@@ -1881,7 +1887,7 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
             == ATPneumatics.AirValveState.OPENED
         )
 
-    async def test_open_valve_instrument(self):
+    async def test_open_valve_instrument(self) -> None:
 
         await self.atcs.open_valve_instrument()
 
@@ -1904,7 +1910,7 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
             == ATPneumatics.AirValveState.OPENED
         )
 
-    async def test_open_valve_main(self):
+    async def test_open_valve_main(self) -> None:
 
         await self.atcs.open_valve_main()
 
@@ -1927,7 +1933,7 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
             == ATPneumatics.AirValveState.OPENED
         )
 
-    def test_check_interface_atmcs(self):
+    def test_check_interface_atmcs(self) -> None:
         self.check_topic_attribute(
             attributes={"elevationCalculatedAngle", "azimuthCalculatedAngle"},
             topic="mount_AzEl_Encoders",
@@ -1970,7 +1976,7 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
             component="ATMCS",
         )
 
-    def test_check_interface_athexapod(self):
+    def test_check_interface_athexapod(self) -> None:
 
         self.check_topic_attribute(
             attributes={"private_sndStamp"},
@@ -1978,7 +1984,7 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
             component="ATHexapod",
         )
 
-    def test_check_interface_ataos(self):
+    def test_check_interface_ataos(self) -> None:
 
         self.check_topic_attribute(
             attributes={"private_sndStamp"},
@@ -2010,7 +2016,7 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
             component="ATAOS",
         )
 
-    def test_check_interface_atdometrajectory(self):
+    def test_check_interface_atdometrajectory(self) -> None:
 
         self.check_topic_attribute(
             attributes={"enable"},
@@ -2018,7 +2024,7 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
             component="ATDomeTrajectory",
         )
 
-    def test_check_interface_atdome(self):
+    def test_check_interface_atdome(self) -> None:
 
         self.check_topic_attribute(
             attributes={"private_sndStamp"},
@@ -2074,7 +2080,7 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
             component="ATDome",
         )
 
-    def test_check_interface_atptg(self):
+    def test_check_interface_atptg(self) -> None:
 
         self.check_topic_attribute(
             attributes={
@@ -2134,7 +2140,7 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
             component="ATPtg",
         )
 
-    def test_check_interface_atpneumatics(self):
+    def test_check_interface_atpneumatics(self) -> None:
         component = "ATPneumatics"
 
         self.check_topic_attribute(
@@ -2209,57 +2215,85 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
             component=component,
         )
 
-    def check_topic_attribute(self, attributes, topic, component):
+    def check_topic_attribute(
+        self, attributes: typing.Set[str], topic: str, component: str
+    ) -> None:
         for attribute in attributes:
             assert (
                 attribute
                 in self.components_metadata[component].topic_info[topic].field_info
             )
 
-    async def get_heartbeat(self, *args, **kwargs):
+    async def get_heartbeat(
+        self, *args: typing.Any, **kwargs: typing.Any
+    ) -> types.SimpleNamespace:
         """Emulate heartbeat functionality."""
         await asyncio.sleep(1.0)
         return types.SimpleNamespace()
 
-    async def ataos_evt_correction_enabled(self, *args, **kwargs):
+    async def ataos_evt_correction_enabled(
+        self, *args: typing.Any, **kwargs: typing.Any
+    ) -> types.SimpleNamespace:
         return self._ataos_evt_correction_enabled
 
-    async def atptg_evt_focus_name_selected(self, *args, **kwargs):
+    async def atptg_evt_focus_name_selected(
+        self, *args: typing.Any, **kwargs: typing.Any
+    ) -> types.SimpleNamespace:
         return self._atptg_evt_focus_name_selected
 
-    async def atmcs_tel_mount_nasmyth_encoders(self, *args, **kwargs):
+    async def atmcs_tel_mount_nasmyth_encoders(
+        self, *args: typing.Any, **kwargs: typing.Any
+    ) -> types.SimpleNamespace:
         return self._atmcs_tel_mount_nasmyth_encoders
 
-    async def next_telescope_position(self, *args, **kwargs):
+    async def next_telescope_position(
+        self, *args: typing.Any, **kwargs: typing.Any
+    ) -> types.SimpleNamespace:
         return self._telescope_position
 
-    async def next_telescope_target(self, *args, **kwargs):
+    async def next_telescope_target(
+        self, *args: typing.Any, **kwargs: typing.Any
+    ) -> types.SimpleNamespace:
         return self._telescope_target_position
 
-    async def atdome_tel_position(self, *args, **kwargs):
+    async def atdome_tel_position(
+        self, *args: typing.Any, **kwargs: typing.Any
+    ) -> types.SimpleNamespace:
         return self._atdome_position
 
-    async def atdome_evt_azimuth_commanded_state(self, *args, **kwargs):
+    async def atdome_evt_azimuth_commanded_state(
+        self, *args: typing.Any, **kwargs: typing.Any
+    ) -> types.SimpleNamespace:
         return self._atdome_azimth_commanded_state
 
-    async def atdome_evt_azimuth_state(self, *args, **kwargs):
+    async def atdome_evt_azimuth_state(
+        self, *args: typing.Any, **kwargs: typing.Any
+    ) -> types.SimpleNamespace:
         if self._atdome_evt_azimuth_state._taken:
             raise asyncio.TimeoutError("Timeout waiting for azimuthState")
         else:
             await asyncio.sleep(0.1)
             return self._atdome_evt_azimuth_state
 
-    def atdome_evt_azimuth_state_flush(self, *args, **kwargs):
+    def atdome_evt_azimuth_state_flush(
+        self, *args: typing.Any, **kwargs: typing.Any
+    ) -> None:
         self._atdome_evt_azimuth_state._taken = True
 
-    async def atdome_evt_scb_link(self, *args, **kwargs):
+    async def atdome_evt_scb_link(
+        self, *args: typing.Any, **kwargs: typing.Any
+    ) -> types.SimpleNamespace:
         return self._atdome_evt_scb_link
 
-    async def atdome_evt_main_door_state(self, *args, **kwargs):
+    async def atdome_evt_main_door_state(
+        self, *args: typing.Any, **kwargs: typing.Any
+    ) -> types.SimpleNamespace:
         await asyncio.sleep(0.2)
         return self._atdome_evt_main_door_state
 
-    async def atdome_cmd_home_azimuth(self, *args, **kwargs):
+    async def atdome_cmd_home_azimuth(
+        self, *args: typing.Any, **kwargs: typing.Any
+    ) -> None:
         if self._atdome_position.azimuthPosition == 0.0:
             return
         else:
@@ -2267,33 +2301,41 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
             self._atdome_evt_azimuth_state.homing = True
             asyncio.create_task(self._atdome_cmd_home_azimuth())
 
-    async def atdome_cmd_move_shutter_main_door(self, *args, **kwargs):
+    async def atdome_cmd_move_shutter_main_door(
+        self, *args: typing.Any, **kwargs: typing.Any
+    ) -> None:
         asyncio.create_task(
             self._atdome_cmd_move_shutter_main_door(open=kwargs["open"])
         )
 
-    async def atdome_cmd_close_shutter(self, *args, **kwargs):
+    async def atdome_cmd_close_shutter(
+        self, *args: typing.Any, **kwargs: typing.Any
+    ) -> None:
         asyncio.create_task(self._atdome_cmd_move_shutter_main_door(open=False))
 
-    async def atdometrajectory_following_mode(self, *args, **kwargs):
+    async def atdometrajectory_following_mode(
+        self, *args: typing.Any, **kwargs: typing.Any
+    ) -> types.SimpleNamespace:
         self.log.debug(
             "Retrieving atdometrajectory dome following mode: "
             f"{self._atdometrajectory_dome_following}"
         )
         return self._atdometrajectory_dome_following
 
-    async def atdometrajectory_cmd_set_following_mode(self, enable, *args, **kwargs):
+    async def atdometrajectory_cmd_set_following_mode(
+        self, enable: bool, *args: typing.Any, **kwargs: typing.Any
+    ) -> None:
         self.log.debug(
             "Updating atdometrajectory following: "
             f"{self._atdometrajectory_dome_following.enabled} -> {enable}"
         )
         self._atdometrajectory_dome_following.enabled = enable
 
-    async def _atdome_cmd_home_azimuth(self):
+    async def _atdome_cmd_home_azimuth(self) -> None:
         await asyncio.sleep(0.2)
         self._atdome_evt_azimuth_state.homing = False
 
-    async def _atdome_cmd_move_shutter_main_door(self, open):
+    async def _atdome_cmd_move_shutter_main_door(self, open: bool) -> None:
         if (
             open
             and self._atdome_evt_main_door_state.state != ATDome.ShutterDoorState.OPENED
@@ -2309,44 +2351,67 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
             await asyncio.sleep(0.5)
             self._atdome_evt_main_door_state.state = ATDome.ShutterDoorState.CLOSED
 
-    async def atmcs_all_axes_in_position(self, *args, **kwargs):
+    async def atmcs_all_axes_in_position(
+        self, *args: typing.Any, **kwargs: typing.Any
+    ) -> types.SimpleNamespace:
         await asyncio.sleep(0.1)
         return self._atmcs_all_axes_in_position
 
-    async def atmcs_evt_at_mount_state(self, *args, **kwargs):
+    async def atmcs_evt_at_mount_state(
+        self, *args: typing.Any, **kwargs: typing.Any
+    ) -> types.SimpleNamespace:
         return self._atmcs_evt_at_mount_state
 
-    async def start_tracking(self, data, *args, **kwargs):
+    async def start_tracking(
+        self,
+        data: salobj.type_hints.BaseMsgType,
+        *args: typing.Any,
+        **kwargs: typing.Any,
+    ) -> None:
 
         self._atmcs_all_axes_in_position.inPosition = True
 
         self._atmcs_evt_at_mount_state.state = int(ATMCS.AtMountState.TRACKINGENABLED)
 
-    async def atmcs_stop_tracking(self, *args, **kwargs):
+    async def atmcs_stop_tracking(
+        self, *args: typing.Any, **kwargs: typing.Any
+    ) -> None:
 
         self._atmcs_all_axes_in_position.inPosition = False
         self._atmcs_evt_at_mount_state.state = int(ATMCS.AtMountState.TRACKINGDISABLED)
 
-    async def atpneumatics_evt_m1_cover_state(self, *args, **kwargs):
+    async def atpneumatics_evt_m1_cover_state(
+        self, *args: typing.Any, **kwargs: typing.Any
+    ) -> types.SimpleNamespace:
         await asyncio.sleep(0.1)
         return self._atpneumatics_evt_m1_cover_state
 
-    async def atpneumatics_evt_m1_vents_position(self, *args, **kwargs):
+    async def atpneumatics_evt_m1_vents_position(
+        self, *args: typing.Any, **kwargs: typing.Any
+    ) -> types.SimpleNamespace:
         await asyncio.sleep(0.1)
         return self._atpneumatics_evt_m1_vents_position
 
-    async def atpneumatics_evt_instrument_state(self, *args, **kwargs):
+    async def atpneumatics_evt_instrument_state(
+        self, *args: typing.Any, **kwargs: typing.Any
+    ) -> types.SimpleNamespace:
         await asyncio.sleep(0.1)
         return self._atpneumatics_evt_instrument_state
 
-    async def atpneumatics_evt_main_valve_state(self, *args, **kwargs):
+    async def atpneumatics_evt_main_valve_state(
+        self, *args: typing.Any, **kwargs: typing.Any
+    ) -> types.SimpleNamespace:
         await asyncio.sleep(0.1)
         return self._atpneumatics_evt_main_valve_state
 
-    async def atpneumatics_close_m1_cover(self, *args, **kwargs):
+    async def atpneumatics_close_m1_cover(
+        self, *args: typing.Any, **kwargs: typing.Any
+    ) -> None:
         asyncio.create_task(self._atpneumatics_close_m1_cover())
 
-    async def atpneumatics_open_m1_cover(self, *args, **kwargs):
+    async def atpneumatics_open_m1_cover(
+        self, *args: typing.Any, **kwargs: typing.Any
+    ) -> None:
         if (
             self._atpneumatics_evt_main_valve_state.state
             != ATPneumatics.AirValveState.OPENED
@@ -2354,7 +2419,9 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
             raise RuntimeError("Valves not opened.")
         asyncio.create_task(self._atpneumatics_open_m1_cover())
 
-    async def atpneumatics_open_m1_cell_vents(self, *args, **kwargs):
+    async def atpneumatics_open_m1_cell_vents(
+        self, *args: typing.Any, **kwargs: typing.Any
+    ) -> None:
         if (
             self._atpneumatics_evt_main_valve_state.state
             != ATPneumatics.AirValveState.OPENED
@@ -2364,16 +2431,22 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
             raise RuntimeError("Valves not opened.")
         asyncio.create_task(self._atpneumatics_open_m1_cell_vents())
 
-    async def atpneumatics_close_m1_cell_vents(self, *args, **kwargs):
+    async def atpneumatics_close_m1_cell_vents(
+        self, *args: typing.Any, **kwargs: typing.Any
+    ) -> None:
         asyncio.create_task(self._atpneumatics_close_m1_cell_vents())
 
-    async def atpneumatics_open_air_valve(self, *args, **kwargs):
+    async def atpneumatics_open_air_valve(
+        self, *args: typing.Any, **kwargs: typing.Any
+    ) -> None:
         asyncio.create_task(self._atpneumatics_open_air_valve())
 
-    async def atpneumatics_open_main_valve(self, *args, **kwargs):
+    async def atpneumatics_open_main_valve(
+        self, *args: typing.Any, **kwargs: typing.Any
+    ) -> None:
         asyncio.create_task(self._atpneumatics_open_main_valve())
 
-    async def _atpneumatics_close_m1_cover(self):
+    async def _atpneumatics_close_m1_cover(self) -> None:
         if (
             self._atpneumatics_evt_m1_cover_state.state
             == ATPneumatics.MirrorCoverState.CLOSED
@@ -2388,7 +2461,7 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
                 ATPneumatics.MirrorCoverState.CLOSED
             )
 
-    async def _atpneumatics_open_m1_cover(self):
+    async def _atpneumatics_open_m1_cover(self) -> None:
         if (
             self._atpneumatics_evt_m1_cover_state.state
             == ATPneumatics.MirrorCoverState.OPENED
@@ -2403,7 +2476,7 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
                 ATPneumatics.MirrorCoverState.OPENED
             )
 
-    async def _atpneumatics_close_m1_cell_vents(self):
+    async def _atpneumatics_close_m1_cell_vents(self) -> None:
         if (
             self._atpneumatics_evt_m1_vents_position.position
             == ATPneumatics.VentsPosition.CLOSED
@@ -2418,8 +2491,7 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
                 ATPneumatics.VentsPosition.CLOSED
             )
 
-    async def _atpneumatics_open_m1_cell_vents(self):
-        self.log.debug("Open m1 cell vents")
+    async def _atpneumatics_open_m1_cell_vents(self) -> None:
         if (
             self._atpneumatics_evt_m1_vents_position.position
             == ATPneumatics.VentsPosition.OPENED
@@ -2434,7 +2506,7 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
                 ATPneumatics.VentsPosition.OPENED
             )
 
-    async def _atpneumatics_open_air_valve(self):
+    async def _atpneumatics_open_air_valve(self) -> None:
         if (
             self._atpneumatics_evt_instrument_state.state
             == ATPneumatics.AirValveState.OPENED
@@ -2448,7 +2520,7 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
                 ATPneumatics.AirValveState.OPENED
             )
 
-    async def _atpneumatics_open_main_valve(self):
+    async def _atpneumatics_open_main_valve(self) -> None:
         if (
             self._atpneumatics_evt_main_valve_state.state
             == ATPneumatics.AirValveState.OPENED
@@ -2462,14 +2534,22 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
                 ATPneumatics.AirValveState.OPENED
             )
 
-    def get_summary_state_for(self, comp):
-        async def get_summary_state(timeout=None):
+    def get_summary_state_for(
+        self, comp: str
+    ) -> typing.Callable[[typing.Optional[float]], typing.Awaitable]:
+        async def get_summary_state(
+            timeout: typing.Optional[float] = None,
+        ) -> salobj.type_hints.BaseMsgType:
             return self.summary_state[comp]
 
         return get_summary_state
 
-    def next_summary_state_for(self, comp):
-        async def next_summary_state(flush, timeout=None):
+    def next_summary_state_for(
+        self, comp: str
+    ) -> typing.Callable[[bool, typing.Optional[float]], typing.Awaitable]:
+        async def next_summary_state(
+            flush: bool, timeout: typing.Optional[float] = None
+        ) -> salobj.type_hints.BaseMsgType:
             if flush or len(self.summary_state_queue[comp]) == 0:
                 self.summary_state_queue_event[comp].clear()
                 self.summary_state_queue[comp] = []
@@ -2480,8 +2560,10 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
 
         return next_summary_state
 
-    def set_summary_state_for(self, comp, state):
-        async def set_summary_state(*args, **kwargs):
+    def set_summary_state_for(
+        self, comp: str, state: salobj.State
+    ) -> typing.Callable[..., typing.Awaitable]:
+        async def set_summary_state(*args: typing.Any, **kwargs: typing.Any) -> None:
             self.summary_state[comp].summaryState = int(state)
             self.summary_state_queue[comp].append(
                 copy.copy(self.summary_state[comp].summaryState)

@@ -19,28 +19,18 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-__all__ = ["Target"]
+__all__ = [
+    "RotModeType",
+    "CoordFrameType",
+    "RotFrameType",
+    "WrapStrategyType",
+]
 
-from astroquery.simbad import Simbad
+import typing
+from lsst.ts.idl.enums import ATPtg, MTPtg
 
 
-class Target:
-    def __init__(self, name, ra, dec, mag_v):
-        self.name = name
-        self.ra = ra
-        self.dec = dec
-        self.mag_v = mag_v
-
-    @classmethod
-    def gen_target(cls, target_name):
-
-        simbad = Simbad()
-        simbad.add_votable_fields("flux(V)")
-        object_table = Simbad.query_object(target_name)
-
-        return cls(
-            target_name,
-            object_table["RA"][0],
-            object_table["DEC"][0],
-            object_table["FLUX_V"][0],
-        )
+RotModeType = typing.Union[ATPtg.RotMode, MTPtg.RotMode]
+CoordFrameType = typing.Union[ATPtg.CoordFrame, MTPtg.CoordFrame]
+RotFrameType = typing.Union[ATPtg.RotFrame, MTPtg.RotFrame]
+WrapStrategyType = typing.Union[ATPtg.WrapStrategy, MTPtg.WrapStrategy]

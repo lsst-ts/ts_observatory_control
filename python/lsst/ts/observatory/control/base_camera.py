@@ -22,9 +22,12 @@ __all__ = ["BaseCamera"]
 
 import abc
 import asyncio
+import logging
 import typing
 
 import astropy
+
+from lsst.ts import salobj
 
 from . import RemoteGroup
 from .utils import CameraExposure
@@ -58,13 +61,13 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
 
     def __init__(
         self,
-        components,
-        instrument_setup_attributes,
-        domain=None,
-        log=None,
-        intended_usage=None,
-        tcs_ready_to_take_data=None,
-    ):
+        components: typing.List[str],
+        instrument_setup_attributes: typing.List[str],
+        domain: typing.Optional[salobj.Domain] = None,
+        log: typing.Optional[logging.Logger] = None,
+        intended_usage: typing.Optional[int] = None,
+        tcs_ready_to_take_data: typing.Callable[[], typing.Awaitable] = None,
+    ) -> None:
 
         super().__init__(
             components=components,
@@ -103,15 +106,15 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
 
     async def take_bias(
         self,
-        nbias,
-        group_id=None,
-        test_type=None,
-        reason=None,
-        program=None,
-        sensors=None,
-        note=None,
-        checkpoint=None,
-    ):
+        nbias: int,
+        group_id: typing.Optional[str] = None,
+        test_type: typing.Optional[str] = None,
+        reason: typing.Optional[str] = None,
+        program: typing.Optional[str] = None,
+        sensors: typing.Optional[str] = None,
+        note: typing.Optional[str] = None,
+        checkpoint: typing.Optional[typing.Callable[[str], typing.Awaitable]] = None,
+    ) -> typing.List[int]:
         """Take a series of bias images.
 
         Parameters
@@ -136,6 +139,11 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
             A optional awaitable callback that accepts one string argument
             that is called before each bias is taken.
 
+        Returns
+        -------
+        `list` of `int`
+            List of exposure ids.
+
         See Also
         --------
         take_darks: Take series of darks images.
@@ -154,6 +162,9 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
             imgtype="BIAS",
             exptime=0.0,
             n=nbias,
+            n_snaps=1,
+            n_shift=None,
+            row_shift=None,
             group_id=group_id,
             test_type=test_type,
             reason=reason,
@@ -165,16 +176,16 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
 
     async def take_darks(
         self,
-        exptime,
-        ndarks,
-        group_id=None,
-        test_type=None,
-        reason=None,
-        program=None,
-        sensors=None,
-        note=None,
-        checkpoint=None,
-    ):
+        exptime: float,
+        ndarks: int,
+        group_id: typing.Optional[str] = None,
+        test_type: typing.Optional[str] = None,
+        reason: typing.Optional[str] = None,
+        program: typing.Optional[str] = None,
+        sensors: typing.Optional[str] = None,
+        note: typing.Optional[str] = None,
+        checkpoint: typing.Optional[typing.Callable[[str], typing.Awaitable]] = None,
+    ) -> typing.List[int]:
         """Take a series of dark images.
 
         Parameters
@@ -201,6 +212,11 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
             A optional awaitable callback that accepts one string argument
             that is called before each bias is taken.
 
+        Returns
+        -------
+        `list` of `int`
+            List of exposure ids.
+
         See Also
         --------
         take_bias: Take series of bias images.
@@ -219,6 +235,9 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
             imgtype="DARK",
             exptime=exptime,
             n=ndarks,
+            n_snaps=1,
+            n_shift=None,
+            row_shift=None,
             group_id=group_id,
             test_type=test_type,
             reason=reason,
@@ -230,17 +249,17 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
 
     async def take_flats(
         self,
-        exptime,
-        nflats,
-        group_id=None,
-        test_type=None,
-        reason=None,
-        program=None,
-        sensors=None,
-        note=None,
-        checkpoint=None,
-        **kwargs,
-    ):
+        exptime: float,
+        nflats: int,
+        group_id: typing.Optional[str] = None,
+        test_type: typing.Optional[str] = None,
+        reason: typing.Optional[str] = None,
+        program: typing.Optional[str] = None,
+        sensors: typing.Optional[str] = None,
+        note: typing.Optional[str] = None,
+        checkpoint: typing.Optional[typing.Callable[[str], typing.Awaitable]] = None,
+        **kwargs: typing.Union[int, float, str],
+    ) -> typing.List[int]:
         """Take a series of flat field images.
 
         Parameters
@@ -269,6 +288,11 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
         **kwargs
             Arbitrary keyword arguments.
 
+        Returns
+        -------
+        `list` of `int`
+            List of exposure ids.
+
         Notes
         -----
         This is an abstract method. To check additional inputs for instrument
@@ -295,6 +319,9 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
             imgtype="FLAT",
             exptime=exptime,
             n=nflats,
+            n_snaps=1,
+            n_shift=None,
+            row_shift=None,
             group_id=group_id,
             test_type=test_type,
             reason=reason,
@@ -307,18 +334,18 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
 
     async def take_object(
         self,
-        exptime,
-        n=1,
-        n_snaps=1,
-        group_id=None,
-        test_type=None,
-        reason=None,
-        program=None,
-        sensors=None,
-        note=None,
-        checkpoint=None,
-        **kwargs,
-    ):
+        exptime: float,
+        n: int = 1,
+        n_snaps: int = 1,
+        group_id: typing.Optional[str] = None,
+        test_type: typing.Optional[str] = None,
+        reason: typing.Optional[str] = None,
+        program: typing.Optional[str] = None,
+        sensors: typing.Optional[str] = None,
+        note: typing.Optional[str] = None,
+        checkpoint: typing.Optional[typing.Callable[[str], typing.Awaitable]] = None,
+        **kwargs: typing.Union[int, float, str],
+    ) -> typing.List[int]:
         """Take a series of object images.
 
         Object images are assumed to be looking through an open dome at the
@@ -351,6 +378,11 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
             that is called before each bias is taken.
         **kwargs
             Arbitrary keyword arguments.
+
+        Returns
+        -------
+        `list` of `int`
+            List of exposure ids.
 
         See Also
         --------
@@ -391,6 +423,8 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
             exptime=exptime,
             n=n,
             n_snaps=n_snaps,
+            n_shift=None,
+            row_shift=None,
             group_id=group_id,
             test_type=test_type,
             reason=reason,
@@ -403,17 +437,17 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
 
     async def take_engtest(
         self,
-        exptime,
-        n=1,
-        group_id=None,
-        test_type=None,
-        reason=None,
-        program=None,
-        sensors=None,
-        note=None,
-        checkpoint=None,
-        **kwargs,
-    ):
+        exptime: float,
+        n: int = 1,
+        group_id: typing.Optional[str] = None,
+        test_type: typing.Optional[str] = None,
+        reason: typing.Optional[str] = None,
+        program: typing.Optional[str] = None,
+        sensors: typing.Optional[str] = None,
+        note: typing.Optional[str] = None,
+        checkpoint: typing.Optional[typing.Callable[[str], typing.Awaitable]] = None,
+        **kwargs: typing.Union[int, float, str],
+    ) -> typing.List[int]:
         """Take a series of engineering test images.
 
         Parameters
@@ -442,6 +476,11 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
         **kwargs
             Arbitrary keyword arguments.
 
+        Returns
+        -------
+        `list` of `int`
+            List of exposure ids.
+
         See Also
         --------
         take_bias: Take series of bias images.
@@ -463,6 +502,9 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
             imgtype="ENGTEST",
             exptime=exptime,
             n=n,
+            n_snaps=1,
+            n_shift=None,
+            row_shift=None,
             group_id=group_id,
             test_type=test_type,
             reason=reason,
@@ -475,17 +517,17 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
 
     async def take_focus(
         self,
-        exptime,
-        n=1,
-        group_id=None,
-        test_type=None,
-        reason=None,
-        program=None,
-        sensors=None,
-        note=None,
-        checkpoint=None,
-        **kwargs,
-    ):
+        exptime: float,
+        n: int = 1,
+        group_id: typing.Optional[str] = None,
+        test_type: typing.Optional[str] = None,
+        reason: typing.Optional[str] = None,
+        program: typing.Optional[str] = None,
+        sensors: typing.Optional[str] = None,
+        note: typing.Optional[str] = None,
+        checkpoint: typing.Optional[typing.Callable[[str], typing.Awaitable]] = None,
+        **kwargs: typing.Union[int, float, str],
+    ) -> typing.List[int]:
         """Take images for classical focus sequence.
 
         Focus sequence consists of applying an initialy large focus offset,
@@ -523,6 +565,11 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
         **kwargs
             Arbitrary keyword arguments.
 
+        Returns
+        -------
+        `list` of `int`
+            List of exposure ids.
+
         See Also
         --------
         take_bias: Take series of bias images.
@@ -544,6 +591,9 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
             imgtype="FOCUS",
             exptime=exptime,
             n=n,
+            n_snaps=1,
+            n_shift=None,
+            row_shift=None,
             group_id=group_id,
             test_type=test_type,
             reason=reason,
@@ -556,17 +606,17 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
 
     async def take_cwfs(
         self,
-        exptime,
-        n=1,
-        group_id=None,
-        test_type=None,
-        reason=None,
-        program=None,
-        sensors=None,
-        note=None,
-        checkpoint=None,
-        **kwargs,
-    ):
+        exptime: float,
+        n: int = 1,
+        group_id: typing.Optional[str] = None,
+        test_type: typing.Optional[str] = None,
+        reason: typing.Optional[str] = None,
+        program: typing.Optional[str] = None,
+        sensors: typing.Optional[str] = None,
+        note: typing.Optional[str] = None,
+        checkpoint: typing.Optional[typing.Callable[[str], typing.Awaitable]] = None,
+        **kwargs: typing.Union[int, float, str],
+    ) -> typing.List[int]:
         """Take images for curvature wavefront sensing.
 
         Curvature wavefront sensing images are usually extremely out of focus
@@ -600,6 +650,11 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
         **kwargs
             Arbitrary keyword arguments.
 
+        Returns
+        -------
+        `list` of `int`
+            List of exposure ids.
+
         See Also
         --------
         take_bias: Take series of bias images.
@@ -621,6 +676,9 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
             imgtype="CWFS",
             exptime=exptime,
             n=n,
+            n_snaps=1,
+            n_shift=None,
+            row_shift=None,
             group_id=group_id,
             test_type=test_type,
             reason=reason,
@@ -633,17 +691,17 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
 
     async def take_acq(
         self,
-        exptime=1.0,
-        n=1,
-        group_id=None,
-        test_type=None,
-        reason=None,
-        program=None,
-        sensors=None,
-        note=None,
-        checkpoint=None,
-        **kwargs,
-    ):
+        exptime: float = 1.0,
+        n: int = 1,
+        group_id: typing.Optional[str] = None,
+        test_type: typing.Optional[str] = None,
+        reason: typing.Optional[str] = None,
+        program: typing.Optional[str] = None,
+        sensors: typing.Optional[str] = None,
+        note: typing.Optional[str] = None,
+        checkpoint: typing.Optional[typing.Callable[[str], typing.Awaitable]] = None,
+        **kwargs: typing.Union[int, float, str],
+    ) -> typing.List[int]:
         """Take acquisition images.
 
         Acquisition images are generaly used to check the position of the
@@ -680,6 +738,11 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
         **kwargs
             Arbitrary keyword arguments.
 
+        Returns
+        -------
+        `list` of `int`
+            List of exposure ids.
+
         See Also
         --------
         take_bias: Take series of bias images.
@@ -701,6 +764,9 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
             imgtype="ACQ",
             exptime=exptime,
             n=n,
+            n_snaps=1,
+            n_shift=None,
+            row_shift=None,
             group_id=group_id,
             test_type=test_type,
             reason=reason,
@@ -713,19 +779,19 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
 
     async def take_stuttered(
         self,
-        exptime,
-        n_shift,
-        row_shift,
-        n=1,
-        group_id=None,
-        test_type=None,
-        reason=None,
-        program=None,
-        sensors=None,
-        note=None,
-        checkpoint=None,
-        **kwargs,
-    ):
+        exptime: float,
+        n_shift: int,
+        row_shift: int,
+        n: int = 1,
+        group_id: typing.Optional[str] = None,
+        test_type: typing.Optional[str] = None,
+        reason: typing.Optional[str] = None,
+        program: typing.Optional[str] = None,
+        sensors: typing.Optional[str] = None,
+        note: typing.Optional[str] = None,
+        checkpoint: typing.Optional[typing.Callable[[str], typing.Awaitable]] = None,
+        **kwargs: typing.Union[int, float, str],
+    ) -> typing.List[int]:
         """Take stuttered images.
 
         Stuttered image consists of starting an acquisition "manually", then
@@ -765,6 +831,11 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
         **kwargs
             Arbitrary keyword arguments.
 
+        Returns
+        -------
+        `list` of `int`
+            List of exposure ids.
+
         See Also
         --------
         take_bias: Take series of bias images.
@@ -788,6 +859,7 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
             imgtype="STUTTERED",
             exptime=exptime,
             n=n,
+            n_snaps=1,
             n_shift=n_shift,
             row_shift=row_shift,
             group_id=group_id,
@@ -802,21 +874,21 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
 
     async def take_imgtype(
         self,
-        imgtype,
-        exptime,
-        n,
-        n_snaps=1,
-        n_shift=None,
-        row_shift=None,
-        group_id=None,
-        test_type=None,
-        reason=None,
-        program=None,
-        sensors=None,
-        note=None,
-        checkpoint=None,
-        **kwargs,
-    ):
+        imgtype: str,
+        exptime: float,
+        n: int,
+        n_snaps: int = 1,
+        n_shift: typing.Optional[int] = None,
+        row_shift: typing.Optional[int] = None,
+        group_id: typing.Optional[str] = None,
+        test_type: typing.Optional[str] = None,
+        reason: typing.Optional[str] = None,
+        program: typing.Optional[str] = None,
+        sensors: typing.Optional[str] = None,
+        note: typing.Optional[str] = None,
+        checkpoint: typing.Optional[typing.Callable[[str], typing.Awaitable]] = None,
+        **kwargs: typing.Union[int, float, str],
+    ) -> typing.List[int]:
         """Take a series of images of the specified image type.
 
         Parameters
@@ -848,6 +920,11 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
             that is called before each bias is taken.
         **kwargs
             Arbitrary keyword arguments.
+
+        Returns
+        -------
+        `list` of `int`
+            List of exposure ids.
 
         See Also
         --------
@@ -922,18 +999,22 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
 
         return await self.expose(camera_exposure=camera_exposure)
 
-    def check_kwargs(self, **kwags):
+    def check_kwargs(self, **kwargs: typing.Union[int, float, str]) -> None:
         """Utility method to verify that kwargs are in
         `self.instrument_setup_attributes`.
+
+        Parameters
+        ----------
+        **kwargs
+            Optional keyword,value pair.
 
         Raises
         ------
         RuntimeError:
             If keyword in kwargs is not in `self.instrument_setup_attributes.`
-
         """
 
-        for key in kwags:
+        for key in kwargs:
             if key not in self.instrument_setup_attributes:
                 raise RuntimeError(
                     f"Invalid argument {key}."
@@ -942,12 +1023,12 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
 
     @property
     @abc.abstractmethod
-    def camera(self):
+    def camera(self) -> salobj.Remote:
         """Camera remote."""
         raise NotImplementedError()
 
     @abc.abstractmethod
-    async def setup_instrument(self, **kwargs):
+    async def setup_instrument(self, **kwargs: typing.Union[int, float, str]) -> None:
         """Generic method called during `take_imgtype` to setup instrument.
 
         Parameters
@@ -972,7 +1053,7 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
         raise NotImplementedError()
 
     @abc.abstractmethod
-    async def get_available_instrument_setup(self):
+    async def get_available_instrument_setup(self) -> typing.Any:
         """Return available instrument setup.
 
         See Also
@@ -981,7 +1062,7 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
         """
         raise NotImplementedError()
 
-    async def expose(self, camera_exposure: CameraExposure):
+    async def expose(self, camera_exposure: CameraExposure) -> typing.List[int]:
         """Encapsulates the take image command.
 
         This basically consists of configuring and sending a takeImages
@@ -994,8 +1075,8 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
 
         Returns
         -------
-        endReadout : ``self.atcam.evt_endReadout.DataType``
-            End readout event data.
+        exp_ids : `list` of `int`
+            List of exposure ids.
 
         See Also
         --------
@@ -1115,7 +1196,7 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
         self.camera.evt_endReadout.flush()
         await self.camera.cmd_takeImages.start(timeout=take_images_timeout)
 
-        exp_ids = []
+        exp_ids: typing.List[int] = []
 
         for _ in range(camera_exposure.n_snaps):
             try:
@@ -1157,6 +1238,8 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
         exp_ids = []
 
         key_value_map = camera_exposure.get_key_value_map()
+
+        assert type(camera_exposure.n_shift) is int
 
         try:
             for i in range(camera_exposure.n):
@@ -1203,6 +1286,8 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
         camera_exposure : CameraExposure
         """
 
+        assert type(camera_exposure.n_shift) is int
+
         for i in range(camera_exposure.n_shift - 1):
             self.log.debug(
                 f"Exposing {i+1} of {camera_exposure.n_shift} for {camera_exposure.exp_time} seconds."
@@ -1238,7 +1323,7 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
         return int((yyyymmdd + seq_num[1:]))
 
     @staticmethod
-    def next_group_id():
+    def next_group_id() -> str:
         """Get the next group ID.
 
         The group ID is the current TAI date and time as a string in ISO
@@ -1259,12 +1344,12 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
         return astropy.time.Time.now().tai.isot
 
     @abc.abstractmethod
-    def parse_sensors(self, sensors):
+    def parse_sensors(self, sensors: typing.Union[str, None]) -> str:
         """Parse input sensors.
 
         Parameters
         ----------
-        sensors : `str`
+        sensors : `str` or `None`
             A colon delimited list of sensor names to use for the image.
 
         Returns

@@ -22,19 +22,23 @@ __all__ = [
     "calculate_parallactic_angle",
     "handle_exception_in_dict_items",
     "get_catalogs_path",
+    "cast_int_or_str",
 ]
 
 import pathlib
+import typing
 
 import numpy as np
 
 import astropy.units as u
-from astropy.coordinates import Angle
+from astropy.coordinates import Angle, EarthLocation, ICRS
 
 from .. import catalogs
 
 
-def calculate_parallactic_angle(location, lst, target):
+def calculate_parallactic_angle(
+    location: EarthLocation, lst: Angle, target: ICRS
+) -> Angle:
     """
     Calculate the parallactic angle.
 
@@ -81,8 +85,9 @@ def calculate_parallactic_angle(location, lst, target):
 
 
 def handle_exception_in_dict_items(
-    input_dict, message="Exceptions in the following items"
-):
+    input_dict: typing.Dict[str, typing.Any],
+    message: str = "Exceptions in the following items",
+) -> None:
     """Handle execeptions in dictionary items."""
 
     exception_keys = [
@@ -93,7 +98,7 @@ def handle_exception_in_dict_items(
         raise RuntimeError(f"{message}: {exception_keys}")
 
 
-def get_catalogs_path():
+def get_catalogs_path() -> pathlib.Path:
     """Return the path to the internal catalog directory.
 
     Returns
@@ -102,3 +107,19 @@ def get_catalogs_path():
         Path to catalogs directory.
     """
     return pathlib.Path(catalogs.__file__).resolve().parent
+
+
+def cast_int_or_str(value: typing.Any) -> typing.Union[int, str]:
+    """Return an int or a string.
+
+    Parameters
+    ----------
+    value : `int` or `str`
+        A value to be cast as integer or string.
+
+    Returns
+    -------
+    `int` or `str`
+        Recasted value.
+    """
+    return int(value) if type(value) is int else str(value)
