@@ -6,6 +6,12 @@
 Version History
 ###############
 
+v0.20.0
+-------
+
+* Update build configuration to use ``pyproject.toml``.
+* Implement type-checking in the entire package.
+
 v0.19.0
 -------
 

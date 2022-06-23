@@ -24,12 +24,15 @@ import types
 import asyncio
 import logging
 import functools
+import typing
 
 from lsst.ts import salobj
 
 LONG_TIMEOUT = 30  # seconds
 HEARTBEAT_INTERVAL = 1  # seconds
 CLOSE_SLEEP = 5  # seconds
+
+TBaseGroupMock = typing.TypeVar("TBaseGroupMock", bound="BaseGroupMock")
 
 
 class BaseGroupMock:
@@ -54,13 +57,15 @@ class BaseGroupMock:
 
     """
 
-    def __init__(self, components, output_only=()):
+    def __init__(
+        self, components: typing.List[str], output_only: typing.Iterable[str] = ()
+    ) -> None:
 
         self.log = logging.getLogger(type(self).__name__)
 
         self._components = components
 
-        self.components = [comp.lower() for comp in self._components]
+        self.components = tuple([comp.lower() for comp in self._components])
 
         _controllers = {}
         self._component_names = set()
@@ -88,9 +93,9 @@ class BaseGroupMock:
 
         self.controllers = types.SimpleNamespace(**_controllers)
 
-        self.overrides = {}
+        self.overrides: typing.Dict[str, str] = {}
 
-        self.override = {}
+        self.override: typing.Dict[str, str] = {}
 
         for comp in self.component_names:
             if comp not in self._output_only:
@@ -128,17 +133,19 @@ class BaseGroupMock:
                     getattr(self.controllers, comp), f"cmd_{cmd}"
                 ).callback = self.generic_raise_callback
 
-        self.start_task = asyncio.create_task(self.start_task_publish())
+        self.start_task: typing.Union[
+            asyncio.Task, asyncio.Future
+        ] = asyncio.create_task(self.start_task_publish())
 
         self.run_telemetry_loop = False
 
-        self.task_list = []
+        self.task_list: typing.List[asyncio.Task] = []
 
         self.check_done_lock = asyncio.Lock()
 
-        self.done_task = asyncio.Future()
+        self.done_task: asyncio.Future = asyncio.Future()
 
-    async def start_task_publish(self):
+    async def start_task_publish(self) -> None:
 
         self.run_telemetry_loop = True
 
@@ -170,16 +177,18 @@ class BaseGroupMock:
                     asyncio.create_task(self.publish_heartbeats_for(comp))
                 )
 
-    async def generic_callback(self, data):
+    async def generic_callback(self, data: salobj.type_hints.BaseMsgType) -> None:
         await asyncio.sleep(HEARTBEAT_INTERVAL)
 
-    async def generic_raise_callback(self, data):
+    async def generic_raise_callback(self, data: salobj.type_hints.BaseMsgType) -> None:
         """A generic callback function that will raise an exception if
         called.
         """
         raise RuntimeError("This command should not be called.")
 
-    async def get_start_callback(self, data, comp):
+    async def get_start_callback(
+        self, data: salobj.type_hints.BaseMsgType, comp: str
+    ) -> None:
         ss = getattr(self.controllers, comp).evt_summaryState
 
         if ss.data.summaryState != salobj.State.STANDBY:
@@ -199,7 +208,9 @@ class BaseGroupMock:
 
         await asyncio.sleep(HEARTBEAT_INTERVAL)
 
-    async def get_enable_callback(self, data, comp):
+    async def get_enable_callback(
+        self, data: salobj.type_hints.BaseMsgType, comp: str
+    ) -> None:
         ss = getattr(self.controllers, comp).evt_summaryState
 
         if ss.data.summaryState != salobj.State.DISABLED:
@@ -216,7 +227,9 @@ class BaseGroupMock:
 
         await asyncio.sleep(HEARTBEAT_INTERVAL)
 
-    async def get_disable_callback(self, data, comp):
+    async def get_disable_callback(
+        self, data: salobj.type_hints.BaseMsgType, comp: str
+    ) -> None:
         ss = getattr(self.controllers, comp).evt_summaryState
 
         if ss.data.summaryState != salobj.State.ENABLED:
@@ -232,7 +245,9 @@ class BaseGroupMock:
 
         await asyncio.sleep(HEARTBEAT_INTERVAL)
 
-    async def get_standby_callback(self, data, comp):
+    async def get_standby_callback(
+        self, data: salobj.type_hints.BaseMsgType, comp: str
+    ) -> None:
         ss = getattr(self.controllers, comp).evt_summaryState
 
         if ss.data.summaryState not in (salobj.State.DISABLED, salobj.State.FAULT):
@@ -249,7 +264,9 @@ class BaseGroupMock:
 
         await asyncio.sleep(HEARTBEAT_INTERVAL)
 
-    async def get_exitControl_callback(self, data, comp):
+    async def get_exitControl_callback(
+        self, data: salobj.type_hints.BaseMsgType, comp: str
+    ) -> None:
 
         ss = getattr(self.controllers, comp).evt_summaryState
 
@@ -269,7 +286,9 @@ class BaseGroupMock:
 
         await asyncio.sleep(HEARTBEAT_INTERVAL)
 
-    async def get_enterControl_callback(self, data, comp):
+    async def get_enterControl_callback(
+        self, data: salobj.type_hints.BaseMsgType, comp: str
+    ) -> None:
 
         ss = getattr(self.controllers, comp).evt_summaryState
 
@@ -287,7 +306,9 @@ class BaseGroupMock:
 
         await asyncio.sleep(HEARTBEAT_INTERVAL)
 
-    async def publish_detailed_state(self, component, detailed_state):
+    async def publish_detailed_state(
+        self, component: str, detailed_state: salobj.type_hints.BaseMsgType
+    ) -> None:
 
         if hasattr(getattr(self.controllers, component), "evt_detailedState"):
             try:
@@ -297,7 +318,7 @@ class BaseGroupMock:
             except Exception:
                 self.log.exception(f"Cannot publish detailed state for {component}.")
 
-    async def check_done(self):
+    async def check_done(self) -> None:
         """If all CSCs are in OFFLINE state, close group mock."""
 
         async with self.check_done_lock:
@@ -314,24 +335,24 @@ class BaseGroupMock:
                 if not self.done_task.done():
                     self.done_task.set_result(None)
 
-    async def publish_heartbeats_for(self, comp):
+    async def publish_heartbeats_for(self, comp: str) -> None:
         while self.run_telemetry_loop:
             await getattr(self.controllers, comp).evt_heartbeat.write()
             await asyncio.sleep(HEARTBEAT_INTERVAL)
 
     @property
-    def component_names(self):
+    def component_names(self) -> typing.Set[str]:
         return self._component_names
 
     @property
-    def output_only(self):
+    def output_only(self) -> typing.Set[str]:
         return self._output_only
 
-    async def close(self):
+    async def close(self) -> None:
 
         self.run_telemetry_loop = False
 
-        task_list = []
+        task_list: typing.List[asyncio.Task] = []
 
         try:
             print(f"Closing: {len(self.task_list)} tasks to wait.")
@@ -359,16 +380,16 @@ class BaseGroupMock:
                 self.log.error("Exception in task.")
                 raise task
 
-    async def __aenter__(self):
+    async def __aenter__(self: TBaseGroupMock) -> TBaseGroupMock:
         return self
 
-    async def __aexit__(self, *args):
+    async def __aexit__(self, *args: typing.Any) -> None:
         await self.close()
 
     @classmethod
-    async def amain(cls):
+    async def amain(cls) -> None:
         """Make a group mock and run it."""
         print(f"Starting {cls.__name__} controller")
-        async with cls() as csc:
+        async with cls() as csc:  # type: ignore # noqa
             print(f"{cls.__name__} controller running.")
             await csc.done_task

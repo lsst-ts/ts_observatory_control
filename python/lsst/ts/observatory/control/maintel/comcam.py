@@ -21,6 +21,10 @@
 __all__ = ["ComCam", "ComCamUsages"]
 
 import asyncio
+import logging
+import typing
+
+from lsst.ts import salobj
 
 from ..remote_group import Usages, UsagesResources
 from ..base_camera import BaseCamera
@@ -43,7 +47,7 @@ class ComCamUsages(Usages):
     TakeImage = 1 << 3
     TakeImageFull = 1 << 4
 
-    def __iter__(self):
+    def __iter__(self) -> typing.Iterator[int]:
 
         return iter(
             [
@@ -73,8 +77,12 @@ class ComCam(BaseCamera):
     """
 
     def __init__(
-        self, domain=None, log=None, intended_usage=None, tcs_ready_to_take_data=None
-    ):
+        self,
+        domain: typing.Optional[salobj.Domain] = None,
+        log: typing.Optional[logging.Logger] = None,
+        intended_usage: typing.Optional[int] = None,
+        tcs_ready_to_take_data: typing.Callable[[], typing.Awaitable] = None,
+    ) -> None:
 
         super().__init__(
             components=["CCCamera", "CCHeaderService", "CCOODS"],
@@ -95,17 +103,17 @@ class ComCam(BaseCamera):
 
     async def take_spot(
         self,
-        exptime,
-        n=1,
-        group_id=None,
-        test_type=None,
-        reason=None,
-        program=None,
-        sensors=None,
-        note=None,
-        checkpoint=None,
-        **kwargs,
-    ):
+        exptime: float,
+        n: int = 1,
+        group_id: typing.Optional[str] = None,
+        test_type: typing.Optional[str] = None,
+        reason: typing.Optional[str] = None,
+        program: typing.Optional[str] = None,
+        sensors: typing.Optional[str] = None,
+        note: typing.Optional[str] = None,
+        checkpoint: typing.Optional[typing.Callable[[str], typing.Awaitable]] = None,
+        **kwargs: typing.Union[int, float, str],
+    ) -> typing.List[int]:
         """Take a series of spot test images.
 
         Parameters
@@ -139,6 +147,9 @@ class ComCam(BaseCamera):
             imgtype="SPOT",
             exptime=exptime,
             n=n,
+            n_snaps=1,
+            n_shift=None,
+            row_shift=None,
             group_id=group_id,
             test_type=test_type,
             reason=reason,
@@ -150,11 +161,11 @@ class ComCam(BaseCamera):
         )
 
     @property
-    def camera(self):
+    def camera(self) -> salobj.Remote:
         """Camera remote."""
         return self.rem.cccamera
 
-    def parse_sensors(self, sensors):
+    def parse_sensors(self, sensors: typing.Union[str, None]) -> str:
         """Parse input sensors.
 
         Parameters
@@ -169,7 +180,7 @@ class ComCam(BaseCamera):
         """
         return "" if sensors is None else sensors
 
-    async def setup_instrument(self, **kwargs):
+    async def setup_instrument(self, **kwargs: typing.Union[int, float, str]) -> None:
         """Implements abstract method to setup instrument.
 
         This method will call `setup_filter` to set the camera filter.
@@ -192,9 +203,13 @@ class ComCam(BaseCamera):
         expose: Low level expose method.
         """
         self.check_kwargs(**kwargs)
-        await self.setup_filter(filter=kwargs.get("filter", None))
 
-    async def setup_filter(self, filter):
+        if "filter" in kwargs and kwargs["filter"] is not None:
+            await self.setup_filter(filter=str(kwargs["filter"]))
+
+    async def setup_filter(
+        self, filter: typing.Union[str, None]
+    ) -> typing.Union[None, salobj.type_hints.BaseMsgType]:
         """Setup the filter for the camera.
 
         Parameters
@@ -221,7 +236,7 @@ class ComCam(BaseCamera):
         else:
             return None
 
-    async def get_current_filter(self):
+    async def get_current_filter(self) -> str:
         """Get the current filter.
 
         Returns
@@ -240,7 +255,7 @@ class ComCam(BaseCamera):
                 "data is not working properly."
             )
 
-    async def get_available_filters(self):
+    async def get_available_filters(self) -> typing.List[str]:
         """Get the list of available filters.
 
         Returns
@@ -259,7 +274,7 @@ class ComCam(BaseCamera):
                 "data is not working properly."
             )
 
-    async def get_available_instrument_setup(self):
+    async def get_available_instrument_setup(self) -> typing.List[str]:
         """Return available instrument setup.
 
         See Also
@@ -269,7 +284,7 @@ class ComCam(BaseCamera):
         return await self.get_available_filters()
 
     @property
-    def valid_use_cases(self):
+    def valid_use_cases(self) -> ComCamUsages:
         """Returns valid usages.
 
         Returns
@@ -280,7 +295,7 @@ class ComCam(BaseCamera):
         return ComCamUsages()
 
     @property
-    def usages(self):
+    def usages(self) -> typing.Dict[int, UsagesResources]:
 
         if self._usages is None:
 

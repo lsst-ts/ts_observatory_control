@@ -19,6 +19,7 @@
 # You should have received a copy of the GNU General Public License
 
 from dataclasses import dataclass
+import typing
 
 
 @dataclass
@@ -31,20 +32,20 @@ class CameraExposure:
     group_id: str
     n: int
     n_snaps: int
-    n_shift: int
-    row_shift: int
-    test_type: str
-    reason: str
-    program: str
-    sensors: str
-    note: str
+    n_shift: typing.Union[int, None]
+    row_shift: typing.Union[int, None]
+    test_type: typing.Union[str, None]
+    reason: typing.Union[str, None]
+    program: typing.Union[str, None]
+    sensors: typing.Union[str, None]
+    note: typing.Union[str, None]
 
     def get_key_value_map(self) -> str:
         """Parse inputs into a valid key-value string for the cameras.
 
         Returns
         -------
-        key_value_map : str
+        key_value_map : `str`
             Key value map for camera exposure.
         """
 
@@ -69,7 +70,7 @@ class CameraExposure:
 
         Returns
         -------
-        bool
+        `bool`
             True if image type is STUTTERED.
         """
         return self.image_type == "STUTTERED"
@@ -79,27 +80,35 @@ class CameraExposure:
 
         Returns
         -------
-        int
+        `int`
             n_shift if image type is STUTTERED, else 0.
         """
-        return self.n_shift if self.is_stutter() else 0
+        if self.is_stutter():
+            assert self.n_shift is not None
+            return self.n_shift
+        else:
+            return 0
 
     def get_row_shift(self) -> int:
         """Return valid row_shift.
 
         Returns
         -------
-        int
+        `int`
             row_shift if image type is STUTTERED, else 0.
         """
-        return self.row_shift if self.is_stutter() else 0
+        if self.is_stutter():
+            assert self.row_shift is not None
+            return self.row_shift
+        else:
+            return 0
 
     def get_stutter_delay(self) -> float:
         """Return the stutter image delay.
 
         Returns
         -------
-        float
+        `float`
             The stutter image delay if image type is STUTTERED, else 0
         """
         return self.exp_time if self.is_stutter() else 0.0

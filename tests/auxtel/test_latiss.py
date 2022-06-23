@@ -18,6 +18,7 @@
 #
 # You should have received a copy of the GNU General Public License
 import asyncio
+import typing
 import unittest
 
 import pytest
@@ -33,13 +34,13 @@ class FakeATCS:
     LATISS.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._future = make_done_future()
-        self._future_task = None
+        self._future_task: typing.Union[None, asyncio.Task] = None
         self.fail = False
         self.called = 0
 
-    def ready_to_take_data(self):
+    def ready_to_take_data(self) -> None:
         if self._future.done():
             self.called += 1
             self._future = asyncio.Future()
@@ -50,19 +51,21 @@ class FakeATCS:
 
         return self._future
 
-    async def wait_and_set_future(self):
+    async def wait_and_set_future(self) -> None:
         await asyncio.sleep(5.0)
         if not self._future.done():
             self._future.set_result(True)
 
-    async def wait_and_fail_future(self):
+    async def wait_and_fail_future(self) -> None:
         await asyncio.sleep(5.0)
         if not self._future.done():
             self._future.set_exception(RuntimeError("Failed."))
 
 
 class TestLATISS(RemoteGroupTestCase, unittest.IsolatedAsyncioTestCase):
-    async def basic_make_group(self, usage=None):
+    async def basic_make_group(
+        self, usage: typing.Optional[int] = None
+    ) -> typing.Tuple[LATISS, LATISSMock]:
         self.atcs = FakeATCS()
         self.latiss_remote = LATISS(
             intended_usage=usage, tcs_ready_to_take_data=self.atcs.ready_to_take_data
@@ -70,7 +73,7 @@ class TestLATISS(RemoteGroupTestCase, unittest.IsolatedAsyncioTestCase):
         self.latiss_mock = LATISSMock()
         return self.latiss_remote, self.latiss_mock
 
-    async def test_take_bias(self):
+    async def test_take_bias(self) -> None:
 
         async with self.make_group(usage=LATISSUsages.TakeImage):
 
@@ -89,7 +92,7 @@ class TestLATISS(RemoteGroupTestCase, unittest.IsolatedAsyncioTestCase):
             assert self.latiss_mock.latiss_grating is None
             assert self.latiss_mock.latiss_filter is None
 
-    async def test_take_bias_additional_keywords(self):
+    async def test_take_bias_additional_keywords(self) -> None:
 
         async with self.make_group(usage=LATISSUsages.TakeImage):
 
@@ -164,7 +167,7 @@ class TestLATISS(RemoteGroupTestCase, unittest.IsolatedAsyncioTestCase):
                 == f"BIAS:{group_id}:LBIAS:0:0:0.0:DAYLIGHT CALIB:CALIB"
             )
 
-    async def test_take_darks(self):
+    async def test_take_darks(self) -> None:
         async with self.make_group(usage=LATISSUsages.TakeImage):
             ndarks = 4
             exptime = 1.0
@@ -181,7 +184,7 @@ class TestLATISS(RemoteGroupTestCase, unittest.IsolatedAsyncioTestCase):
             assert self.latiss_mock.latiss_grating is None
             assert self.latiss_mock.latiss_filter is None
 
-    async def test_take_darks_additional_keywords(self):
+    async def test_take_darks_additional_keywords(self) -> None:
 
         async with self.make_group(usage=LATISSUsages.TakeImage):
 
@@ -261,7 +264,7 @@ class TestLATISS(RemoteGroupTestCase, unittest.IsolatedAsyncioTestCase):
                 == f"DARK:{group_id}:LDARK:0:0:0.0:DAYLIGHT CALIB:CALIB"
             )
 
-    async def test_take_flats(self):
+    async def test_take_flats(self) -> None:
         async with self.make_group(usage=LATISSUsages.TakeImage + LATISSUsages.Setup):
             nflats = 4
             exptime = 1.0
@@ -301,7 +304,7 @@ class TestLATISS(RemoteGroupTestCase, unittest.IsolatedAsyncioTestCase):
             assert current_grating == grating_name
             assert current_stage_pos == linear_stage
 
-    async def test_take_flats_additional_keywords(self):
+    async def test_take_flats_additional_keywords(self) -> None:
 
         async with self.make_group(usage=LATISSUsages.TakeImage):
 
@@ -381,7 +384,7 @@ class TestLATISS(RemoteGroupTestCase, unittest.IsolatedAsyncioTestCase):
                 == f"FLAT:{group_id}:LFLAT:0:0:0.0:DAYLIGHT CALIB:CALIB"
             )
 
-    async def test_take_object(self):
+    async def test_take_object(self) -> None:
         async with self.make_group(usage=LATISSUsages.TakeImage + LATISSUsages.Setup):
 
             nobj = 4
@@ -473,7 +476,7 @@ class TestLATISS(RemoteGroupTestCase, unittest.IsolatedAsyncioTestCase):
             # take_object when synchronization is configured.
             assert self.atcs.called == 2
 
-    async def test_take_object_additional_keywords(self):
+    async def test_take_object_additional_keywords(self) -> None:
 
         async with self.make_group(usage=LATISSUsages.TakeImage):
 
@@ -556,7 +559,7 @@ class TestLATISS(RemoteGroupTestCase, unittest.IsolatedAsyncioTestCase):
                 == f"OBJECT:{group_id}:LOBJECT:0:0:0.0:UNIT TEST:UTEST"
             )
 
-    async def test_take_engtest_additional_keywords(self):
+    async def test_take_engtest_additional_keywords(self) -> None:
 
         async with self.make_group(usage=LATISSUsages.TakeImage):
 
@@ -641,7 +644,7 @@ class TestLATISS(RemoteGroupTestCase, unittest.IsolatedAsyncioTestCase):
                 == f"ENGTEST:{group_id}:LENGTEST:0:0:0.0:UNIT TEST:UTEST"
             )
 
-    async def test_instrument_parameters(self):
+    async def test_instrument_parameters(self) -> None:
         async with self.make_group(usage=LATISSUsages.TakeImage):
             valid_keywords = ["filter", "grating", "linear_stage"]
 
@@ -663,7 +666,7 @@ class TestLATISS(RemoteGroupTestCase, unittest.IsolatedAsyncioTestCase):
                     with pytest.raises(RuntimeError):
                         self.latiss_remote.check_kwargs(**{key: "test"})
 
-    async def test_take_focus(self):
+    async def test_take_focus(self) -> None:
         async with self.make_group(usage=LATISSUsages.TakeImage):
             group_id = self.latiss_remote.next_group_id()
 
@@ -678,7 +681,7 @@ class TestLATISS(RemoteGroupTestCase, unittest.IsolatedAsyncioTestCase):
                 additional_values=f"FOCUS:{group_id}:FOCUS:0:0:0.0",
             )
 
-    async def test_take_cwfs(self):
+    async def test_take_cwfs(self) -> None:
         async with self.make_group(usage=LATISSUsages.TakeImage):
             group_id = self.latiss_remote.next_group_id()
 
@@ -693,7 +696,7 @@ class TestLATISS(RemoteGroupTestCase, unittest.IsolatedAsyncioTestCase):
                 additional_values=f"CWFS:{group_id}:CWFS:0:0:0.0",
             )
 
-    async def test_take_acq(self):
+    async def test_take_acq(self) -> None:
         async with self.make_group(usage=LATISSUsages.TakeImage):
             group_id = self.latiss_remote.next_group_id()
 
@@ -708,7 +711,7 @@ class TestLATISS(RemoteGroupTestCase, unittest.IsolatedAsyncioTestCase):
                 additional_values=f"ACQ:{group_id}:ACQ:0:0:0.0",
             )
 
-    async def test_take_stuttered(self):
+    async def test_take_stuttered(self) -> None:
         async with self.make_group(usage=LATISSUsages.TakeImage):
             group_id = self.latiss_remote.next_group_id()
 
@@ -725,7 +728,9 @@ class TestLATISS(RemoteGroupTestCase, unittest.IsolatedAsyncioTestCase):
                 additional_values=f"STUTTERED:{group_id}:STUTTERED:100:20:1.0",
             )
 
-    def assert_last_end_readout(self, additional_keys, additional_values):
+    def assert_last_end_readout(
+        self, additional_keys: str, additional_values: str
+    ) -> None:
 
         end_readout = self.latiss_remote.camera.evt_endReadout.get()
 
@@ -733,5 +738,5 @@ class TestLATISS(RemoteGroupTestCase, unittest.IsolatedAsyncioTestCase):
         assert end_readout.additionalValues == additional_values
 
     @property
-    def expected_additional_keys(self):
+    def expected_additional_keys(self) -> str:
         return "imageType:groupId:testType:stutterRows:stutterNShifts:stutterDelay"

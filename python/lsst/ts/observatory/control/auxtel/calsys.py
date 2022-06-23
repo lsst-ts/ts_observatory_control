@@ -21,6 +21,10 @@
 __all__ = ["ATCalSys"]
 
 import asyncio
+import logging
+import typing
+
+from lsst.ts import salobj
 
 from ..remote_group import RemoteGroup
 
@@ -49,12 +53,12 @@ class ATCalSys(RemoteGroup):
 
     def __init__(
         self,
-        electrometer_index=1,
-        fiber_spectrograph_index=-1,
-        domain=None,
-        log=None,
-        intended_usage=None,
-    ):
+        electrometer_index: int = 1,
+        fiber_spectrograph_index: int = -1,
+        domain: typing.Optional[salobj.Domain] = None,
+        log: typing.Optional[logging.Logger] = None,
+        intended_usage: typing.Optional[int] = None,
+    ) -> None:
 
         self.electrometer_index = electrometer_index
         self.fiber_spectrograph_index = fiber_spectrograph_index
@@ -70,7 +74,9 @@ class ATCalSys(RemoteGroup):
             intended_usage=intended_usage,
         )
 
-    async def setup_monochromator(self, wavelength, entrance_slit, exit_slit, grating):
+    async def setup_monochromator(
+        self, wavelength: float, entrance_slit: float, exit_slit: float, grating: int
+    ) -> None:
         """Setup Monochromator.
 
         Parameters
@@ -94,7 +100,9 @@ class ATCalSys(RemoteGroup):
             timeout=self.long_timeout,
         )
 
-    async def electrometer_scan(self, duration):
+    async def electrometer_scan(
+        self, duration: float
+    ) -> salobj.type_hints.BaseDdsDataType:
         """Perform an electrometer scan for the specified duration and return
         a large file object topic.
 
@@ -123,8 +131,13 @@ class ATCalSys(RemoteGroup):
         return lfo
 
     async def take_fiber_spectrum_after(
-        self, delay, image_type, integration_time, lamp, wait_for=None
-    ):
+        self,
+        delay: float,
+        image_type: str,
+        integration_time: float,
+        lamp: str,
+        wait_for: typing.Optional[typing.Awaitable] = None,
+    ) -> salobj.type_hints.BaseMsgType:
         """Wait, then start an acquisition with the fiber spectrograph.
 
         By default, this method will wait for `delay` seconds then start
@@ -170,9 +183,9 @@ class ATCalSys(RemoteGroup):
         return await fs_lfo_coro
 
     @property
-    def electrometer(self):
+    def electrometer(self) -> salobj.Remote:
         return getattr(self.rem, f"electrometer_{self.electrometer_index}")
 
     @property
-    def fiberspectrograph(self):
+    def fiberspectrograph(self) -> salobj.Remote:
         return getattr(self.rem, f"fiberspectrograph{self.fiber_spectrograph_index}")

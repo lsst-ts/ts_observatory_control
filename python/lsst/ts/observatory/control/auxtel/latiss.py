@@ -21,7 +21,12 @@
 __all__ = ["LATISS", "LATISSUsages"]
 
 import asyncio
+import logging
+import typing
 
+from lsst.ts import salobj
+
+from ..utils import cast_int_or_str
 from ..remote_group import Usages, UsagesResources
 from ..base_camera import BaseCamera
 
@@ -46,7 +51,7 @@ class LATISSUsages(Usages):
     TakeImageFull = 1 << 5
     DryTest = 1 << 6
 
-    def __iter__(self):
+    def __iter__(self) -> typing.Iterator[int]:
 
         return iter(
             [
@@ -87,8 +92,14 @@ class LATISS(BaseCamera):
     """
 
     def __init__(
-        self, domain=None, log=None, intended_usage=None, tcs_ready_to_take_data=None
-    ):
+        self,
+        domain: typing.Optional[salobj.Domain] = None,
+        log: typing.Optional[logging.Logger] = None,
+        intended_usage: typing.Optional[int] = None,
+        tcs_ready_to_take_data: typing.Optional[
+            typing.Callable[[], typing.Awaitable]
+        ] = None,
+    ) -> None:
 
         super().__init__(
             components=["ATCamera", "ATSpectrograph", "ATHeaderService", "ATOODS"],
@@ -100,11 +111,11 @@ class LATISS(BaseCamera):
         )
 
     @property
-    def camera(self):
+    def camera(self) -> salobj.Remote:
         """Camera remote."""
         return self.rem.atcamera
 
-    def parse_sensors(self, sensors):
+    def parse_sensors(self, sensors: typing.Union[str, None]) -> str:
         """Parse input sensors.
 
         For ATCamera this should always be an empty string.
@@ -121,7 +132,7 @@ class LATISS(BaseCamera):
         """
         return ""
 
-    async def setup_instrument(self, **kwargs):
+    async def setup_instrument(self, **kwargs: typing.Union[int, float, str]) -> None:
         """Implements abstract method to setup instrument.
 
         This method will call `setup_atspec` to set filter, grating and
@@ -142,18 +153,32 @@ class LATISS(BaseCamera):
         take_engtest: Take series of engineering test observations.
         take_imgtype: Take series of images by image type.
         expose: Low level expose method.
-
         """
 
         self.check_kwargs(**kwargs)
 
-        await self.setup_atspec(
-            filter=kwargs.get("filter", None),
-            grating=kwargs.get("grating", None),
-            linear_stage=kwargs.get("linear_stage", None),
+        atspec_filter: typing.Union[int, str, None] = (
+            cast_int_or_str(kwargs["filter"]) if "filter" in kwargs else None
+        )
+        atspec_grating: typing.Union[int, str, None] = (
+            cast_int_or_str(kwargs["grating"]) if "grating" in kwargs else None
+        )
+        atspec_linear_stage: typing.Union[float, None] = (
+            float(kwargs["linear_stage"]) if "linear_stage" in kwargs else None
         )
 
-    async def setup_atspec(self, filter=None, grating=None, linear_stage=None):
+        await self.setup_atspec(
+            filter=atspec_filter,
+            grating=atspec_grating,
+            linear_stage=atspec_linear_stage,
+        )
+
+    async def setup_atspec(
+        self,
+        filter: typing.Optional[typing.Union[int, str]] = None,
+        grating: typing.Optional[typing.Union[int, str]] = None,
+        linear_stage: typing.Optional[float] = None,
+    ) -> None:
         """Encapsulates commands to setup spectrograph.
 
         Parameters
@@ -164,7 +189,6 @@ class LATISS(BaseCamera):
             Grating id or name.  If None, do not change the grating.
         linear_stage : `None` or `float`
             Linear stage position.  If None, do not change the linear stage.
-
         """
 
         setup_coroutines = []
@@ -209,20 +233,19 @@ class LATISS(BaseCamera):
 
         if len(setup_coroutines) > 0:
             async with self.cmd_lock:
-                return await asyncio.gather(*setup_coroutines)
+                await asyncio.gather(*setup_coroutines)
 
-    async def get_setup(self):
+    async def get_setup(self) -> typing.Tuple[str, str, float]:
         """Get the current filter, grating and stage position
 
         Returns
         -------
-        string
+        `str`
             Name of filter currently in the beam
-        string
+        `str`
             Name of disperser currently in the beam
-        float
+        `float`
             Position of linear stage holding the dispersers
-
         """
 
         filter_pos = await self.rem.atspectrograph.evt_reportedFilterPosition.aget(
@@ -237,7 +260,9 @@ class LATISS(BaseCamera):
 
         return filter_pos.name, grating_pos.name, stage_pos.position
 
-    async def get_available_instrument_setup(self):
+    async def get_available_instrument_setup(
+        self,
+    ) -> typing.Tuple[typing.List[str], typing.List[str], typing.List[str]]:
         """Return available instrument setup.
 
         Returns
@@ -251,7 +276,8 @@ class LATISS(BaseCamera):
 
         See Also
         --------
-        setup_instrument: Set up instrument.
+        `tuple` of [`list` of `str`, `list` of `str`, `list` of `str`]
+            Available instrument setups.
         """
 
         try:
@@ -276,7 +302,7 @@ class LATISS(BaseCamera):
         )
 
     @property
-    def valid_use_cases(self):
+    def valid_use_cases(self) -> LATISSUsages:
         """Returns valid usages.
 
         Returns
@@ -287,7 +313,7 @@ class LATISS(BaseCamera):
         return LATISSUsages()
 
     @property
-    def usages(self):
+    def usages(self) -> typing.Dict[int, UsagesResources]:
 
         if self._usages is None:
             usages = super().usages

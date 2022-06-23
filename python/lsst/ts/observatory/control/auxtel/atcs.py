@@ -22,6 +22,9 @@ __all__ = ["ATCS", "ATCSUsages"]
 
 import copy
 import asyncio
+import enum
+import logging
+import typing
 
 import numpy as np
 import astropy.units as u
@@ -61,7 +64,7 @@ class ATCSUsages(Usages):
     OffsettingForATAOS = 1 << 7
     DryTest = 1 << 8
 
-    def __iter__(self):
+    def __iter__(self) -> typing.Iterator[int]:
 
         return iter(
             [
@@ -112,7 +115,12 @@ class ATCS(BaseTCS):
     log: logging.Logger
     """
 
-    def __init__(self, domain=None, log=None, intended_usage=None):
+    def __init__(
+        self,
+        domain: typing.Optional[salobj.Domain] = None,
+        log: typing.Optional[logging.Logger] = None,
+        intended_usage: typing.Optional[int] = None,
+    ) -> None:
 
         super().__init__(
             components=[
@@ -144,7 +152,6 @@ class ATCS(BaseTCS):
         self.tel_flat_az = 205.7
         self.tel_flat_rot = -110.0
         self.tel_el_operate_pneumatics = 70.0
-        self.tel_settle_time = 3.0
 
         self.tel_az_slew_tolerance = Angle(0.004 * u.deg)
         self.tel_el_slew_tolerance = Angle(0.004 * u.deg)
@@ -167,12 +174,12 @@ class ATCS(BaseTCS):
             self.rem.atmcs.evt_target.callback = self.atmcs_target_callback
 
         self._tel_position = None
-        self._tel_position_updated = None
+        self._tel_position_updated: typing.Union[None, asyncio.Event] = None
 
         self._tel_target = None
-        self._tel_target_updated = None
+        self._tel_target_updated: typing.Union[None, asyncio.Event] = None
 
-        self.dome_az_in_position = None
+        self.dome_az_in_position: typing.Union[None, asyncio.Event] = None
 
         self._monitor_position = True
 
@@ -186,19 +193,19 @@ class ATCS(BaseTCS):
                 """
             )
 
-    def _create_asyncio_events(self):
+    def _create_asyncio_events(self) -> None:
         """Create asyncio event loop for internal data."""
         self._tel_position_updated = asyncio.Event()
         self._tel_target_updated = asyncio.Event()
         self.dome_az_in_position = asyncio.Event()
         self.dome_az_in_position.set()
 
-    def stop_monitor(self):
+    def stop_monitor(self) -> None:
         """Stop any monitor position."""
         self.log.warning("Setting monitor flag to false.")
         self._monitor_position = False
 
-    def enable_monitor(self):
+    def enable_monitor(self) -> None:
         """Enable monitor."""
         if not self._monitor_position:
             self.log.debug("Enabling monitor.")
@@ -206,23 +213,31 @@ class ATCS(BaseTCS):
         else:
             self.log.debug("Monitor already enabled.")
 
-    def is_monitor_enabled(self):
+    def is_monitor_enabled(self) -> bool:
         """Is monitor position flag enabled?"""
         return self._monitor_position
 
-    async def mount_AzEl_Encoders_callback(self, data):
+    async def mount_AzEl_Encoders_callback(
+        self, data: salobj.type_hints.BaseDdsDataType
+    ) -> None:
         """Callback function to update the telescope position telemetry
         topic.
         """
+        assert self._tel_position_updated is not None
         self._tel_position = data
         self._tel_position_updated.set()
 
-    async def atmcs_target_callback(self, data):
+    async def atmcs_target_callback(
+        self, data: salobj.type_hints.BaseDdsDataType
+    ) -> None:
         """Callback function to update the telescope target event topic."""
+        assert self._tel_target_updated is not None
         self._tel_target = data
         self._tel_target_updated.set()
 
-    async def next_telescope_position(self, timeout=None):
+    async def next_telescope_position(
+        self, timeout: typing.Optional[float] = None
+    ) -> salobj.type_hints.BaseDdsDataType:
         """Wait for next telescope position to become available and return
         data.
 
@@ -241,11 +256,15 @@ class ATCS(BaseTCS):
         asyncio.TimeoutError
             If no new data is seen in less then `timeout` seconds.
         """
+        assert self._tel_position_updated is not None
+
         self._tel_position_updated.clear()
         await asyncio.wait_for(self._tel_position_updated.wait(), timeout=timeout)
         return self._tel_position
 
-    async def next_telescope_target(self, timeout=None):
+    async def next_telescope_target(
+        self, timeout: typing.Optional[float] = None
+    ) -> salobj.type_hints.BaseDdsDataType:
         """Wait for next telescope position to become available and return
         data.
 
@@ -264,19 +283,21 @@ class ATCS(BaseTCS):
         asyncio.TimeoutError
             If no new data is seen in less then `timeout` seconds.
         """
+        assert self._tel_target_updated is not None
+
         self._tel_target_updated.clear()
         await asyncio.wait_for(self._tel_target_updated.wait(), timeout=timeout)
         return self._tel_target
 
     @property
-    def telescope_position(self):
+    def telescope_position(self) -> salobj.type_hints.BaseDdsDataType:
         return self._tel_position
 
     @property
-    def telescope_target(self):
+    def telescope_target(self) -> salobj.type_hints.BaseDdsDataType:
         return self._tel_target
 
-    async def slew_dome_to(self, az, check=None):
+    async def slew_dome_to(self, az: float, check: typing.Any = None) -> None:
         """Utility method to slew dome to a specified position.
 
         This method works at cross purposes to ATDomeTrajectory, so this method
@@ -361,7 +382,7 @@ class ATCS(BaseTCS):
 
             await monitor_position_task
 
-    async def prepare_for_flatfield(self, check=None):
+    async def prepare_for_flatfield(self, check: typing.Any = None) -> None:
         """A high level method to position the telescope and dome for flat
         field operations.
 
@@ -415,7 +436,7 @@ class ATCS(BaseTCS):
                 self.rem.atdometrajectory, salobj.State.ENABLED
             )
 
-    async def stop_tracking(self):
+    async def stop_tracking(self) -> None:
         """Task to stop telescope tracking."""
 
         self.log.debug("Stop tracking.")
@@ -458,7 +479,7 @@ class ATCS(BaseTCS):
                     flush=False, timeout=self.long_timeout
                 )
 
-    async def stop_all(self):
+    async def stop_all(self) -> None:
         """Stop telescope and dome."""
 
         stop_tasks = [
@@ -472,7 +493,9 @@ class ATCS(BaseTCS):
 
         return stop_results
 
-    async def prepare_for_onsky(self, overrides=None):
+    async def prepare_for_onsky(
+        self, overrides: typing.Optional[typing.Dict[str, str]] = None
+    ) -> None:
         """Prepare Auxiliary Telescope for on-sky operations.
 
         This method will perform the start of the night procedure for the
@@ -570,7 +593,7 @@ class ATCS(BaseTCS):
 
         self.log.info("Prepare for on sky finished.")
 
-    async def shutdown(self):
+    async def shutdown(self) -> None:
         """Shutdown ATTCS components.
 
         This method will perform the end of the night procedure for the
@@ -657,7 +680,7 @@ class ATCS(BaseTCS):
 
         await self.standby()
 
-    async def open_dome_shutter(self):
+    async def open_dome_shutter(self) -> None:
         """Task to open dome shutter and return when it is done."""
 
         shutter_pos = await self.rem.atdome.evt_mainDoorState.aget(
@@ -706,7 +729,7 @@ class ATCS(BaseTCS):
                 f"{ATDome.ShutterDoorState.OPENED}"
             )
 
-    async def home_dome(self):
+    async def home_dome(self) -> None:
         """Task to execute dome home command and wait for it to complete."""
 
         self.rem.atdome.evt_azimuthState.flush()
@@ -767,7 +790,7 @@ class ATCS(BaseTCS):
         else:
             self.log.info("Dome azimuth homed successfully.")
 
-    async def close_dome(self, force=False):
+    async def close_dome(self, force: bool = False) -> None:
         """Task to close ATDome.
 
         Parameters
@@ -850,7 +873,12 @@ class ATCS(BaseTCS):
                 f"{ATDome.ShutterDoorState.CLOSED}"
             )
 
-    async def _wait_for_shutter_door_state(self, state, cmd_task=None, timeout=None):
+    async def _wait_for_shutter_door_state(
+        self,
+        state: enum.IntEnum,
+        cmd_task: typing.Optional[asyncio.Task] = None,
+        timeout: typing.Optional[float] = None,
+    ) -> None:
         """Wait for `ATDome.ShutterDoorState.state` to match a required value.
 
         Parameters
@@ -909,7 +937,7 @@ class ATCS(BaseTCS):
                 except asyncio.TimeoutError:
                     self.log.warning("ATDome shutter command task timedout.")
 
-    async def open_m1_cover(self):
+    async def open_m1_cover(self) -> None:
         """Task to open m1 cover.
 
         Warnings
@@ -982,7 +1010,7 @@ class ATCS(BaseTCS):
                 f"{ATPneumatics.MirrorCoverState.CLOSED!r}"
             )
 
-    async def close_m1_cover(self):
+    async def close_m1_cover(self) -> None:
         """Task to close m1 cover.
 
         Warnings
@@ -1054,7 +1082,7 @@ class ATCS(BaseTCS):
                 f"{ATPneumatics.MirrorCoverState.CLOSED!r}"
             )
 
-    async def open_m1_vent(self):
+    async def open_m1_vent(self) -> None:
         """Task to open m1 vents."""
 
         await self.assert_m1_correction_disabled(
@@ -1098,7 +1126,7 @@ class ATCS(BaseTCS):
                 f"Unrecognized M1 vent position: {vent_state.position!r}"
             )
 
-    async def close_m1_vent(self):
+    async def close_m1_vent(self) -> None:
         """Task to open m1 vents."""
 
         await self.assert_m1_correction_disabled(
@@ -1142,7 +1170,7 @@ class ATCS(BaseTCS):
                 f"Unrecognized M1 vent position: {vent_state.position!r}"
             )
 
-    async def open_valves(self):
+    async def open_valves(self) -> None:
         """Open the air valve system on ATPneumatics."""
 
         atpneumatics_state = await self.get_state("atpneumatics", ignore_timeout=True)
@@ -1163,7 +1191,7 @@ class ATCS(BaseTCS):
         except salobj.AckError:
             self.log.warning("Failed to open instrument valve.")
 
-    async def open_valve_main(self):
+    async def open_valve_main(self) -> None:
         """Open ATPneumatics main valve."""
 
         pneumatics_main_valve_state = (
@@ -1202,7 +1230,7 @@ class ATCS(BaseTCS):
                 f" {ATPneumatics.AirValveState.CLOSED!r} or {ATPneumatics.AirValveState.OPENED!r}."
             )
 
-    async def open_valve_instrument(self):
+    async def open_valve_instrument(self) -> None:
         """Open ATPneumatics instrument valve."""
         pneumatics_instrument_valve_state = (
             await self.rem.atpneumatics.evt_instrumentState.aget(
@@ -1245,13 +1273,13 @@ class ATCS(BaseTCS):
 
     async def _slew_to(
         self,
-        slew_cmd,
-        slew_timeout,
-        offset_cmd=None,
-        stop_before_slew=False,
-        wait_settle=True,
-        check=None,
-    ):
+        slew_cmd: typing.Any,
+        slew_timeout: float,
+        offset_cmd: typing.Any = None,
+        stop_before_slew: bool = False,
+        wait_settle: bool = True,
+        check: typing.Any = None,
+    ) -> None:
         """Encapsulate "slew" activities.
 
         Parameters
@@ -1275,6 +1303,8 @@ class ATCS(BaseTCS):
             Override internal `check` attribute with a user-provided one.
             By default (`None`) use internal attribute.
         """
+
+        assert self.dome_az_in_position is not None
 
         self.log.debug("Sending command")
 
@@ -1331,12 +1361,17 @@ class ATCS(BaseTCS):
 
         self.stop_monitor()
 
-    async def get_bore_sight_angle(self):
+    async def get_bore_sight_angle(self) -> float:
         """Get the instrument bore sight angle with respect to the telescope
         axis.
 
         This method also determines the parity of the x-axis based on the
         currently selected focus.
+
+        Returns
+        -------
+        angle : `float`
+            Bore sight angle.
         """
 
         # Determines x-axis parity.
@@ -1371,7 +1406,7 @@ class ATCS(BaseTCS):
 
         return angle
 
-    async def get_selected_nasmyth_angle(self):
+    async def get_selected_nasmyth_angle(self) -> float:
         """Get selected nasmyth angle.
 
         Check which nasmyth port is selected and return its current position.
@@ -1387,7 +1422,6 @@ class ATCS(BaseTCS):
         ------
         RuntimeError:
             If cannot get mount_Nasmyth_Encoders.
-
         """
 
         try:
@@ -1422,7 +1456,7 @@ class ATCS(BaseTCS):
             else np.mean(nasmyth.nasmyth1CalculatedAngle)
         )
 
-    def flush_offset_events(self):
+    def flush_offset_events(self) -> None:
         """Implement abstract method to flush events before an offset is
         performed.
 
@@ -1432,16 +1466,14 @@ class ATCS(BaseTCS):
         offset_azel : Offset in local AzEl coordinates.
         offset_xy : Offset in terms of boresight.
         offset_radec : Offset in sky coordinates.
-
         """
         self.rem.atmcs.evt_allAxesInPosition.flush()
 
-    async def offset_done(self):
+    async def offset_done(self) -> None:
         """Wait for events specifying that an offset completed.
 
         Notes
         -----
-
         For ATMCS we expect the component to send
         `allAxesInPosition.inPosition=False` at the start of an offset and then
         `allAxesInPosition.inPosition=True` when it is done.
@@ -1456,7 +1488,6 @@ class ATCS(BaseTCS):
         offset_azel : Offset in local AzEl coordinates.
         offset_xy : Offset in terms of boresight.
         offset_radec : Offset in sky coordinates.
-
         """
 
         while True:
@@ -1471,8 +1502,11 @@ class ATCS(BaseTCS):
                 self.log.debug("Telescope not in position.")
 
     async def wait_for_inposition(
-        self, timeout, cmd_ack=None, wait_settle=True, check=None
-    ):
+        self,
+        timeout: float,
+        wait_settle: bool,
+        check: typing.Optional[typing.Any] = None,
+    ) -> typing.List[str]:
         """Wait for both the ATMCS and ATDome to be in position.
 
         Parameters
@@ -1490,7 +1524,7 @@ class ATCS(BaseTCS):
 
         Returns
         -------
-        status: `str`
+        status: `list` of `str`
             String with final status.
         """
 
@@ -1501,18 +1535,22 @@ class ATCS(BaseTCS):
         tasks = list()
 
         if _check.atmcs:
-            tasks.append(
-                self.wait_for_atmcs_inposition(
-                    timeout=timeout, cmd_ack=cmd_ack, wait_settle=wait_settle
-                )
-            )
+            tasks.append(self.wait_for_atmcs_inposition(timeout=timeout))
 
         if _check.atdome:
-            tasks.append(self.wait_for_atdome_inposition(timeout, cmd_ack))
+            tasks.append(self.wait_for_atdome_inposition(timeout))
 
-        return await asyncio.gather(*tasks)
+        status = await asyncio.gather(*tasks)
 
-    async def wait_for_atmcs_inposition(self, timeout, cmd_ack=None, wait_settle=True):
+        if wait_settle:
+            self.log.debug(
+                f"Wait additional {self.tel_settle_time}s for telescope to settle."
+            )
+            await asyncio.sleep(self.tel_settle_time)
+
+        return status
+
+    async def wait_for_atmcs_inposition(self, timeout: float) -> str:
         """Wait for inPosition of atmcs to be ready.
 
         Parameters
@@ -1537,7 +1575,7 @@ class ATCS(BaseTCS):
             component_name="ATMCS",
         )
 
-    async def wait_for_atdome_inposition(self, timeout, cmd_ack=None):
+    async def wait_for_atdome_inposition(self, timeout: float) -> str:
         """Wait until the telescope is cleared by the dome.
 
         Instead of waiting until the dome finishes moving. This method will
@@ -1559,6 +1597,8 @@ class ATCS(BaseTCS):
         asyncio.TimeoutError
             If does not get a status update in less then `timeout` seconds.
         """
+        assert self.dome_az_in_position is not None
+
         if not await self.check_dome_following():
             self.log.debug("Dome following disabled. Ignoring dome position.")
             self.dome_az_in_position.set()
@@ -1570,7 +1610,7 @@ class ATCS(BaseTCS):
         self.log.info("ATDome in position.")
         return "ATDome in position."
 
-    async def wait_for_atdome_shutter_inposition(self):
+    async def wait_for_atdome_shutter_inposition(self) -> str:
         """Wait for the atdome shutter to be in position.
 
         Returns
@@ -1599,7 +1639,7 @@ class ATCS(BaseTCS):
             else:
                 self.log.debug("ATDome shutter not in position.")
 
-    async def monitor_position(self, check=None):
+    async def monitor_position(self, check: typing.Optional[typing.Any] = None) -> None:
         """Monitor and log the position of the telescope and the dome.
 
         Parameters
@@ -1611,6 +1651,7 @@ class ATCS(BaseTCS):
         # needs to be verified at each stage of the process.
         _check = copy.copy(self.check) if check is None else copy.copy(check)
 
+        assert self.dome_az_in_position is not None
         # Wait for target events to be published before entering the loop.
 
         if _check.atmcs:
@@ -1713,7 +1754,7 @@ class ATCS(BaseTCS):
         else:
             self.log.warning("Nothing to check.")
 
-    async def check_target_status(self):
+    async def check_target_status(self) -> None:
         """Check the targeting status of the atmcs."""
         while True:
             in_position = await self.rem.atmcs.evt_allAxesInPosition.next(flush=False)
@@ -1721,16 +1762,15 @@ class ATCS(BaseTCS):
             if in_position.inPosition is False:
                 raise RuntimeError("ATMCS is no longer tracking.")
 
-    async def focus_offset(self, offset):
+    async def focus_offset(self, offset: float) -> None:
         """Apply focus offset.
 
         Returns after offset is aplied.
 
         Parameters
         ----------
-        offset : float
+        offset : `float`
             Offset in mm.
-
         """
         self.rem.athexapod.evt_positionUpdate.flush()
         await self.rem.ataos.cmd_applyFocusOffset.set_start(offset=offset)
@@ -1744,7 +1784,7 @@ class ATCS(BaseTCS):
             self.log.warning("Did not received position update from ATHexapod.")
             pass
 
-    def set_azel_slew_checks(self, wait_dome):
+    def set_azel_slew_checks(self, wait_dome: bool) -> typing.Any:
         """Handle azEl slew to wait or not for the dome.
 
         Parameters
@@ -1762,13 +1802,15 @@ class ATCS(BaseTCS):
         check.atdometrajectory = wait_dome
         return check
 
-    async def _ready_to_take_data(self):
+    async def _ready_to_take_data(self) -> None:
         """Wait until ATCS is ready to take data."""
         # Things to check
         # 1 - ATMCS evt_allAxesInPosition.inPosition == True
         # 2 - All ATAOS corrections are applied
         # 3 - ATMCS and ATDome positions are within specified range.
         ready = False
+        assert self.dome_az_in_position is not None
+
         while not ready:
             # This loop will run until all conditions are met. Note that it
             # may happen that one condition will be met when we run it the
@@ -1783,7 +1825,7 @@ class ATCS(BaseTCS):
             )
             ready = all(check)
 
-    async def ataos_corrections_completed(self):
+    async def ataos_corrections_completed(self) -> bool:
         """Check that all ATAOS corrections completed.
 
         Returns
@@ -1858,7 +1900,7 @@ class ATCS(BaseTCS):
             self.log.debug(f"Received corrections: {correction_received}.")
             return False
 
-    async def atmcs_in_position(self):
+    async def atmcs_in_position(self) -> bool:
         """Check if atmcs is in position.
 
         This method will try to get the next event published after the call. If
@@ -1882,7 +1924,19 @@ class ATCS(BaseTCS):
 
         return in_position.inPosition
 
-    async def assert_m1_correction_disabled(self, message=""):
+    async def assert_m1_correction_disabled(self, message: str = "") -> None:
+        """Assert that m1 corrections is disabled.
+
+        Parameters
+        ----------
+        message : `str`
+            Additional message to append to error.
+
+        Raises
+        ------
+        AssertionError
+            If ATAOS m1 corrections are enabled.
+        """
 
         try:
             ataos_correction_enabled = await self.rem.ataos.evt_correctionEnabled.aget(
@@ -1899,42 +1953,42 @@ class ATCS(BaseTCS):
             ), f"ATAOS m1 correction enabled. {message}"
 
     @property
-    def plate_scale(self):
+    def plate_scale(self) -> float:
         """Plate scale in mm/arcsec."""
         return atcs_constants.plate_scale
 
     @property
-    def ptg_name(self):
+    def ptg_name(self) -> str:
         """Return name of the pointing component."""
         return "atptg"
 
     @property
-    def dome_trajectory_name(self):
+    def dome_trajectory_name(self) -> str:
         """Return name of the DomeTrajectory component."""
         return "atdometrajectory"
 
     @property
-    def CoordFrame(self):
+    def CoordFrame(self) -> enum.IntEnum:
         """Return CoordFrame enumeration."""
         return ATPtg.CoordFrame
 
     @property
-    def RotFrame(self):
+    def RotFrame(self) -> enum.IntEnum:
         """Return RotFrame enumeration."""
         return ATPtg.RotFrame
 
     @property
-    def RotMode(self):
+    def RotMode(self) -> enum.IntEnum:
         """Return RotMode enumeration."""
         return ATPtg.RotMode
 
     @property
-    def WrapStrategy(self):
+    def WrapStrategy(self) -> enum.IntEnum:
         """Return WrapStrategy enumeration"""
         return ATPtg.WrapStrategy
 
     @property
-    def valid_use_cases(self):
+    def valid_use_cases(self) -> ATCSUsages:
         """Returns valid usages.
 
         When subclassing, overwrite this method to return the proper enum.
@@ -1947,7 +2001,7 @@ class ATCS(BaseTCS):
         return ATCSUsages()
 
     @property
-    def usages(self):
+    def usages(self) -> typing.Dict[int, UsagesResources]:
 
         if self._usages is None:
             usages = super().usages
@@ -2279,4 +2333,5 @@ class ATCS(BaseTCS):
 
             self._usages = usages
 
+        assert self._usages is not None
         return self._usages

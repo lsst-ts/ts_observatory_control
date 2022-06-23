@@ -31,7 +31,7 @@ MAKE_TIMEOUT = 60  # Timeout for make_script (sec)
 
 
 class TestATQueue(unittest.IsolatedAsyncioTestCase):
-    async def test_constructor(self):
+    async def test_constructor(self) -> None:
 
         atqueue = ATQueue(domain="FakeDomain", intended_usage=Usages.DryTest)
 

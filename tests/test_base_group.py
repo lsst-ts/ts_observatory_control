@@ -17,6 +17,7 @@
 # GNU General Public License for more details.
 #
 # You should have received a copy of the GNU General Public License
+import typing
 import unittest
 
 import pytest
@@ -36,7 +37,9 @@ MAKE_TIMEOUT = 60  # Timeout for make_script (sec)
 
 
 class TestBaseGroup(RemoteGroupTestCase, unittest.IsolatedAsyncioTestCase):
-    async def basic_make_group(self, usage=None):
+    async def basic_make_group(
+        self, usage: typing.Optional[int] = None
+    ) -> typing.Iterable[typing.Union[RemoteGroup, salobj.BaseCsc]]:
 
         self.ntest = 4
 
@@ -54,7 +57,7 @@ class TestBaseGroup(RemoteGroupTestCase, unittest.IsolatedAsyncioTestCase):
 
         return (self.basegroup, *self.mock_test)
 
-    async def test_usage_resources(self):
+    async def test_usage_resources(self) -> None:
 
         use_case = UsagesResources(
             components_attr=["test_1", "test_2"], readonly=False, generics=["testTopic"]
@@ -93,7 +96,7 @@ class TestBaseGroup(RemoteGroupTestCase, unittest.IsolatedAsyncioTestCase):
                 test_3=["testTopic3"],
             )
 
-    async def test_basic(self):
+    async def test_basic(self) -> None:
 
         async with self.make_group(
             usage=Usages.StateTransition + Usages.MonitorHeartBeat
@@ -139,7 +142,7 @@ class TestBaseGroup(RemoteGroupTestCase, unittest.IsolatedAsyncioTestCase):
 
             await self.basegroup.assert_liveliness()
 
-    async def test_assert_enabled(self):
+    async def test_assert_enabled(self) -> None:
         async with self.make_group(
             usage=Usages.StateTransition + Usages.MonitorHeartBeat
         ):
@@ -151,7 +154,7 @@ class TestBaseGroup(RemoteGroupTestCase, unittest.IsolatedAsyncioTestCase):
 
             await self.basegroup.assert_all_enabled()
 
-    async def test_get_simulation_mode(self):
+    async def test_get_simulation_mode(self) -> None:
         async with self.make_group(usage=Usages.CheckSimulationMode):
 
             component_simulation_mode = await self.basegroup.get_simulation_mode()
@@ -169,7 +172,7 @@ class TestBaseGroup(RemoteGroupTestCase, unittest.IsolatedAsyncioTestCase):
 
             assert component_simulation_mode["test_1"].mode == 0
 
-    async def test_get_software_versions(self):
+    async def test_get_software_versions(self) -> None:
         async with self.make_group(usage=Usages.CheckSoftwareVersions):
 
             software_versions = await self.basegroup.get_software_versions()
@@ -187,7 +190,7 @@ class TestBaseGroup(RemoteGroupTestCase, unittest.IsolatedAsyncioTestCase):
 
             assert software_versions["test_1"].cscVersion == self.mock_test[0].version
 
-    async def test_get_work_components(self):
+    async def test_get_work_components(self) -> None:
         async with self.make_group(usage=Usages.DryTest):
             work_components = self.basegroup.get_work_components()
 
