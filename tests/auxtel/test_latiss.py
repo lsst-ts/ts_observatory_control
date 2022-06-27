@@ -73,6 +73,47 @@ class TestLATISS(RemoteGroupTestCase, unittest.IsolatedAsyncioTestCase):
         self.latiss_mock = LATISSMock()
         return self.latiss_remote, self.latiss_mock
 
+    async def test_setup_instrument(self) -> None:
+        async with self.make_group(usage=LATISSUsages.Setup):
+
+            valid_entries: typing.List[
+                typing.Dict[str, typing.Union[int, float, str, None]]
+            ] = [
+                dict(
+                    filter=None,
+                    grating=None,
+                    linear_stage=None,
+                ),
+                dict(filter=1),
+                dict(grating=1),
+                dict(linear_stage=101.12),
+            ]
+            last_valid: typing.Dict[str, typing.Union[int, float, str, None]] = dict(
+                filter=None,
+                grating=None,
+                linear_stage=None,
+            )
+            for entry in valid_entries:
+
+                await self.latiss_remote.setup_instrument(**entry)
+
+                assert self.latiss_mock.latiss_linear_stage == entry.get(
+                    "linear_stage", last_valid["linear_stage"]
+                )
+                assert self.latiss_mock.latiss_grating == entry.get(
+                    "grating", last_valid["grating"]
+                )
+                assert self.latiss_mock.latiss_filter == entry.get(
+                    "filter", last_valid["filter"]
+                )
+
+                last_valid["linear_stage"] = self.latiss_mock.latiss_linear_stage
+                last_valid["grating"] = self.latiss_mock.latiss_grating
+                last_valid["filter"] = self.latiss_mock.latiss_filter
+
+            with self.assertRaises(RuntimeError):
+                await self.latiss_remote.setup_instrument(invalid_key_word=123)
+
     async def test_take_bias(self) -> None:
 
         async with self.make_group(usage=LATISSUsages.TakeImage):
