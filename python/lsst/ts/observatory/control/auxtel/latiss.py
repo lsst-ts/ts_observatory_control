@@ -132,7 +132,9 @@ class LATISS(BaseCamera):
         """
         return ""
 
-    async def setup_instrument(self, **kwargs: typing.Union[int, float, str]) -> None:
+    async def setup_instrument(
+        self, **kwargs: typing.Union[int, float, str, None]
+    ) -> None:
         """Implements abstract method to setup instrument.
 
         This method will call `setup_atspec` to set filter, grating and
@@ -158,13 +160,19 @@ class LATISS(BaseCamera):
         self.check_kwargs(**kwargs)
 
         atspec_filter: typing.Union[int, str, None] = (
-            cast_int_or_str(kwargs["filter"]) if "filter" in kwargs else None
+            cast_int_or_str(kwargs["filter"])
+            if "filter" in kwargs and kwargs["filter"] is not None
+            else None
         )
         atspec_grating: typing.Union[int, str, None] = (
-            cast_int_or_str(kwargs["grating"]) if "grating" in kwargs else None
+            cast_int_or_str(kwargs["grating"])
+            if "grating" in kwargs and kwargs["grating"] is not None
+            else None
         )
         atspec_linear_stage: typing.Union[float, None] = (
-            float(kwargs["linear_stage"]) if "linear_stage" in kwargs else None
+            float(kwargs["linear_stage"])
+            if "linear_stage" in kwargs and kwargs["linear_stage"] is not None
+            else None
         )
 
         await self.setup_atspec(
