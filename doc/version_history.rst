@@ -6,6 +6,12 @@
 Version History
 ###############
 
+v0.20.1
+-------
+
+* Fix issue with ``LATISS.setup_instrument`` which would fail if linear stage position was passed as ``None``, which is a valid entry.
+* Add unit test for ``LATISS.setup_instrument``.
+
 v0.20.0
 -------
 
