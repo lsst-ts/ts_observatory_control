@@ -999,7 +999,7 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
 
         return await self.expose(camera_exposure=camera_exposure)
 
-    def check_kwargs(self, **kwargs: typing.Union[int, float, str]) -> None:
+    def check_kwargs(self, **kwargs: typing.Union[int, float, str, None]) -> None:
         """Utility method to verify that kwargs are in
         `self.instrument_setup_attributes`.
 
