@@ -615,31 +615,52 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
                 f"Unrecognized rottype {rot_type}. Should be one of {valid_rottypes}"
             )
 
-        await self.slew(
-            radec_icrs.ra.hour,
-            radec_icrs.dec.deg,
-            rotPA=rot_angle.deg,
-            target_name=target_name,
-            frame=self.CoordFrame.ICRS,
-            epoch=2000,
-            equinox=2000,
-            parallax=0,
-            pmRA=0,
-            pmDec=0,
-            rv=0,
-            dRA=dra,
-            dDec=ddec,
-            rot_frame=rot_frame,
-            rot_track_frame=rot_track_frame,
-            az_wrap_strategy=az_wrap_strategy,
-            time_on_target=time_on_target,
-            rot_mode=self.RotMode.FIELD,
-            slew_timeout=slew_timeout,
-            stop_before_slew=stop_before_slew,
-            wait_settle=wait_settle,
-            offset_x=offset_x,
-            offset_y=offset_y,
-        )
+        slew_exception: typing.Union[None, Exception] = None
+
+        for rot_angle_to_try in self.get_rot_angle_alternatives(rot_angle.deg):
+
+            try:
+                await self.slew(
+                    radec_icrs.ra.hour,
+                    radec_icrs.dec.deg,
+                    rotPA=rot_angle_to_try,
+                    target_name=target_name,
+                    frame=self.CoordFrame.ICRS,
+                    epoch=2000,
+                    equinox=2000,
+                    parallax=0,
+                    pmRA=0,
+                    pmDec=0,
+                    rv=0,
+                    dRA=dra,
+                    dDec=ddec,
+                    rot_frame=rot_frame,
+                    rot_track_frame=rot_track_frame,
+                    az_wrap_strategy=az_wrap_strategy,
+                    time_on_target=time_on_target,
+                    rot_mode=self.RotMode.FIELD,
+                    slew_timeout=slew_timeout,
+                    stop_before_slew=stop_before_slew,
+                    wait_settle=wait_settle,
+                    offset_x=offset_x,
+                    offset_y=offset_y,
+                )
+            except salobj.AckError as ack_error:
+                if "Target out of rotator limit" in ack_error.ackcmd.result:
+                    self.log.warning(
+                        "Target out of rotator limit. Trying different angle."
+                    )
+                    continue
+                else:
+                    raise ack_error
+            except Exception as e:
+                slew_exception = e
+                break
+            else:
+                break
+
+        if slew_exception is not None:
+            raise slew_exception
 
         return radec_icrs, rot_angle
 
