@@ -1,7 +1,9 @@
 pipeline {
     agent any
     options {
-      disableConcurrentBuilds()
+      disableConcurrentBuilds(
+        abortPrevious: true,
+      )
     }
     environment {
         network_name = "n_${BUILD_ID}_${JENKINS_NODE_COOKIE}"

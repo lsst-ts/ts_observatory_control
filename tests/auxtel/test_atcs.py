@@ -28,7 +28,11 @@ import unittest
 import numpy as np
 import pytest
 
+
 import astropy.units as u
+
+from contextlib import contextmanager
+
 from astropy.coordinates import ICRS, Angle
 
 from astroquery.simbad import Simbad
@@ -1541,6 +1545,88 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
             timeout=self.atcs.fast_timeout
         )
 
+    async def test_slew_icrs_rot_sky_init_angle_out_of_range(self) -> None:
+        name = "HD 185975"
+        ra = "20:28:18.74"
+        dec = "-87:28:19.9"
+        rot = 45.0
+
+        with self.fail_ra_dec_target("angle_out_of_range"):
+            await self.atcs.slew_icrs(
+                ra=ra, dec=dec, rot=rot, rot_type=RotType.Sky, target_name=name
+            )
+
+        atptg_cmd_ra_dec_target_expected_calls = [
+            unittest.mock.call(
+                ra=Angle(ra, unit=u.hourangle).hour,
+                declination=Angle(dec, unit=u.deg).deg,
+                targetName=name,
+                frame=self.atcs.CoordFrame.ICRS,
+                rotAngle=rot,
+                rotStartFrame=self.atcs.RotFrame.TARGET,
+                rotTrackFrame=self.atcs.RotFrame.TARGET,
+                azWrapStrategy=self.atcs.WrapStrategy.MAXTIMEONTARGET,
+                timeOnTarget=0.0,
+                epoch=2000,
+                equinox=2000,
+                parallax=0,
+                pmRA=0,
+                pmDec=0,
+                rv=0,
+                dRA=0.0,
+                dDec=0.0,
+                rotMode=self.atcs.RotMode.FIELD,
+            ),
+            unittest.mock.call(
+                ra=Angle(ra, unit=u.hourangle).hour,
+                declination=Angle(dec, unit=u.deg).deg,
+                targetName=name,
+                frame=self.atcs.CoordFrame.ICRS,
+                rotAngle=rot + 180.0,
+                rotStartFrame=self.atcs.RotFrame.TARGET,
+                rotTrackFrame=self.atcs.RotFrame.TARGET,
+                azWrapStrategy=self.atcs.WrapStrategy.MAXTIMEONTARGET,
+                timeOnTarget=0.0,
+                epoch=2000,
+                equinox=2000,
+                parallax=0,
+                pmRA=0,
+                pmDec=0,
+                rv=0,
+                dRA=0.0,
+                dDec=0.0,
+                rotMode=self.atcs.RotMode.FIELD,
+            ),
+        ]
+
+        self.atcs.rem.atptg.cmd_raDecTarget.set.assert_has_calls(
+            atptg_cmd_ra_dec_target_expected_calls
+        )
+
+        self.atcs.rem.atptg.cmd_poriginOffset.set.assert_called_with(dx=0, dy=0, num=0)
+
+        self.atcs.rem.atptg.cmd_stopTracking.start.assert_not_awaited()
+
+        self.atcs.rem.atptg.cmd_raDecTarget.start.assert_awaited()
+        self.atcs.rem.atptg.cmd_poriginOffset.start.assert_awaited_with(
+            timeout=self.atcs.fast_timeout
+        )
+
+    async def test_slew_icrs_fail_runtimeerror(self) -> None:
+        name = "HD 185975"
+        ra = "20:28:18.74"
+        dec = "-87:28:19.9"
+        rot = 45.0
+
+        with self.fail_ra_dec_target("Test fail"), self.assertRaisesRegex(
+            RuntimeError, "Test fail"
+        ):
+            await self.atcs.slew_icrs(
+                ra=ra, dec=dec, rot=rot, rot_type=RotType.Sky, target_name=name
+            )
+
+        self.atcs.rem.atptg.cmd_raDecTarget.start.assert_awaited_once()
+
     async def test_slew_icrs_with_offset(self) -> None:
 
         name = "HD 185975"
@@ -1932,6 +2018,61 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
             self._atpneumatics_evt_main_valve_state.state
             == ATPneumatics.AirValveState.OPENED
         )
+
+    def test_get_rot_angle_alternatives_default(self) -> None:
+
+        expected_rot_angle_alternatives = [0.0, 180.0, -180.0, 90.0, -90.0]
+
+        count_alternatives = 0
+
+        for rot_angle_alternative in self.atcs.get_rot_angle_alternatives(0.0):
+            assert rot_angle_alternative in expected_rot_angle_alternatives
+            count_alternatives += 1
+        assert count_alternatives == len(expected_rot_angle_alternatives)
+
+    def test_set_get_rot_angle_alternatives_empty(self) -> None:
+
+        self.atcs.set_rot_angle_alternatives([])
+
+        expected_rot_angle_alternatives = [0.0]
+
+        count_alternatives = 0
+
+        for rot_angle_alternative in self.atcs.get_rot_angle_alternatives(0.0):
+            assert rot_angle_alternative in expected_rot_angle_alternatives
+            count_alternatives += 1
+
+        assert count_alternatives == len(expected_rot_angle_alternatives)
+
+    def test_set_rot_angle_alternatives_zero(self) -> None:
+
+        self.atcs.set_rot_angle_alternatives([0, 0.0, 180.0, -180.0])
+
+        expected_rot_angle_alternatives = [0.0, 180.0, -180.0]
+
+        count_alternatives = 0
+
+        for rot_angle_alternative in self.atcs.get_rot_angle_alternatives(0.0):
+            assert rot_angle_alternative in expected_rot_angle_alternatives
+            count_alternatives += 1
+
+        assert count_alternatives == len(expected_rot_angle_alternatives)
+
+    def test_set_rot_angle_alternatives_duplicated_entries(self) -> None:
+
+        self.atcs.set_rot_angle_alternatives(
+            [0, 0.0, 180.0, -180.0, 180.0, -180.0, 180, -180]
+        )
+
+        expected_rot_angle_alternatives = [0.0, 180.0, -180.0]
+
+        count_alternatives = 0
+
+        for rot_angle_alternative in self.atcs.get_rot_angle_alternatives(0.0):
+            assert rot_angle_alternative in expected_rot_angle_alternatives
+            count_alternatives += 1
+
+        assert count_alternatives == len(expected_rot_angle_alternatives)
 
     def test_check_interface_atmcs(self) -> None:
         self.check_topic_attribute(
@@ -2571,3 +2712,33 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
             self.summary_state_queue_event[comp].set()
 
         return set_summary_state
+
+    def _handle_fail_angle_out_of_range(
+        self, *args: typing.Any, **kwargs: typing.Any
+    ) -> None:
+
+        if self.atcs.rem.atptg.cmd_raDecTarget.start.await_count < 2:
+            raise salobj.AckError(
+                "Target out of rotator limit",
+                ackcmd=salobj.AckCmdDataType(
+                    private_seqNum="",
+                    ack=salobj.sal_enums.SalRetCode.CMD_FAILED,
+                    error=101,
+                    result="Target out of rotator limit",
+                ),
+            )
+
+    @contextmanager
+    def fail_ra_dec_target(self, fail_type: str) -> typing.Generator[None, None, None]:
+
+        if fail_type == "angle_out_of_range":
+            self.atcs.rem.atptg.cmd_raDecTarget.start.side_effect = (
+                self._handle_fail_angle_out_of_range
+            )
+        else:
+            self.atcs.rem.atptg.cmd_raDecTarget.start.side_effect = RuntimeError(
+                fail_type
+            )
+
+        yield
+        self.atcs.rem.atptg.cmd_raDecTarget.start.side_effect = None

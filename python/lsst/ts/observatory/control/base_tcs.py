@@ -134,6 +134,9 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
 
         self._ready_to_take_data_task: typing.Union[asyncio.Task, None] = None
 
+        # Define alternative rotation angles to try when slewing the telescope.
+        self._rot_angle_alternatives: typing.List[float] = [180.0, -180.0, 90.0, -90.0]
+
         # Dictionary to store name->coordinates of objects
         self._object_list: typing.Dict[str, ICRS] = dict()
 
@@ -612,31 +615,52 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
                 f"Unrecognized rottype {rot_type}. Should be one of {valid_rottypes}"
             )
 
-        await self.slew(
-            radec_icrs.ra.hour,
-            radec_icrs.dec.deg,
-            rotPA=rot_angle.deg,
-            target_name=target_name,
-            frame=self.CoordFrame.ICRS,
-            epoch=2000,
-            equinox=2000,
-            parallax=0,
-            pmRA=0,
-            pmDec=0,
-            rv=0,
-            dRA=dra,
-            dDec=ddec,
-            rot_frame=rot_frame,
-            rot_track_frame=rot_track_frame,
-            az_wrap_strategy=az_wrap_strategy,
-            time_on_target=time_on_target,
-            rot_mode=self.RotMode.FIELD,
-            slew_timeout=slew_timeout,
-            stop_before_slew=stop_before_slew,
-            wait_settle=wait_settle,
-            offset_x=offset_x,
-            offset_y=offset_y,
-        )
+        slew_exception: typing.Union[None, Exception] = None
+
+        for rot_angle_to_try in self.get_rot_angle_alternatives(rot_angle.deg):
+
+            try:
+                await self.slew(
+                    radec_icrs.ra.hour,
+                    radec_icrs.dec.deg,
+                    rotPA=rot_angle_to_try,
+                    target_name=target_name,
+                    frame=self.CoordFrame.ICRS,
+                    epoch=2000,
+                    equinox=2000,
+                    parallax=0,
+                    pmRA=0,
+                    pmDec=0,
+                    rv=0,
+                    dRA=dra,
+                    dDec=ddec,
+                    rot_frame=rot_frame,
+                    rot_track_frame=rot_track_frame,
+                    az_wrap_strategy=az_wrap_strategy,
+                    time_on_target=time_on_target,
+                    rot_mode=self.RotMode.FIELD,
+                    slew_timeout=slew_timeout,
+                    stop_before_slew=stop_before_slew,
+                    wait_settle=wait_settle,
+                    offset_x=offset_x,
+                    offset_y=offset_y,
+                )
+            except salobj.AckError as ack_error:
+                if "Target out of rotator limit" in ack_error.ackcmd.result:
+                    self.log.warning(
+                        "Target out of rotator limit. Trying different angle."
+                    )
+                    continue
+                else:
+                    raise ack_error
+            except Exception as e:
+                slew_exception = e
+                break
+            else:
+                break
+
+        if slew_exception is not None:
+            raise slew_exception
 
         return radec_icrs, rot_angle
 
@@ -1740,6 +1764,52 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
         await asyncio.sleep(settle_time)
 
         return f"{component_name} in position."
+
+    def get_rot_angle_alternatives(
+        self, rot_angle: float
+    ) -> typing.Generator[float, None, None]:
+        """Generate rotator angle alternatives based on the input rotator
+        angle.
+
+        Parameters
+        ----------
+        rot_angle : `float`
+            Desired rotator angle (in deg).
+
+        Yields
+        ------
+        `float`
+            Rotator angle alternatives (in deg).
+        """
+
+        yield rot_angle
+
+        for rot_angle_alternative in self._rot_angle_alternatives:
+            yield rot_angle + rot_angle_alternative
+
+    def set_rot_angle_alternatives(
+        self, rot_angle_alternatives: typing.List[float]
+    ) -> None:
+        """Set the rotator angle alternatives.
+
+        It is not necessary to pass the 0. alternative, as it is added by
+        default.
+
+        Duplicated entries are also removed.
+
+        Parameters
+        ----------
+        rot_angle_alternatives : typing.List[float]
+            List of rotator angle alternatives (in deg).
+        """
+
+        self._rot_angle_alternatives = []
+
+        [
+            self._rot_angle_alternatives.append(rot_angle)  # type: ignore
+            for rot_angle in rot_angle_alternatives
+            if rot_angle != 0 and rot_angle not in self._rot_angle_alternatives
+        ]
 
     @property
     def instrument_focus(self) -> InstrumentFocus:
