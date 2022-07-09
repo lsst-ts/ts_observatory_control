@@ -6,6 +6,23 @@
 Version History
 ###############
 
+v0.21.0
+-------
+
+* In `BaseTCS` class:
+
+  * Add new functionality to allow alternative rotator angles to be specified.
+    This features consists of two methods, `BaseTCS.set_rot_angle_alternatives` and a generator `BaseTCS.get_rot_angle_alternatives`.
+    By default the altenative angles are +/- 180 and +/- 90 degrees.
+
+    `BaseTCS.get_rot_angle_alternatives` recieves a desired angle and will `yield` a sequence of numbers consisting of the original number first, then a the original number + the alternative.
+    Therefore, by default, if one calls `BaseTCS.get_rot_angle_alternatives`, it will yield the sequence 0, 180, -180, 90, -90.
+
+    It is possible to override the sequence of alternaive angles by calling `BaseTCS.set_rot_angle_alternatives`, passing a new sequence of numbers.
+    It is not necessary to pass the 0 value and duplicated entries are removed.
+  
+  * In `slew_icrs` use new rotator angle alternatives to cycle throught different rotator angles when the value requested is outside the rotator limits.
+
 v0.20.1
 -------
 
