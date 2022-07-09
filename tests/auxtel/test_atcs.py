@@ -1933,6 +1933,61 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
             == ATPneumatics.AirValveState.OPENED
         )
 
+    def test_get_rot_angle_alternatives_default(self) -> None:
+
+        expected_rot_angle_alternatives = [0.0, 180.0, -180.0, 90.0, -90.0]
+
+        count_alternatives = 0
+
+        for rot_angle_alternative in self.atcs.get_rot_angle_alternatives(0.0):
+            assert rot_angle_alternative in expected_rot_angle_alternatives
+            count_alternatives += 1
+        assert count_alternatives == len(expected_rot_angle_alternatives)
+
+    def test_set_get_rot_angle_alternatives_empty(self) -> None:
+
+        self.atcs.set_rot_angle_alternatives([])
+
+        expected_rot_angle_alternatives = [0.0]
+
+        count_alternatives = 0
+
+        for rot_angle_alternative in self.atcs.get_rot_angle_alternatives(0.0):
+            assert rot_angle_alternative in expected_rot_angle_alternatives
+            count_alternatives += 1
+
+        assert count_alternatives == len(expected_rot_angle_alternatives)
+
+    def test_set_rot_angle_alternatives_zero(self) -> None:
+
+        self.atcs.set_rot_angle_alternatives([0, 0.0, 180.0, -180.0])
+
+        expected_rot_angle_alternatives = [0.0, 180.0, -180.0]
+
+        count_alternatives = 0
+
+        for rot_angle_alternative in self.atcs.get_rot_angle_alternatives(0.0):
+            assert rot_angle_alternative in expected_rot_angle_alternatives
+            count_alternatives += 1
+
+        assert count_alternatives == len(expected_rot_angle_alternatives)
+
+    def test_set_rot_angle_alternatives_duplicated_entries(self) -> None:
+
+        self.atcs.set_rot_angle_alternatives(
+            [0, 0.0, 180.0, -180.0, 180.0, -180.0, 180, -180]
+        )
+
+        expected_rot_angle_alternatives = [0.0, 180.0, -180.0]
+
+        count_alternatives = 0
+
+        for rot_angle_alternative in self.atcs.get_rot_angle_alternatives(0.0):
+            assert rot_angle_alternative in expected_rot_angle_alternatives
+            count_alternatives += 1
+
+        assert count_alternatives == len(expected_rot_angle_alternatives)
+
     def test_check_interface_atmcs(self) -> None:
         self.check_topic_attribute(
             attributes={"elevationCalculatedAngle", "azimuthCalculatedAngle"},
