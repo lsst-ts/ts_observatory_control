@@ -134,6 +134,9 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
 
         self._ready_to_take_data_task: typing.Union[asyncio.Task, None] = None
 
+        # Define alternative rotation angles to try when slewing the telescope.
+        self._rot_angle_alternatives: typing.List[float] = [180.0, -180.0, 90.0, -90.0]
+
         # Dictionary to store name->coordinates of objects
         self._object_list: typing.Dict[str, ICRS] = dict()
 
@@ -1740,6 +1743,52 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
         await asyncio.sleep(settle_time)
 
         return f"{component_name} in position."
+
+    def get_rot_angle_alternatives(
+        self, rot_angle: float
+    ) -> typing.Generator[float, None, None]:
+        """Generate rotator angle alternatives based on the input rotator
+        angle.
+
+        Parameters
+        ----------
+        rot_angle : `float`
+            Desired rotator angle (in deg).
+
+        Yields
+        ------
+        `float`
+            Rotator angle alternatives (in deg).
+        """
+
+        yield rot_angle
+
+        for rot_angle_alternative in self._rot_angle_alternatives:
+            yield rot_angle + rot_angle_alternative
+
+    def set_rot_angle_alternatives(
+        self, rot_angle_alternatives: typing.List[float]
+    ) -> None:
+        """Set the rotator angle alternatives.
+
+        It is not necessary to pass the 0. alternative, as it is added by
+        default.
+
+        Duplicated entries are also removed.
+
+        Parameters
+        ----------
+        rot_angle_alternatives : typing.List[float]
+            List of rotator angle alternatives (in deg).
+        """
+
+        self._rot_angle_alternatives = []
+
+        [
+            self._rot_angle_alternatives.append(rot_angle)  # type: ignore
+            for rot_angle in rot_angle_alternatives
+            if rot_angle != 0 and rot_angle not in self._rot_angle_alternatives
+        ]
 
     @property
     def instrument_focus(self) -> InstrumentFocus:
