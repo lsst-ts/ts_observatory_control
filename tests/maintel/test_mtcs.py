@@ -525,7 +525,8 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
         self.mtcs.rem.mtmount.evt_elevationInPosition.flush.assert_not_called()
         self.mtcs.rem.mtmount.evt_azimuthInPosition.flush.assert_not_called()
 
-        self.mtcs.rem.mtrotator.evt_inPosition.flush.assert_called()
+        self.mtcs.rem.mtrotator.evt_inPosition.flush.assert_not_called()
+
         self.mtcs.rem.mtptg.cmd_raDecTarget.start.assert_called()
         self.mtcs.rem.mtptg.cmd_poriginOffset.start.assert_called_with(
             timeout=self.mtcs.fast_timeout
@@ -565,10 +566,11 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
         self.mtcs.rem.mtptg.cmd_poriginOffset.set.assert_called_with(dx=0, dy=0, num=0)
 
         self.mtcs.rem.mtptg.cmd_stopTracking.start.assert_not_awaited()
+
         self.mtcs.rem.mtmount.evt_elevationInPosition.flush.assert_not_called()
         self.mtcs.rem.mtmount.evt_azimuthInPosition.flush.assert_not_called()
+        self.mtcs.rem.mtrotator.evt_inPosition.flush.assert_not_called()
 
-        self.mtcs.rem.mtrotator.evt_inPosition.flush.assert_called()
         self.mtcs.rem.mtptg.cmd_raDecTarget.start.assert_called()
         self.mtcs.rem.mtptg.cmd_poriginOffset.start.assert_called_with(
             timeout=self.mtcs.fast_timeout
@@ -660,8 +662,8 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
         self.mtcs.rem.mtptg.cmd_stopTracking.start.assert_not_awaited()
         self.mtcs.rem.mtmount.evt_elevationInPosition.flush.assert_not_called()
         self.mtcs.rem.mtmount.evt_azimuthInPosition.flush.assert_not_called()
+        self.mtcs.rem.mtrotator.evt_inPosition.flush.assert_not_called()
 
-        self.mtcs.rem.mtrotator.evt_inPosition.flush.assert_called()
         self.mtcs.rem.mtptg.cmd_raDecTarget.start.assert_called()
         self.mtcs.rem.mtptg.cmd_poriginOffset.start.assert_called_with(
             timeout=self.mtcs.fast_timeout
@@ -704,8 +706,8 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
         self.mtcs.rem.mtptg.cmd_stopTracking.start.assert_not_called()
         self.mtcs.rem.mtmount.evt_elevationInPosition.flush.assert_not_called()
         self.mtcs.rem.mtmount.evt_azimuthInPosition.flush.assert_not_called()
+        self.mtcs.rem.mtrotator.evt_inPosition.flush.assert_not_called()
 
-        self.mtcs.rem.mtrotator.evt_inPosition.flush.assert_called()
         self.mtcs.rem.mtptg.cmd_raDecTarget.start.assert_called()
         self.mtcs.rem.mtptg.cmd_poriginOffset.start.assert_called_with(
             timeout=self.mtcs.fast_timeout
@@ -748,8 +750,8 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
         self.mtcs.rem.mtptg.cmd_stopTracking.start.assert_not_called()
         self.mtcs.rem.mtmount.evt_elevationInPosition.flush.assert_not_called()
         self.mtcs.rem.mtmount.evt_azimuthInPosition.flush.assert_not_called()
+        self.mtcs.rem.mtrotator.evt_inPosition.flush.assert_not_called()
 
-        self.mtcs.rem.mtrotator.evt_inPosition.flush.assert_called()
         self.mtcs.rem.mtptg.cmd_raDecTarget.start.assert_called()
         self.mtcs.rem.mtptg.cmd_poriginOffset.start.assert_called_with(
             timeout=self.mtcs.fast_timeout
@@ -803,7 +805,8 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
         self.mtcs.rem.mtmount.evt_elevationInPosition.flush.assert_not_called()
         self.mtcs.rem.mtmount.evt_azimuthInPosition.flush.assert_not_called()
 
-        self.mtcs.rem.mtrotator.evt_inPosition.flush.assert_called()
+        self.mtcs.rem.mtrotator.evt_inPosition.flush.assert_not_called()
+
         self.mtcs.rem.mtptg.cmd_raDecTarget.start.assert_called()
         self.mtcs.rem.mtptg.cmd_poriginOffset.start.assert_called_with(
             timeout=self.mtcs.fast_timeout
@@ -850,8 +853,8 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
         self.mtcs.rem.mtptg.cmd_stopTracking.start.assert_not_awaited()
         self.mtcs.rem.mtmount.evt_elevationInPosition.flush.assert_not_called()
         self.mtcs.rem.mtmount.evt_azimuthInPosition.flush.assert_not_called()
+        self.mtcs.rem.mtrotator.evt_inPosition.flush.assert_not_called()
 
-        self.mtcs.rem.mtrotator.evt_inPosition.flush.assert_called()
         self.mtcs.rem.mtptg.cmd_raDecTarget.start.assert_called()
         self.mtcs.rem.mtptg.cmd_poriginOffset.start.assert_called_with(
             timeout=self.mtcs.fast_timeout

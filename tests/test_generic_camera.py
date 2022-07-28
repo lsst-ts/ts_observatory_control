@@ -1,6 +1,6 @@
 # This file is part of ts_observatory_control
 #
-# Developed for the Vera Rubin Observatory Data Management System.
+# Developed for the Vera Rubin Observatory Telescope and Site Subsystem.
 # This product includes software developed by the LSST Project
 # (https://www.lsst.org).
 # See the COPYRIGHT file at the top-level directory of this distribution
@@ -17,16 +17,27 @@
 # GNU General Public License for more details.
 #
 # You should have received a copy of the GNU General Public License
+# along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 import pytest
-import typing
 import logging
 
+from lsst.ts import utils
+
+from lsst.ts.observatory.control import Usages
+from lsst.ts.observatory.control.generic_camera import GenericCamera
 from lsst.ts.observatory.control.mock.base_camera_async_mock import BaseCameraAsyncMock
-from lsst.ts.observatory.control.maintel.comcam import ComCam, ComCamUsages
+
+HB_TIMEOUT = 5  # Heartbeat timeout (sec)
+MAKE_TIMEOUT = 60  # Timeout for make_script (sec)
+
+index_gen = utils.index_generator()
 
 
-class TestComCam(BaseCameraAsyncMock):
+class TestGenericCamera(BaseCameraAsyncMock):
+    log: logging.Logger
+    generic_camera: GenericCamera
+
     @classmethod
     def setUpClass(cls) -> None:
         """This classmethod is only called once, when preparing the unit
@@ -35,40 +46,50 @@ class TestComCam(BaseCameraAsyncMock):
 
         cls.log = logging.getLogger(__name__)
 
-        cls.comcam = ComCam(
+        cls.generic_camera = GenericCamera(
+            index=1,
             domain="FakeDomain",
             log=cls.log,
-            intended_usage=ComCamUsages.DryTest,
+            intended_usage=Usages.DryTest,
         )
-
         return super().setUpClass()
 
     @property
-    def remote_group(self) -> ComCam:
-        return self.comcam
+    def remote_group(self) -> GenericCamera:
+        return self.generic_camera
 
     async def setup_types(self) -> None:
 
         self.end_readout = self.get_sample(
-            component="CCCamera",
+            component="GenericCamera:1",
             topic="logevent_endReadout",
         )
 
-    async def test_setup_instrument(self) -> None:
-        valid_entries: typing.List[
-            typing.Dict[str, typing.Union[int, float, str, None]]
-        ] = [
-            dict(filter=None),
-            dict(filter="band1"),
-        ]
+    async def test_start_live_view(self) -> None:
 
-        for entry in valid_entries:
-            await self.comcam.setup_instrument(**entry)
+        await self.generic_camera.start_live_view(exptime=1.0)
 
-            self.assert_setup_instrument(entry)
+        self.generic_camera.rem.genericcamera_1.cmd_startLiveView.set_start.assert_awaited_with(
+            expTime=1.0,
+            timeout=self.generic_camera.fast_timeout,
+        )
 
-        with self.assertRaises(RuntimeError):
-            await self.comcam.setup_instrument(invalid_key_word=123)
+    async def test_stop_live_view(self) -> None:
+
+        await self.generic_camera.stop_live_view()
+
+        self.generic_camera.rem.genericcamera_1.cmd_stopLiveView.start.assert_awaited_with(
+            timeout=self.generic_camera.fast_timeout,
+        )
+
+    async def test_take_stuttered(self) -> None:
+
+        with self.assertRaises(AssertionError):
+            await self.generic_camera.take_stuttered(
+                exptime=5,
+                n_shift=10,
+                row_shift=50,
+            )
 
     async def test_take_bias(self) -> None:
 
@@ -110,28 +131,28 @@ class TestComCam(BaseCameraAsyncMock):
 
     async def test_take_darks_test_type(self) -> None:
 
-        await self.comcam.take_darks(
+        await self.generic_camera.take_darks(
             ndarks=1,
             exptime=1.0,
             test_type="LDARK",
         )
 
     async def test_take_darks_reason(self) -> None:
-        await self.comcam.take_darks(
+        await self.generic_camera.take_darks(
             ndarks=1,
             exptime=1.0,
             reason="DAYLIGHT CALIB",
         )
 
     async def test_take_darks_program(self) -> None:
-        await self.comcam.take_darks(
+        await self.generic_camera.take_darks(
             ndarks=1,
             exptime=1.0,
             program="CALIB",
         )
 
     async def test_take_darks_test_type_reason_program(self) -> None:
-        await self.comcam.take_darks(
+        await self.generic_camera.take_darks(
             ndarks=1,
             exptime=1.0,
             test_type="LDARK",
@@ -143,16 +164,10 @@ class TestComCam(BaseCameraAsyncMock):
 
         nflats = 4
         exptime = 1.0
-        filter_name = "band1"
 
         await self.assert_take_flats(
             nflats=nflats,
             exptime=exptime,
-            filter=filter_name,
-        )
-
-        self.assert_setup_instrument(
-            entry=dict(filter=filter_name),
         )
 
     async def test_take_flats_test_type(self) -> None:
@@ -193,39 +208,35 @@ class TestComCam(BaseCameraAsyncMock):
 
         nobj = 4
         exptime = 1.0
-        filter_name = "band1"
 
         await self.assert_take_object(
             n=nobj,
             exptime=exptime,
-            filter=filter_name,
         )
 
-        self.assert_setup_instrument(entry=dict(filter=filter_name))
+    async def test_take_object_tcs_sync_fail(self) -> None:
 
-    async def test_take_object_atcs_sync_fail(self) -> None:
-
-        with self.get_fake_tcs() as fake_atcs:
-            fake_atcs.fail = True
+        with self.get_fake_tcs() as fake_tcs:
+            fake_tcs.fail = True
 
             # should raise the same exception
             with pytest.raises(RuntimeError):
-                await self.comcam.take_object(
+                await self.generic_camera.take_object(
                     n=4,
                     exptime=10.0,
                 )
 
-    async def test_take_object_atcs_sync(self) -> None:
+    async def test_take_object_tcs_sync(self) -> None:
 
-        with self.get_fake_tcs() as fake_atcs:
-            fake_atcs.fail = False
+        with self.get_fake_tcs() as fake_tcs:
+            fake_tcs.fail = False
 
             await self.assert_take_object(
                 n=4,
                 exptime=10.0,
             )
 
-            assert fake_atcs.called == 1
+            assert fake_tcs.called == 1
 
     async def test_take_object_test_type(self) -> None:
         await self.assert_take_object(
@@ -265,28 +276,28 @@ class TestComCam(BaseCameraAsyncMock):
         )
 
     async def test_take_engtest_test_type(self) -> None:
-        await self.comcam.take_engtest(
+        await self.generic_camera.take_engtest(
             n=1,
             exptime=1.0,
             test_type="LENGTEST",
         )
 
     async def test_take_engtest_reason(self) -> None:
-        await self.comcam.take_engtest(
+        await self.generic_camera.take_engtest(
             n=1,
             exptime=1.0,
             reason="UNIT TEST",
         )
 
     async def test_take_engtest_program(self) -> None:
-        await self.comcam.take_engtest(
+        await self.generic_camera.take_engtest(
             n=1,
             exptime=1.0,
             program="UTEST",
         )
 
     async def test_take_engtest_test_type_reason_program(self) -> None:
-        await self.comcam.take_engtest(
+        await self.generic_camera.take_engtest(
             n=1,
             exptime=1.0,
             test_type="LENGTEST",
@@ -295,13 +306,10 @@ class TestComCam(BaseCameraAsyncMock):
         )
 
     async def test_instrument_parameters(self) -> None:
-        valid_keywords = ["filter"]
 
-        for key in valid_keywords:
-            with self.subTest(test="valid_keywords", key=key):
-                self.comcam.check_kwargs(**{key: "test"})
-
+        # Generic camera does not support any keword argument.
         invalid_keyword_sample = [
+            "filter",
             "Filter",
             "Grating",
             "LinearStage",
@@ -313,7 +321,7 @@ class TestComCam(BaseCameraAsyncMock):
         for key in invalid_keyword_sample:
             with self.subTest(test="invalid_keywords", key=key):
                 with pytest.raises(RuntimeError):
-                    self.comcam.check_kwargs(**{key: "test"})
+                    self.generic_camera.check_kwargs(**{key: "test"})
 
     async def test_take_focus(self) -> None:
         await self.assert_take_focus(
@@ -329,70 +337,3 @@ class TestComCam(BaseCameraAsyncMock):
 
     async def test_take_acq(self) -> None:
         await self.assert_take_acq()
-
-    async def test_take_stuttered(self) -> None:
-
-        await self.assert_take_stuttered(
-            n=1,
-            exptime=0.1,
-            n_shift=4,
-            row_shift=100,
-        )
-
-    def assert_setup_instrument(
-        self, entry: typing.Dict[str, typing.Union[int, float, str, None]]
-    ) -> None:
-        """Assert setup instrument.
-
-        Parameters
-        ----------
-        entry : typing.Dict[str, str]
-            Parameters used to setup instrument.
-        """
-        selected_filter = entry.get("filter", None)
-
-        if selected_filter is None:
-            self.comcam.rem.cccamera.cmd_setFilter.set_start.assert_not_awaited()
-        else:
-            self.comcam.rem.cccamera.cmd_setFilter.set_start.assert_awaited_with(
-                name=selected_filter, timeout=self.comcam.filter_change_timeout
-            )
-
-        self.comcam.rem.cccamera.cmd_setFilter.set_start.reset_mock()
-
-    async def test_take_spot(self) -> None:
-
-        await self.comcam.take_spot(
-            n=1,
-            exptime=1.0,
-        )
-
-    async def test_take_spot_test_type(self) -> None:
-        await self.comcam.take_spot(
-            n=1,
-            exptime=1.0,
-            test_type="LSPOT",
-        )
-
-    async def test_take_spot_reason(self) -> None:
-        await self.comcam.take_spot(
-            n=1,
-            exptime=1.0,
-            reason="UNIT TEST",
-        )
-
-    async def test_take_spot_program(self) -> None:
-        await self.comcam.take_spot(
-            n=1,
-            exptime=1.0,
-            program="UTEST",
-        )
-
-    async def test_take_spot_test_type_reason_program(self) -> None:
-        await self.comcam.take_spot(
-            n=1,
-            exptime=1.0,
-            test_type="LSPOT",
-            reason="UNIT TEST",
-            program="UTEST",
-        )

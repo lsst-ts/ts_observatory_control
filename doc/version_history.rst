@@ -6,22 +6,55 @@
 Version History
 ###############
 
+v0.22.0
+-------
+
+* Add new type hints to allow type annotation of methods and coroutines that has signature like ``func(**kwargs: Any) -> None``.
+
+* Improve how ``RemoteGroupAsyncMock`` mocks a ``RemoteGroup``.
+
+  Instead of making each ``Remote`` a free form ``AsyncMock``, create a spec based on the component interface.
+  This means, trying to assess a member that is not part of the CSC interface raises an ``AttributeError`` exception, which is usefull to catch interface changes, like topics that are renamed and such.
+  
+
+  It also adds functionality to catch changes in topic payloads.
+  For commands, create methods that check command call payloads and raise exception if a topic attribute is not part of the command definition.
+  For events and telemetry, add a method to create ``SimpleNamespace`` instances from the topics structure.
+
+* Add new ``BaseCameraAsyncMock`` mock class, to facilitate mocking/testing classes derived from ``BaseCamera`` without the need to use the middleware.
+  This considerably reduces the time needed to setup the classes for testing allowing us to expand the test coverage considerably without too much of a time penalty.
+
+* Refactor ``ATCS`` tests to use the new ``BaseCameraAsyncMock`` class.
+
+* Refactor ``ComCam`` tests to use the new ``BaseCameraAsyncMock`` class.
+
+* In ``BaseCamera``, add check that stuttered image is supported by the particular interface.
+  This is defined by the set of commands required to drive sturreted images.
+
+* Add ``GenericCamera`` class to interface with the generic camera CSC using the ``BaseCamera`` interface.
+
+* In ``ATCS``, change log level of message sent when stopping monitor loop from warning to debug.
+
+* In ``MTCS``, remove workaround for rotator trajectory issues that prevented us from doing more than one slew at a time.
+
+* Update ``.gitignore`` to ignore all ``.log`` files.
+
 v0.21.0
 -------
 
-* In `BaseTCS` class:
+* In ``BaseTCS`` class:
 
   * Add new functionality to allow alternative rotator angles to be specified.
-    This features consists of two methods, `BaseTCS.set_rot_angle_alternatives` and a generator `BaseTCS.get_rot_angle_alternatives`.
+    This features consists of two methods, ``BaseTCS.set_rot_angle_alternatives`` and a generator ``BaseTCS.get_rot_angle_alternatives``.
     By default the altenative angles are +/- 180 and +/- 90 degrees.
 
-    `BaseTCS.get_rot_angle_alternatives` recieves a desired angle and will `yield` a sequence of numbers consisting of the original number first, then a the original number + the alternative.
-    Therefore, by default, if one calls `BaseTCS.get_rot_angle_alternatives`, it will yield the sequence 0, 180, -180, 90, -90.
+    ``BaseTCS.get_rot_angle_alternatives`` recieves a desired angle and will ``yield`` a sequence of numbers consisting of the original number first, then a the original number + the alternative.
+    Therefore, by default, if one calls ``BaseTCS.get_rot_angle_alternatives``, it will yield the sequence 0, 180, -180, 90, -90.
 
-    It is possible to override the sequence of alternaive angles by calling `BaseTCS.set_rot_angle_alternatives`, passing a new sequence of numbers.
+    It is possible to override the sequence of alternaive angles by calling ``BaseTCS.set_rot_angle_alternatives``, passing a new sequence of numbers.
     It is not necessary to pass the 0 value and duplicated entries are removed.
   
-  * In `slew_icrs` use new rotator angle alternatives to cycle throught different rotator angles when the value requested is outside the rotator limits.
+  * In ``slew_icrs`` use new rotator angle alternatives to cycle throught different rotator angles when the value requested is outside the rotator limits.
 
 v0.20.1
 -------
