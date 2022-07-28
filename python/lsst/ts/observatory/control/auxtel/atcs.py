@@ -202,7 +202,7 @@ class ATCS(BaseTCS):
 
     def stop_monitor(self) -> None:
         """Stop any monitor position."""
-        self.log.warning("Setting monitor flag to false.")
+        self.log.debug("Stopping monitor.")
         self._monitor_position = False
 
     def enable_monitor(self) -> None:
