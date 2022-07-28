@@ -24,6 +24,8 @@ __all__ = [
     "CoordFrameType",
     "RotFrameType",
     "WrapStrategyType",
+    "KwArgsFunc",
+    "KwArgsCoro",
 ]
 
 import typing
@@ -34,3 +36,13 @@ RotModeType = typing.Union[ATPtg.RotMode, MTPtg.RotMode]
 CoordFrameType = typing.Union[ATPtg.CoordFrame, MTPtg.CoordFrame]
 RotFrameType = typing.Union[ATPtg.RotFrame, MTPtg.RotFrame]
 WrapStrategyType = typing.Union[ATPtg.WrapStrategy, MTPtg.WrapStrategy]
+
+
+class KwArgsFunc(typing.Protocol):
+    def __call__(self, **kwargs: typing.Any) -> None:
+        pass
+
+
+class KwArgsCoro(typing.Protocol):
+    async def __call__(self, **kwargs: typing.Any) -> None:
+        pass

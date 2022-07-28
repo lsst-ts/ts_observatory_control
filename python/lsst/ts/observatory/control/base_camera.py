@@ -851,6 +851,8 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
         expose: Low level expose method.
         """
 
+        self.assert_support_stuttered()
+
         self.check_kwargs(**kwargs)
 
         await self.setup_instrument(**kwargs)
@@ -1359,3 +1361,28 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
             the image.
         """
         raise NotImplementedError()
+
+    def assert_support_stuttered(self) -> None:
+        """Verify the camera support taking stuttered images.
+
+        Raises
+        ------
+        AssertionError
+            If stuttered image is not supported.
+        """
+        stuttered_commands = {
+            "cmd_enableCalibration",
+            "cmd_disableCalibration",
+            "cmd_startImage",
+            "cmd_endImage",
+            "cmd_discardRows",
+        }
+        missing_stuttered_commands = [
+            command
+            for command in stuttered_commands
+            if not hasattr(self.camera, command)
+        ]
+        assert not missing_stuttered_commands, (
+            f"Missing commands: {', '.join(missing_stuttered_commands)}. "
+            "Instrument does not support stuttered images. "
+        )
