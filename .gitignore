@@ -21,5 +21,5 @@ pytest_session.txt
 .pytest_cache
 .coverage
 
-# OSPL logs
-ospl-*.log
+# logs
+*.log
