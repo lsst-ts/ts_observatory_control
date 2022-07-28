@@ -226,34 +226,6 @@ class MTCS(BaseTCS):
             except Exception:
                 self.log.exception("Error stop tracking.")
 
-        try:
-            # TODO DM-32546: Remove work around to rotator trajectory
-            # problem that cannot complete 2 subsequent moves. The work
-            # around consist of sending a move command to the rotator
-            # current position then stopping, thus resetting the
-            # trajectory.
-            await self.rem.mtrotator.cmd_stop.start(timeout=self.fast_timeout)
-
-            self.log.debug(f"Wait {self.fast_timeout}s for rotator to settle down.")
-            await asyncio.sleep(self.fast_timeout)
-
-            rotator_position = await self.rem.mtrotator.tel_rotation.aget(
-                timeout=self.fast_timeout
-            )
-
-            rotator_reset_position = rotator_position.actualPosition + (
-                0.1 if rotator_position.actualPosition < 0.0 else -0.1
-            )
-
-            self.log.debug(
-                "Workaround for rotator trajectory problem. "
-                f"Moving rotator to its current position: {rotator_reset_position:0.2f}"
-            )
-
-            await self.move_rotator(position=rotator_reset_position)
-        except Exception:
-            self.log.exception("Error trying to reset rotator position.")
-
         track_id = next(self.track_id_gen)
 
         try:
