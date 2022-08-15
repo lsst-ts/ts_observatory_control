@@ -211,7 +211,7 @@ class RemoteGroupAsyncMock(
                     ),
                 )
                 for topic_name in self.components_metadata[component_name].topic_info
-                if "command" in topic_name
+                if "command_" in topic_name
             ]
         )
 
