@@ -39,6 +39,9 @@ disallow_untyped_defs = "True"
 ignore_missing_imports = "True"
 exclude = "version.py"
  
+[tool.isort]
+profile = "black"
+
 [project.optional-dependencies]
 dev = [
   "documenteer[pipelines]",
