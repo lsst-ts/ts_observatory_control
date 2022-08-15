@@ -237,7 +237,13 @@ class RemoteGroupAsyncMock(
         spec = list(
             itertools.chain(
                 *[
-                    (topic, f"{topic}.set", f"{topic}.start", f"{topic}.set_start")
+                    (
+                        topic,
+                        f"{topic}.set",
+                        f"{topic}.start",
+                        f"{topic}.set_start",
+                        f"{topic}.DataType",
+                    )
                     if topic.startswith("cmd_")
                     else (
                         topic,
@@ -245,6 +251,7 @@ class RemoteGroupAsyncMock(
                         f"{topic}.get",
                         f"{topic}.aget",
                         f"{topic}.flush",
+                        f"{topic}.DataType",
                     )
                     for topic in topics
                 ]
