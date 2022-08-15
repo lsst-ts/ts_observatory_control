@@ -21,9 +21,6 @@
 import asyncio
 import copy
 import logging
-import types
-import typing
-import unittest
 
 import astropy.units as units
 from astropy.coordinates import ICRS, Angle
@@ -32,416 +29,13 @@ from numpy.testing import assert_array_equal
 import pytest
 
 from lsst.ts import idl
-from lsst.ts import salobj
 from lsst.ts import utils
-from lsst.ts.observatory.control.maintel.mtcs import MTCS, MTCSUsages
+
 from lsst.ts.observatory.control.utils import RotType
+from lsst.ts.observatory.control.mock.mtcs_async_mock import MTCSAsyncMock
 
 
-class TestMTCS(unittest.IsolatedAsyncioTestCase):
-    log: logging.Logger
-    mtcs: MTCS
-    components_metadata: typing.Dict[str, salobj.IdlMetadata]
-    track_id_gen: typing.Generator[int, None, None]
-
-    @classmethod
-    def setUpClass(cls) -> None:
-        """This classmethod is only called once, when preparing the unit
-        test.
-        """
-
-        cls.log = logging.getLogger("TestMTCS")
-
-        # Pass in a string as domain to prevent ATCS from trying to create a
-        # domain by itself. When using DryTest usage, the class won't create
-        # any remote. When this method is called there is no event loop
-        # running so all asyncio facilities will fail to create. This is later
-        # rectified in the asyncSetUp.
-        cls.mtcs = MTCS(
-            domain="FakeDomain", log=cls.log, intended_usage=MTCSUsages.DryTest
-        )
-
-        # Decrease telescope settle time to speed up unit test
-        cls.mtcs.tel_settle_time = 0.25
-
-        # Gather metadada information, needed to validate topics versions
-        cls.components_metadata = dict(
-            [
-                (
-                    component,
-                    salobj.parse_idl(
-                        component,
-                        idl.get_idl_dir()
-                        / f"sal_revCoded_{component.split(':')[0]}.idl",
-                    ),
-                )
-                for component in cls.mtcs.components
-            ]
-        )
-        cls.track_id_gen = utils.index_generator(1)
-
-    def run(self, result: typing.Any = None) -> None:
-        """Override `run` to set a random LSST_DDS_PARTITION_PREFIX
-        and set LSST_SITE=test for every test.
-
-        https://stackoverflow.com/a/11180583
-        """
-        salobj.set_random_lsst_dds_partition_prefix()
-        with utils.modify_environ(LSST_SITE="test"):
-            super().run(result)  # type: ignore
-
-    async def asyncSetUp(self) -> None:
-        self.mtcs._create_asyncio_events()
-
-        # MTMount data
-        self._mtmount_evt_target = types.SimpleNamespace(
-            trackId=next(self.track_id_gen),
-            azimuth=0.0,
-            elevation=80.0,
-        )
-
-        self._mtmount_evt_cameraCableWrapFollowing = types.SimpleNamespace(enabled=1)
-
-        self._mtmount_tel_azimuth = types.SimpleNamespace(actualPosition=0.0)
-        self._mtmount_tel_elevation = types.SimpleNamespace(actualPosition=80.0)
-
-        self._mtmount_evt_elevation_in_position = types.SimpleNamespace(
-            inPosition=True,
-        )
-        self._mtmount_evt_azimuth_in_position = types.SimpleNamespace(
-            inPosition=True,
-        )
-
-        # MTRotator data
-        self._mtrotator_tel_rotation = types.SimpleNamespace(
-            demandPosition=0.0,
-            actualPosition=0.0,
-        )
-        self._mtrotator_evt_in_position = types.SimpleNamespace(inPosition=True)
-
-        # MTDome data
-        self._mtdome_tel_azimuth = types.SimpleNamespace(
-            positionActual=0.0,
-            positionCommanded=0.0,
-        )
-
-        self._mtdome_tel_light_wind_screen = types.SimpleNamespace(
-            positionActual=0.0,
-            positionCommanded=0.0,
-        )
-
-        # MTM1M3 data
-        self._mtm1m3_evt_detailed_state = types.SimpleNamespace(
-            detailedState=idl.enums.MTM1M3.DetailedState.PARKED
-        )
-        self._mtm1m3_evt_applied_balance_forces = types.SimpleNamespace(
-            forceMagnitude=0.0
-        )
-
-        self._mtm1m3_raise_task = utils.make_done_future()
-        self._mtm1m3_lower_task = utils.make_done_future()
-        self._hardpoint_corrections_task = utils.make_done_future()
-
-        # MTM2 data
-        self._mtm2_evt_force_balance_system_status = types.SimpleNamespace(status=False)
-
-        # Camera hexapod data
-        self._mthexapod_1_evt_compensation_mode = types.SimpleNamespace(enabled=False)
-        self._mthexapod_1_evt_uncompensated_position = types.SimpleNamespace(
-            x=0.0, y=0.0, z=0.0, u=0.0, v=0.0, w=0.0
-        )
-        self._mthexapod_1_evt_in_position = types.SimpleNamespace(inPosition=True)
-        self._mthexapod_1_move_task = utils.make_done_future()
-
-        # M2 hexapod data
-        self._mthexapod_2_evt_compensation_mode = types.SimpleNamespace(enabled=False)
-        self._mthexapod_2_evt_uncompensated_position = types.SimpleNamespace(
-            x=0.0, y=0.0, z=0.0, u=0.0, v=0.0, w=0.0
-        )
-        self._mthexapod_2_evt_in_position = types.SimpleNamespace(inPosition=True)
-        self._mthexapod_2_move_task = utils.make_done_future()
-
-        # Setup AsyncMock. The idea is to replace the placeholder for the
-        # remotes (in mtcs.rem) by AsyncMock. The remote for each component is
-        # replaced by an AsyncMock and later augmented to emulate the behavior
-        # of the Remote->Controller interaction with side_effect and
-        # return_value.
-        for component in self.mtcs.components_attr:
-            setattr(self.mtcs.rem, component, unittest.mock.AsyncMock())
-
-        # Setup data to support summary state manipulation
-        self.summary_state = dict(
-            [
-                (comp, types.SimpleNamespace(summaryState=int(salobj.State.ENABLED)))
-                for comp in self.mtcs.components_attr
-            ]
-        )
-
-        self.summary_state_queue = dict(
-            [
-                (comp, [types.SimpleNamespace(summaryState=int(salobj.State.ENABLED))])
-                for comp in self.mtcs.components_attr
-            ]
-        )
-
-        self.summary_state_queue_event = dict(
-            [(comp, asyncio.Event()) for comp in self.mtcs.components_attr]
-        )
-
-        # Setup AsyncMock. The idea is to replace the placeholder for the
-        # remotes (in atcs.rem) by AsyncMock. The remote for each component is
-        # replaced by an AsyncMock and later augmented to emulate the behavior
-        # of the Remote->Controller interaction with side_effect and
-        # return_value.
-        # By default all mocks are augmented to handle summary state setting.
-        for component in self.mtcs.components_attr:
-            setattr(
-                self.mtcs.rem,
-                component,
-                unittest.mock.AsyncMock(
-                    **{
-                        "cmd_start.set_start.side_effect": self.set_summary_state_for(
-                            component, salobj.State.DISABLED
-                        ),
-                        "cmd_enable.start.side_effect": self.set_summary_state_for(
-                            component, salobj.State.ENABLED
-                        ),
-                        "cmd_disable.start.side_effect": self.set_summary_state_for(
-                            component, salobj.State.DISABLED
-                        ),
-                        "cmd_standby.start.side_effect": self.set_summary_state_for(
-                            component, salobj.State.STANDBY
-                        ),
-                        "evt_summaryState.next.side_effect": self.next_summary_state_for(
-                            component
-                        ),
-                        "evt_summaryState.aget.side_effect": self.get_summary_state_for(
-                            component
-                        ),
-                        "evt_heartbeat.next.side_effect": self.get_heartbeat,
-                        "evt_heartbeat.aget.side_effect": self.get_heartbeat,
-                        "evt_configurationsAvailable.aget.return_value": None,
-                    }
-                ),
-            )
-            # A trick to support calling a regular method (flush) from an
-            # AsyncMock. Basically, attach a regular Mock.
-            getattr(self.mtcs.rem, f"{component}").evt_summaryState.attach_mock(
-                unittest.mock.Mock(),
-                "flush",
-            )
-
-        # Augment MTPtg
-        self.mtcs.rem.mtptg.attach_mock(
-            unittest.mock.AsyncMock(),
-            "cmd_raDecTarget",
-        )
-
-        self.mtcs.rem.mtptg.cmd_raDecTarget.attach_mock(
-            unittest.mock.Mock(
-                **{
-                    "return_value": types.SimpleNamespace(
-                        **self.components_metadata["MTPtg"]
-                        .topic_info["command_raDecTarget"]
-                        .field_info
-                    )
-                }
-            ),
-            "DataType",
-        )
-
-        self.mtcs.rem.mtptg.attach_mock(
-            unittest.mock.AsyncMock(),
-            "cmd_poriginOffset",
-        )
-
-        self.mtcs.rem.mtptg.cmd_poriginOffset.attach_mock(
-            unittest.mock.Mock(),
-            "set",
-        )
-
-        self.mtcs.rem.mtptg.cmd_raDecTarget.attach_mock(
-            unittest.mock.Mock(),
-            "set",
-        )
-
-        self.mtcs.rem.mtptg.cmd_azElTarget.attach_mock(
-            unittest.mock.Mock(),
-            "set",
-        )
-
-        # Augment MTMount
-        mtmount_mocks = {
-            "evt_target.next.side_effect": self.mtmount_evt_target_next,
-            "tel_azimuth.next.side_effect": self.mtmount_tel_azimuth_next,
-            "tel_elevation.next.side_effect": self.mtmount_tel_elevation_next,
-            "tel_elevation.aget.side_effect": self.mtmount_tel_elevation_next,
-            "evt_elevationInPosition.next.side_effect": self.mtmount_evt_elevation_in_position_next,
-            "evt_azimuthInPosition.next.side_effect": self.mtmount_evt_azimuth_in_position_next,
-            "evt_cameraCableWrapFollowing.aget.side_effect": self.mtmount_evt_cameraCableWrapFollowing,
-            "cmd_enableCameraCableWrapFollowing.start.side_effect": self.mtmount_cmd_enable_ccw_following,
-            "cmd_disableCameraCableWrapFollowing.start.side_effect": self.mtmount_cmd_disable_ccw_following,
-        }
-        self.mtcs.rem.mtmount.configure_mock(**mtmount_mocks)
-
-        self.mtcs.rem.mtmount.evt_elevationInPosition.attach_mock(
-            unittest.mock.Mock(),
-            "flush",
-        )
-        self.mtcs.rem.mtmount.evt_azimuthInPosition.attach_mock(
-            unittest.mock.Mock(),
-            "flush",
-        )
-
-        # Augment MTRotator
-        self.mtcs.rem.mtrotator.configure_mock(
-            **{
-                "tel_rotation.next.side_effect": self.mtrotator_tel_rotation_next,
-                "tel_rotation.aget.side_effect": self.mtrotator_tel_rotation_next,
-                "evt_inPosition.next.side_effect": self.mtrotator_evt_in_position_next,
-                "evt_inPosition.aget.side_effect": self.mtrotator_evt_in_position_next,
-                "cmd_move.set_start.side_effect": self.mtrotator_cmd_move,
-            }
-        )
-
-        self.mtcs.rem.mtrotator.evt_inPosition.attach_mock(
-            unittest.mock.Mock(),
-            "flush",
-        )
-
-        # Augment MTDome
-        self.mtcs.rem.mtdome.configure_mock(
-            **{
-                "tel_azimuth.next.side_effect": self.mtdome_tel_azimuth_next,
-                "tel_lightWindScreen.next.side_effect": self.mtdome_tel_light_wind_screen_next,
-            }
-        )
-
-        # Augment MTM1M3
-        self.mtcs.rem.mtm1m3.evt_detailedState.attach_mock(
-            unittest.mock.Mock(),
-            "flush",
-        )
-        self.mtcs.rem.mtm1m3.evt_appliedBalanceForces.attach_mock(
-            unittest.mock.Mock(),
-            "flush",
-        )
-
-        self.mtcs.rem.mtm1m3.cmd_lowerM1M3.attach_mock(
-            unittest.mock.Mock(
-                return_value=types.SimpleNamespace(
-                    **self.components_metadata["MTM1M3"]
-                    .topic_info["command_lowerM1M3"]
-                    .field_info
-                )
-            ),
-            "DataType",
-        )
-        self.mtcs.rem.mtm1m3.cmd_raiseM1M3.attach_mock(
-            unittest.mock.Mock(
-                return_value=types.SimpleNamespace(
-                    **self.components_metadata["MTM1M3"]
-                    .topic_info["command_raiseM1M3"]
-                    .field_info
-                )
-            ),
-            "DataType",
-        )
-        data_type_apply_aberration_forces = types.SimpleNamespace(
-            **self.components_metadata["MTM1M3"]
-            .topic_info["command_applyAberrationForces"]
-            .field_info
-        )
-
-        data_type_apply_aberration_forces.zForces = np.zeros(
-            data_type_apply_aberration_forces.zForces.array_length
-        )
-
-        self.mtcs.rem.mtm1m3.cmd_applyAberrationForces.attach_mock(
-            unittest.mock.Mock(return_value=data_type_apply_aberration_forces),
-            "DataType",
-        )
-
-        m1m3_mocks = {
-            "evt_detailedState.next.side_effect": self.mtm1m3_evt_detailed_state,
-            "evt_detailedState.aget.side_effect": self.mtm1m3_evt_detailed_state,
-            "evt_appliedBalanceForces.next.side_effect": self.mtm1m3_evt_applied_balance_forces,
-            "evt_appliedBalanceForces.aget.side_effect": self.mtm1m3_evt_applied_balance_forces,
-            "cmd_raiseM1M3.set_start.side_effect": self.mtm1m3_cmd_raise_m1m3,
-            "cmd_lowerM1M3.set_start.side_effect": self.mtm1m3_cmd_lower_m1m3,
-            "cmd_enableHardpointCorrections.start.side_effect": self.mtm1m3_cmd_enable_hardpoint_corrections,
-            "cmd_abortRaiseM1M3.start.side_effect": self.mtm1m3_cmd_abort_raise_m1m3,
-        }
-        self.mtcs.rem.mtm1m3.configure_mock(**m1m3_mocks)
-
-        # Augment M2
-
-        self.mtcs.rem.mtm2.evt_forceBalanceSystemStatus.attach_mock(
-            unittest.mock.Mock(),
-            "flush",
-        )
-
-        m2_mocks = {
-            "evt_forceBalanceSystemStatus.aget.side_effect": self.mtm2_evt_force_balance_system_status,
-            "evt_forceBalanceSystemStatus.next.side_effect": self.mtm2_evt_force_balance_system_status,
-            "cmd_switchForceBalanceSystem.set_start.side_effect": self.mtm2_cmd_switch_force_balance_system,
-        }
-
-        self.mtcs.rem.mtm2.configure_mock(**m2_mocks)
-
-        # Augment Camera Hexapod
-
-        self.mtcs.rem.mthexapod_1.evt_compensationMode.attach_mock(
-            unittest.mock.Mock(),
-            "flush",
-        )
-        self.mtcs.rem.mthexapod_1.evt_inPosition.attach_mock(
-            unittest.mock.Mock(),
-            "flush",
-        )
-
-        hexapod_1_mocks = {
-            "evt_compensationMode.aget.side_effect": self.mthexapod_1_evt_compensation_mode,
-            "evt_compensationMode.next.side_effect": self.mthexapod_1_evt_compensation_mode,
-            "evt_uncompensatedPosition.aget.side_effect": self.mthexapod_1_evt_uncompensated_position,
-            "evt_uncompensatedPosition.next.side_effect": self.mthexapod_1_evt_uncompensated_position,
-            "evt_inPosition.aget.side_effect": self.mthexapod_1_evt_in_position,
-            "evt_inPosition.next.side_effect": self.mthexapod_1_evt_in_position,
-            "cmd_setCompensationMode.set_start.side_effect": self.mthexapod_1_cmd_set_compensation_mode,
-            "cmd_move.set_start.side_effect": self.mthexapod_1_cmd_move,
-        }
-
-        self.mtcs.rem.mthexapod_1.configure_mock(**hexapod_1_mocks)
-
-        # Augment M2 Hexapod
-        self.mtcs.rem.mthexapod_2.evt_compensationMode.attach_mock(
-            unittest.mock.Mock(),
-            "flush",
-        )
-        self.mtcs.rem.mthexapod_2.evt_inPosition.attach_mock(
-            unittest.mock.Mock(),
-            "flush",
-        )
-
-        hexapod_2_mocks = {
-            "evt_compensationMode.aget.side_effect": self.mthexapod_2_evt_compensation_mode,
-            "evt_compensationMode.next.side_effect": self.mthexapod_2_evt_compensation_mode,
-            "evt_uncompensatedPosition.aget.side_effect": self.mthexapod_2_evt_uncompensated_position,
-            "evt_uncompensatedPosition.next.side_effect": self.mthexapod_2_evt_uncompensated_position,
-            "evt_inPosition.aget.side_effect": self.mthexapod_2_evt_in_position,
-            "evt_inPosition.next.side_effect": self.mthexapod_2_evt_in_position,
-            "cmd_setCompensationMode.set_start.side_effect": self.mthexapod_2_cmd_set_compensation_mode,
-            "cmd_move.set_start.side_effect": self.mthexapod_2_cmd_move,
-        }
-
-        self.mtcs.rem.mthexapod_2.configure_mock(**hexapod_2_mocks)
-
-        # setup some execution times
-        self.execute_raise_lower_m1m3_time = 4.0  # seconds
-        self.heartbeat_time = 1.0  # seconds
-        self.short_process_time = 0.1  # seconds
-        self.normal_process_time = 0.25  # seconds
-
+class TestMTCS(MTCSAsyncMock):
     async def test_coord_facility(self) -> None:
         az = 0.0
         el = 75.0
@@ -487,6 +81,10 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
             assert not getattr(check, comp)
 
     async def test_slew_object(self) -> None:
+
+        await self.mtcs.enable()
+        await self.mtcs.assert_all_enabled()
+
         name = "HD 185975"
 
         object_table = self.mtcs.object_list_get(name)
@@ -522,10 +120,10 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
         self.mtcs.rem.mtptg.cmd_poriginOffset.set.assert_called_with(dx=0, dy=0, num=0)
 
         self.mtcs.rem.mtptg.cmd_stopTracking.start.assert_not_awaited()
-        self.mtcs.rem.mtmount.evt_elevationInPosition.flush.assert_not_called()
-        self.mtcs.rem.mtmount.evt_azimuthInPosition.flush.assert_not_called()
 
-        self.mtcs.rem.mtrotator.evt_inPosition.flush.assert_not_called()
+        self.mtcs.rem.mtmount.evt_elevationInPosition.flush.assert_called_once()
+        self.mtcs.rem.mtmount.evt_azimuthInPosition.flush.assert_called_once()
+        self.mtcs.rem.mtrotator.evt_inPosition.flush.assert_called_once()
 
         self.mtcs.rem.mtptg.cmd_raDecTarget.start.assert_called()
         self.mtcs.rem.mtptg.cmd_poriginOffset.start.assert_called_with(
@@ -533,6 +131,9 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
         )
 
     async def test_slew_icrs(self) -> None:
+
+        await self.mtcs.enable()
+        await self.mtcs.assert_all_enabled()
 
         name = "HD 185975"
         ra = "20:28:18.74"
@@ -567,9 +168,9 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
 
         self.mtcs.rem.mtptg.cmd_stopTracking.start.assert_not_awaited()
 
-        self.mtcs.rem.mtmount.evt_elevationInPosition.flush.assert_not_called()
-        self.mtcs.rem.mtmount.evt_azimuthInPosition.flush.assert_not_called()
-        self.mtcs.rem.mtrotator.evt_inPosition.flush.assert_not_called()
+        self.mtcs.rem.mtmount.evt_elevationInPosition.flush.assert_called_once()
+        self.mtcs.rem.mtmount.evt_azimuthInPosition.flush.assert_called_once()
+        self.mtcs.rem.mtrotator.evt_inPosition.flush.assert_called_once()
 
         self.mtcs.rem.mtptg.cmd_raDecTarget.start.assert_called()
         self.mtcs.rem.mtptg.cmd_poriginOffset.start.assert_called_with(
@@ -577,6 +178,9 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
         )
 
     async def test_slew_icrs_stop(self) -> None:
+
+        await self.mtcs.enable()
+        await self.mtcs.assert_all_enabled()
 
         name = "HD 185975"
         ra = "20:28:18.74"
@@ -627,6 +231,9 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
 
     async def test_slew_icrs_rot(self) -> None:
 
+        await self.mtcs.enable()
+        await self.mtcs.assert_all_enabled()
+
         name = "HD 185975"
         ra = "20:28:18.74"
         dec = "-87:28:19.9"
@@ -660,9 +267,10 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
         self.mtcs.rem.mtptg.cmd_poriginOffset.set.assert_called_with(dx=0, dy=0, num=0)
 
         self.mtcs.rem.mtptg.cmd_stopTracking.start.assert_not_awaited()
-        self.mtcs.rem.mtmount.evt_elevationInPosition.flush.assert_not_called()
-        self.mtcs.rem.mtmount.evt_azimuthInPosition.flush.assert_not_called()
-        self.mtcs.rem.mtrotator.evt_inPosition.flush.assert_not_called()
+
+        self.mtcs.rem.mtmount.evt_elevationInPosition.flush.assert_called_once()
+        self.mtcs.rem.mtmount.evt_azimuthInPosition.flush.assert_called_once()
+        self.mtcs.rem.mtrotator.evt_inPosition.flush.assert_called_once()
 
         self.mtcs.rem.mtptg.cmd_raDecTarget.start.assert_called()
         self.mtcs.rem.mtptg.cmd_poriginOffset.start.assert_called_with(
@@ -670,6 +278,9 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
         )
 
     async def test_slew_icrs_rot_physical(self) -> None:
+
+        await self.mtcs.enable()
+        await self.mtcs.assert_all_enabled()
 
         name = "HD 185975"
         ra = "20:28:18.74"
@@ -704,9 +315,10 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
         self.mtcs.rem.mtptg.cmd_poriginOffset.set.assert_called_with(dx=0, dy=0, num=0)
 
         self.mtcs.rem.mtptg.cmd_stopTracking.start.assert_not_called()
-        self.mtcs.rem.mtmount.evt_elevationInPosition.flush.assert_not_called()
-        self.mtcs.rem.mtmount.evt_azimuthInPosition.flush.assert_not_called()
-        self.mtcs.rem.mtrotator.evt_inPosition.flush.assert_not_called()
+
+        self.mtcs.rem.mtmount.evt_elevationInPosition.flush.assert_called_once()
+        self.mtcs.rem.mtmount.evt_azimuthInPosition.flush.assert_called_once()
+        self.mtcs.rem.mtrotator.evt_inPosition.flush.assert_called_once()
 
         self.mtcs.rem.mtptg.cmd_raDecTarget.start.assert_called()
         self.mtcs.rem.mtptg.cmd_poriginOffset.start.assert_called_with(
@@ -714,6 +326,9 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
         )
 
     async def test_slew_icrs_rot_physical_sky(self) -> None:
+
+        await self.mtcs.enable()
+        await self.mtcs.assert_all_enabled()
 
         name = "HD 185975"
         ra = "20:28:18.74"
@@ -748,9 +363,10 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
         self.mtcs.rem.mtptg.cmd_poriginOffset.set.assert_called_with(dx=0, dy=0, num=0)
 
         self.mtcs.rem.mtptg.cmd_stopTracking.start.assert_not_called()
-        self.mtcs.rem.mtmount.evt_elevationInPosition.flush.assert_not_called()
-        self.mtcs.rem.mtmount.evt_azimuthInPosition.flush.assert_not_called()
-        self.mtcs.rem.mtrotator.evt_inPosition.flush.assert_not_called()
+
+        self.mtcs.rem.mtmount.evt_elevationInPosition.flush.assert_called_once()
+        self.mtcs.rem.mtmount.evt_azimuthInPosition.flush.assert_called_once()
+        self.mtcs.rem.mtrotator.evt_inPosition.flush.assert_called_once()
 
         self.mtcs.rem.mtptg.cmd_raDecTarget.start.assert_called()
         self.mtcs.rem.mtptg.cmd_poriginOffset.start.assert_called_with(
@@ -758,6 +374,9 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
         )
 
     async def test_slew_icrs_with_offset(self) -> None:
+
+        await self.mtcs.enable()
+        await self.mtcs.assert_all_enabled()
 
         name = "HD 185975"
         ra = "20:28:18.74"
@@ -802,10 +421,10 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
         )
 
         self.mtcs.rem.mtptg.cmd_stopTracking.start.assert_not_called()
-        self.mtcs.rem.mtmount.evt_elevationInPosition.flush.assert_not_called()
-        self.mtcs.rem.mtmount.evt_azimuthInPosition.flush.assert_not_called()
 
-        self.mtcs.rem.mtrotator.evt_inPosition.flush.assert_not_called()
+        self.mtcs.rem.mtmount.evt_elevationInPosition.flush.assert_called_once()
+        self.mtcs.rem.mtmount.evt_azimuthInPosition.flush.assert_called_once()
+        self.mtcs.rem.mtrotator.evt_inPosition.flush.assert_called_once()
 
         self.mtcs.rem.mtptg.cmd_raDecTarget.start.assert_called()
         self.mtcs.rem.mtptg.cmd_poriginOffset.start.assert_called_with(
@@ -813,6 +432,9 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
         )
 
     async def test_slew_icrs_ccw_following_off(self) -> None:
+
+        await self.mtcs.enable()
+        await self.mtcs.assert_all_enabled()
 
         name = "HD 185975"
         ra = "20:28:18.74"
@@ -851,9 +473,10 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
         self.mtcs.rem.mtptg.cmd_poriginOffset.set.assert_called_with(dx=0, dy=0, num=0)
 
         self.mtcs.rem.mtptg.cmd_stopTracking.start.assert_not_awaited()
-        self.mtcs.rem.mtmount.evt_elevationInPosition.flush.assert_not_called()
-        self.mtcs.rem.mtmount.evt_azimuthInPosition.flush.assert_not_called()
-        self.mtcs.rem.mtrotator.evt_inPosition.flush.assert_not_called()
+
+        self.mtcs.rem.mtmount.evt_elevationInPosition.flush.assert_called_once()
+        self.mtcs.rem.mtmount.evt_azimuthInPosition.flush.assert_called_once()
+        self.mtcs.rem.mtrotator.evt_inPosition.flush.assert_called_once()
 
         self.mtcs.rem.mtptg.cmd_raDecTarget.start.assert_called()
         self.mtcs.rem.mtptg.cmd_poriginOffset.start.assert_called_with(
@@ -861,6 +484,9 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
         )
 
     async def test_point_azel(self) -> None:
+
+        await self.mtcs.enable()
+        await self.mtcs.assert_all_enabled()
 
         az = 180.0
         el = 45.0
@@ -1190,6 +816,9 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
 
     async def test_raise_m1m3(self) -> None:
 
+        await self.mtcs.enable()
+        await self.mtcs.assert_all_enabled()
+
         self._mtm1m3_evt_detailed_state.detailedState = (
             idl.enums.MTM1M3.DetailedState.PARKED
         )
@@ -1212,6 +841,9 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
 
     async def test_raise_m1m3_when_active(self) -> None:
 
+        await self.mtcs.enable()
+        await self.mtcs.assert_all_enabled()
+
         self._mtm1m3_evt_detailed_state.detailedState = (
             idl.enums.MTM1M3.DetailedState.ACTIVE
         )
@@ -1223,6 +855,9 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
         self.mtcs.rem.mtm1m3.evt_detailedState.next.assert_not_awaited()
 
     async def test_raise_m1m3_aborted(self) -> None:
+
+        await self.mtcs.enable()
+        await self.mtcs.assert_all_enabled()
 
         self._mtm1m3_evt_detailed_state.detailedState = (
             idl.enums.MTM1M3.DetailedState.PARKED
@@ -1253,6 +888,9 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
 
     async def test_raise_m1m3_not_raisable(self) -> None:
 
+        await self.mtcs.enable()
+        await self.mtcs.assert_all_enabled()
+
         for m1m3_detailed_state in idl.enums.MTM1M3.DetailedState:
             if m1m3_detailed_state not in {
                 idl.enums.MTM1M3.DetailedState.ACTIVE,
@@ -1270,6 +908,9 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
                     await self.mtcs.raise_m1m3()
 
     async def test_lower_m1m3_when_active(self) -> None:
+
+        await self.mtcs.enable()
+        await self.mtcs.assert_all_enabled()
 
         self._mtm1m3_evt_detailed_state.detailedState = (
             idl.enums.MTM1M3.DetailedState.ACTIVE
@@ -1324,6 +965,9 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
             idl.enums.MTM1M3.DetailedState.RAISING
         )
 
+        await self.mtcs.enable()
+        await self.mtcs.assert_all_enabled()
+
         await self.mtcs.abort_raise_m1m3()
 
         self.mtcs.rem.mtm1m3.cmd_abortRaiseM1M3.start.assert_awaited_with(
@@ -1336,6 +980,9 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
 
     async def test_abort_raise_m1m3_active(self) -> None:
 
+        await self.mtcs.enable()
+        await self.mtcs.assert_all_enabled()
+
         self._mtm1m3_evt_detailed_state.detailedState = (
             idl.enums.MTM1M3.DetailedState.ACTIVE
         )
@@ -1346,6 +993,9 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
         self.mtcs.rem.mtm1m3.cmd_abortRaiseM1M3.start.assert_not_awaited()
 
     async def test_abort_raise_m1m3_parked(self) -> None:
+
+        await self.mtcs.enable()
+        await self.mtcs.assert_all_enabled()
 
         self._mtm1m3_evt_detailed_state.detailedState = (
             idl.enums.MTM1M3.DetailedState.PARKED
@@ -1359,7 +1009,10 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
 
         await self.mtcs.enable_m1m3_balance_system()
 
-        self.mtcs.rem.mtm1m3.evt_appliedBalanceForces.aget.assert_awaited()
+        if hasattr(self.mtcs.rem.mtm1m3, "evt_appliedBalanceForces"):
+            self.mtcs.rem.mtm1m3.evt_appliedBalanceForces.aget.assert_awaited()
+        else:
+            self.mtcs.rem.mtm1m3.tel_appliedBalanceForces.aget.assert_awaited()
         self.mtcs.rem.mtm1m3.cmd_enableHardpointCorrections.start.assert_awaited_with(
             timeout=self.mtcs.long_timeout
         )
@@ -1642,480 +1295,3 @@ class TestMTCS(unittest.IsolatedAsyncioTestCase):
         self.mtcs.rem.mthexapod_2.evt_inPosition.next.assert_awaited_with(
             timeout=self.mtcs.long_timeout, flush=False
         )
-
-    def test_check_mtmount_interface(self) -> None:
-
-        component = "MTMount"
-
-        self.check_topic_attribute(
-            attributes={"actualPosition"}, topic="elevation", component=component
-        )
-        self.check_topic_attribute(
-            attributes={"actualPosition"}, topic="azimuth", component=component
-        )
-        self.check_topic_attribute(
-            attributes={"enabled"},
-            topic="logevent_cameraCableWrapFollowing",
-            component=component,
-        )
-
-    def test_check_mtrotator_interface(self) -> None:
-        for attribute in {"actualPosition"}:
-            assert (
-                attribute
-                in self.components_metadata["MTRotator"]
-                .topic_info["rotation"]
-                .field_info
-            )
-
-    def test_check_mtptg_interface(self) -> None:
-
-        for attribute in {
-            "ra",
-            "declination",
-            "targetName",
-            "frame",
-            "rotAngle",
-            "rotStartFrame",
-            "rotTrackFrame",
-            "azWrapStrategy",
-            "timeOnTarget",
-            "epoch",
-            "equinox",
-            "parallax",
-            "pmRA",
-            "pmDec",
-            "rv",
-            "dRA",
-            "dDec",
-            "rotMode",
-        }:
-            assert (
-                attribute
-                in self.components_metadata["MTPtg"]
-                .topic_info["command_raDecTarget"]
-                .field_info
-            )
-
-        for attribute in {
-            "targetName",
-            "azDegs",
-            "elDegs",
-            "rotPA",
-        }:
-            assert (
-                attribute
-                in self.components_metadata["MTPtg"]
-                .topic_info["command_azElTarget"]
-                .field_info
-            )
-
-        for attribute in {
-            "dx",
-            "dy",
-            "num",
-        }:
-            assert (
-                attribute
-                in self.components_metadata["MTPtg"]
-                .topic_info["command_poriginOffset"]
-                .field_info
-            )
-
-        for attribute in {"type", "off1", "off2", "num"}:
-            assert (
-                attribute
-                in self.components_metadata["MTPtg"]
-                .topic_info["command_offsetRADec"]
-                .field_info
-            )
-
-        for attribute in {"az", "el", "num"}:
-            assert (
-                attribute
-                in self.components_metadata["MTPtg"]
-                .topic_info["command_offsetAzEl"]
-                .field_info
-            )
-
-    def test_check_mtm1m3_interface(self) -> None:
-
-        self.check_topic_attribute(
-            attributes=["detailedState"],
-            topic="logevent_detailedState",
-            component="MTM1M3",
-        )
-
-    def check_topic_attribute(
-        self, attributes: typing.Iterable[str], topic: str, component: str
-    ) -> None:
-        for attribute in attributes:
-            assert (
-                attribute
-                in self.components_metadata[component].topic_info[topic].field_info
-            )
-
-    async def get_heartbeat(
-        self, *args: typing.Any, **kwargs: typing.Any
-    ) -> types.SimpleNamespace:
-        """Emulate heartbeat functionality."""
-        await asyncio.sleep(self.heartbeat_time)
-        return types.SimpleNamespace()
-
-    async def mtmount_evt_target_next(
-        self, *args: typing.Any, **kwargs: typing.Any
-    ) -> types.SimpleNamespace:
-        return self._mtmount_evt_target
-
-    async def mtmount_tel_azimuth_next(
-        self, *args: typing.Any, **kwargs: typing.Any
-    ) -> types.SimpleNamespace:
-        return self._mtmount_tel_azimuth
-
-    async def mtmount_tel_elevation_next(
-        self, *args: typing.Any, **kwargs: typing.Any
-    ) -> types.SimpleNamespace:
-        return self._mtmount_tel_elevation
-
-    async def mtmount_evt_elevation_in_position_next(
-        self, *args: typing.Any, **kwargs: typing.Any
-    ) -> types.SimpleNamespace:
-        return self._mtmount_evt_elevation_in_position
-
-    async def mtmount_evt_azimuth_in_position_next(
-        self, *args: typing.Any, **kwargs: typing.Any
-    ) -> types.SimpleNamespace:
-        return self._mtmount_evt_azimuth_in_position
-
-    async def mtmount_evt_cameraCableWrapFollowing(
-        self, *args: typing.Any, **kwargs: typing.Any
-    ) -> types.SimpleNamespace:
-        return self._mtmount_evt_cameraCableWrapFollowing
-
-    async def mtmount_cmd_enable_ccw_following(
-        self, *args: typing.Any, **kwargs: typing.Any
-    ) -> None:
-        self._mtmount_evt_cameraCableWrapFollowing.enabled = 1
-
-    async def mtmount_cmd_disable_ccw_following(
-        self, *args: typing.Any, **kwargs: typing.Any
-    ) -> None:
-        self._mtmount_evt_cameraCableWrapFollowing.enabled = 0
-
-    async def mtrotator_cmd_move(self, *args: typing.Any, **kwargs: typing.Any) -> None:
-
-        asyncio.create_task(self._mtrotator_move(position=kwargs.get("position", 0.0)))
-
-    async def _mtrotator_move(self, position: float) -> None:
-
-        self._mtrotator_evt_in_position.inPosition = False
-
-        position_vector = (
-            np.arange(self._mtrotator_tel_rotation.actualPosition, position, 0.5)
-            if self._mtrotator_tel_rotation.actualPosition < position
-            else np.arange(position, self._mtrotator_tel_rotation.actualPosition, 0.5)
-        )
-
-        for actual_position in position_vector:
-            await asyncio.sleep(0.1)
-            self._mtrotator_tel_rotation.actualPosition = actual_position
-
-        self._mtrotator_tel_rotation.actualPosition = position
-        self._mtrotator_evt_in_position.inPosition = True
-
-    async def mtrotator_tel_rotation_next(
-        self, *args: typing.Any, **kwargs: typing.Any
-    ) -> types.SimpleNamespace:
-        await asyncio.sleep(self.heartbeat_time)
-        return self._mtrotator_tel_rotation
-
-    async def mtrotator_evt_in_position_next(
-        self, *args: typing.Any, **kwargs: typing.Any
-    ) -> types.SimpleNamespace:
-        await asyncio.sleep(self.heartbeat_time)
-        return self._mtrotator_evt_in_position
-
-    async def mtdome_tel_azimuth_next(
-        self, *args: typing.Any, **kwargs: typing.Any
-    ) -> types.SimpleNamespace:
-        return self._mtdome_tel_azimuth
-
-    async def mtdome_tel_light_wind_screen_next(
-        self, *args: typing.Any, **kwargs: typing.Any
-    ) -> types.SimpleNamespace:
-        return self._mtdome_tel_light_wind_screen
-
-    async def mtm1m3_evt_detailed_state(
-        self, *args: typing.Any, **kwargs: typing.Any
-    ) -> types.SimpleNamespace:
-        await asyncio.sleep(self.heartbeat_time)
-        return self._mtm1m3_evt_detailed_state
-
-    async def mtm1m3_evt_applied_balance_forces(
-        self, *args: typing.Any, **kwargs: typing.Any
-    ) -> types.SimpleNamespace:
-        await asyncio.sleep(self.normal_process_time)
-        return self._mtm1m3_evt_applied_balance_forces
-
-    async def mtm1m3_cmd_raise_m1m3(
-        self, *args: typing.Any, **kwargs: typing.Any
-    ) -> None:
-        raise_m1m3 = kwargs.get("raiseM1M3", True)
-
-        if (
-            raise_m1m3
-            and self._mtm1m3_evt_detailed_state.detailedState
-            == idl.enums.MTM1M3.DetailedState.PARKED
-        ):
-            self._mtm1m3_raise_task = asyncio.create_task(self.execute_raise_m1m3())
-        else:
-            raise RuntimeError(
-                f"MTM1M3 current detailed state is {self._mtm1m3_evt_detailed_state.detailedState!r}."
-            )
-
-    async def mtm1m3_cmd_abort_raise_m1m3(
-        self, *args: typing.Any, **kwargs: typing.Any
-    ) -> None:
-
-        if self._mtm1m3_evt_detailed_state.detailedState in {
-            idl.enums.MTM1M3.DetailedState.RAISINGENGINEERING,
-            idl.enums.MTM1M3.DetailedState.RAISING,
-        }:
-            self._mtm1m3_abort_raise_task = asyncio.create_task(
-                self.execute_abort_raise_m1m3()
-            )
-        else:
-            raise RuntimeError("M1M3 Not raising. Cannot abort.")
-
-    async def execute_raise_m1m3(self) -> None:
-        self.log.debug("Start raising M1M3...")
-        self._mtm1m3_evt_detailed_state.detailedState = (
-            idl.enums.MTM1M3.DetailedState.RAISING
-        )
-        await asyncio.sleep(self.execute_raise_lower_m1m3_time)
-        self.log.debug("Done raising M1M3...")
-        self._mtm1m3_evt_detailed_state.detailedState = (
-            idl.enums.MTM1M3.DetailedState.ACTIVE
-        )
-
-    async def mtm1m3_cmd_lower_m1m3(
-        self, *args: typing.Any, **kwargs: typing.Any
-    ) -> None:
-        lower_m1m3 = kwargs.get("lowerM1M3", True)
-
-        if (
-            lower_m1m3
-            and self._mtm1m3_evt_detailed_state.detailedState
-            == idl.enums.MTM1M3.DetailedState.ACTIVE
-        ):
-            self._mtm1m3_lower_task = asyncio.create_task(self.execute_lower_m1m3())
-        else:
-            raise RuntimeError(
-                f"MTM1M3 current detailed state is {self._mtm1m3_evt_detailed_state.detailedState!r}."
-            )
-
-    async def execute_lower_m1m3(self) -> None:
-        self.log.debug("Start lowering M1M3...")
-        self._mtm1m3_evt_detailed_state.detailedState = (
-            idl.enums.MTM1M3.DetailedState.LOWERING
-        )
-        await asyncio.sleep(self.execute_raise_lower_m1m3_time)
-        self.log.debug("Done lowering M1M3...")
-        self._mtm1m3_evt_detailed_state.detailedState = (
-            idl.enums.MTM1M3.DetailedState.PARKED
-        )
-
-    async def execute_abort_raise_m1m3(self) -> None:
-
-        if not self._mtm1m3_raise_task.done():
-            self.log.debug("Cancel m1m3 raise task...")
-            self._mtm1m3_raise_task.cancel()
-
-        self.log.debug("Set m1m3 detailed state to lowering...")
-        self._mtm1m3_evt_detailed_state.detailedState = (
-            idl.enums.MTM1M3.DetailedState.LOWERING
-        )
-        await asyncio.sleep(self.execute_raise_lower_m1m3_time)
-        self.log.debug("M1M3 raise task done, set detailed state to parked...")
-        self._mtm1m3_evt_detailed_state.detailedState = (
-            idl.enums.MTM1M3.DetailedState.PARKED
-        )
-
-    async def mtm1m3_cmd_enable_hardpoint_corrections(
-        self, *args: typing.Any, **kwargs: typing.Any
-    ) -> None:
-        await asyncio.sleep(self.short_process_time)
-        if self._mtm1m3_evt_applied_balance_forces.forceMagnitude == 0.0:
-            self._hardpoint_corrections_task = asyncio.create_task(
-                self._execute_enable_hardpoint_corrections()
-            )
-
-    async def _execute_enable_hardpoint_corrections(self) -> float:
-
-        for force_magnitude in range(0, 2200, 200):
-            self._mtm1m3_evt_applied_balance_forces.forceMagnitude = force_magnitude
-            await asyncio.sleep(self.normal_process_time)
-
-        return self._mtm1m3_evt_applied_balance_forces.forceMagnitude
-
-    async def mtm2_evt_force_balance_system_status(
-        self, *args: typing.Any, **kwargs: typing.Any
-    ) -> types.SimpleNamespace:
-        await asyncio.sleep(self.heartbeat_time)
-        return self._mtm2_evt_force_balance_system_status
-
-    async def mtm2_cmd_switch_force_balance_system(
-        self, *args: typing.Any, **kwargs: typing.Any
-    ) -> None:
-        status = kwargs.get("status", False)
-
-        if status == self._mtm2_evt_force_balance_system_status.status:
-            raise RuntimeError(f"Force balance status already {status}.")
-        else:
-            self.log.debug(
-                "Switching force balance status "
-                f"{self._mtm2_evt_force_balance_system_status.status} -> {status}"
-            )
-            await asyncio.sleep(self.heartbeat_time)
-            self._mtm2_evt_force_balance_system_status.status = status
-
-    async def mthexapod_1_evt_compensation_mode(
-        self, *args: typing.Any, **kwargs: typing.Any
-    ) -> types.SimpleNamespace:
-        await asyncio.sleep(self.heartbeat_time)
-        return self._mthexapod_1_evt_compensation_mode
-
-    async def mthexapod_1_cmd_set_compensation_mode(
-        self, *args: typing.Any, **kwargs: typing.Any
-    ) -> None:
-        await asyncio.sleep(self.heartbeat_time)
-        self._mthexapod_1_evt_compensation_mode.enabled = kwargs.get("enable", 0) == 1
-
-    async def mthexapod_2_evt_compensation_mode(
-        self, *args: typing.Any, **kwargs: typing.Any
-    ) -> types.SimpleNamespace:
-        await asyncio.sleep(self.heartbeat_time)
-        return self._mthexapod_2_evt_compensation_mode
-
-    async def mthexapod_1_evt_uncompensated_position(
-        self, *args: typing.Any, **kwargs: typing.Any
-    ) -> types.SimpleNamespace:
-        await asyncio.sleep(self.heartbeat_time)
-        return self._mthexapod_1_evt_uncompensated_position
-
-    async def mthexapod_1_evt_in_position(
-        self, *args: typing.Any, **kwargs: typing.Any
-    ) -> types.SimpleNamespace:
-        await asyncio.sleep(self.heartbeat_time)
-        return self._mthexapod_1_evt_in_position
-
-    async def mthexapod_2_evt_uncompensated_position(
-        self, *args: typing.Any, **kwargs: typing.Any
-    ) -> types.SimpleNamespace:
-        await asyncio.sleep(self.heartbeat_time)
-        return self._mthexapod_2_evt_uncompensated_position
-
-    async def mthexapod_2_evt_in_position(
-        self, *args: typing.Any, **kwargs: typing.Any
-    ) -> types.SimpleNamespace:
-        await asyncio.sleep(self.heartbeat_time)
-        return self._mthexapod_2_evt_in_position
-
-    async def mthexapod_2_cmd_set_compensation_mode(
-        self, *args: typing.Any, **kwargs: typing.Any
-    ) -> None:
-        if self._mthexapod_2_evt_compensation_mode.enabled:
-            raise RuntimeError("Hexapod 2 compensation mode already enabled.")
-        else:
-            await asyncio.sleep(self.heartbeat_time)
-            self._mthexapod_2_evt_compensation_mode.enabled = True
-
-    async def mthexapod_1_cmd_move(
-        self, *args: typing.Any, **kwargs: typing.Any
-    ) -> None:
-        self.log.debug("Move camera hexapod...")
-        await asyncio.sleep(self.heartbeat_time / 2)
-        self._mthexapod_1_move_task = asyncio.create_task(
-            self.execute_hexapod_move(hexapod=1, **kwargs)
-        )
-        await asyncio.sleep(self.short_process_time)
-
-    async def mthexapod_2_cmd_move(
-        self, *args: typing.Any, **kwargs: typing.Any
-    ) -> None:
-        await asyncio.sleep(self.heartbeat_time / 2.0)
-        self._mthexapod_2_move_task = asyncio.create_task(
-            self.execute_hexapod_move(hexapod=2, **kwargs)
-        )
-        await asyncio.sleep(self.short_process_time)
-
-    async def execute_hexapod_move(self, hexapod: int, **kwargs: typing.Any) -> None:
-
-        self.log.debug(f"Execute hexapod {hexapod} movement.")
-        getattr(self, f"_mthexapod_{hexapod}_evt_in_position").inPosition = False
-        hexapod_positions_steps = np.array(
-            [
-                np.linspace(
-                    getattr(self._mthexapod_1_evt_uncompensated_position, axis),
-                    kwargs.get(axis, 0.0),
-                    10,
-                )
-                for axis in "xyzuvw"
-            ]
-        ).T
-
-        for x, y, z, u, v, w in hexapod_positions_steps:
-            self.log.debug(f"Hexapod {hexapod} movement: {x} {y} {z} {u} {v} {w}")
-            getattr(self, f"_mthexapod_{hexapod}_evt_uncompensated_position").x = x
-            getattr(self, f"_mthexapod_{hexapod}_evt_uncompensated_position").y = y
-            getattr(self, f"_mthexapod_{hexapod}_evt_uncompensated_position").z = z
-            getattr(self, f"_mthexapod_{hexapod}_evt_uncompensated_position").u = u
-            getattr(self, f"_mthexapod_{hexapod}_evt_uncompensated_position").v = v
-            getattr(self, f"_mthexapod_{hexapod}_evt_uncompensated_position").w = w
-            await asyncio.sleep(self.short_process_time * 2.0)
-
-        getattr(self, f"_mthexapod_{hexapod}_evt_in_position").inPosition = True
-
-    def get_summary_state_for(
-        self, comp: str
-    ) -> typing.Callable[
-        [typing.Optional[float]], typing.Coroutine[typing.Any, typing.Any, None]
-    ]:
-        async def get_summary_state(
-            timeout: typing.Optional[float] = None,
-        ) -> salobj.type_hints.BaseMsgType:
-            return self.summary_state[comp]
-
-        return get_summary_state
-
-    def next_summary_state_for(
-        self, comp: str
-    ) -> typing.Callable[
-        [bool, typing.Optional[float]], typing.Coroutine[typing.Any, typing.Any, None]
-    ]:
-        async def next_summary_state(
-            flush: bool, timeout: typing.Optional[float] = None
-        ) -> salobj.type_hints.BaseMsgType:
-            if flush or len(self.summary_state_queue[comp]) == 0:
-                self.summary_state_queue_event[comp].clear()
-                self.summary_state_queue[comp] = []
-            await asyncio.wait_for(
-                self.summary_state_queue_event[comp].wait(), timeout=timeout
-            )
-            return self.summary_state_queue[comp].pop(0)
-
-        return next_summary_state
-
-    def set_summary_state_for(
-        self, comp: str, state: salobj.State
-    ) -> typing.Callable[
-        [typing.Any, typing.Any], typing.Coroutine[typing.Any, typing.Any, None]
-    ]:
-        async def set_summary_state(*args: typing.Any, **kwargs: typing.Any) -> None:
-            self.summary_state[comp].summaryState = int(state)
-            self.summary_state_queue[comp].append(
-                copy.copy(self.summary_state[comp].summaryState)
-            )
-            self.summary_state_queue_event[comp].set()
-
-        return set_summary_state
