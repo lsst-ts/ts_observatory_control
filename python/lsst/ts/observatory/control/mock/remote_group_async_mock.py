@@ -123,6 +123,9 @@ class RemoteGroupAsyncMock(
         for all events and telemetry.
         """
         self.component_commands_arguments = dict()
+        self.summary_state = dict()
+        self.summary_state_queue_event = dict()
+        self.summary_state_queue = dict()
 
         for component, component_name in zip(
             self.remote_group.components_attr, self.remote_group.components
@@ -134,6 +137,14 @@ class RemoteGroupAsyncMock(
             spec = self.get_spec_from_topics(topics)
 
             side_effects = self.get_side_effects_for(component, spec)
+
+            self.summary_state[component] = self.get_sample(
+                component=component_name, topic="logevent_summaryState"
+            )
+
+            self.summary_state[component].summaryState = salobj.State.STANDBY
+            self.summary_state_queue[component] = []
+            self.summary_state_queue_event[component] = asyncio.Event()
 
             # Set mock for the component remote. Note that we pass in spec and
             # side effects. When passing spec to an AsyncMock all values
