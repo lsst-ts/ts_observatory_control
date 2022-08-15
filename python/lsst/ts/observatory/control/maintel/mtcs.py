@@ -829,9 +829,7 @@ class MTCS(BaseTCS):
     async def enable_m1m3_balance_system(self) -> None:
         """Enable m1m3 balance system."""
 
-        applied_balance_forces = await self.rem.mtm1m3.evt_appliedBalanceForces.aget(
-            timeout=self.fast_timeout
-        )
+        applied_balance_forces = await self.get_m1m3_applied_balance_forces()
 
         if applied_balance_forces.forceMagnitude == 0.0:
             self.log.debug("Enabling hardpoint corrections.")
@@ -850,11 +848,7 @@ class MTCS(BaseTCS):
             How long to wait before timing out (in seconds).
         """
 
-        applied_balance_forces_last = (
-            await self.rem.mtm1m3.evt_appliedBalanceForces.aget(
-                timeout=self.fast_timeout
-            )
-        )
+        applied_balance_forces_last = await self.get_m1m3_applied_balance_forces()
 
         if applied_balance_forces_last.forceMagnitude == 0.0:
             self.log.warning(
@@ -866,11 +860,10 @@ class MTCS(BaseTCS):
         timer_task: asyncio.Task = asyncio.create_task(asyncio.sleep(timeout))
 
         while not timer_task.done():
-            applied_balance_forces_new = (
-                await self.rem.mtm1m3.evt_appliedBalanceForces.next(
-                    flush=True, timeout=self.fast_timeout
-                )
+            applied_balance_forces_new = await self.next_m1m3_applied_balance_forces(
+                flush=True
             )
+
             if applied_balance_forces_new.forceMagnitude == 0.0:
                 raise RuntimeError(
                     "Force magnitude is zero. Enable force balance system before "
@@ -1171,6 +1164,45 @@ class MTCS(BaseTCS):
         """
         return await self.rem.mthexapod_2.evt_compensationMode.aget(
             timeout=self.fast_timeout
+        )
+
+    async def get_m1m3_applied_balance_forces(self) -> salobj.type_hints.BaseMsgType:
+        """Returns the last sample of `appliedBalanceForces` data from m1m3.
+
+        Returns
+        -------
+        `MTM1M3_logevent_appliedBalanceForces` or `MTM1M3_appliedBalanceForces`
+        """
+        return await (
+            self.rem.mtm1m3.evt_appliedBalanceForces.aget(timeout=self.fast_timeout)
+            if hasattr(self.rem.mtm1m3, "evt_appliedBalanceForces")
+            else self.rem.mtm1m3.tel_appliedBalanceForces.aget(
+                timeout=self.fast_timeout
+            )
+        )
+
+    async def next_m1m3_applied_balance_forces(
+        self, flush: bool
+    ) -> salobj.type_hints.BaseMsgType:
+        """Returns the next sample of `appliedBalanceForces` data from m1m3.
+
+        Parameters
+        ----------
+        flush : `bool`
+            Flush the topic queue before getting the next sample?
+
+        Returns
+        -------
+        `MTM1M3_logevent_appliedBalanceForces` or `MTM1M3_appliedBalanceForces`
+        """
+        return await (
+            self.rem.mtm1m3.evt_appliedBalanceForces.next(
+                flush=flush, timeout=self.fast_timeout
+            )
+            if hasattr(self.rem.mtm1m3, "evt_appliedBalanceForces")
+            else self.rem.mtm1m3.tel_appliedBalanceForces.aget(
+                flush=flush, timeout=self.fast_timeout
+            )
         )
 
     async def _ready_to_take_data(self) -> None:
