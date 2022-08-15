@@ -436,7 +436,7 @@ class RemoteGroupAsyncMock(
             await asyncio.wait_for(
                 self.summary_state_queue_event[comp].wait(), timeout=timeout
             )
-            return self.summary_state_queue[comp].pop(0)
+            return self.summary_state[comp]
 
         return next_summary_state
 
