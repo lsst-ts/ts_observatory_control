@@ -889,14 +889,8 @@ class MTCS(BaseTCS):
     async def reset_m1m3_forces(self) -> None:
         """Reset M1M3 forces."""
 
-        forces = np.zeros_like(
-            self.rem.mtm1m3.cmd_applyAberrationForces.DataType().zForces
-        )
-        await self.rem.mtm1m3.cmd_applyAberrationForces.set_start(
-            zForces=forces, timeout=self.fast_timeout
-        )
-        await self.rem.mtm1m3.cmd_applyActiveOpticForces.set_start(
-            zForces=forces, timeout=self.fast_timeout
+        await self.rem.mtm1m3.cmd_clearActiveOpticForces.start(
+            timeout=self.long_timeout
         )
 
     async def enable_m2_balance_system(self) -> None:
