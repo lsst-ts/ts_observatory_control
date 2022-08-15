@@ -262,7 +262,7 @@ class RemoteGroupAsyncMock(
 
     def get_side_effects_for(
         self, component: str, spec: typing.List[str]
-    ) -> typing.Dict[str, unittest.mock.AsyncMock]:
+    ) -> typing.Dict[str, typing.Any]:
         """Get side effects for a component spec.
 
         Parameters
@@ -279,13 +279,13 @@ class RemoteGroupAsyncMock(
             A dictionary with the side effects, which contains the spec as key
             and an AsyncMock as value.
         """
-        side_effects = dict(
+        side_effects: typing.Dict[str, typing.Any] = dict(
             [
                 (topic, unittest.mock.AsyncMock())
                 if all(
                     [
                         not topic.endswith(sync_methods)
-                        for sync_methods in [".get", ".set", ".flush"]
+                        for sync_methods in [".get", ".set", ".flush", "DataType"]
                     ]
                 )
                 else (topic, unittest.mock.Mock())
@@ -303,18 +303,14 @@ class RemoteGroupAsyncMock(
                             (
                                 (
                                     f"cmd_{command}.set_start.side_effect",
-                                    unittest.mock.AsyncMock(
-                                        side_effect=self.get_async_check_command_args(
-                                            component, command
-                                        )
+                                    self.get_async_check_command_args(
+                                        component, command
                                     ),
                                 ),
                                 (
                                     f"cmd_{command}.set.side_effect",
-                                    unittest.mock.Mock(
-                                        side_effect=self.get_sync_check_command_args(
-                                            component, command
-                                        )
+                                    self.get_sync_check_command_args(
+                                        component, command
                                     ),
                                 ),
                             )
@@ -328,30 +324,32 @@ class RemoteGroupAsyncMock(
         # Add mocks for state transition events, summary state and heartbeats.
         side_effects.update(
             {
-                "cmd_start.set_start.side_effect": unittest.mock.AsyncMock(
-                    self.set_summary_state_for(component, salobj.State.DISABLED)
+                "cmd_start.set_start.side_effect": self.set_summary_state_for(
+                    component, salobj.State.DISABLED
                 ),
-                "cmd_enable.start.side_effect": unittest.mock.AsyncMock(
-                    self.set_summary_state_for(component, salobj.State.ENABLED)
+                "cmd_start.start.side_effect": self.set_summary_state_for(
+                    component, salobj.State.DISABLED
                 ),
-                "cmd_disable.start.side_effect": unittest.mock.AsyncMock(
-                    self.set_summary_state_for(component, salobj.State.DISABLED)
+                "cmd_enable.start.side_effect": self.set_summary_state_for(
+                    component, salobj.State.ENABLED
                 ),
-                "cmd_standby.start.side_effect": unittest.mock.AsyncMock(
-                    self.set_summary_state_for(component, salobj.State.STANDBY)
+                "cmd_disable.start.side_effect": self.set_summary_state_for(
+                    component, salobj.State.DISABLED
                 ),
-                "evt_summaryState.next.side_effect": unittest.mock.AsyncMock(
-                    self.next_summary_state_for(component)
+                "cmd_standby.start.side_effect": self.set_summary_state_for(
+                    component, salobj.State.STANDBY
                 ),
-                "evt_summaryState.aget.side_effect": unittest.mock.AsyncMock(
-                    self.get_summary_state_for(component)
+                "evt_summaryState.next.side_effect": self.next_summary_state_for(
+                    component
                 ),
-                "evt_heartbeat.next.side_effect": unittest.mock.AsyncMock(
-                    self.get_heartbeat
+                "evt_summaryState.aget.side_effect": self.get_summary_state_for(
+                    component
                 ),
-                "evt_heartbeat.aget.side_effect": unittest.mock.AsyncMock(
-                    self.get_heartbeat
+                "evt_summaryState.flush.side_effect": self.flush_summary_state_for(
+                    component
                 ),
+                "evt_heartbeat.next.side_effect": self.get_heartbeat,
+                "evt_heartbeat.aget.side_effect": self.get_heartbeat,
             }
         )
 
