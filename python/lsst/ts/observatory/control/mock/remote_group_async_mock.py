@@ -160,8 +160,8 @@ class RemoteGroupAsyncMock(
     def get_component_topics(self, component_name: str) -> typing.List[str]:
         """Get the names of all the topics for the component.
 
-        Commands are renamed from command_* -> cmd_* and events logevent_* ->
-        evt_*.
+        Commands are renamed from command_* -> cmd_*, events logevent_* ->
+        evt_* and elemetry topics receive the prefix "tel_".
 
         Parameters
         ----------
@@ -175,6 +175,10 @@ class RemoteGroupAsyncMock(
         """
         topics = [
             topic_name.replace("command_", "cmd_").replace("logevent_", "evt_")
+            if topic_name.startswith("command_")
+            or topic_name.startswith("logevent_")
+            or topic_name == "ackcmd"
+            else f"tel_{topic_name}"
             for topic_name in self.components_metadata[component_name].topic_info
         ]
 
