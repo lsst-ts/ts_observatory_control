@@ -447,9 +447,7 @@ class RemoteGroupAsyncMock(
     ]:
         async def set_summary_state(*args: typing.Any, **kwargs: typing.Any) -> None:
             self.summary_state[comp].summaryState = int(state)
-            self.summary_state_queue[comp].append(
-                copy.copy(self.summary_state[comp].summaryState)
-            )
+            self.summary_state_queue[comp].append(copy.copy(self.summary_state[comp]))
             self.summary_state_queue_event[comp].set()
 
         return set_summary_state
