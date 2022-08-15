@@ -23,3 +23,6 @@ pytest_session.txt
 
 # logs
 *.log
+
+# pypi files
+*.egg-info/
