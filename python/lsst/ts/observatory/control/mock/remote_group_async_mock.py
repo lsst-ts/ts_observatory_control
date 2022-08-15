@@ -456,6 +456,13 @@ class RemoteGroupAsyncMock(
 
         return set_summary_state
 
+    def flush_summary_state_for(self, comp: str) -> typing.Callable[[], None]:
+        def flush_summary_state() -> None:
+            self.summary_state_queue_event[comp].clear()
+            self.summary_state_queue[comp] = []
+
+        return flush_summary_state
+
     async def get_heartbeat(
         self, *args: typing.Any, **kwargs: typing.Any
     ) -> typing.Any:
