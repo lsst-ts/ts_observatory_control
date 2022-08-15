@@ -25,7 +25,6 @@ import logging
 import astropy.units as units
 from astropy.coordinates import ICRS, Angle
 import numpy as np
-from numpy.testing import assert_array_equal
 import pytest
 
 from lsst.ts import idl
@@ -1053,37 +1052,9 @@ class TestMTCS(MTCSAsyncMock):
 
         await self.mtcs.reset_m1m3_forces()
 
-        fz = np.zeros(
-            self.components_metadata["MTM1M3"]
-            .topic_info["command_applyAberrationForces"]
-            .field_info["zForces"]
-            .array_length
-        )
-        self.mtcs.rem.mtm1m3.cmd_applyAberrationForces.set_start.assert_awaited_once()
-        assert_array_equal(
-            self.mtcs.rem.mtm1m3.cmd_applyAberrationForces.set_start.mock_calls[
-                0
-            ].kwargs["zForces"],
-            fz,
-        )
-        assert (
-            self.mtcs.rem.mtm1m3.cmd_applyAberrationForces.set_start.mock_calls[
-                0
-            ].kwargs["timeout"]
-            == self.mtcs.fast_timeout
-        )
-        self.mtcs.rem.mtm1m3.cmd_applyActiveOpticForces.set_start.assert_awaited_once()
-        assert_array_equal(
-            self.mtcs.rem.mtm1m3.cmd_applyActiveOpticForces.set_start.mock_calls[
-                0
-            ].kwargs["zForces"],
-            fz,
-        )
-        assert (
-            self.mtcs.rem.mtm1m3.cmd_applyActiveOpticForces.set_start.mock_calls[
-                0
-            ].kwargs["timeout"]
-            == self.mtcs.fast_timeout
+        self.mtcs.rem.mtm1m3.cmd_clearActiveOpticForces.start.assert_awaited_once()
+        self.mtcs.rem.mtm1m3.cmd_clearActiveOpticForces.start.assert_awaited_with(
+            timeout=self.mtcs.long_timeout
         )
 
     async def test_enable_m2_balance_system(self) -> None:
