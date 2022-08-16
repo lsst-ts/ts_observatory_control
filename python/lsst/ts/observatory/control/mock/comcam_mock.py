@@ -70,7 +70,9 @@ class ComCamMock(BaseGroupMock):
 
         self.log = logging.getLogger(__name__)
 
-        self.end_readout_coro: typing.Optional[typing.Awaitable] = None
+        self.end_readout_coro: typing.Optional[
+            typing.Coroutine[typing.Any, typing.Any, typing.Any]
+        ] = None
         self.end_readout_task: typing.Optional[asyncio.Task] = None
 
         self.camera_filter = None
