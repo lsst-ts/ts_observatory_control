@@ -476,3 +476,16 @@ class RemoteGroupAsyncMock(
         """Emulate heartbeat functionality."""
         await asyncio.sleep(1.0)
         return types.SimpleNamespace()
+
+    def get_all_checks(self) -> typing.Any:
+        """Get a copy of the check attribute from the remote group.
+
+        Returns
+        -------
+        check : `types.SimpleNamespace`
+            Copy of the check attribute.
+        """
+        check = copy.copy(self.remote_group.check)
+        for comp in self.remote_group.components_attr:
+            setattr(check, comp, True)
+        return check
