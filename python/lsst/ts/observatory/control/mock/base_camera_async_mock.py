@@ -19,15 +19,14 @@
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <https://www.gnu.org/licenses/>.
 
+import asyncio
+import contextlib
+import logging
 import types
 import typing
+
 import astropy
-import asyncio
-import logging
-import contextlib
-
 from lsst.ts import utils
-
 from lsst.ts.observatory.control import CameraExposure
 from lsst.ts.observatory.control.mock import RemoteGroupAsyncMock
 

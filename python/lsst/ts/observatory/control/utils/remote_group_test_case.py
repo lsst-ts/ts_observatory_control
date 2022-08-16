@@ -28,8 +28,7 @@ import random
 import time
 import typing
 
-from lsst.ts import utils
-from lsst.ts import salobj
+from lsst.ts import salobj, utils
 
 MAKE_TIMEOUT = 30  # Default time for make_script (seconds)
 

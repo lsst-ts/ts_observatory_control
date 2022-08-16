@@ -22,14 +22,13 @@ import asyncio
 import unittest
 
 import astropy.units as u
-from astropy.coordinates import ICRS, EarthLocation, Angle
 import pytest
-
-from lsst.ts.utils import astropy_time_from_tai_unix, current_tai
+from astropy.coordinates import ICRS, Angle, EarthLocation
 from lsst.ts.observatory.control.utils import (
     calculate_parallactic_angle,
     handle_exception_in_dict_items,
 )
+from lsst.ts.utils import astropy_time_from_tai_unix, current_tai
 
 
 class TestUtils(unittest.TestCase):

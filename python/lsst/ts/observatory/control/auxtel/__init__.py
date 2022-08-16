@@ -20,6 +20,6 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 from .atcs import *
-from .latiss import *
-from .calsys import *
 from .atqueue import *
+from .calsys import *
+from .latiss import *

@@ -18,6 +18,6 @@
 #
 # You should have received a copy of the GNU General Public License
 
-from .mtcs import MTCS
 from .comcam import ComCam
+from .mtcs import MTCS
 from .mtqueue import *

@@ -21,16 +21,13 @@ import typing
 import unittest
 
 import pytest
-
 from lsst.ts import salobj
-
 from lsst.ts.observatory.control.remote_group import (
     RemoteGroup,
     Usages,
     UsagesResources,
 )
 from lsst.ts.observatory.control.utils import RemoteGroupTestCase
-
 
 HB_TIMEOUT = 5  # Heartbeat timeout (sec)
 MAKE_TIMEOUT = 60  # Timeout for make_script (sec)

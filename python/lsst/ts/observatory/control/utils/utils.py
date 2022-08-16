@@ -28,10 +28,9 @@ __all__ = [
 import pathlib
 import typing
 
-import numpy as np
-
 import astropy.units as u
-from astropy.coordinates import Angle, EarthLocation, ICRS
+import numpy as np
+from astropy.coordinates import ICRS, Angle, EarthLocation
 
 from .. import catalogs
 

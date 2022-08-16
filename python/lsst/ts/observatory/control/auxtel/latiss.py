@@ -26,9 +26,9 @@ import typing
 
 from lsst.ts import salobj
 
-from ..utils import cast_int_or_str
-from ..remote_group import Usages, UsagesResources
 from ..base_camera import BaseCamera
+from ..remote_group import Usages, UsagesResources
+from ..utils import cast_int_or_str
 
 
 class LATISSUsages(Usages):

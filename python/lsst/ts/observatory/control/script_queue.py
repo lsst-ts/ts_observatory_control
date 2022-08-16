@@ -24,11 +24,11 @@ __all__ = ["ScriptQueue"]
 import asyncio
 import logging
 import typing
-import jsonschema
 
-from lsst.ts import idl
-from lsst.ts import salobj
+import jsonschema
 import yaml
+from lsst.ts import idl, salobj
+
 from .remote_group import RemoteGroup
 
 
