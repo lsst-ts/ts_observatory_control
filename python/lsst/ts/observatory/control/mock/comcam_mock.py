@@ -25,9 +25,8 @@ import logging
 import typing
 
 import astropy
+from lsst.ts import salobj, utils
 
-from lsst.ts import utils
-from lsst.ts import salobj
 from .base_group_mock import BaseGroupMock
 
 index_gen = utils.index_generator()

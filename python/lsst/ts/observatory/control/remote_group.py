@@ -25,6 +25,7 @@ import types
 import typing
 
 from lsst.ts import salobj
+
 from .utils import handle_exception_in_dict_items
 
 __all__ = ["Usages", "UsagesResources", "RemoteGroup"]

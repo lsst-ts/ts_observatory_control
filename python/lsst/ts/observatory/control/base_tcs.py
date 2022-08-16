@@ -21,33 +21,22 @@
 __all__ = ["BaseTCS"]
 
 import abc
-import enum
-import pandas
-import typing
 import asyncio
+import enum
 import logging
+import typing
 import warnings
-
-import numpy as np
-import numpy.typing as npt
+from os.path import splitext
 
 import astropy.units as u
-
-from os.path import splitext
-from astropy.table import Table, Row
+import numpy as np
+import numpy.typing as npt
+import pandas
+from astropy.coordinates import ICRS, AltAz, Angle, EarthLocation, SkyCoord
+from astropy.table import Row, Table
 from astropy.time import Time
-from astropy.coordinates import (
-    AltAz,
-    ICRS,
-    EarthLocation,
-    Angle,
-    SkyCoord,
-)
-
 from astroquery.simbad import Simbad
-
 from lsst.ts import salobj
-
 from lsst.ts.utils import (
     angle_wrap_center,
     astropy_time_from_tai_unix,
@@ -55,16 +44,16 @@ from lsst.ts.utils import (
     index_generator,
 )
 
-from . import RemoteGroup
+from .remote_group import RemoteGroup
 from .utils import (
-    calculate_parallactic_angle,
-    RotType,
     InstrumentFocus,
+    RotType,
+    calculate_parallactic_angle,
     get_catalogs_path,
 )
 from .utils.type_hints import (
-    RotFrameType,
     CoordFrameType,
+    RotFrameType,
     RotModeType,
     WrapStrategyType,
 )

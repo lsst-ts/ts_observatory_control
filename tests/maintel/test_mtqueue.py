@@ -22,7 +22,6 @@
 import unittest
 
 from lsst.ts.idl.enums.ScriptQueue import SalIndex
-
 from lsst.ts.observatory.control import Usages
 from lsst.ts.observatory.control.maintel import MTQueue
 

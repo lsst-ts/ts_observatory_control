@@ -18,12 +18,12 @@
 #
 # You should have received a copy of the GNU General Public License
 
-import pytest
-import typing
 import logging
+import typing
 
-from lsst.ts.observatory.control.mock.base_camera_async_mock import BaseCameraAsyncMock
+import pytest
 from lsst.ts.observatory.control.auxtel.latiss import LATISS, LATISSUsages
+from lsst.ts.observatory.control.mock.base_camera_async_mock import BaseCameraAsyncMock
 
 
 class TestLATISS(BaseCameraAsyncMock):

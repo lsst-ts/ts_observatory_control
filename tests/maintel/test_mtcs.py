@@ -23,15 +23,12 @@ import copy
 import logging
 
 import astropy.units as units
-from astropy.coordinates import ICRS, Angle
 import numpy as np
 import pytest
-
-from lsst.ts import idl
-from lsst.ts import utils
-
-from lsst.ts.observatory.control.utils import RotType
+from astropy.coordinates import ICRS, Angle
+from lsst.ts import idl, utils
 from lsst.ts.observatory.control.mock.mtcs_async_mock import MTCSAsyncMock
+from lsst.ts.observatory.control.utils import RotType
 
 
 class TestMTCS(MTCSAsyncMock):

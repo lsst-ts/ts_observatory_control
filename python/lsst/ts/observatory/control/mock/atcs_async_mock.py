@@ -19,18 +19,15 @@
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-import types
-import typing
 import asyncio
 import logging
+import types
+import typing
 import unittest.mock
 
 import numpy as np
-
-from lsst.ts import utils
-from lsst.ts import salobj
-from lsst.ts.idl.enums import ATMCS, ATPtg, ATPneumatics, ATDome
-
+from lsst.ts import salobj, utils
+from lsst.ts.idl.enums import ATMCS, ATDome, ATPneumatics, ATPtg
 from lsst.ts.observatory.control.auxtel.atcs import ATCS, ATCSUsages
 from lsst.ts.observatory.control.mock import RemoteGroupAsyncMock
 

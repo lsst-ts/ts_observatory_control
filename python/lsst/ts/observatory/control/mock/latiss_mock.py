@@ -20,13 +20,12 @@
 
 __all__ = ["LATISSMock"]
 
-import typing
-import astropy
 import asyncio
 import logging
+import typing
 
-from lsst.ts import utils
-from lsst.ts import salobj
+import astropy
+from lsst.ts import salobj, utils
 
 from .base_group_mock import BaseGroupMock
 

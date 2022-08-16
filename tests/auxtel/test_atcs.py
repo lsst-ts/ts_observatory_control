@@ -18,27 +18,20 @@
 #
 # You should have received a copy of the GNU General Public License
 
-import copy
 import asyncio
+import copy
 import logging
 import typing
 import unittest
-
-import numpy as np
-import pytest
-
-
-import astropy.units as u
-
 from contextlib import contextmanager
 
+import astropy.units as u
+import numpy as np
+import pytest
 from astropy.coordinates import ICRS, Angle
-
 from astroquery.simbad import Simbad
-
-from lsst.ts.idl.enums import ATPneumatics, ATDome
 from lsst.ts import salobj
-
+from lsst.ts.idl.enums import ATDome, ATPneumatics
 from lsst.ts.observatory.control.mock.atcs_async_mock import ATCSAsyncMock
 from lsst.ts.observatory.control.utils import RotType
 

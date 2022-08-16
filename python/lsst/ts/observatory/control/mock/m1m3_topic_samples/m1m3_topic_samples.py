@@ -23,12 +23,12 @@ __all__ = [
     "get_m1m3_topic_samples_data_path",
 ]
 
-import typing
-import yaml
 import glob
-import pathlib
-
 import os.path
+import pathlib
+import typing
+
+import yaml
 
 
 def get_m1m3_topic_samples_data_path() -> pathlib.Path:

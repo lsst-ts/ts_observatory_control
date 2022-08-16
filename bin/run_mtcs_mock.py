@@ -21,6 +21,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import asyncio
+
 from lsst.ts.observatory.control.mock import MTCSMock
 
 asyncio.run(MTCSMock.amain())

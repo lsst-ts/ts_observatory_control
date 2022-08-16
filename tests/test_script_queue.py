@@ -19,19 +19,17 @@
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-import typing
-import yaml
-import types
 import asyncio
 import logging
+import types
+import typing
 import unittest
 
-from lsst.ts import idl
-from lsst.ts import salobj
-
+import yaml
+from lsst.ts import idl, salobj
 from lsst.ts.observatory.control import Usages
-from lsst.ts.observatory.control.script_queue import ScriptQueue
 from lsst.ts.observatory.control.mock import RemoteGroupAsyncMock
+from lsst.ts.observatory.control.script_queue import ScriptQueue
 
 HB_TIMEOUT = 5  # Heartbeat timeout (sec)
 MAKE_TIMEOUT = 60  # Timeout for make_script (sec)

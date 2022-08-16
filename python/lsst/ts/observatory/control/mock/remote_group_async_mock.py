@@ -22,20 +22,18 @@
 __all__ = ["RemoteGroupAsyncMock"]
 
 import abc
+import asyncio
 import copy
 import itertools
 import types
-import asyncio
 import typing
 import unittest
 import unittest.mock
 
-from lsst.ts import idl
-from lsst.ts import utils
-from lsst.ts import salobj
+from lsst.ts import idl, salobj, utils
 
 from .. import RemoteGroup
-from ..utils import KwArgsFunc, KwArgsCoro
+from ..utils import KwArgsCoro, KwArgsFunc
 
 HB_TIMEOUT = 5  # Heartbeat timeout (sec)
 MAKE_TIMEOUT = 60  # Timeout for make_script (sec)

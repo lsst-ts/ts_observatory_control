@@ -18,8 +18,8 @@
 #
 # You should have received a copy of the GNU General Public License
 
-from dataclasses import dataclass
 import typing
+from dataclasses import dataclass
 
 
 @dataclass

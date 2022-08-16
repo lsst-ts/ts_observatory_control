@@ -20,25 +20,23 @@
 
 __all__ = ["ATCS", "ATCSUsages"]
 
-import copy
 import asyncio
+import copy
 import enum
 import logging
 import typing
 
-import numpy as np
 import astropy.units as u
+import numpy as np
 from astropy.coordinates import Angle
+from lsst.ts import salobj, utils
+from lsst.ts.idl.enums import ATMCS, ATDome, ATPneumatics, ATPtg
+from lsst.ts.utils import angle_diff
 
-from ..remote_group import Usages, UsagesResources
 from ..base_tcs import BaseTCS
 from ..constants import atcs_constants
+from ..remote_group import Usages, UsagesResources
 from ..utils import InstrumentFocus
-
-from lsst.ts import utils
-from lsst.ts import salobj
-from lsst.ts.utils import angle_diff
-from lsst.ts.idl.enums import ATPtg, ATDome, ATPneumatics, ATMCS
 
 
 class ATCSUsages(Usages):

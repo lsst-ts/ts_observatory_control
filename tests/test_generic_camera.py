@@ -19,11 +19,10 @@
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-import pytest
 import logging
 
+import pytest
 from lsst.ts import utils
-
 from lsst.ts.observatory.control import Usages
 from lsst.ts.observatory.control.generic_camera import GenericCamera
 from lsst.ts.observatory.control.mock.base_camera_async_mock import BaseCameraAsyncMock

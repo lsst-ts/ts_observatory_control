@@ -20,23 +20,22 @@
 
 __all__ = ["MTCS"]
 
-import copy
 import asyncio
+import copy
 import enum
 import logging
 import typing
 
-import numpy as np
 import astropy.units as u
+import numpy as np
 from astropy.coordinates import Angle
-
-from lsst.ts import utils
-from lsst.ts import salobj
-from lsst.ts.utils import angle_diff
+from lsst.ts import salobj, utils
 from lsst.ts.idl.enums import MTM1M3, MTPtg
-from ..remote_group import Usages, UsagesResources
+from lsst.ts.utils import angle_diff
+
 from ..base_tcs import BaseTCS
 from ..constants import mtcs_constants
+from ..remote_group import Usages, UsagesResources
 
 
 class MTCSUsages(Usages):
