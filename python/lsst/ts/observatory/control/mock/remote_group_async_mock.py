@@ -22,19 +22,18 @@
 __all__ = ["RemoteGroupAsyncMock"]
 
 import abc
+import asyncio
 import copy
 import itertools
 import types
-import asyncio
 import typing
 import unittest
 import unittest.mock
 
-from lsst.ts import idl
-from lsst.ts import salobj
+from lsst.ts import idl, salobj, utils
 
 from .. import RemoteGroup
-from ..utils import KwArgsFunc, KwArgsCoro
+from ..utils import KwArgsCoro, KwArgsFunc
 
 HB_TIMEOUT = 5  # Heartbeat timeout (sec)
 MAKE_TIMEOUT = 60  # Timeout for make_script (sec)
@@ -90,6 +89,16 @@ class RemoteGroupAsyncMock(
             ]
         )
 
+    def run(self, result: typing.Any = None) -> None:
+        """Override `run` to set a random LSST_DDS_PARTITION_PREFIX
+        and set LSST_SITE=test for every test.
+
+        https://stackoverflow.com/a/11180583
+        """
+        salobj.set_random_lsst_dds_partition_prefix()
+        with utils.modify_environ(LSST_SITE="test"):
+            super().run(result)  # type: ignore
+
     async def asyncSetUp(self) -> None:
         """Setup AsyncMock.
 
@@ -123,6 +132,9 @@ class RemoteGroupAsyncMock(
         for all events and telemetry.
         """
         self.component_commands_arguments = dict()
+        self.summary_state = dict()
+        self.summary_state_queue_event = dict()
+        self.summary_state_queue = dict()
 
         for component, component_name in zip(
             self.remote_group.components_attr, self.remote_group.components
@@ -134,6 +146,14 @@ class RemoteGroupAsyncMock(
             spec = self.get_spec_from_topics(topics)
 
             side_effects = self.get_side_effects_for(component, spec)
+
+            self.summary_state[component] = self.get_sample(
+                component=component_name, topic="logevent_summaryState"
+            )
+
+            self.summary_state[component].summaryState = salobj.State.STANDBY
+            self.summary_state_queue[component] = []
+            self.summary_state_queue_event[component] = asyncio.Event()
 
             # Set mock for the component remote. Note that we pass in spec and
             # side effects. When passing spec to an AsyncMock all values
@@ -149,8 +169,8 @@ class RemoteGroupAsyncMock(
     def get_component_topics(self, component_name: str) -> typing.List[str]:
         """Get the names of all the topics for the component.
 
-        Commands are renamed from command_* -> cmd_* and events logevent_* ->
-        evt_*.
+        Commands are renamed from command_* -> cmd_*, events logevent_* ->
+        evt_* and elemetry topics receive the prefix "tel_".
 
         Parameters
         ----------
@@ -164,6 +184,10 @@ class RemoteGroupAsyncMock(
         """
         topics = [
             topic_name.replace("command_", "cmd_").replace("logevent_", "evt_")
+            if topic_name.startswith("command_")
+            or topic_name.startswith("logevent_")
+            or topic_name == "ackcmd"
+            else f"tel_{topic_name}"
             for topic_name in self.components_metadata[component_name].topic_info
         ]
 
@@ -196,7 +220,7 @@ class RemoteGroupAsyncMock(
                     ),
                 )
                 for topic_name in self.components_metadata[component_name].topic_info
-                if "command" in topic_name
+                if "command_" in topic_name
             ]
         )
 
@@ -222,7 +246,13 @@ class RemoteGroupAsyncMock(
         spec = list(
             itertools.chain(
                 *[
-                    (topic, f"{topic}.set", f"{topic}.start", f"{topic}.set_start")
+                    (
+                        topic,
+                        f"{topic}.set",
+                        f"{topic}.start",
+                        f"{topic}.set_start",
+                        f"{topic}.DataType",
+                    )
                     if topic.startswith("cmd_")
                     else (
                         topic,
@@ -230,6 +260,7 @@ class RemoteGroupAsyncMock(
                         f"{topic}.get",
                         f"{topic}.aget",
                         f"{topic}.flush",
+                        f"{topic}.DataType",
                     )
                     for topic in topics
                 ]
@@ -240,7 +271,7 @@ class RemoteGroupAsyncMock(
 
     def get_side_effects_for(
         self, component: str, spec: typing.List[str]
-    ) -> typing.Dict[str, unittest.mock.AsyncMock]:
+    ) -> typing.Dict[str, typing.Any]:
         """Get side effects for a component spec.
 
         Parameters
@@ -257,13 +288,13 @@ class RemoteGroupAsyncMock(
             A dictionary with the side effects, which contains the spec as key
             and an AsyncMock as value.
         """
-        side_effects = dict(
+        side_effects: typing.Dict[str, typing.Any] = dict(
             [
                 (topic, unittest.mock.AsyncMock())
                 if all(
                     [
                         not topic.endswith(sync_methods)
-                        for sync_methods in [".get", ".set", ".flush"]
+                        for sync_methods in [".get", ".set", ".flush", "DataType"]
                     ]
                 )
                 else (topic, unittest.mock.Mock())
@@ -281,18 +312,14 @@ class RemoteGroupAsyncMock(
                             (
                                 (
                                     f"cmd_{command}.set_start.side_effect",
-                                    unittest.mock.AsyncMock(
-                                        side_effect=self.get_async_check_command_args(
-                                            component, command
-                                        )
+                                    self.get_async_check_command_args(
+                                        component, command
                                     ),
                                 ),
                                 (
                                     f"cmd_{command}.set.side_effect",
-                                    unittest.mock.Mock(
-                                        side_effect=self.get_sync_check_command_args(
-                                            component, command
-                                        )
+                                    self.get_sync_check_command_args(
+                                        component, command
                                     ),
                                 ),
                             )
@@ -306,30 +333,32 @@ class RemoteGroupAsyncMock(
         # Add mocks for state transition events, summary state and heartbeats.
         side_effects.update(
             {
-                "cmd_start.set_start.side_effect": unittest.mock.AsyncMock(
-                    self.set_summary_state_for(component, salobj.State.DISABLED)
+                "cmd_start.set_start.side_effect": self.set_summary_state_for(
+                    component, salobj.State.DISABLED
                 ),
-                "cmd_enable.start.side_effect": unittest.mock.AsyncMock(
-                    self.set_summary_state_for(component, salobj.State.ENABLED)
+                "cmd_start.start.side_effect": self.set_summary_state_for(
+                    component, salobj.State.DISABLED
                 ),
-                "cmd_disable.start.side_effect": unittest.mock.AsyncMock(
-                    self.set_summary_state_for(component, salobj.State.DISABLED)
+                "cmd_enable.start.side_effect": self.set_summary_state_for(
+                    component, salobj.State.ENABLED
                 ),
-                "cmd_standby.start.side_effect": unittest.mock.AsyncMock(
-                    self.set_summary_state_for(component, salobj.State.STANDBY)
+                "cmd_disable.start.side_effect": self.set_summary_state_for(
+                    component, salobj.State.DISABLED
                 ),
-                "evt_summaryState.next.side_effect": unittest.mock.AsyncMock(
-                    self.next_summary_state_for(component)
+                "cmd_standby.start.side_effect": self.set_summary_state_for(
+                    component, salobj.State.STANDBY
                 ),
-                "evt_summaryState.aget.side_effect": unittest.mock.AsyncMock(
-                    self.get_summary_state_for(component)
+                "evt_summaryState.next.side_effect": self.next_summary_state_for(
+                    component
                 ),
-                "evt_heartbeat.next.side_effect": unittest.mock.AsyncMock(
-                    self.get_heartbeat
+                "evt_summaryState.aget.side_effect": self.get_summary_state_for(
+                    component
                 ),
-                "evt_heartbeat.aget.side_effect": unittest.mock.AsyncMock(
-                    self.get_heartbeat
+                "evt_summaryState.flush.side_effect": self.flush_summary_state_for(
+                    component
                 ),
+                "evt_heartbeat.next.side_effect": self.get_heartbeat,
+                "evt_heartbeat.aget.side_effect": self.get_heartbeat,
             }
         )
 
@@ -416,7 +445,7 @@ class RemoteGroupAsyncMock(
             await asyncio.wait_for(
                 self.summary_state_queue_event[comp].wait(), timeout=timeout
             )
-            return self.summary_state_queue[comp].pop(0)
+            return self.summary_state[comp]
 
         return next_summary_state
 
@@ -427,12 +456,17 @@ class RemoteGroupAsyncMock(
     ]:
         async def set_summary_state(*args: typing.Any, **kwargs: typing.Any) -> None:
             self.summary_state[comp].summaryState = int(state)
-            self.summary_state_queue[comp].append(
-                copy.copy(self.summary_state[comp].summaryState)
-            )
+            self.summary_state_queue[comp].append(copy.copy(self.summary_state[comp]))
             self.summary_state_queue_event[comp].set()
 
         return set_summary_state
+
+    def flush_summary_state_for(self, comp: str) -> typing.Callable[[], None]:
+        def flush_summary_state() -> None:
+            self.summary_state_queue_event[comp].clear()
+            self.summary_state_queue[comp] = []
+
+        return flush_summary_state
 
     async def get_heartbeat(
         self, *args: typing.Any, **kwargs: typing.Any
@@ -440,3 +474,16 @@ class RemoteGroupAsyncMock(
         """Emulate heartbeat functionality."""
         await asyncio.sleep(1.0)
         return types.SimpleNamespace()
+
+    def get_all_checks(self) -> typing.Any:
+        """Get a copy of the check attribute from the remote group.
+
+        Returns
+        -------
+        check : `types.SimpleNamespace`
+            Copy of the check attribute.
+        """
+        check = copy.copy(self.remote_group.check)
+        for comp in self.remote_group.components_attr:
+            setattr(check, comp, True)
+        return check

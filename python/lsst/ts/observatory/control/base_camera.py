@@ -26,10 +26,9 @@ import logging
 import typing
 
 import astropy
-
 from lsst.ts import salobj
 
-from . import RemoteGroup
+from .remote_group import RemoteGroup
 from .utils import CameraExposure
 
 

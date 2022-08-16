@@ -22,18 +22,16 @@ __all__ = ["ATCSMock"]
 
 import asyncio
 import typing
-
-import numpy as np
 from itertools import cycle
 
-from .base_group_mock import BaseGroupMock
-
 import astropy.units as u
-from astropy.time import Time
+import numpy as np
 from astropy.coordinates import EarthLocation
-
+from astropy.time import Time
 from lsst.ts import salobj
-from lsst.ts.idl.enums import ATDome, ATPneumatics, ATMCS, ATPtg
+from lsst.ts.idl.enums import ATMCS, ATDome, ATPneumatics, ATPtg
+
+from .base_group_mock import BaseGroupMock
 
 LONG_TIMEOUT = 30  # seconds
 HEARTBEAT_INTERVAL = 1  # seconds

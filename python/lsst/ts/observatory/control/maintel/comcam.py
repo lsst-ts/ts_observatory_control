@@ -26,8 +26,8 @@ import typing
 
 from lsst.ts import salobj
 
-from ..remote_group import Usages, UsagesResources
 from ..base_camera import BaseCamera
+from ..remote_group import Usages, UsagesResources
 
 
 class ComCamUsages(Usages):

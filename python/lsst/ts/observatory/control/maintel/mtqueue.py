@@ -21,8 +21,8 @@
 
 __all__ = ["MTQueue"]
 
-import typing
 import logging
+import typing
 
 from lsst.ts import salobj
 from lsst.ts.idl.enums.ScriptQueue import SalIndex

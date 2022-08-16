@@ -18,9 +18,9 @@
 #
 # You should have received a copy of the GNU General Public License
 
-from .base_group_mock import *
-from .latiss_mock import *
 from .atcs_mock import *
-from .mtcs_mock import *
+from .base_group_mock import *
 from .comcam_mock import *
+from .latiss_mock import *
+from .mtcs_mock import *
 from .remote_group_async_mock import *

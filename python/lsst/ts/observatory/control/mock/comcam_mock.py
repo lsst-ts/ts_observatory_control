@@ -25,9 +25,8 @@ import logging
 import typing
 
 import astropy
+from lsst.ts import salobj, utils
 
-from lsst.ts import utils
-from lsst.ts import salobj
 from .base_group_mock import BaseGroupMock
 
 index_gen = utils.index_generator()
@@ -70,7 +69,9 @@ class ComCamMock(BaseGroupMock):
 
         self.log = logging.getLogger(__name__)
 
-        self.end_readout_coro: typing.Optional[typing.Awaitable] = None
+        self.end_readout_coro: typing.Optional[
+            typing.Coroutine[typing.Any, typing.Any, typing.Any]
+        ] = None
         self.end_readout_task: typing.Optional[asyncio.Task] = None
 
         self.camera_filter = None

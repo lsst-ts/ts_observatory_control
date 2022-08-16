@@ -24,19 +24,16 @@ import asyncio
 import math
 import typing
 
-from .base_group_mock import BaseGroupMock
-from .m1m3_topic_samples import get_m1m3_topic_samples_data
-
-from lsst.ts import salobj
-
 import astropy.units as u
 import numpy as np
-
+from astropy.coordinates import ICRS, AltAz, Angle, EarthLocation
 from astropy.time import Time
-from astropy.coordinates import AltAz, ICRS, EarthLocation, Angle
-
-from lsst.ts.idl.enums import MTPtg, MTMount
+from lsst.ts import salobj
+from lsst.ts.idl.enums import MTMount, MTPtg
 from lsst.ts.utils import angle_diff, current_tai
+
+from .base_group_mock import BaseGroupMock
+from .m1m3_topic_samples import get_m1m3_topic_samples_data
 
 LONG_TIMEOUT = 30  # seconds
 HEARTBEAT_INTERVAL = 1  # seconds

@@ -20,10 +20,10 @@
 
 __all__ = ["BaseGroupMock"]
 
-import types
 import asyncio
-import logging
 import functools
+import logging
+import types
 import typing
 
 from lsst.ts import salobj

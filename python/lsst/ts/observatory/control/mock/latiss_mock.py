@@ -20,13 +20,12 @@
 
 __all__ = ["LATISSMock"]
 
-import typing
-import astropy
 import asyncio
 import logging
+import typing
 
-from lsst.ts import utils
-from lsst.ts import salobj
+import astropy
+from lsst.ts import salobj, utils
 
 from .base_group_mock import BaseGroupMock
 
@@ -77,7 +76,9 @@ class LATISSMock(BaseGroupMock):
         self.latiss_grating_name = None
         self.latiss_linear_stage = None
 
-        self.end_readout_coro: typing.Optional[typing.Awaitable] = None
+        self.end_readout_coro: typing.Optional[
+            typing.Coroutine[typing.Any, typing.Any, typing.Any]
+        ] = None
         self.end_readout_task: typing.Optional[asyncio.Task] = None
 
         self.log = logging.getLogger(__name__)

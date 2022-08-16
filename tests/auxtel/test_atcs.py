@@ -18,393 +18,25 @@
 #
 # You should have received a copy of the GNU General Public License
 
-import copy
-import types
 import asyncio
+import copy
 import logging
 import typing
 import unittest
-
-import numpy as np
-import pytest
-
-
-import astropy.units as u
-
 from contextlib import contextmanager
 
+import astropy.units as u
+import numpy as np
+import pytest
 from astropy.coordinates import ICRS, Angle
-
 from astroquery.simbad import Simbad
-
-from lsst.ts import idl
-from lsst.ts.idl.enums import ATMCS, ATPtg, ATPneumatics, ATDome
 from lsst.ts import salobj
-from lsst.ts import utils
-
-from lsst.ts.observatory.control.auxtel.atcs import ATCS, ATCSUsages
+from lsst.ts.idl.enums import ATDome, ATPneumatics
+from lsst.ts.observatory.control.mock.atcs_async_mock import ATCSAsyncMock
 from lsst.ts.observatory.control.utils import RotType
 
 
-class TestATTCS(unittest.IsolatedAsyncioTestCase):
-    log: logging.Logger
-    components_metadata: typing.Dict[str, salobj.IdlMetadata]
-    atcs: ATCS
-    track_id_gen: typing.Generator[int, None, None]
-
-    @classmethod
-    def setUpClass(cls) -> None:
-        """This classmethod is only called once, when preparing the unit
-        test.
-        """
-
-        cls.log = logging.getLogger(__name__)
-
-        # Pass in a string as domain to prevent ATCS from trying to create a
-        # domain by itself. When using DryTest usage, the class won't create
-        # any remote. When this method is called there is no event loop
-        # running so all asyncio facilities will fail to create. This is later
-        # rectified in the asyncSetUp.
-        cls.atcs = ATCS(
-            domain="FakeDomain", log=cls.log, intended_usage=ATCSUsages.DryTest
-        )
-
-        # Decrease telescope settle time to speed up unit test
-        cls.atcs.tel_settle_time = 0.25
-
-        # Gather metadada information, needed to validate topics versions
-        cls.components_metadata = dict(
-            [
-                (
-                    component,
-                    salobj.parse_idl(
-                        component,
-                        idl.get_idl_dir()
-                        / f"sal_revCoded_{component.split(':')[0]}.idl",
-                    ),
-                )
-                for component in cls.atcs.components
-            ]
-        )
-
-        cls.track_id_gen = utils.index_generator(1)
-
-    def run(self, result: typing.Any = None) -> None:
-        """Override `run` to set a random LSST_DDS_PARTITION_PREFIX
-        and set LSST_SITE=test for every test.
-
-        https://stackoverflow.com/a/11180583
-        """
-        salobj.set_random_lsst_dds_partition_prefix()
-        with utils.modify_environ(LSST_SITE="test"):
-            super().run(result)
-
-    async def asyncSetUp(self) -> None:
-        # Setup asyncio facilities that probably failed while setting up class
-        self.atcs._create_asyncio_events()
-
-        # Setup required ATAOS data
-        self._ataos_evt_correction_enabled = types.SimpleNamespace(
-            m1=False,
-            hexapod=False,
-            m2=False,
-            focus=False,
-            atspectrograph=False,
-            moveWhileExposing=False,
-        )
-
-        # Setup required ATPtg data
-        self._atptg_evt_focus_name_selected = types.SimpleNamespace(
-            focus=ATPtg.Foci.NASMYTH2
-        )
-
-        # Setup required ATMCS data
-        self._telescope_position = types.SimpleNamespace(
-            elevationCalculatedAngle=np.zeros(100) + 80.0,
-            azimuthCalculatedAngle=np.zeros(100),
-        )
-
-        self._atmcs_tel_mount_nasmyth_encoders = types.SimpleNamespace(
-            nasmyth1CalculatedAngle=np.zeros(100), nasmyth2CalculatedAngle=np.zeros(100)
-        )
-
-        self._telescope_target_position = types.SimpleNamespace(
-            trackId=next(self.track_id_gen),
-            elevation=80.0,
-            azimuth=0.0,
-            nasmyth1RotatorAngle=0.0,
-            nasmyth2RotatorAngle=0.0,
-        )
-
-        self._atmcs_all_axes_in_position = types.SimpleNamespace(inPosition=True)
-
-        self._atmcs_evt_at_mount_state = types.SimpleNamespace(
-            state=int(ATMCS.AtMountState.TRACKINGDISABLED)
-        )
-
-        # Setup required ATDome data
-        self._atdome_position = types.SimpleNamespace(azimuthPosition=0.0)
-
-        self._atdome_azimth_commanded_state = types.SimpleNamespace(azimuth=0.0)
-
-        self._atdome_evt_azimuth_state = types.SimpleNamespace(
-            homing=False, _taken=False
-        )
-
-        self._atdome_evt_scb_link = types.SimpleNamespace(active=True)
-
-        self._atdome_evt_main_door_state = types.SimpleNamespace(
-            state=ATDome.ShutterDoorState.CLOSED
-        )
-
-        # Setup rquired ATDomeTrajectory data
-        self._atdometrajectory_dome_following = types.SimpleNamespace(enabled=False)
-
-        # Setup required ATPneumatics data
-        self._atpneumatics_evt_m1_cover_state = types.SimpleNamespace(
-            state=ATPneumatics.MirrorCoverState.CLOSED
-        )
-
-        self._atpneumatics_evt_m1_vents_position = types.SimpleNamespace(
-            position=ATPneumatics.VentsPosition.CLOSED
-        )
-
-        self._atpneumatics_evt_instrument_state = types.SimpleNamespace(
-            state=ATPneumatics.AirValveState.CLOSED
-        )
-
-        self._atpneumatics_evt_main_valve_state = types.SimpleNamespace(
-            state=ATPneumatics.AirValveState.CLOSED
-        )
-
-        # Setup data to support summary state manipulation
-        self.summary_state = dict(
-            [
-                (comp, types.SimpleNamespace(summaryState=int(salobj.State.ENABLED)))
-                for comp in self.atcs.components_attr
-            ]
-        )
-
-        self.summary_state_queue = dict(
-            [
-                (comp, [types.SimpleNamespace(summaryState=int(salobj.State.ENABLED))])
-                for comp in self.atcs.components_attr
-            ]
-        )
-
-        self.summary_state_queue_event = dict(
-            [(comp, asyncio.Event()) for comp in self.atcs.components_attr]
-        )
-
-        # Setup AsyncMock. The idea is to replace the placeholder for the
-        # remotes (in atcs.rem) by AsyncMock. The remote for each component is
-        # replaced by an AsyncMock and later augmented to emulate the behavior
-        # of the Remote->Controller interaction with side_effect and
-        # return_value.
-        # By default all mocks are augmented to handle summary state setting.
-        for component in self.atcs.components_attr:
-            setattr(
-                self.atcs.rem,
-                component,
-                unittest.mock.AsyncMock(
-                    **{
-                        "cmd_start.set_start.side_effect": self.set_summary_state_for(
-                            component, salobj.State.DISABLED
-                        ),
-                        "cmd_enable.start.side_effect": self.set_summary_state_for(
-                            component, salobj.State.ENABLED
-                        ),
-                        "cmd_disable.start.side_effect": self.set_summary_state_for(
-                            component, salobj.State.DISABLED
-                        ),
-                        "cmd_standby.start.side_effect": self.set_summary_state_for(
-                            component, salobj.State.STANDBY
-                        ),
-                        "evt_summaryState.next.side_effect": self.next_summary_state_for(
-                            component
-                        ),
-                        "evt_summaryState.aget.side_effect": self.get_summary_state_for(
-                            component
-                        ),
-                        "evt_heartbeat.next.side_effect": self.get_heartbeat,
-                        "evt_heartbeat.aget.side_effect": self.get_heartbeat,
-                        "evt_configurationsAvailable.aget.return_value": None,
-                    }
-                ),
-            )
-            # A trick to support calling a regular method (flush) from an
-            # AsyncMock. Basically, attach a regular Mock.
-            getattr(self.atcs.rem, f"{component}").evt_summaryState.attach_mock(
-                unittest.mock.Mock(),
-                "flush",
-            )
-
-        # Augment ataos mock.
-        self.atcs.rem.ataos.configure_mock(
-            **{
-                "evt_correctionEnabled.aget.side_effect": self.ataos_evt_correction_enabled
-            }
-        )
-        # Augment atptg mock.
-        self.atcs.rem.atptg.configure_mock(
-            **{
-                "evt_focusNameSelected.aget.side_effect": self.atptg_evt_focus_name_selected,
-                "cmd_stopTracking.start.side_effect": self.atmcs_stop_tracking,
-            }
-        )
-
-        self.atcs.rem.atptg.attach_mock(
-            unittest.mock.AsyncMock(),
-            "cmd_raDecTarget",
-        )
-
-        self.atcs.rem.atptg.cmd_raDecTarget.attach_mock(
-            unittest.mock.Mock(
-                **{
-                    "return_value": types.SimpleNamespace(
-                        **self.components_metadata["ATPtg"]
-                        .topic_info["command_raDecTarget"]
-                        .field_info
-                    )
-                }
-            ),
-            "DataType",
-        )
-
-        self.atcs.rem.atptg.cmd_poriginOffset.attach_mock(
-            unittest.mock.Mock(),
-            "set",
-        )
-
-        self.atcs.rem.atptg.cmd_raDecTarget.attach_mock(
-            unittest.mock.Mock(),
-            "set",
-        )
-
-        self.atcs.rem.atptg.cmd_azElTarget.attach_mock(
-            unittest.mock.Mock(),
-            "set",
-        )
-
-        # Augment atmcs mock
-        self.atcs.rem.atmcs.configure_mock(
-            **{
-                "tel_mount_Nasmyth_Encoders.aget.side_effect": self.atmcs_tel_mount_nasmyth_encoders,
-                "tel_mount_Nasmyth_Encoders.next.side_effect": self.atmcs_tel_mount_nasmyth_encoders,
-                "evt_allAxesInPosition.next.side_effect": self.atmcs_all_axes_in_position,
-                "evt_allAxesInPosition.aget.side_effect": self.atmcs_all_axes_in_position,
-                "evt_atMountState.aget.side_effect": self.atmcs_evt_at_mount_state,
-            }
-        )
-
-        self.atcs.rem.atmcs.evt_allAxesInPosition.attach_mock(
-            unittest.mock.Mock(),
-            "flush",
-        )
-
-        self.atcs.rem.atmcs.evt_atMountState.attach_mock(
-            unittest.mock.Mock(),
-            "flush",
-        )
-
-        self.atcs._tel_position = self._telescope_position
-        self.atcs._tel_target = self._telescope_target_position
-
-        self.atcs.next_telescope_position = unittest.mock.AsyncMock(
-            side_effect=self.next_telescope_position
-        )
-
-        self.atcs.next_telescope_target = unittest.mock.AsyncMock(
-            side_effect=self.next_telescope_target
-        )
-
-        # Augment atdome mock
-        self.atcs.rem.atdome.configure_mock(
-            **{
-                "tel_position.next.side_effect": self.atdome_tel_position,
-                "tel_position.aget.side_effect": self.atdome_tel_position,
-                "evt_azimuthCommandedState.aget.side_effect": self.atdome_evt_azimuth_commanded_state,
-                "evt_azimuthCommandedState.next.side_effect": self.atdome_evt_azimuth_commanded_state,
-                "evt_azimuthState.next.side_effect": self.atdome_evt_azimuth_state,
-                "evt_scbLink.aget.side_effect": self.atdome_evt_scb_link,
-                "evt_mainDoorState.aget.side_effect": self.atdome_evt_main_door_state,
-                "evt_mainDoorState.next.side_effect": self.atdome_evt_main_door_state,
-                "cmd_homeAzimuth.start.side_effect": self.atdome_cmd_home_azimuth,
-                "cmd_moveShutterMainDoor.set_start.side_effect": self.atdome_cmd_move_shutter_main_door,
-                "cmd_closeShutter.set_start.side_effect": self.atdome_cmd_close_shutter,
-            }
-        )
-
-        self.atcs.rem.atdome.evt_azimuthInPosition.attach_mock(
-            unittest.mock.Mock(),
-            "flush",
-        )
-
-        self.atcs.rem.atdome.evt_azimuthState.attach_mock(
-            unittest.mock.Mock(side_effect=self.atdome_evt_azimuth_state_flush),
-            "flush",
-        )
-
-        self.atcs.rem.atdome.evt_mainDoorState.attach_mock(
-            unittest.mock.Mock(),
-            "flush",
-        )
-
-        # Augment atdometrajectory mock
-        self.atcs.rem.atdometrajectory.configure_mock(
-            **{
-                "evt_followingMode.aget.side_effect": self.atdometrajectory_following_mode,
-                "cmd_setFollowingMode.set_start.side_effect": self.atdometrajectory_cmd_set_following_mode,
-            }
-        )
-
-        # Augment atpneumatics mock
-        self.atcs.rem.atpneumatics.configure_mock(
-            **{
-                "evt_m1CoverState.aget.side_effect": self.atpneumatics_evt_m1_cover_state,
-                "evt_m1CoverState.next.side_effect": self.atpneumatics_evt_m1_cover_state,
-                "evt_m1VentsPosition.aget.side_effect": self.atpneumatics_evt_m1_vents_position,
-                "evt_m1VentsPosition.next.side_effect": self.atpneumatics_evt_m1_vents_position,
-                "evt_instrumentState.aget.side_effect": self.atpneumatics_evt_instrument_state,
-                "evt_instrumentState.next.side_effect": self.atpneumatics_evt_instrument_state,
-                "evt_mainValveState.aget.side_effect": self.atpneumatics_evt_main_valve_state,
-                "evt_mainValveState.next.side_effect": self.atpneumatics_evt_main_valve_state,
-                "cmd_openInstrumentAirValve.start.side_effect": self.atpneumatics_open_air_valve,
-                "cmd_openMasterAirSupply.start.side_effect": self.atpneumatics_open_main_valve,
-                "cmd_closeM1Cover.start.side_effect": self.atpneumatics_close_m1_cover,
-                "cmd_openM1Cover.start.side_effect": self.atpneumatics_open_m1_cover,
-                "cmd_openM1CellVents.start.side_effect": self.atpneumatics_open_m1_cell_vents,
-                "cmd_closeM1CellVents.start.side_effect": self.atpneumatics_close_m1_cell_vents,
-            }
-        )
-
-        self.atcs.rem.atpneumatics.evt_m1CoverState.attach_mock(
-            unittest.mock.Mock(),
-            "flush",
-        )
-
-        self.atcs.rem.atpneumatics.evt_m1VentsPosition.attach_mock(
-            unittest.mock.Mock(),
-            "flush",
-        )
-
-        self.atcs.rem.atpneumatics.evt_instrumentState.attach_mock(
-            unittest.mock.Mock(),
-            "flush",
-        )
-
-        self.atcs.rem.atpneumatics.evt_mainValveState.attach_mock(
-            unittest.mock.Mock(),
-            "flush",
-        )
-
-    def get_all_checks(self) -> typing.Any:
-        check = copy.copy(self.atcs.check)
-        for comp in self.atcs.components_attr:
-            setattr(check, comp, True)
-
-        return check
-
+class TestATTCS(ATCSAsyncMock):
     def test_object_list_get(self) -> None:
 
         name = "HD 185975"
@@ -679,6 +311,9 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
 
     async def test_open_dome_shutter_when_closed(self) -> None:
 
+        await self.atcs.enable()
+        await self.atcs.assert_all_enabled()
+
         self._atdome_evt_main_door_state.state = ATDome.ShutterDoorState.CLOSED
 
         await self.atcs.open_dome_shutter()
@@ -703,6 +338,9 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
             await self.atcs.open_dome_shutter()
 
     async def test_close_dome_when_open(self) -> None:
+
+        await self.atcs.enable()
+        await self.atcs.assert_all_enabled()
 
         self._atdome_evt_main_door_state.state = ATDome.ShutterDoorState.OPENED
 
@@ -773,6 +411,9 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
         self.atcs.rem.atptg.cmd_azElTarget.set.assert_not_called()
 
     async def test_open_m1_cover_when_cover_closed_bellow_el_limit(self) -> None:
+
+        await self.atcs.enable()
+        await self.atcs.assert_all_enabled()
 
         # make sure cover is closed
         self._atpneumatics_evt_m1_cover_state.state = (
@@ -864,6 +505,9 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
 
     async def test_close_m1_cover_when_cover_opened_bellow_el_limit(self) -> None:
 
+        await self.atcs.enable()
+        await self.atcs.assert_all_enabled()
+
         # make sure cover is opened
         self._atpneumatics_evt_m1_cover_state.state = (
             ATPneumatics.MirrorCoverState.OPENED
@@ -912,6 +556,9 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
 
     async def test_open_m1_vent_when_closed(self) -> None:
 
+        await self.atcs.enable()
+        await self.atcs.assert_all_enabled()
+
         await self.atcs.open_m1_vent()
 
         assert (
@@ -933,6 +580,9 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
         )
 
     async def test_open_m1_vent_when_opened(self) -> None:
+
+        await self.atcs.enable()
+        await self.atcs.assert_all_enabled()
 
         self._atpneumatics_evt_m1_vents_position.position = (
             ATPneumatics.VentsPosition.OPENED
@@ -1018,6 +668,9 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
 
     async def test_prepare_for_flatfield(self) -> None:
 
+        await self.atcs.enable()
+        await self.atcs.assert_all_enabled()
+
         check = self.get_all_checks()
 
         await self.atcs.prepare_for_flatfield(check)
@@ -1049,6 +702,9 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
         )
 
     async def test_prepare_for_onsky(self) -> None:
+
+        await self.atcs.enable()
+        await self.atcs.assert_all_enabled()
 
         original_check = copy.copy(self.atcs.check)
 
@@ -1083,6 +739,9 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
 
     async def test_prepare_for_onsky_no_scb_link(self) -> None:
 
+        await self.atcs.enable()
+        await self.atcs.assert_all_enabled()
+
         original_check = copy.copy(self.atcs.check)
 
         self.atcs.check = self.get_all_checks()
@@ -1095,6 +754,9 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
             self.atcs.check = original_check
 
     async def test_shutdown(self) -> None:
+
+        await self.atcs.enable()
+        await self.atcs.assert_all_enabled()
 
         original_check = copy.copy(self.atcs.check)
 
@@ -1315,6 +977,9 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
 
     async def test_slew_icrs(self) -> None:
 
+        await self.atcs.enable()
+        await self.atcs.assert_all_enabled()
+
         name = "HD 185975"
         ra = "20 28 18.7402"
         dec = "-87 28 19.938"
@@ -1347,6 +1012,9 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
         self.atcs.rem.atptg.cmd_stopTracking.start.assert_not_awaited()
 
     async def test_slew_object(self) -> None:
+
+        await self.atcs.enable()
+        await self.atcs.assert_all_enabled()
 
         name = "HD 185975"
 
@@ -1385,6 +1053,9 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
         self.atcs.rem.atptg.cmd_poriginOffset.set.assert_called_with(dx=0, dy=0, num=0)
 
     async def test_slew_icrs_no_stop(self) -> None:
+
+        await self.atcs.enable()
+        await self.atcs.assert_all_enabled()
 
         name = "HD 185975"
         ra = "20:28:18.74"
@@ -1425,6 +1096,9 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
         )
 
     async def test_slew_icrs_rot(self) -> None:
+
+        await self.atcs.enable()
+        await self.atcs.assert_all_enabled()
 
         name = "HD 185975"
         ra = "20:28:18.74"
@@ -1467,6 +1141,9 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
 
     async def test_slew_icrs_rot_physical(self) -> None:
 
+        await self.atcs.enable()
+        await self.atcs.assert_all_enabled()
+
         name = "HD 185975"
         ra = "20:28:18.74"
         dec = "-87:28:19.9"
@@ -1505,6 +1182,9 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
         )
 
     async def test_slew_icrs_rot_physical_sky(self) -> None:
+
+        await self.atcs.enable()
+        await self.atcs.assert_all_enabled()
 
         name = "HD 185975"
         ra = "20:28:18.74"
@@ -1546,6 +1226,10 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
         )
 
     async def test_slew_icrs_rot_sky_init_angle_out_of_range(self) -> None:
+
+        await self.atcs.enable()
+        await self.atcs.assert_all_enabled()
+
         name = "HD 185975"
         ra = "20:28:18.74"
         dec = "-87:28:19.9"
@@ -1613,6 +1297,10 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
         )
 
     async def test_slew_icrs_fail_runtimeerror(self) -> None:
+
+        await self.atcs.enable()
+        await self.atcs.assert_all_enabled()
+
         name = "HD 185975"
         ra = "20:28:18.74"
         dec = "-87:28:19.9"
@@ -1628,6 +1316,9 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
         self.atcs.rem.atptg.cmd_raDecTarget.start.assert_awaited_once()
 
     async def test_slew_icrs_with_offset(self) -> None:
+
+        await self.atcs.enable()
+        await self.atcs.assert_all_enabled()
 
         name = "HD 185975"
         ra = "20:28:18.74"
@@ -1674,6 +1365,9 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
         )
 
     async def test_point_azel(self) -> None:
+
+        await self.atcs.enable()
+        await self.atcs.assert_all_enabled()
 
         az = 180.0
         el = 45.0
@@ -1933,6 +1627,9 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
 
     async def test_open_valves(self) -> None:
 
+        await self.atcs.enable()
+        await self.atcs.assert_all_enabled()
+
         await self.atcs.open_valves()
 
         self.atcs.rem.atpneumatics.evt_instrumentState.aget.assert_awaited_with(
@@ -2073,645 +1770,6 @@ class TestATTCS(unittest.IsolatedAsyncioTestCase):
             count_alternatives += 1
 
         assert count_alternatives == len(expected_rot_angle_alternatives)
-
-    def test_check_interface_atmcs(self) -> None:
-        self.check_topic_attribute(
-            attributes={"elevationCalculatedAngle", "azimuthCalculatedAngle"},
-            topic="mount_AzEl_Encoders",
-            component="ATMCS",
-        )
-
-        self.check_topic_attribute(
-            attributes={
-                "trackId",
-                "elevation",
-                "azimuth",
-                "nasmyth1RotatorAngle",
-                "nasmyth2RotatorAngle",
-            },
-            topic="logevent_target",
-            component="ATMCS",
-        )
-
-        self.check_topic_attribute(
-            attributes={"inPosition"},
-            topic="logevent_allAxesInPosition",
-            component="ATMCS",
-        )
-
-        self.check_topic_attribute(
-            attributes={"state"},
-            topic="logevent_atMountState",
-            component="ATMCS",
-        )
-
-        self.check_topic_attribute(
-            attributes={"private_sndStamp"},
-            topic="command_stopTracking",
-            component="ATMCS",
-        )
-
-        self.check_topic_attribute(
-            attributes={"nasmyth1CalculatedAngle", "nasmyth2CalculatedAngle"},
-            topic="mount_Nasmyth_Encoders",
-            component="ATMCS",
-        )
-
-    def test_check_interface_athexapod(self) -> None:
-
-        self.check_topic_attribute(
-            attributes={"private_sndStamp"},
-            topic="logevent_positionUpdate",
-            component="ATHexapod",
-        )
-
-    def test_check_interface_ataos(self) -> None:
-
-        self.check_topic_attribute(
-            attributes={"private_sndStamp"},
-            topic="command_applyFocusOffset",
-            component="ATAOS",
-        )
-
-        self.check_topic_attribute(
-            attributes={"m1", "m2", "atspectrograph"},
-            topic="command_enableCorrection",
-            component="ATAOS",
-        )
-
-        self.check_topic_attribute(
-            attributes={"disableAll"},
-            topic="command_disableCorrection",
-            component="ATAOS",
-        )
-
-        self.check_topic_attribute(
-            attributes={"private_sndStamp"},
-            topic="logevent_atspectrographCorrectionStarted",
-            component="ATAOS",
-        )
-
-        self.check_topic_attribute(
-            attributes={"private_sndStamp"},
-            topic="logevent_atspectrographCorrectionCompleted",
-            component="ATAOS",
-        )
-
-    def test_check_interface_atdometrajectory(self) -> None:
-
-        self.check_topic_attribute(
-            attributes={"enable"},
-            topic="command_setFollowingMode",
-            component="ATDomeTrajectory",
-        )
-
-    def test_check_interface_atdome(self) -> None:
-
-        self.check_topic_attribute(
-            attributes={"private_sndStamp"},
-            topic="logevent_azimuthInPosition",
-            component="ATDome",
-        )
-
-        self.check_topic_attribute(
-            attributes={"azimuth"},
-            topic="command_moveAzimuth",
-            component="ATDome",
-        )
-
-        self.check_topic_attribute(
-            attributes={"private_sndStamp"},
-            topic="command_stopMotion",
-            component="ATDome",
-        )
-
-        self.check_topic_attribute(
-            attributes={"active"},
-            topic="logevent_scbLink",
-            component="ATDome",
-        )
-
-        self.check_topic_attribute(
-            attributes={"state"},
-            topic="logevent_mainDoorState",
-            component="ATDome",
-        )
-
-        self.check_topic_attribute(
-            attributes={"open"},
-            topic="command_moveShutterMainDoor",
-            component="ATDome",
-        )
-
-        self.check_topic_attribute(
-            attributes={"homing"},
-            topic="logevent_azimuthState",
-            component="ATDome",
-        )
-
-        self.check_topic_attribute(
-            attributes={"private_sndStamp"},
-            topic="command_closeShutter",
-            component="ATDome",
-        )
-
-        self.check_topic_attribute(
-            attributes={"inPosition"},
-            topic="logevent_shutterInPosition",
-            component="ATDome",
-        )
-
-    def test_check_interface_atptg(self) -> None:
-
-        self.check_topic_attribute(
-            attributes={
-                "ra",
-                "declination",
-                "targetName",
-                "frame",
-                "rotAngle",
-                "rotStartFrame",
-                "rotTrackFrame",
-                "azWrapStrategy",
-                "timeOnTarget",
-                "epoch",
-                "equinox",
-                "parallax",
-                "pmRA",
-                "pmDec",
-                "rv",
-                "dRA",
-                "dDec",
-                "rotMode",
-            },
-            topic="command_raDecTarget",
-            component="ATPtg",
-        )
-
-        self.check_topic_attribute(
-            attributes={
-                "targetName",
-                "azDegs",
-                "elDegs",
-                "rotPA",
-            },
-            topic="command_azElTarget",
-            component="ATPtg",
-        )
-
-        self.check_topic_attribute(
-            attributes={
-                "dx",
-                "dy",
-                "num",
-            },
-            topic="command_poriginOffset",
-            component="ATPtg",
-        )
-
-        self.check_topic_attribute(
-            attributes={"type", "off1", "off2", "num"},
-            topic="command_offsetRADec",
-            component="ATPtg",
-        )
-
-        self.check_topic_attribute(
-            attributes={"az", "el", "num"},
-            topic="command_offsetAzEl",
-            component="ATPtg",
-        )
-
-    def test_check_interface_atpneumatics(self) -> None:
-        component = "ATPneumatics"
-
-        self.check_topic_attribute(
-            attributes={"state"},
-            topic="logevent_m1CoverState",
-            component=component,
-        )
-
-        self.check_topic_attribute(
-            attributes={"position"},
-            topic="logevent_m1VentsPosition",
-            component=component,
-        )
-
-        self.check_topic_attribute(
-            attributes={"state"},
-            topic="logevent_mainValveState",
-            component=component,
-        )
-
-        self.check_topic_attribute(
-            attributes={"state"},
-            topic="logevent_instrumentState",
-            component=component,
-        )
-
-        self.check_topic_attribute(
-            attributes={"private_sndStamp"},
-            topic="command_openM1Cover",
-            component=component,
-        )
-
-        self.check_topic_attribute(
-            attributes={"private_sndStamp"},
-            topic="command_closeM1Cover",
-            component=component,
-        )
-
-        self.check_topic_attribute(
-            attributes={"private_sndStamp"},
-            topic="command_openM1CellVents",
-            component=component,
-        )
-
-        self.check_topic_attribute(
-            attributes={"private_sndStamp"},
-            topic="command_closeM1CellVents",
-            component=component,
-        )
-
-        self.check_topic_attribute(
-            attributes={"private_sndStamp"},
-            topic="command_openMasterAirSupply",
-            component=component,
-        )
-
-        self.check_topic_attribute(
-            attributes={"private_sndStamp"},
-            topic="command_closeMasterAirSupply",
-            component=component,
-        )
-
-        self.check_topic_attribute(
-            attributes={"private_sndStamp"},
-            topic="command_openInstrumentAirValve",
-            component=component,
-        )
-
-        self.check_topic_attribute(
-            attributes={"private_sndStamp"},
-            topic="command_m1CloseAirValve",
-            component=component,
-        )
-
-    def check_topic_attribute(
-        self, attributes: typing.Set[str], topic: str, component: str
-    ) -> None:
-        for attribute in attributes:
-            assert (
-                attribute
-                in self.components_metadata[component].topic_info[topic].field_info
-            )
-
-    async def get_heartbeat(
-        self, *args: typing.Any, **kwargs: typing.Any
-    ) -> types.SimpleNamespace:
-        """Emulate heartbeat functionality."""
-        await asyncio.sleep(1.0)
-        return types.SimpleNamespace()
-
-    async def ataos_evt_correction_enabled(
-        self, *args: typing.Any, **kwargs: typing.Any
-    ) -> types.SimpleNamespace:
-        return self._ataos_evt_correction_enabled
-
-    async def atptg_evt_focus_name_selected(
-        self, *args: typing.Any, **kwargs: typing.Any
-    ) -> types.SimpleNamespace:
-        return self._atptg_evt_focus_name_selected
-
-    async def atmcs_tel_mount_nasmyth_encoders(
-        self, *args: typing.Any, **kwargs: typing.Any
-    ) -> types.SimpleNamespace:
-        return self._atmcs_tel_mount_nasmyth_encoders
-
-    async def next_telescope_position(
-        self, *args: typing.Any, **kwargs: typing.Any
-    ) -> types.SimpleNamespace:
-        return self._telescope_position
-
-    async def next_telescope_target(
-        self, *args: typing.Any, **kwargs: typing.Any
-    ) -> types.SimpleNamespace:
-        return self._telescope_target_position
-
-    async def atdome_tel_position(
-        self, *args: typing.Any, **kwargs: typing.Any
-    ) -> types.SimpleNamespace:
-        return self._atdome_position
-
-    async def atdome_evt_azimuth_commanded_state(
-        self, *args: typing.Any, **kwargs: typing.Any
-    ) -> types.SimpleNamespace:
-        return self._atdome_azimth_commanded_state
-
-    async def atdome_evt_azimuth_state(
-        self, *args: typing.Any, **kwargs: typing.Any
-    ) -> types.SimpleNamespace:
-        if self._atdome_evt_azimuth_state._taken:
-            raise asyncio.TimeoutError("Timeout waiting for azimuthState")
-        else:
-            await asyncio.sleep(0.1)
-            return self._atdome_evt_azimuth_state
-
-    def atdome_evt_azimuth_state_flush(
-        self, *args: typing.Any, **kwargs: typing.Any
-    ) -> None:
-        self._atdome_evt_azimuth_state._taken = True
-
-    async def atdome_evt_scb_link(
-        self, *args: typing.Any, **kwargs: typing.Any
-    ) -> types.SimpleNamespace:
-        return self._atdome_evt_scb_link
-
-    async def atdome_evt_main_door_state(
-        self, *args: typing.Any, **kwargs: typing.Any
-    ) -> types.SimpleNamespace:
-        await asyncio.sleep(0.2)
-        return self._atdome_evt_main_door_state
-
-    async def atdome_cmd_home_azimuth(
-        self, *args: typing.Any, **kwargs: typing.Any
-    ) -> None:
-        if self._atdome_position.azimuthPosition == 0.0:
-            return
-        else:
-            self._atdome_evt_azimuth_state._taken = False
-            self._atdome_evt_azimuth_state.homing = True
-            asyncio.create_task(self._atdome_cmd_home_azimuth())
-
-    async def atdome_cmd_move_shutter_main_door(
-        self, *args: typing.Any, **kwargs: typing.Any
-    ) -> None:
-        asyncio.create_task(
-            self._atdome_cmd_move_shutter_main_door(open=kwargs["open"])
-        )
-
-    async def atdome_cmd_close_shutter(
-        self, *args: typing.Any, **kwargs: typing.Any
-    ) -> None:
-        asyncio.create_task(self._atdome_cmd_move_shutter_main_door(open=False))
-
-    async def atdometrajectory_following_mode(
-        self, *args: typing.Any, **kwargs: typing.Any
-    ) -> types.SimpleNamespace:
-        self.log.debug(
-            "Retrieving atdometrajectory dome following mode: "
-            f"{self._atdometrajectory_dome_following}"
-        )
-        return self._atdometrajectory_dome_following
-
-    async def atdometrajectory_cmd_set_following_mode(
-        self, enable: bool, *args: typing.Any, **kwargs: typing.Any
-    ) -> None:
-        self.log.debug(
-            "Updating atdometrajectory following: "
-            f"{self._atdometrajectory_dome_following.enabled} -> {enable}"
-        )
-        self._atdometrajectory_dome_following.enabled = enable
-
-    async def _atdome_cmd_home_azimuth(self) -> None:
-        await asyncio.sleep(0.2)
-        self._atdome_evt_azimuth_state.homing = False
-
-    async def _atdome_cmd_move_shutter_main_door(self, open: bool) -> None:
-        if (
-            open
-            and self._atdome_evt_main_door_state.state != ATDome.ShutterDoorState.OPENED
-        ):
-            self._atdome_evt_main_door_state.state = ATDome.ShutterDoorState.OPENING
-            await asyncio.sleep(0.5)
-            self._atdome_evt_main_door_state.state = ATDome.ShutterDoorState.OPENED
-        elif (
-            not open
-            and self._atdome_evt_main_door_state.state != ATDome.ShutterDoorState.CLOSED
-        ):
-            self._atdome_evt_main_door_state.state = ATDome.ShutterDoorState.CLOSING
-            await asyncio.sleep(0.5)
-            self._atdome_evt_main_door_state.state = ATDome.ShutterDoorState.CLOSED
-
-    async def atmcs_all_axes_in_position(
-        self, *args: typing.Any, **kwargs: typing.Any
-    ) -> types.SimpleNamespace:
-        await asyncio.sleep(0.1)
-        return self._atmcs_all_axes_in_position
-
-    async def atmcs_evt_at_mount_state(
-        self, *args: typing.Any, **kwargs: typing.Any
-    ) -> types.SimpleNamespace:
-        return self._atmcs_evt_at_mount_state
-
-    async def start_tracking(
-        self,
-        data: salobj.type_hints.BaseMsgType,
-        *args: typing.Any,
-        **kwargs: typing.Any,
-    ) -> None:
-
-        self._atmcs_all_axes_in_position.inPosition = True
-
-        self._atmcs_evt_at_mount_state.state = int(ATMCS.AtMountState.TRACKINGENABLED)
-
-    async def atmcs_stop_tracking(
-        self, *args: typing.Any, **kwargs: typing.Any
-    ) -> None:
-
-        self._atmcs_all_axes_in_position.inPosition = False
-        self._atmcs_evt_at_mount_state.state = int(ATMCS.AtMountState.TRACKINGDISABLED)
-
-    async def atpneumatics_evt_m1_cover_state(
-        self, *args: typing.Any, **kwargs: typing.Any
-    ) -> types.SimpleNamespace:
-        await asyncio.sleep(0.1)
-        return self._atpneumatics_evt_m1_cover_state
-
-    async def atpneumatics_evt_m1_vents_position(
-        self, *args: typing.Any, **kwargs: typing.Any
-    ) -> types.SimpleNamespace:
-        await asyncio.sleep(0.1)
-        return self._atpneumatics_evt_m1_vents_position
-
-    async def atpneumatics_evt_instrument_state(
-        self, *args: typing.Any, **kwargs: typing.Any
-    ) -> types.SimpleNamespace:
-        await asyncio.sleep(0.1)
-        return self._atpneumatics_evt_instrument_state
-
-    async def atpneumatics_evt_main_valve_state(
-        self, *args: typing.Any, **kwargs: typing.Any
-    ) -> types.SimpleNamespace:
-        await asyncio.sleep(0.1)
-        return self._atpneumatics_evt_main_valve_state
-
-    async def atpneumatics_close_m1_cover(
-        self, *args: typing.Any, **kwargs: typing.Any
-    ) -> None:
-        asyncio.create_task(self._atpneumatics_close_m1_cover())
-
-    async def atpneumatics_open_m1_cover(
-        self, *args: typing.Any, **kwargs: typing.Any
-    ) -> None:
-        if (
-            self._atpneumatics_evt_main_valve_state.state
-            != ATPneumatics.AirValveState.OPENED
-        ):
-            raise RuntimeError("Valves not opened.")
-        asyncio.create_task(self._atpneumatics_open_m1_cover())
-
-    async def atpneumatics_open_m1_cell_vents(
-        self, *args: typing.Any, **kwargs: typing.Any
-    ) -> None:
-        if (
-            self._atpneumatics_evt_main_valve_state.state
-            != ATPneumatics.AirValveState.OPENED
-            or self._atpneumatics_evt_instrument_state.state
-            != ATPneumatics.AirValveState.OPENED
-        ):
-            raise RuntimeError("Valves not opened.")
-        asyncio.create_task(self._atpneumatics_open_m1_cell_vents())
-
-    async def atpneumatics_close_m1_cell_vents(
-        self, *args: typing.Any, **kwargs: typing.Any
-    ) -> None:
-        asyncio.create_task(self._atpneumatics_close_m1_cell_vents())
-
-    async def atpneumatics_open_air_valve(
-        self, *args: typing.Any, **kwargs: typing.Any
-    ) -> None:
-        asyncio.create_task(self._atpneumatics_open_air_valve())
-
-    async def atpneumatics_open_main_valve(
-        self, *args: typing.Any, **kwargs: typing.Any
-    ) -> None:
-        asyncio.create_task(self._atpneumatics_open_main_valve())
-
-    async def _atpneumatics_close_m1_cover(self) -> None:
-        if (
-            self._atpneumatics_evt_m1_cover_state.state
-            == ATPneumatics.MirrorCoverState.CLOSED
-        ):
-            return
-        else:
-            self._atpneumatics_evt_m1_cover_state.state = (
-                ATPneumatics.MirrorCoverState.INMOTION
-            )
-            await asyncio.sleep(0.5)
-            self._atpneumatics_evt_m1_cover_state.state = (
-                ATPneumatics.MirrorCoverState.CLOSED
-            )
-
-    async def _atpneumatics_open_m1_cover(self) -> None:
-        if (
-            self._atpneumatics_evt_m1_cover_state.state
-            == ATPneumatics.MirrorCoverState.OPENED
-        ):
-            return
-        else:
-            self._atpneumatics_evt_m1_cover_state.state = (
-                ATPneumatics.MirrorCoverState.INMOTION
-            )
-            await asyncio.sleep(0.5)
-            self._atpneumatics_evt_m1_cover_state.state = (
-                ATPneumatics.MirrorCoverState.OPENED
-            )
-
-    async def _atpneumatics_close_m1_cell_vents(self) -> None:
-        if (
-            self._atpneumatics_evt_m1_vents_position.position
-            == ATPneumatics.VentsPosition.CLOSED
-        ):
-            return
-        else:
-            self._atpneumatics_evt_m1_vents_position.position = (
-                ATPneumatics.VentsPosition.PARTIALLYOPENED
-            )
-            await asyncio.sleep(0.5)
-            self._atpneumatics_evt_m1_vents_position.position = (
-                ATPneumatics.VentsPosition.CLOSED
-            )
-
-    async def _atpneumatics_open_m1_cell_vents(self) -> None:
-        if (
-            self._atpneumatics_evt_m1_vents_position.position
-            == ATPneumatics.VentsPosition.OPENED
-        ):
-            return
-        else:
-            self._atpneumatics_evt_m1_vents_position.position = (
-                ATPneumatics.VentsPosition.PARTIALLYOPENED
-            )
-            await asyncio.sleep(0.5)
-            self._atpneumatics_evt_m1_vents_position.position = (
-                ATPneumatics.VentsPosition.OPENED
-            )
-
-    async def _atpneumatics_open_air_valve(self) -> None:
-        if (
-            self._atpneumatics_evt_instrument_state.state
-            == ATPneumatics.AirValveState.OPENED
-        ):
-            return
-        else:
-
-            await asyncio.sleep(0.5)
-
-            self._atpneumatics_evt_instrument_state.state = (
-                ATPneumatics.AirValveState.OPENED
-            )
-
-    async def _atpneumatics_open_main_valve(self) -> None:
-        if (
-            self._atpneumatics_evt_main_valve_state.state
-            == ATPneumatics.AirValveState.OPENED
-        ):
-            return
-        else:
-
-            await asyncio.sleep(0.5)
-
-            self._atpneumatics_evt_main_valve_state.state = (
-                ATPneumatics.AirValveState.OPENED
-            )
-
-    def get_summary_state_for(
-        self, comp: str
-    ) -> typing.Callable[[typing.Optional[float]], typing.Awaitable]:
-        async def get_summary_state(
-            timeout: typing.Optional[float] = None,
-        ) -> salobj.type_hints.BaseMsgType:
-            return self.summary_state[comp]
-
-        return get_summary_state
-
-    def next_summary_state_for(
-        self, comp: str
-    ) -> typing.Callable[[bool, typing.Optional[float]], typing.Awaitable]:
-        async def next_summary_state(
-            flush: bool, timeout: typing.Optional[float] = None
-        ) -> salobj.type_hints.BaseMsgType:
-            if flush or len(self.summary_state_queue[comp]) == 0:
-                self.summary_state_queue_event[comp].clear()
-                self.summary_state_queue[comp] = []
-            await asyncio.wait_for(
-                self.summary_state_queue_event[comp].wait(), timeout=timeout
-            )
-            return self.summary_state_queue[comp].pop(0)
-
-        return next_summary_state
-
-    def set_summary_state_for(
-        self, comp: str, state: salobj.State
-    ) -> typing.Callable[..., typing.Awaitable]:
-        async def set_summary_state(*args: typing.Any, **kwargs: typing.Any) -> None:
-            self.summary_state[comp].summaryState = int(state)
-            self.summary_state_queue[comp].append(
-                copy.copy(self.summary_state[comp].summaryState)
-            )
-            self.summary_state_queue_event[comp].set()
-
-        return set_summary_state
 
     def _handle_fail_angle_out_of_range(
         self, *args: typing.Any, **kwargs: typing.Any

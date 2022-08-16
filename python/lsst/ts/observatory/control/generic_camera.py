@@ -21,8 +21,8 @@
 
 __all__ = ["GenericCamera"]
 
-import typing
 import logging
+import typing
 
 from lsst.ts import salobj
 
