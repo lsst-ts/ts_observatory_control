@@ -31,6 +31,7 @@ import unittest
 import unittest.mock
 
 from lsst.ts import idl
+from lsst.ts import utils
 from lsst.ts import salobj
 
 from .. import RemoteGroup
@@ -89,6 +90,16 @@ class RemoteGroupAsyncMock(
                 for component in components
             ]
         )
+
+    def run(self, result: typing.Any = None) -> None:
+        """Override `run` to set a random LSST_DDS_PARTITION_PREFIX
+        and set LSST_SITE=test for every test.
+
+        https://stackoverflow.com/a/11180583
+        """
+        salobj.set_random_lsst_dds_partition_prefix()
+        with utils.modify_environ(LSST_SITE="test"):
+            super().run(result)  # type: ignore
 
     async def asyncSetUp(self) -> None:
         """Setup AsyncMock.
