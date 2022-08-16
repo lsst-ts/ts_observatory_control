@@ -77,7 +77,9 @@ class LATISSMock(BaseGroupMock):
         self.latiss_grating_name = None
         self.latiss_linear_stage = None
 
-        self.end_readout_coro: typing.Optional[typing.Awaitable] = None
+        self.end_readout_coro: typing.Optional[
+            typing.Coroutine[typing.Any, typing.Any, typing.Any]
+        ] = None
         self.end_readout_task: typing.Optional[asyncio.Task] = None
 
         self.log = logging.getLogger(__name__)
