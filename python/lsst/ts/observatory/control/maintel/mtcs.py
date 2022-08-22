@@ -1019,7 +1019,9 @@ class MTCS(BaseTCS):
     ) -> None:
         """Move camera hexapod.
 
-        When camera hexapod compensation mode is on move will act as offset.
+        When the camera hexapod compensation mode is on, move it to a new
+        position relative to the LUT. When the camera hexapod compensation mode
+        is off, move it to a new absolute position.
 
         Parameters
         ----------
@@ -1035,7 +1037,7 @@ class MTCS(BaseTCS):
             Hexapod-v angle (degrees).
         w : `float`, optional
             Hexapod-w angle (degrees). Default 0.
-        sync : `bool`, optinal
+        sync : `bool`, optional
             Should the hexapod movement be synchronized? Default True.
         """
 
@@ -1043,7 +1045,7 @@ class MTCS(BaseTCS):
 
         if compensation_mode.enabled:
             self.log.info(
-                "Camera Hexapod compensation mode enabled. Move will offset with respect to LUT."
+                "Camera Hexapod compensation mode enabled. Move with respect to LUT."
             )
 
         await self.rem.mthexapod_1.cmd_move.set_start(
@@ -1088,7 +1090,9 @@ class MTCS(BaseTCS):
     ) -> None:
         """Move m2 hexapod.
 
-        When m2 hexapod compensation mode is on move will act as offset.
+        When the m2 hexapod compensation mode is on, move it to a new position
+        relative to the LUT. When the m2 hexapod compensation mode is off, move
+        it to a new absolute position.
 
         Parameters
         ----------
@@ -1104,7 +1108,7 @@ class MTCS(BaseTCS):
             Hexapod-v angle (degrees).
         w : `float`, optional
             Hexapod-w angle (degrees). Default 0.
-        sync : `bool`, optinal
+        sync : `bool`, optional
             Should the hexapod movement be synchronized? Default True.
         """
 
@@ -1112,7 +1116,7 @@ class MTCS(BaseTCS):
 
         if compensation_mode.enabled:
             self.log.info(
-                "M2 Hexapod compensation mode enabled. Move will offset with respect to LUT."
+                "M2 Hexapod compensation mode enabled. Move with respect to LUT."
             )
 
         await self.rem.mthexapod_2.cmd_move.set_start(
