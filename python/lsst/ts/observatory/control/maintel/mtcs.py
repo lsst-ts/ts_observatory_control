@@ -1129,6 +1129,92 @@ class MTCS(BaseTCS):
             component_name="M2 Hexapod",
         )
 
+    async def offset_camera_hexapod(
+        self,
+        x: float,
+        y: float,
+        z: float,
+        u: float,
+        v: float,
+        w: float = 0.0,
+        sync: bool = True,
+    ) -> None:
+        """Offset camera hexapod.
+
+        Offsets are always relative to the current hexapod position, regardless
+        of the compensation mode being on or off.
+
+        Parameters
+        ----------
+        x : `float`
+            Hexapod-x position (microns).
+        y : `float`
+            Hexapod-y position (microns).
+        z : `float`
+            Hexapod-z position (microns).
+        u : `float`
+            Hexapod-u angle (degrees).
+        v : `float`
+            Hexapod-v angle (degrees).
+        w : `float`, optional
+            Hexapod-w angle (degrees). Default 0.
+        sync : `bool`, optional
+            Should the hexapod movement be synchronized? Default True.
+        """
+
+        await self.rem.mthexapod_1.cmd_offset.set_start(
+            x=x, y=y, z=z, u=u, v=v, w=w, sync=sync, timeout=self.long_timeout
+        )
+
+        await self._handle_in_position(
+            in_position_event=self.rem.mthexapod_1.evt_inPosition,
+            timeout=self.long_timeout,
+            component_name="Camera Hexapod",
+        )
+
+    async def offset_m2_hexapod(
+        self,
+        x: float,
+        y: float,
+        z: float,
+        u: float,
+        v: float,
+        w: float = 0.0,
+        sync: bool = True,
+    ) -> None:
+        """Offset M2 hexapod.
+
+        Offsets are always relative to the current hexapod position, regardless
+        of the compensation mode being on or off.
+
+        Parameters
+        ----------
+        x : `float`
+            Hexapod-x position (microns).
+        y : `float`
+            Hexapod-y position (microns).
+        z : `float`
+            Hexapod-z position (microns).
+        u : `float`
+            Hexapod-u angle (degrees).
+        v : `float`
+            Hexapod-v angle (degrees).
+        w : `float`, optional
+            Hexapod-w angle (degrees). Default 0.
+        sync : `bool`, optional
+            Should the hexapod movement be synchronized? Default True.
+        """
+
+        await self.rem.mthexapod_2.cmd_offset.set_start(
+            x=x, y=y, z=z, u=u, v=v, w=w, sync=sync, timeout=self.long_timeout
+        )
+
+        await self._handle_in_position(
+            in_position_event=self.rem.mthexapod_2.evt_inPosition,
+            timeout=self.long_timeout,
+            component_name="M2 Hexapod",
+        )
+
     async def reset_camera_hexapod_position(self) -> None:
         """Reset position of the camera hexapod."""
 
