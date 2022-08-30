@@ -6,6 +6,17 @@
 Version History
 ###############
 
+v0.23.0
+-------
+
+* In ``MTCS``:
+
+  * Fix doctring and logged information about behaviour when hexapod compensation mode is on in ``move_camera_hexapod`` and ``move_m2_hexapod``, 
+
+  * Add new methods `offset_m2_hexapod` and `offset_cam_hexapod` that offset the M2 and camera hexapod respectively.
+
+    This method can be used when performing optical alignment with the MTAlignment component or when performing optical alignment with curvature wavefront sensing to take the intra/extra focal data.
+
 v0.22.1
 -------
 

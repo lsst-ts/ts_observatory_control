@@ -248,6 +248,7 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
             "evt_inPosition.next.side_effect": self.mthexapod_1_evt_in_position,
             "cmd_setCompensationMode.set_start.side_effect": self.mthexapod_1_cmd_set_compensation_mode,
             "cmd_move.set_start.side_effect": self.mthexapod_1_cmd_move,
+            "cmd_offset.set_start.side_effect": self.mthexapod_1_cmd_offset,
         }
 
         self.mtcs.rem.mthexapod_1.configure_mock(**hexapod_1_mocks)
@@ -264,6 +265,7 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
             "evt_inPosition.next.side_effect": self.mthexapod_2_evt_in_position,
             "cmd_setCompensationMode.set_start.side_effect": self.mthexapod_2_cmd_set_compensation_mode,
             "cmd_move.set_start.side_effect": self.mthexapod_2_cmd_move,
+            "cmd_offset.set_start.side_effect": self.mthexapod_2_cmd_offset,
         }
 
         self.mtcs.rem.mthexapod_2.configure_mock(**hexapod_2_mocks)
@@ -555,14 +557,40 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
         )
         await asyncio.sleep(self.short_process_time)
 
+    async def mthexapod_1_cmd_offset(
+        self, *args: typing.Any, **kwargs: typing.Any
+    ) -> None:
+        self.log.debug("Move camera hexapod...")
+        await asyncio.sleep(self.heartbeat_time / 2)
+
+        self._mthexapod_1_move_task = asyncio.create_task(
+            self.execute_hexapod_offset(hexapod=1, **kwargs)
+        )
+        await asyncio.sleep(self.short_process_time)
+
+    async def mthexapod_2_cmd_offset(
+        self, *args: typing.Any, **kwargs: typing.Any
+    ) -> None:
+        await asyncio.sleep(self.heartbeat_time / 2.0)
+        self._mthexapod_2_move_task = asyncio.create_task(
+            self.execute_hexapod_offset(hexapod=2, **kwargs)
+        )
+        await asyncio.sleep(self.short_process_time)
+
     async def execute_hexapod_move(self, hexapod: int, **kwargs: typing.Any) -> None:
 
         self.log.debug(f"Execute hexapod {hexapod} movement.")
+
         getattr(self, f"_mthexapod_{hexapod}_evt_in_position").inPosition = False
         hexapod_positions_steps = np.array(
             [
                 np.linspace(
-                    getattr(self._mthexapod_1_evt_uncompensated_position, axis),
+                    getattr(
+                        getattr(
+                            self, f"_mthexapod_{hexapod}_evt_uncompensated_position"
+                        ),
+                        axis,
+                    ),
                     kwargs.get(axis, 0.0),
                     10,
                 )
@@ -581,3 +609,26 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
             await asyncio.sleep(self.short_process_time * 2.0)
 
         getattr(self, f"_mthexapod_{hexapod}_evt_in_position").inPosition = True
+
+    async def execute_hexapod_offset(self, hexapod: int, **kwargs: typing.Any) -> None:
+
+        self.log.debug(f"Execute hexapod {hexapod} offset.")
+        getattr(self, f"_mthexapod_{hexapod}_evt_in_position").inPosition = False
+        desired_position = dict(
+            [
+                (
+                    axis,
+                    getattr(
+                        getattr(
+                            self, f"_mthexapod_{hexapod}_evt_uncompensated_position"
+                        ),
+                        axis,
+                    )
+                    + kwargs.get(axis, 0.0),
+                )
+                for axis in "xyzuvw"
+            ]
+        )
+
+        self.log.debug(f"Execute hexapod {hexapod} move: {desired_position}")
+        await self.execute_hexapod_move(hexapod=hexapod, **desired_position)
