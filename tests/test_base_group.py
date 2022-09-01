@@ -33,6 +33,28 @@ HB_TIMEOUT = 5  # Heartbeat timeout (sec)
 MAKE_TIMEOUT = 60  # Timeout for make_script (sec)
 
 
+class MockAuthorizeCsc(salobj.Controller):
+    """A Simple mock for the authorize CSC."""
+
+    def __init__(self) -> None:
+        super().__init__("Authorize", 0)
+
+        self.cscs_to_change = ""
+        self.authorized_users = ""
+        self.cmd_requestAuthorization.callback = self.do_request_authorization
+
+    async def do_request_authorization(self, data: salobj.BaseDdsDataType) -> None:
+        """Mock requestAuthorization response.
+
+        Parameters
+        ----------
+        data : `BaseDdsDataType`
+            requestAuthorization command payload.
+        """
+        self.cscs_to_change = data.cscsToChange
+        self.authorized_users = data.authorizedUsers
+
+
 class TestBaseGroup(RemoteGroupTestCase, unittest.IsolatedAsyncioTestCase):
     async def basic_make_group(
         self, usage: typing.Optional[int] = None
@@ -199,3 +221,23 @@ class TestBaseGroup(RemoteGroupTestCase, unittest.IsolatedAsyncioTestCase):
 
             with pytest.raises(RuntimeError):
                 self.basegroup.get_work_components(["bad_1"])
+
+    async def test_request_authorization(self) -> None:
+        async with self.make_group(
+            usage=Usages.DryTest
+        ), MockAuthorizeCsc() as authorize_csc:
+
+            await self.basegroup.request_authorization()
+
+            assert authorize_csc.authorized_users == f"+{self.basegroup.get_identity()}"
+            assert authorize_csc.cscs_to_change == ",".join(self.basegroup.components)
+
+    async def test_release_authorization(self) -> None:
+        async with self.make_group(
+            usage=Usages.DryTest
+        ), MockAuthorizeCsc() as authorize_csc:
+
+            await self.basegroup.release_authorization()
+
+            assert authorize_csc.authorized_users == f"-{self.basegroup.get_identity()}"
+            assert authorize_csc.cscs_to_change == ",".join(self.basegroup.components)
