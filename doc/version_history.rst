@@ -6,6 +6,11 @@
 Version History
 ###############
 
+v0.23.1
+-------
+
+* Add support for authorization.
+
 v0.23.0
 -------
 
