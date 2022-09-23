@@ -175,6 +175,39 @@ The feature is available when instantiating the class, for example;
 
 Details of the available usages for each class is given furthermore.
 
+.. _user-guide-handling-authorization:
+
+Handling Authorization
+----------------------
+
+When operating from a user environment (e.g. Jupyter notebook), users have to request authorization to command CSCs.
+To facilitate this procedure we implement a generic functionality that allows one to request authorization to command all CSCs from a group.
+
+When using the observatory control package from a Jupyter notebook one can do:
+
+
+.. code:: python
+
+    from lsst.ts import salobj
+    from lsst.ts.observatory.control.auxtel import ATCS, LATISS
+
+    domain = salobj.Domain()
+
+    atcs = ATCS(domain=domain)
+    latiss = LATISS(domain=domain)
+
+    await atcs.start_task
+    await latiss.start_task
+
+    await atcs.request_authorization()
+    await latiss.request_authorization()
+
+    # Execute operations here...
+
+    await atcs.release_authorization()
+    await latiss.release_authorization()
+   
+
 .. _user-guide-generic-csc-group-behavior:
 
 Generic CSC Group behavior

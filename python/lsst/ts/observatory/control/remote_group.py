@@ -873,6 +873,64 @@ class RemoteGroup:
 
         await self.set_state(salobj.State.OFFLINE)
 
+    async def request_authorization(self) -> None:
+        """Request authorization to command all required components from the
+        group.
+        """
+
+        identity = self.get_identity()
+
+        await self.handle_request_authorization(
+            authorized_users=f"+{identity}", non_authorized_cscs=""
+        )
+
+    async def release_authorization(self) -> None:
+        """Release authorization to command all required components from the
+        group.
+        """
+
+        identity = self.get_identity()
+
+        await self.handle_request_authorization(
+            authorized_users=f"-{identity}", non_authorized_cscs=""
+        )
+
+    async def handle_request_authorization(
+        self, authorized_users: str, non_authorized_cscs: str
+    ) -> None:
+        """Handle requesting authorization.
+
+        Parameters
+        ----------
+        authorized_users : `str`
+            Comma separated list of users to request authorization to command
+            the CSCs in this group, in the form user@host.
+        non_authorized_cscs : `str`
+            Comma separated list of CSC's to deny authorization to command
+            CSCs in this group, in the form name[:index].
+        """
+        async with salobj.Remote(self.domain, "Authorize", include=[]) as authorize_csc:
+            await authorize_csc.cmd_requestAuthorization.set_start(
+                cscsToChange=",".join(self.components),
+                authorizedUsers=authorized_users,
+                nonAuthorizedCSCs=non_authorized_cscs,
+                timeout=self.long_timeout,
+            )
+
+    def get_identity(self) -> str:
+        """Get user identity.
+
+        Returns
+        -------
+        `str`
+            Identity.
+        """
+        return (
+            self.domain.default_identity
+            if "@" in self.domain.default_identity
+            else self.domain.user_host
+        )
+
     def set_rem_loglevel(self, level: int) -> None:
         """Set remotes log level.
 
