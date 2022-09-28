@@ -341,12 +341,18 @@ class ScriptQueue(RemoteGroup):
         await self.queue_remote.cmd_showSchema.set_start(
             isStandard=is_standard,
             path=script,
-            timeout=self.fast_timeout,
+            timeout=self.long_timeout,
         )
 
         script_schema = await self.queue_remote.evt_configSchema.next(
             flush=False, timeout=self.long_timeout
         )
+        while not (
+            script_schema.path == script and script_schema.isStandard == is_standard
+        ):
+            script_schema = await self.queue_remote.evt_configSchema.next(
+                flush=False, timeout=self.long_timeout
+            )
 
         return script_schema.configSchema
 
