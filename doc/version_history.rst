@@ -6,6 +6,14 @@
 Version History
 ###############
 
+v0.23.2
+-------
+
+* In ``ScriptQueue``:
+
+  * Make sure ``get_script_schema`` can handle condition where multiple ``configSchema``, for different scripts, are published while it is executed.
+  * Fix text separator when splitting list of scripts in ``list_standard_scripts`` and ``list_external_scripts`.
+
 v0.23.1
 -------
 
