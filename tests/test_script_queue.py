@@ -24,6 +24,7 @@ import logging
 import types
 import typing
 import unittest
+import unittest.mock
 
 import yaml
 from lsst.ts import idl, salobj
@@ -73,11 +74,22 @@ class TestScriptQueue(RemoteGroupAsyncMock):
             .topic_info["logevent_availableScripts"]
             .field_info
         )
-        self.available_scripts.standard = (
-            "std_script1,std_script2,auxtel/std_script1,maintel/std_script1,"
+        self.standard_scripts = [
+            "std_script1,std_script2",
+            "auxtel/std_script1",
+            "maintel/std_script1",
+        ]
+        self.external_scripts = [
+            "ext_script1,ext_script2",
+            "auxtel/ext_script1",
+            "maintel/ext_script1",
+        ]
+
+        self.available_scripts.standard = ScriptQueue.script_separator.join(
+            self.standard_scripts
         )
-        self.available_scripts.external = (
-            "ext_script1,ext_script2,auxtel/ext_script1,maintel/ext_script1,"
+        self.available_scripts.external = ScriptQueue.script_separator.join(
+            self.external_scripts
         )
 
         self.config_schema = types.SimpleNamespace(
@@ -85,6 +97,9 @@ class TestScriptQueue(RemoteGroupAsyncMock):
             .topic_info["logevent_configSchema"]
             .field_info
         )
+        self.config_schema.isStandard = True
+        self.config_schema.path = "std_script1"
+
         self.config_schema.configSchema = """
 $schema: http://json-schema.org/draft-07/schema#
 $id: https://github.com/lsst-ts/ts_standardscripts/base_slew.yaml
@@ -160,7 +175,7 @@ additionalProperties: false
         self.script_queue.rem.scriptqueue_1.cmd_showAvailableScripts.start.assert_awaited_with(
             timeout=self.script_queue.fast_timeout,
         )
-        assert standard_scripts == self.available_scripts.standard.split(",")
+        assert standard_scripts == self.standard_scripts
 
     async def test_list_external_scripts(self) -> None:
 
@@ -175,7 +190,7 @@ additionalProperties: false
             timeout=self.script_queue.fast_timeout,
         )
 
-        assert external_scripts == self.available_scripts.external.split(",")
+        assert external_scripts == self.external_scripts
 
     async def test_get_script_schema(self) -> None:
 
@@ -408,7 +423,7 @@ additionalProperties: false
         self.script_queue.rem.scriptqueue_1.cmd_showSchema.set_start.assert_awaited_with(
             isStandard=True,
             path="std_script1",
-            timeout=self.script_queue.fast_timeout,
+            timeout=self.script_queue.long_timeout,
         )
         self.script_queue.rem.scriptqueue_1.evt_configSchema.next.assert_awaited_with(
             flush=False,
