@@ -51,6 +51,8 @@ class ScriptQueue(RemoteGroup):
         resources.
     """
 
+    script_separator = ":"
+
     def __init__(
         self,
         queue_index: idl.enums.ScriptQueue.SalIndex,
@@ -367,7 +369,7 @@ class ScriptQueue(RemoteGroup):
 
         available_scripts = await self._get_available_scripts()
 
-        return available_scripts.standard.split(",")
+        return available_scripts.standard.split(self.script_separator)
 
     async def list_external_scripts(self) -> typing.List[str]:
         """List external scripts.
@@ -380,7 +382,7 @@ class ScriptQueue(RemoteGroup):
 
         available_scripts = await self._get_available_scripts()
 
-        return available_scripts.external.split(",")
+        return available_scripts.external.split(self.script_separator)
 
     async def _get_available_scripts(self) -> salobj.type_hints.BaseMsgType:
         """Get available scripts from the script queue.
