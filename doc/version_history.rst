@@ -6,6 +6,12 @@
 Version History
 ###############
 
+v0.23.3
+-------
+
+* In ``BaseCamera``, update ``_handle_take_stuttered`` to remove call to ``cmd_clear``.
+* In ``BaseCameraAsyncMock``, update ``assert_take_calibration`` to remove call to ``cmd_clear``.
+
 v0.23.2
 -------
 
