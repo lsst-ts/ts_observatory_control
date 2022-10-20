@@ -732,9 +732,6 @@ class BaseCameraAsyncMock(RemoteGroupAsyncMock):
         self.remote_group.camera.cmd_enableCalibration.start.assert_awaited_with(
             timeout=self.remote_group.long_timeout
         )
-        self.remote_group.camera.cmd_clear.set_start.assert_awaited_with(
-            nClears=2, timeout=self.remote_group.long_timeout
-        )
         self.remote_group.camera.evt_endReadout.flush.assert_called()
 
         self.remote_group.camera.cmd_startImage.set.assert_called_with(

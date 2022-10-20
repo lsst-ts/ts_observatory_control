@@ -1245,10 +1245,6 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
         try:
             for i in range(camera_exposure.n):
 
-                await self.camera.cmd_clear.set_start(
-                    nClears=2, timeout=self.long_timeout
-                )
-
                 self.camera.evt_endReadout.flush()
 
                 self.log.info(f"Start exposure {i+1} of {camera_exposure.n}")
