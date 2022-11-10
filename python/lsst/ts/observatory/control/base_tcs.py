@@ -1522,7 +1522,7 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
         customSimbad = Simbad()
 
         customSimbad.add_votable_fields("distance_result", "fluxdata(V)")
-        customSimbad.TIMEOUT = self.long_timeout
+        customSimbad.TIMEOUT = self.long_long_timeout
 
         radec = self.radec_from_azel(az=az, el=el)
 
