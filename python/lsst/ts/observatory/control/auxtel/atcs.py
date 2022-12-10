@@ -155,13 +155,12 @@ class ATCS(BaseTCS):
         self.tel_el_slew_tolerance = Angle(0.004 * u.deg)
         self.tel_nasm_slew_tolerance = Angle(0.004 * u.deg)
 
+        self.dome_open_az = 90.0
         self.dome_park_az = 285.0
         self.dome_flat_az = 20.0
         self.dome_slew_tolerance = Angle(5.1 * u.deg)
 
         self._dome_slew_max_iter = 4
-
-        self.azimuth_open_dome = 90.0
 
         if hasattr(self.rem.atmcs, "tel_mount_AzEl_Encoders"):
             self.rem.atmcs.tel_mount_AzEl_Encoders.callback = (
@@ -517,7 +516,7 @@ class ATCS(BaseTCS):
 
         await self.point_azel(
             target_name="Park position",
-            az=self.azimuth_open_dome,
+            az=self.dome_open_az,
             el=self.tel_park_el,
             rot_tel=self.tel_park_rot,
             wait_dome=False,
@@ -561,8 +560,8 @@ class ATCS(BaseTCS):
 
             await self.home_dome()
 
-            self.log.debug(f"Moving dome to {self.azimuth_open_dome} degrees.")
-            await self.slew_dome_to(az=self.azimuth_open_dome)
+            self.log.debug(f"Moving dome to {self.dome_open_az} degrees.")
+            await self.slew_dome_to(az=self.dome_open_az)
 
             self.log.info("Opening dome.")
 
