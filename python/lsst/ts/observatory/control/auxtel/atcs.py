@@ -546,30 +546,7 @@ class ATCS(BaseTCS):
 
         if self.check.atdome:
 
-            self.log.debug(
-                "Check that dome CSC can communicate with shutter control box."
-            )
-
-            try:
-                scb = await self.rem.atdome.evt_scbLink.aget(timeout=self.fast_timeout)
-            except asyncio.TimeoutError:
-                self.log.error(
-                    "Timed out waiting for ATDome CSC scbLink status event. Can not "
-                    "determine if CSC has communication with Shutter Control Box."
-                    "If running this on a jupyter notebook you may try to add an"
-                    "await asyncio.sleep(1.) before calling startup again to give the"
-                    "remotes time to get information from DDS. You may also try to "
-                    "re-cycle the ATDome CSC state to STANDBY and back to ENABLE."
-                    "Cannot continue."
-                )
-                raise
-
-            if not scb.active:
-                raise RuntimeError(
-                    "Dome CSC has no communication with Shutter Control Box. "
-                    "Dome controllers may need to be rebooted for connection to "
-                    "be established. Cannot continue."
-                )
+            await self._check_atdome_scb_link()
 
             self.log.debug("Homing dome azimuth.")
 
@@ -604,6 +581,32 @@ class ATCS(BaseTCS):
         await self.enable_dome_following()
 
         self.log.info("Prepare for on sky finished.")
+
+    async def _check_atdome_scb_link(self) -> None:
+        """Check the ATDome connection with the moving enclosure."""
+
+        self.log.debug("Check that dome CSC can communicate with shutter control box.")
+
+        try:
+            scb = await self.rem.atdome.evt_scbLink.aget(timeout=self.fast_timeout)
+        except asyncio.TimeoutError:
+            self.log.error(
+                "Timed out waiting for ATDome CSC scbLink status event. Can not "
+                "determine if CSC has communication with Shutter Control Box. "
+                "If running this on a jupyter notebook you may try to add an "
+                "await asyncio.sleep(1.) before calling startup again to give the "
+                "remotes time to get information from DDS. You may also try to "
+                "re-cycle the ATDome CSC state to STANDBY and back to ENABLE. "
+                "Cannot continue."
+            )
+            raise
+
+        if not scb.active:
+            raise RuntimeError(
+                "Dome CSC has no communication with Shutter Control Box. "
+                "Dome controllers may need to be rebooted for connection to "
+                "be established. Cannot continue."
+            )
 
     async def shutdown(self) -> None:
         """Shutdown ATTCS components.
