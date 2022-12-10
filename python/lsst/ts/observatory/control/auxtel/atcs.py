@@ -422,6 +422,8 @@ class ATCS(BaseTCS):
 
         await self.disable_dome_following(check_ops)
 
+        await self.home_dome()
+
         await self.open_m1_cover()
 
         check_ops.atdometrajectory = False
