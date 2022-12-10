@@ -578,11 +578,7 @@ class ATCS(BaseTCS):
                 self.log.exception("Failed to open M1 vent. Continuing.")
 
         if self.check.ataos:
-            self.log.info("Enable ATAOS corrections.")
-
-            await self.rem.ataos.cmd_enableCorrection.set_start(
-                m1=True, hexapod=True, atspectrograph=True, timeout=self.long_timeout
-            )
+            await self.enable_ataos_corrections()
 
         await self.enable_dome_following()
 
