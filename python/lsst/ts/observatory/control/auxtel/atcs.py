@@ -545,6 +545,8 @@ class ATCS(BaseTCS):
         except asyncio.TimeoutError:
             pass
 
+        await self.disable_ataos_corrections()
+
         # Close m1 cover if it is open.
         await self.close_m1_cover()
 
