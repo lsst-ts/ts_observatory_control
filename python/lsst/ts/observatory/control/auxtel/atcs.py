@@ -214,6 +214,21 @@ class ATCS(BaseTCS):
         """Is monitor position flag enabled?"""
         return self._monitor_position
 
+    async def is_dome_homed(self) -> bool:
+        """Verify if the dome is homed.
+
+        Returns
+        -------
+        dome_homed : `bool`
+            `True` if dome is homed, `False` otherwise.
+        """
+
+        azimuth_state = await self.rem.atdome.evt_azimuthState.aget(
+            timeout=self.fast_timeout
+        )
+
+        return azimuth_state.homed
+
     async def mount_AzEl_Encoders_callback(
         self, data: salobj.type_hints.BaseDdsDataType
     ) -> None:
