@@ -424,7 +424,9 @@ class ATCS(BaseTCS):
 
         await self.home_dome()
 
+        await self.disable_ataos_corrections()
         await self.open_m1_cover()
+        await self.enable_ataos_corrections()
 
         check_ops.atdometrajectory = False
 
