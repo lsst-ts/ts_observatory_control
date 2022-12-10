@@ -608,6 +608,29 @@ class ATCS(BaseTCS):
                 "be established. Cannot continue."
             )
 
+    async def enable_ataos_corrections(self) -> None:
+        """Enable ATAOS corrections."""
+
+        self.log.info("Enabling ATAOS corrections.")
+
+        await self.rem.ataos.cmd_enableCorrection.set_start(
+            m1=True, hexapod=True, atspectrograph=True, timeout=self.long_timeout
+        )
+
+    async def disable_ataos_corrections(self, ignore_fail: bool = True) -> None:
+        """Disable ATAOS corrections."""
+
+        self.log.debug("Disabling ATAOS corrections.")
+
+        try:
+            await self.rem.ataos.cmd_disableCorrection.set_start(
+                disableAll=True, timeout=self.long_timeout
+            )
+        except Exception as e:
+            self.log.exception("Failed to disable ATAOS corrections. Continuing...")
+            if not ignore_fail:
+                raise e
+
     async def shutdown(self) -> None:
         """Shutdown ATTCS components.
 
