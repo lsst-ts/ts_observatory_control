@@ -509,6 +509,11 @@ class ATCS(BaseTCS):
 
         return stop_results
 
+    async def stop_dome(self) -> None:
+        """Stop all dome motion."""
+
+        await self.rem.atdome.cmd_stopMotion.start(timeout=self.fast_timeout)
+
     async def prepare_for_onsky(
         self, overrides: typing.Optional[typing.Dict[str, str]] = None
     ) -> None:
