@@ -647,14 +647,7 @@ class ATCS(BaseTCS):
         self.log.info("Disabling ATAOS corrections")
 
         if check.ataos:
-            self.log.debug("Disabling ATAOS corrections.")
-            try:
-
-                await self.rem.ataos.cmd_disableCorrection.set_start(
-                    disableAll=True, timeout=self.long_timeout
-                )
-            except Exception:
-                self.log.exception("Failed to disable ATAOS corrections. Continuing...")
+            await self.disable_ataos_corrections()
         else:
             self.log.debug("Skip disabling ATAOS corrections.")
 
