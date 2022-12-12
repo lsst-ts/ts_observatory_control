@@ -32,8 +32,14 @@ import astropy.units as u
 import numpy as np
 import numpy.typing as npt
 import pandas
-from astropy.coordinates import ICRS, AltAz, Angle, EarthLocation, SkyCoord
-from astropy.table import Row, Table
+from astropy.coordinates import (
+    ICRS,
+    AltAz,
+    Angle,
+    EarthLocation,
+    SkyCoord,
+)
+from astropy.table import Table
 from astropy.time import Time
 from astroquery.simbad import Simbad
 from lsst.ts import salobj
@@ -51,6 +57,7 @@ from .utils import (
     calculate_parallactic_angle,
     get_catalogs_path,
 )
+from .utils.extras.dm_target_catalog import DM_STACK_AVAILABLE
 from .utils.type_hints import (
     CoordFrameType,
     RotFrameType,
@@ -157,7 +164,7 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
             self._object_list.pop(name)
             self.log.debug(f"Removed {name} from object list.")
 
-    def object_list_add(self, name: str, object_table: Row) -> None:
+    def object_list_add(self, name: str, radec: ICRS) -> None:
         """Add object to object list.
 
         Parameters
@@ -168,11 +175,11 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
             Table row with object information.
         """
         if name not in self._object_list:
-            self._object_list[name] = object_table
+            self._object_list[name] = radec
         else:
             self.log.warning(f"{name} already in the object list.")
 
-    def object_list_get(self, name: str) -> Row:
+    def object_list_get(self, name: str) -> ICRS:
         """Get an object from the list or query Simbad and return it.
 
         Parameters
@@ -182,7 +189,7 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
 
         Returns
         -------
-        object_table: `Row`
+        radec: `ICRS`
             Table row with object information.
         """
 
@@ -194,14 +201,18 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
                 self.log.warning(
                     f"Found more than one entry for {name}. Using first one."
                 )
+            ra = Angle(object_table[0]["RA"], unit=u.hourangle)
+            dec = Angle(object_table[0]["DEC"], unit=u.deg)
+            radec_icrs = ICRS(
+                ra=Angle(round(ra.value, 8), unit=u.hourangle),
+                dec=Angle(round(dec.value, 8), unit=u.deg),
+            )
 
-            self.object_list_add(name, object_table[0])
-            object_table = object_table[0]
-
+            self.object_list_add(name, radec_icrs)
         else:
-            object_table = self._object_list[name]
+            radec_icrs = self._object_list[name]
 
-        return object_table
+        return radec_icrs
 
     def object_list_get_all(self) -> typing.Set[str]:
         """Return list of objects in the object list.
@@ -426,13 +437,15 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
 
         """
 
-        object_table = self.object_list_get(name)
+        radec_icrs = self.object_list_get(name)
 
-        self.log.info(f"Slewing to {name}: {object_table['RA']} {object_table['DEC']}")
+        self.log.info(
+            f"Slewing to {name}: {radec_icrs.ra.to_string()} {radec_icrs.dec.to_string()}"
+        )
 
         return await self.slew_icrs(
-            ra=object_table["RA"],
-            dec=object_table["DEC"],
+            ra=radec_icrs.ra.hour,
+            dec=radec_icrs.dec.deg,
             rot=rot,
             rot_type=rot_type,
             target_name=name,
@@ -1476,9 +1489,28 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
                 )
 
         if target is None:
-            target = await self.find_target_simbad(
-                az=az, el=el, mag_limit=mag_limit, mag_range=mag_range, radius=radius
-            )
+            try:
+                target = await self.find_target_simbad(
+                    az=az,
+                    el=el,
+                    mag_limit=mag_limit,
+                    mag_range=mag_range,
+                    radius=radius,
+                )
+            except Exception as e:
+                if DM_STACK_AVAILABLE:
+                    self.log.warning(
+                        "Failed to find target in Simbad. Searching DM Butler (this can take some time)."
+                    )
+                    target = await self.find_target_dm_butler(
+                        az=az,
+                        el=el,
+                        mag_limit=mag_limit,
+                        mag_range=mag_range,
+                        radius=radius,
+                    )
+                else:
+                    raise e
 
         return target
 
@@ -1549,7 +1581,11 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
 
         target_main_id = str(result_table["MAIN_ID"][0])
 
-        self.object_list_add(f"{target_main_id}".rstrip(), result_table[0])
+        radec_icrs = ICRS(
+            ra=Angle(result_table[0]["RA"], unit=u.hourangle),
+            dec=Angle(result_table[0]["DEC"], unit=u.deg),
+        )
+        self.object_list_add(f"{target_main_id}".rstrip(), radec_icrs)
 
         return f"{target_main_id}".rstrip()
 
@@ -1623,6 +1659,68 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
                 "Could not find a valid target in the specified radius. "
                 f"Closest target is {target_name}, {match[1][0]:.2f} away."
             )
+
+        radec_icrs = ICRS(
+            ra=Angle(target["RA"], unit=u.hourangle),
+            dec=Angle(target["DEC"], unit=u.deg),
+        )
+        self.object_list_add(target_name, radec_icrs)
+
+        return target_name
+
+    async def find_target_dm_butler(
+        self,
+        az: float,
+        el: float,
+        mag_limit: float,
+        mag_range: float = 2.0,
+        radius: float = 0.5,
+    ) -> str:
+        """Make a cone search in the butler source catalog and return a target
+        in the magnitude range, close to the specified position.
+
+        Parameters
+        ----------
+        az: `float`
+            Azimuth (in degrees).
+        el: `float`
+            Elevation (in degrees).
+        mag_limit: `float`
+            Minimum (brightest) V-magnitude limit.
+        mag_range: `float`, optional
+            Magnitude range. The maximum/faintest limit is defined as
+            mag_limit+mag_range (default=2).
+        radius: `float`, optional
+            Radius of the cone search (default=2 degrees).
+
+        Returns
+        -------
+        `str`
+            Name of the target.
+
+        Raises
+        ------
+        RuntimeError:
+            If DM stack is not available.
+        """
+        if not DM_STACK_AVAILABLE:
+            raise RuntimeError("DM stack not available.")
+
+        from lsst.ts.observatory.control.utils.extras.dm_target_catalog import (
+            find_target_radec,
+        )
+
+        radec_search = self.radec_from_azel(az=az, el=el)
+
+        target = find_target_radec(
+            radec=radec_search,
+            radius=Angle(radius, unit=u.deg),
+            mag_limit=(mag_limit, mag_limit + mag_range),
+        )
+
+        ra_rep = target.ra.to_string(unit=u.hourangle, sep="", precision=2, pad=True)
+        dec_recp = target.dec.to_string(sep="", precision=2, alwayssign=True, pad=True)
+        target_name = f"GAIAJ{ra_rep}{dec_recp}"
 
         self.object_list_add(target_name, target)
 
