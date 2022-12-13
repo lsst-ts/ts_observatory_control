@@ -1387,11 +1387,13 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
 
         time.location = self.location
 
-        coord_frame_azel = AltAz(
-            alt=Angle(el, unit=u.deg),
-            az=Angle(az, unit=u.deg),
-            location=self.location,
-            obstime=time,
+        coord_frame_azel = SkyCoord(
+            AltAz(
+                alt=Angle(el, unit=u.deg),
+                az=Angle(az, unit=u.deg),
+                location=self.location,
+                obstime=time,
+            )
         )
 
         radec_icrs = coord_frame_azel.transform_to(ICRS)
