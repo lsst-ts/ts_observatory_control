@@ -149,6 +149,8 @@ class ATCS(BaseTCS):
         self.tel_flat_el = 39.0
         self.tel_flat_az = 205.7
         self.tel_flat_rot = -110.0
+        self.tel_vent_el = 30.0
+        self.tel_vent_az = 90.0
         self.tel_el_operate_pneumatics = 70.0
 
         self.tel_az_slew_tolerance = Angle(0.004 * u.deg)
@@ -158,6 +160,8 @@ class ATCS(BaseTCS):
         self.dome_open_az = 90.0
         self.dome_park_az = 285.0
         self.dome_flat_az = 20.0
+        self.dome_vent_open_shutter_time = 90.0
+
         self.dome_slew_tolerance = Angle(5.1 * u.deg)
 
         self._dome_slew_max_iter = 4
@@ -513,6 +517,61 @@ class ATCS(BaseTCS):
         """Stop all dome motion."""
 
         await self.rem.atdome.cmd_stopMotion.start(timeout=self.fast_timeout)
+
+    async def prepare_for_vent(self, partially_open_dome: bool = False) -> None:
+        """Prepare Auxiliary Telescope for venting.
+
+        Parameters
+        ----------
+        partially_open_dome: `bool`
+            Partially open the dome after positioning the telescope and dome?
+        """
+
+        await self.assert_all_enabled(
+            message="All components need to be enabled to prepare for venting."
+        )
+
+        await self.disable_dome_following()
+
+        await self.home_dome()
+
+        await self.disable_ataos_corrections()
+
+        await self.close_m1_cover()
+
+        await self.close_dome()
+
+        await self.enable_ataos_corrections()
+
+        tel_vent_azimuth, dome_vent_azimuth = self.get_telescope_and_dome_vent_azimuth()
+
+        self.log.info(
+            f"Dome vent azimuth: {dome_vent_azimuth}. Telescope will be at: {tel_vent_azimuth}."
+        )
+        await self.point_azel(
+            target_name="Vent Position",
+            az=tel_vent_azimuth,
+            el=self.tel_vent_el,
+            rot_tel=self.tel_park_rot,
+            wait_dome=False,
+        )
+        await self.stop_tracking()
+        await self.disable_ataos_corrections()
+
+        await self.slew_dome_to(dome_vent_azimuth)
+
+        if partially_open_dome:
+            open_dome_tasks = asyncio.create_task(self.open_dome_shutter())
+
+            self.log.info(
+                f"Waiting {self.dome_vent_open_shutter_time}s for the dome to open."
+            )
+
+            await asyncio.sleep(self.dome_vent_open_shutter_time)
+
+            await self.stop_dome()
+
+            await self.cancel_not_done([open_dome_tasks])
 
     async def prepare_for_onsky(
         self, overrides: typing.Optional[typing.Dict[str, str]] = None
