@@ -355,7 +355,7 @@ class TestATTCS(ATCSAsyncMock):
 
         self._atdome_evt_main_door_state.state = ATDome.ShutterDoorState.CLOSED
 
-        await self.atcs.close_dome()
+        await self.atcs.close_dome(force=False)
 
         self.atcs.rem.atdome.cmd_closeShutter.set_start.assert_not_awaited()
 
@@ -364,7 +364,7 @@ class TestATTCS(ATCSAsyncMock):
         self._atdome_evt_main_door_state.state = ATDome.ShutterDoorState.OPENING
 
         with pytest.raises(RuntimeError):
-            await self.atcs.close_dome()
+            await self.atcs.close_dome(force=False)
 
     async def test_assert_m1_correction_disable_when_off(self) -> None:
 
