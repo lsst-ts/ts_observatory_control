@@ -29,7 +29,7 @@ from contextlib import contextmanager
 import astropy.units as u
 import numpy as np
 import pytest
-from astropy.coordinates import ICRS, Angle
+from astropy.coordinates import Angle
 from astroquery.simbad import Simbad
 from lsst.ts import salobj
 from lsst.ts.idl.enums import ATDome, ATPneumatics
@@ -1019,12 +1019,7 @@ class TestATTCS(ATCSAsyncMock):
 
         name = "HD 185975"
 
-        object_table = self.atcs.object_list_get(name)
-
-        radec_icrs = ICRS(
-            Angle(object_table["RA"], unit=u.hourangle),
-            Angle(object_table["DEC"], unit=u.deg),
-        )
+        radec_icrs = self.atcs.object_list_get(name)
 
         await self.atcs.slew_object(name=name)
 
