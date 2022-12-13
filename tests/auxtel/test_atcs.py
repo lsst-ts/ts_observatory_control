@@ -761,6 +761,97 @@ class TestATTCS(ATCSAsyncMock):
         finally:
             self.atcs.check = original_check
 
+    async def test_prepare_for_vent_partially_open(self) -> None:
+
+        await self.atcs.enable()
+        self.dome_slit_positioning_time = 120.0
+        self.atcs.dome_vent_open_shutter_time = 0.5
+        (
+            telescope_vent_position,
+            dome_vent_position,
+        ) = self.atcs.get_telescope_and_dome_vent_azimuth()
+
+        await self.atcs.prepare_for_vent(partially_open_dome=True)
+
+        assert (
+            self._atdome_evt_main_door_state.state
+            == ATDome.ShutterDoorState.PARTIALLYOPENED
+        )
+        assert (
+            self._atpneumatics_evt_m1_cover_state.state
+            == ATPneumatics.MirrorCoverState.CLOSED
+        )
+        self.atcs.rem.ataos.cmd_enableCorrection.set_start.assert_awaited_with(
+            m1=True, hexapod=True, atspectrograph=True, timeout=self.atcs.long_timeout
+        )
+        self.atcs.rem.ataos.cmd_disableCorrection.set_start.assert_awaited_with(
+            disableAll=True, timeout=self.atcs.long_timeout
+        )
+
+        atdometreajectory_cmd_set_following_mode_expected_calls = [
+            unittest.mock.call(enable=False, timeout=self.atcs.fast_timeout),
+        ]
+
+        self.atcs.rem.atdometrajectory.cmd_setFollowingMode.set_start.assert_has_awaits(
+            atdometreajectory_cmd_set_following_mode_expected_calls
+        )
+        self.atcs.rem.atdome.cmd_moveAzimuth.set_start.assert_awaited_with(
+            azimuth=pytest.approx(dome_vent_position, abs=0.25),
+            timeout=self.atcs.long_long_timeout,
+        )
+        self.atcs.rem.atdome.cmd_stopMotion.start.assert_awaited_with(
+            timeout=self.atcs.fast_timeout
+        )
+        self.atcs.rem.atptg.cmd_azElTarget.set.assert_called_with(
+            targetName="Vent Position",
+            azDegs=telescope_vent_position,
+            elDegs=self.atcs.tel_vent_el,
+            rotPA=self.atcs.tel_park_rot,
+        )
+
+    async def test_prepare_for_vent_keep_dome_closed(self) -> None:
+
+        await self.atcs.enable()
+        self.dome_slit_positioning_time = 120.0
+        self.atcs.dome_vent_open_shutter_time = 0.5
+        (
+            telescope_vent_position,
+            dome_vent_position,
+        ) = self.atcs.get_telescope_and_dome_vent_azimuth()
+
+        await self.atcs.prepare_for_vent()
+
+        assert self._atdome_evt_main_door_state.state == ATDome.ShutterDoorState.CLOSED
+        assert (
+            self._atpneumatics_evt_m1_cover_state.state
+            == ATPneumatics.MirrorCoverState.CLOSED
+        )
+        self.atcs.rem.ataos.cmd_enableCorrection.set_start.assert_awaited_with(
+            m1=True, hexapod=True, atspectrograph=True, timeout=self.atcs.long_timeout
+        )
+        self.atcs.rem.ataos.cmd_disableCorrection.set_start.assert_awaited_with(
+            disableAll=True, timeout=self.atcs.long_timeout
+        )
+
+        atdometreajectory_cmd_set_following_mode_expected_calls = [
+            unittest.mock.call(enable=False, timeout=self.atcs.fast_timeout),
+        ]
+
+        self.atcs.rem.atdometrajectory.cmd_setFollowingMode.set_start.assert_has_awaits(
+            atdometreajectory_cmd_set_following_mode_expected_calls
+        )
+        self.atcs.rem.atdome.cmd_moveAzimuth.set_start.assert_awaited_with(
+            azimuth=pytest.approx(dome_vent_position, abs=0.25),
+            timeout=self.atcs.long_long_timeout,
+        )
+        self.atcs.rem.atdome.cmd_stopMotion.start.assert_not_awaited()
+        self.atcs.rem.atptg.cmd_azElTarget.set.assert_called_with(
+            targetName="Vent Position",
+            azDegs=telescope_vent_position,
+            elDegs=self.atcs.tel_vent_el,
+            rotPA=self.atcs.tel_park_rot,
+        )
+
     async def test_shutdown(self) -> None:
 
         await self.atcs.enable()
