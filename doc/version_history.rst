@@ -6,6 +6,27 @@
 Version History
 ###############
 
+v0.24.0
+-------
+
+* In ``BaseTCS``, update ``radec_from_azel`` to convert ``AltAz`` into a ``SkyCoord`` before converting to ``ICRS``.
+  Directly converting from ``AltAz`` into ``ICRS`` will be deprecated in the future.
+
+* In ``ATCS``:
+
+  * Add methods to enable/disable ataos corrections.
+  * Add new method ``is_dome_homed`` to check if the dome is homed or not.
+  * Update ``shutdown`` to use ``disable_ataos_corrections`` instead of sending the command directly to the component.
+  * Update ``home_dome`` to add new ``force`` option and to check if dome is homed already.
+  * Rename ``azimuth_open_dome`` -&gt; ``dome_open_az``.
+  * Upadate ``prepare_for_onsky`` to use the ``enable_ataos_corrections`` instead of sending the command directly,
+  * Add new method ``stop_dome`` to stop motion of the atdome.
+  * Update ``prepare_for_flatfied`` home dome.
+  * ``close_dome`` change default option to ``force=True``.
+  * Update ``close_dome`` to send the command when ``force=True`` even if the dome is not reporting as opened.
+  * Update ``prepare_for_onsky`` to disable ataos corrections before opening m1.
+  * Update ``prepare_for_flatfield`` to disable ataos corrections before opening the mirror covers and enable them afterwards.
+
 v0.23.3
 -------
 
