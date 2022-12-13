@@ -901,7 +901,7 @@ class ATCS(BaseTCS):
         else:
             self.log.info("Dome azimuth homed successfully.")
 
-    async def close_dome(self, force: bool = False) -> None:
+    async def close_dome(self, force: bool = True) -> None:
         """Task to close ATDome.
 
         Parameters
