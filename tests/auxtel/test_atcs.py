@@ -667,6 +667,13 @@ class TestATTCS(ATCSAsyncMock):
         for message in home_dome_log_messages.output:
             assert "WARNING" not in message
 
+    async def test_is_dome_homed(self) -> None:
+        self._atdome_evt_azimuth_state.homed = False
+        assert not await self.atcs.is_dome_homed()
+
+        self._atdome_evt_azimuth_state.homed = True
+        assert await self.atcs.is_dome_homed()
+
     async def test_prepare_for_flatfield(self) -> None:
 
         await self.atcs.enable()
