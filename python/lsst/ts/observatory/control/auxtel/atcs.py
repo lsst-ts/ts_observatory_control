@@ -946,33 +946,9 @@ class ATCS(BaseTCS):
 
             self.log.debug("Closing dome shutter...")
 
-            self.rem.atdome.evt_mainDoorState.flush()
-
-            # FIXME: DM-28723: Remove workaround in ATCS class for opening/
-            # closing the dome.
-            # Work around for a problem with moveShutterMainDoor in ATDome
-            # v1.3.3. The CSC is not able to determine reliably when the slit
-            # is opened or closed. See DM-28512.
-
-            close_shutter_task = asyncio.create_task(
-                self.rem.atdome.cmd_closeShutter.set_start(
-                    timeout=self.open_dome_shutter_time
-                )
+            await self.rem.atdome.cmd_closeShutter.set_start(
+                timeout=self.open_dome_shutter_time
             )
-
-            self.rem.atdome.evt_summaryState.flush()
-            task_list = [
-                asyncio.create_task(self.check_component_state("atdome")),
-                asyncio.create_task(
-                    self._wait_for_shutter_door_state(
-                        state=ATDome.ShutterDoorState.CLOSED,
-                        cmd_task=close_shutter_task,
-                        timeout=self.open_dome_shutter_time,
-                    )
-                ),
-            ]
-
-            await self.process_as_completed(task_list)
 
         elif shutter_pos.state == ATDome.ShutterDoorState.CLOSED:
             self.log.info("ATDome Shutter Door is already closed. Ignoring.")
