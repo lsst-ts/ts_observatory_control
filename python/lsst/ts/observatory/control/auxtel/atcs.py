@@ -942,7 +942,7 @@ class ATCS(BaseTCS):
             timeout=self.fast_timeout
         )
 
-        if shutter_pos.state == ATDome.ShutterDoorState.OPENED:
+        if shutter_pos.state == ATDome.ShutterDoorState.OPENED or force:
 
             self.log.debug("Closing dome shutter...")
 
