@@ -38,6 +38,7 @@ from astropy.coordinates import (
     Angle,
     EarthLocation,
     SkyCoord,
+    get_sun,
 )
 from astropy.table import Table
 from astropy.time import Time
@@ -1899,6 +1900,45 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
             for rot_angle in rot_angle_alternatives
             if rot_angle != 0 and rot_angle not in self._rot_angle_alternatives
         ]
+
+    def get_telescope_and_dome_vent_azimuth(self) -> tuple[float, float]:
+        """Get the telescope and dome vent azimuth.
+
+        Returns
+        -------
+        tel_vent_azimuth : `float`
+            Azimuth to vent the telescope (in deg).
+        dome_vent_azimuth : `float`
+            Azimuth to vent the dome (in deg).
+        """
+
+        sun_az, _ = self.get_sun_azel()
+
+        telescope_vent_azimuth = 180.0
+        dome_vent_azimuth = sun_az - 180.0
+
+        return telescope_vent_azimuth, dome_vent_azimuth
+
+    def get_sun_azel(self, time_tai: float | None = None) -> tuple[float, float]:
+        """Get the sun azimuth and elevation.
+
+        Parameters
+        ----------
+        time_tai : `float` or `None`, optional
+            TAI timestamp to get sun position. If `None` compute current tai.
+
+        Returns
+        -------
+        `tuple`[`float`, `float`]
+            Sun elevation and azimuth in degrees.
+        """
+
+        sun_coordinates = get_sun(
+            astropy_time_from_tai_unix(current_tai() if time_tai is None else time_tai)
+        )
+        sun_coordinates.location = self.location
+
+        return sun_coordinates.altaz.az.value, sun_coordinates.altaz.alt.value
 
     @property
     def instrument_focus(self) -> InstrumentFocus:
