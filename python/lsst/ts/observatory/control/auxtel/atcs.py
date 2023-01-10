@@ -741,8 +741,22 @@ class ATCS(BaseTCS):
                 f"{ATDome.ShutterDoorState.OPENED}"
             )
 
-    async def home_dome(self) -> None:
-        """Task to execute dome home command and wait for it to complete."""
+    async def home_dome(self, force: bool = False) -> None:
+        """Task to execute dome home command and wait for it to complete.
+
+        Parameters
+        ----------
+        force : `bool`, optional
+            Force dome to be homed even if it is already homed (default=False).
+        """
+
+        if await self.is_dome_homed() and not force:
+            self.log.warning("Dome already homed. Nothing do to.")
+            return
+        elif force:
+            self.log.info("Dome already homed. Running in force mode, homing it...")
+        else:
+            self.log.info("Homing dome.")
 
         self.rem.atdome.evt_azimuthState.flush()
 
