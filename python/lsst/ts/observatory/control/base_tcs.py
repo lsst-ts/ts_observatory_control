@@ -32,14 +32,7 @@ import astropy.units as u
 import numpy as np
 import numpy.typing as npt
 import pandas
-from astropy.coordinates import (
-    ICRS,
-    AltAz,
-    Angle,
-    EarthLocation,
-    SkyCoord,
-    get_sun,
-)
+from astropy.coordinates import ICRS, AltAz, Angle, EarthLocation, SkyCoord, get_sun
 from astropy.table import Table
 from astropy.time import Time
 from astroquery.simbad import Simbad
@@ -93,9 +86,9 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
     def __init__(
         self,
         components: typing.List[str],
-        domain: typing.Optional[salobj.Domain] = None,
-        log: typing.Optional[logging.Logger] = None,
-        intended_usage: typing.Optional[int] = None,
+        domain: salobj.Domain | None = None,
+        log: logging.Logger | None = None,
+        intended_usage: int | None = None,
         concurrent_operation: bool = True,
     ) -> None:
 
@@ -470,7 +463,7 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
         ddec: float = 0.0,
         offset_x: float = 0.0,
         offset_y: float = 0.0,
-        az_wrap_strategy: enum.IntEnum = None,
+        az_wrap_strategy: enum.IntEnum | None = None,
         time_on_target: float = 0.0,
         slew_timeout: float = 240.0,
         stop_before_slew: bool = False,
@@ -1023,7 +1016,7 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
         x: float,
         y: float,
         relative: bool = True,
-        persistent: bool = None,
+        persistent: bool | None = None,
         absorb: bool = False,
     ) -> None:
         """Offsets in the detector X/Y plane.

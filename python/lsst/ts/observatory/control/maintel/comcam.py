@@ -78,10 +78,10 @@ class ComCam(BaseCamera):
 
     def __init__(
         self,
-        domain: typing.Optional[salobj.Domain] = None,
-        log: typing.Optional[logging.Logger] = None,
-        intended_usage: typing.Optional[int] = None,
-        tcs_ready_to_take_data: typing.Callable[[], typing.Awaitable] = None,
+        domain: salobj.Domain | None = None,
+        log: logging.Logger | None = None,
+        intended_usage: int | None = None,
+        tcs_ready_to_take_data: typing.Callable[[], typing.Awaitable] | None = None,
     ) -> None:
 
         super().__init__(
