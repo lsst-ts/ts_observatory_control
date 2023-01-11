@@ -122,7 +122,7 @@ class GenericCamera(BaseCamera):
         """
         pass
 
-    async def get_available_instrument_setup(self) -> typing.Any:
+    async def get_available_instrument_setup(self) -> list:
         """Return available instrument setup.
 
         See Also
