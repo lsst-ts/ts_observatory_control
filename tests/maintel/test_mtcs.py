@@ -25,7 +25,7 @@ import logging
 import astropy.units as units
 import numpy as np
 import pytest
-from astropy.coordinates import ICRS, Angle
+from astropy.coordinates import Angle
 from lsst.ts import idl, utils
 from lsst.ts.observatory.control.mock.mtcs_async_mock import MTCSAsyncMock
 from lsst.ts.observatory.control.utils import RotType
@@ -83,12 +83,7 @@ class TestMTCS(MTCSAsyncMock):
 
         name = "HD 185975"
 
-        object_table = self.mtcs.object_list_get(name)
-
-        radec_icrs = ICRS(
-            Angle(object_table["RA"], unit=units.hourangle),
-            Angle(object_table["DEC"], unit=units.deg),
-        )
+        radec_icrs = self.mtcs.object_list_get(name)
 
         await self.mtcs.slew_object(name=name, rot_type=RotType.Sky)
 

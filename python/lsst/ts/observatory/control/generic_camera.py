@@ -62,11 +62,11 @@ class GenericCamera(BaseCamera):
     def __init__(
         self,
         index: int,
-        domain: typing.Optional[salobj.Domain] = None,
-        log: typing.Optional[logging.Logger] = None,
-        intended_usage: typing.Optional[int] = None,
-        instrument_setup_attributes: typing.Optional[typing.List[str]] = None,
-        tcs_ready_to_take_data: typing.Callable[[], typing.Awaitable] = None,
+        domain: salobj.Domain | None = None,
+        log: logging.Logger | None = None,
+        intended_usage: int | None = None,
+        instrument_setup_attributes: typing.List[str] | None = None,
+        tcs_ready_to_take_data: typing.Callable[[], typing.Awaitable] | None = None,
     ) -> None:
 
         self.index = index
@@ -122,7 +122,7 @@ class GenericCamera(BaseCamera):
         """
         pass
 
-    async def get_available_instrument_setup(self) -> typing.Any:
+    async def get_available_instrument_setup(self) -> list:
         """Return available instrument setup.
 
         See Also
