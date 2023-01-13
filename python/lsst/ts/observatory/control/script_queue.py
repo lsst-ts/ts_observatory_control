@@ -56,9 +56,9 @@ class ScriptQueue(RemoteGroup):
     def __init__(
         self,
         queue_index: idl.enums.ScriptQueue.SalIndex,
-        domain: typing.Optional[typing.Union[salobj.Domain, str]] = None,
-        log: logging.Logger = None,
-        intended_usage: int = None,
+        domain: typing.Union[salobj.Domain, str] | None = None,
+        log: logging.Logger | None = None,
+        intended_usage: int | None = None,
     ) -> None:
 
         self.queue_index = queue_index

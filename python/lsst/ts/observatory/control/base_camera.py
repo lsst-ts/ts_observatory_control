@@ -65,7 +65,7 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
         domain: typing.Optional[salobj.Domain] = None,
         log: typing.Optional[logging.Logger] = None,
         intended_usage: typing.Optional[int] = None,
-        tcs_ready_to_take_data: typing.Callable[[], typing.Awaitable] = None,
+        tcs_ready_to_take_data: typing.Callable[[], typing.Awaitable] | None = None,
     ) -> None:
 
         super().__init__(

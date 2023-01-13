@@ -114,12 +114,15 @@ class ATCSAsyncMock(RemoteGroupAsyncMock):
         )
 
         # Setup required ATDome data
+        self.dome_slit_positioning_time = 0.5
         self._atdome_position = types.SimpleNamespace(azimuthPosition=0.0)
 
         self._atdome_azimth_commanded_state = types.SimpleNamespace(azimuth=0.0)
 
         self._atdome_evt_azimuth_state = types.SimpleNamespace(
-            homing=False, _taken=False
+            homing=False,
+            _taken=False,
+            homed=False,
         )
 
         self._atdome_evt_scb_link = types.SimpleNamespace(active=True)
@@ -203,7 +206,6 @@ class ATCSAsyncMock(RemoteGroupAsyncMock):
 
     async def setup_atdome(self) -> None:
         """Augment atdome mock."""
-
         self.atcs.rem.atdome.configure_mock(
             **{
                 "tel_position.next.side_effect": self.atdome_tel_position,
@@ -211,12 +213,14 @@ class ATCSAsyncMock(RemoteGroupAsyncMock):
                 "evt_azimuthCommandedState.aget.side_effect": self.atdome_evt_azimuth_commanded_state,
                 "evt_azimuthCommandedState.next.side_effect": self.atdome_evt_azimuth_commanded_state,
                 "evt_azimuthState.next.side_effect": self.atdome_evt_azimuth_state,
+                "evt_azimuthState.aget.side_effect": self.atdome_evt_azimuth_state,
                 "evt_scbLink.aget.side_effect": self.atdome_evt_scb_link,
                 "evt_mainDoorState.aget.side_effect": self.atdome_evt_main_door_state,
                 "evt_mainDoorState.next.side_effect": self.atdome_evt_main_door_state,
                 "cmd_homeAzimuth.start.side_effect": self.atdome_cmd_home_azimuth,
                 "cmd_moveShutterMainDoor.set_start.side_effect": self.atdome_cmd_move_shutter_main_door,
                 "cmd_closeShutter.set_start.side_effect": self.atdome_cmd_close_shutter,
+                "cmd_stopMotion.start.side_effect": self.atdome_cmd_stop_motion,
             }
         )
 
@@ -337,6 +341,17 @@ class ATCSAsyncMock(RemoteGroupAsyncMock):
     ) -> None:
         asyncio.create_task(self._atdome_cmd_move_shutter_main_door(open=False))
 
+    async def atdome_cmd_stop_motion(
+        self, *args: typing.Any, **kwargs: typing.Any
+    ) -> None:
+        if self._atdome_evt_main_door_state.state in {
+            ATDome.ShutterDoorState.CLOSING,
+            ATDome.ShutterDoorState.OPENING,
+        }:
+            self._atdome_evt_main_door_state.state = (
+                ATDome.ShutterDoorState.PARTIALLYOPENED
+            )
+
     async def atdometrajectory_following_mode(
         self, *args: typing.Any, **kwargs: typing.Any
     ) -> types.SimpleNamespace:
@@ -358,6 +373,7 @@ class ATCSAsyncMock(RemoteGroupAsyncMock):
     async def _atdome_cmd_home_azimuth(self) -> None:
         await asyncio.sleep(0.2)
         self._atdome_evt_azimuth_state.homing = False
+        self._atdome_evt_azimuth_state.homed = True
 
     async def _atdome_cmd_move_shutter_main_door(self, open: bool) -> None:
         if (
@@ -365,14 +381,14 @@ class ATCSAsyncMock(RemoteGroupAsyncMock):
             and self._atdome_evt_main_door_state.state != ATDome.ShutterDoorState.OPENED
         ):
             self._atdome_evt_main_door_state.state = ATDome.ShutterDoorState.OPENING
-            await asyncio.sleep(0.5)
+            await asyncio.sleep(self.dome_slit_positioning_time)
             self._atdome_evt_main_door_state.state = ATDome.ShutterDoorState.OPENED
         elif (
             not open
             and self._atdome_evt_main_door_state.state != ATDome.ShutterDoorState.CLOSED
         ):
             self._atdome_evt_main_door_state.state = ATDome.ShutterDoorState.CLOSING
-            await asyncio.sleep(0.5)
+            await asyncio.sleep(self.dome_slit_positioning_time)
             self._atdome_evt_main_door_state.state = ATDome.ShutterDoorState.CLOSED
 
     async def atmcs_all_axes_in_position(

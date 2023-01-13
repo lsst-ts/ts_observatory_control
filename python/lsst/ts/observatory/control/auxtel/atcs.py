@@ -149,19 +149,22 @@ class ATCS(BaseTCS):
         self.tel_flat_el = 39.0
         self.tel_flat_az = 205.7
         self.tel_flat_rot = -110.0
+        self.tel_vent_el = 30.0
+        self.tel_vent_az = 90.0
         self.tel_el_operate_pneumatics = 70.0
 
         self.tel_az_slew_tolerance = Angle(0.004 * u.deg)
         self.tel_el_slew_tolerance = Angle(0.004 * u.deg)
         self.tel_nasm_slew_tolerance = Angle(0.004 * u.deg)
 
+        self.dome_open_az = 90.0
         self.dome_park_az = 285.0
         self.dome_flat_az = 20.0
+        self.dome_vent_open_shutter_time = 90.0
+
         self.dome_slew_tolerance = Angle(5.1 * u.deg)
 
         self._dome_slew_max_iter = 4
-
-        self.azimuth_open_dome = 90.0
 
         if hasattr(self.rem.atmcs, "tel_mount_AzEl_Encoders"):
             self.rem.atmcs.tel_mount_AzEl_Encoders.callback = (
@@ -214,6 +217,21 @@ class ATCS(BaseTCS):
     def is_monitor_enabled(self) -> bool:
         """Is monitor position flag enabled?"""
         return self._monitor_position
+
+    async def is_dome_homed(self) -> bool:
+        """Verify if the dome is homed.
+
+        Returns
+        -------
+        dome_homed : `bool`
+            `True` if dome is homed, `False` otherwise.
+        """
+
+        azimuth_state = await self.rem.atdome.evt_azimuthState.aget(
+            timeout=self.fast_timeout
+        )
+
+        return azimuth_state.homed
 
     async def mount_AzEl_Encoders_callback(
         self, data: salobj.type_hints.BaseDdsDataType
@@ -408,7 +426,11 @@ class ATCS(BaseTCS):
 
         await self.disable_dome_following(check_ops)
 
+        await self.home_dome()
+
+        await self.disable_ataos_corrections()
         await self.open_m1_cover()
+        await self.enable_ataos_corrections()
 
         check_ops.atdometrajectory = False
 
@@ -491,6 +513,66 @@ class ATCS(BaseTCS):
 
         return stop_results
 
+    async def stop_dome(self) -> None:
+        """Stop all dome motion."""
+
+        await self.rem.atdome.cmd_stopMotion.start(timeout=self.fast_timeout)
+
+    async def prepare_for_vent(self, partially_open_dome: bool = False) -> None:
+        """Prepare Auxiliary Telescope for venting.
+
+        Parameters
+        ----------
+        partially_open_dome: `bool`
+            Partially open the dome after positioning the telescope and dome?
+        """
+
+        await self.assert_all_enabled(
+            message="All components need to be enabled to prepare for venting."
+        )
+
+        await self.disable_dome_following()
+
+        await self.home_dome()
+
+        await self.disable_ataos_corrections()
+
+        await self.close_m1_cover()
+
+        await self.close_dome()
+
+        await self.enable_ataos_corrections()
+
+        tel_vent_azimuth, dome_vent_azimuth = self.get_telescope_and_dome_vent_azimuth()
+
+        self.log.info(
+            f"Dome vent azimuth: {dome_vent_azimuth}. Telescope will be at: {tel_vent_azimuth}."
+        )
+        await self.point_azel(
+            target_name="Vent Position",
+            az=tel_vent_azimuth,
+            el=self.tel_vent_el,
+            rot_tel=self.tel_park_rot,
+            wait_dome=False,
+        )
+        await self.stop_tracking()
+        await self.disable_ataos_corrections()
+
+        await self.slew_dome_to(dome_vent_azimuth)
+
+        if partially_open_dome:
+            open_dome_tasks = asyncio.create_task(self.open_dome_shutter())
+
+            self.log.info(
+                f"Waiting {self.dome_vent_open_shutter_time}s for the dome to open."
+            )
+
+            await asyncio.sleep(self.dome_vent_open_shutter_time)
+
+            await self.stop_dome()
+
+            await self.cancel_not_done([open_dome_tasks])
+
     async def prepare_for_onsky(
         self, overrides: typing.Optional[typing.Dict[str, str]] = None
     ) -> None:
@@ -517,7 +599,7 @@ class ATCS(BaseTCS):
 
         await self.point_azel(
             target_name="Park position",
-            az=self.azimuth_open_dome,
+            az=self.dome_open_az,
             el=self.tel_park_el,
             rot_tel=self.tel_park_rot,
             wait_dome=False,
@@ -527,42 +609,21 @@ class ATCS(BaseTCS):
         except asyncio.TimeoutError:
             pass
 
+        await self.disable_ataos_corrections()
+
         # Close m1 cover if it is open.
         await self.close_m1_cover()
 
         if self.check.atdome:
 
-            self.log.debug(
-                "Check that dome CSC can communicate with shutter control box."
-            )
-
-            try:
-                scb = await self.rem.atdome.evt_scbLink.aget(timeout=self.fast_timeout)
-            except asyncio.TimeoutError:
-                self.log.error(
-                    "Timed out waiting for ATDome CSC scbLink status event. Can not "
-                    "determine if CSC has communication with Shutter Control Box."
-                    "If running this on a jupyter notebook you may try to add an"
-                    "await asyncio.sleep(1.) before calling startup again to give the"
-                    "remotes time to get information from DDS. You may also try to "
-                    "re-cycle the ATDome CSC state to STANDBY and back to ENABLE."
-                    "Cannot continue."
-                )
-                raise
-
-            if not scb.active:
-                raise RuntimeError(
-                    "Dome CSC has no communication with Shutter Control Box. "
-                    "Dome controllers may need to be rebooted for connection to "
-                    "be established. Cannot continue."
-                )
+            await self._check_atdome_scb_link()
 
             self.log.debug("Homing dome azimuth.")
 
             await self.home_dome()
 
-            self.log.debug(f"Moving dome to {self.azimuth_open_dome} degrees.")
-            await self.slew_dome_to(az=self.azimuth_open_dome)
+            self.log.debug(f"Moving dome to {self.dome_open_az} degrees.")
+            await self.slew_dome_to(az=self.dome_open_az)
 
             self.log.info("Opening dome.")
 
@@ -581,15 +642,60 @@ class ATCS(BaseTCS):
                 self.log.exception("Failed to open M1 vent. Continuing.")
 
         if self.check.ataos:
-            self.log.info("Enable ATAOS corrections.")
-
-            await self.rem.ataos.cmd_enableCorrection.set_start(
-                m1=True, hexapod=True, atspectrograph=True, timeout=self.long_timeout
-            )
+            await self.enable_ataos_corrections()
 
         await self.enable_dome_following()
 
         self.log.info("Prepare for on sky finished.")
+
+    async def _check_atdome_scb_link(self) -> None:
+        """Check the ATDome connection with the moving enclosure."""
+
+        self.log.debug("Check that dome CSC can communicate with shutter control box.")
+
+        try:
+            scb = await self.rem.atdome.evt_scbLink.aget(timeout=self.fast_timeout)
+        except asyncio.TimeoutError:
+            self.log.error(
+                "Timed out waiting for ATDome CSC scbLink status event. Can not "
+                "determine if CSC has communication with Shutter Control Box. "
+                "If running this on a jupyter notebook you may try to add an "
+                "await asyncio.sleep(1.) before calling startup again to give the "
+                "remotes time to get information from DDS. You may also try to "
+                "re-cycle the ATDome CSC state to STANDBY and back to ENABLE. "
+                "Cannot continue."
+            )
+            raise
+
+        if not scb.active:
+            raise RuntimeError(
+                "Dome CSC has no communication with Shutter Control Box. "
+                "Dome controllers may need to be rebooted for connection to "
+                "be established. Cannot continue."
+            )
+
+    async def enable_ataos_corrections(self) -> None:
+        """Enable ATAOS corrections."""
+
+        self.log.info("Enabling ATAOS corrections.")
+
+        await self.rem.ataos.cmd_enableCorrection.set_start(
+            m1=True, hexapod=True, atspectrograph=True, timeout=self.long_timeout
+        )
+
+    async def disable_ataos_corrections(self, ignore_fail: bool = True) -> None:
+        """Disable ATAOS corrections."""
+
+        self.log.debug("Disabling ATAOS corrections.")
+
+        try:
+            await self.rem.ataos.cmd_disableCorrection.set_start(
+                disableAll=True, timeout=self.long_timeout
+            )
+        except Exception as e:
+            self.log.exception("Failed to disable ATAOS corrections. Continuing...")
+            if not ignore_fail:
+                raise e
 
     async def shutdown(self) -> None:
         """Shutdown ATTCS components.
@@ -605,14 +711,7 @@ class ATCS(BaseTCS):
         self.log.info("Disabling ATAOS corrections")
 
         if check.ataos:
-            self.log.debug("Disabling ATAOS corrections.")
-            try:
-
-                await self.rem.ataos.cmd_disableCorrection.set_start(
-                    disableAll=True, timeout=self.long_timeout
-                )
-            except Exception:
-                self.log.exception("Failed to disable ATAOS corrections. Continuing...")
+            await self.disable_ataos_corrections()
         else:
             self.log.debug("Skip disabling ATAOS corrections.")
 
@@ -727,8 +826,22 @@ class ATCS(BaseTCS):
                 f"{ATDome.ShutterDoorState.OPENED}"
             )
 
-    async def home_dome(self) -> None:
-        """Task to execute dome home command and wait for it to complete."""
+    async def home_dome(self, force: bool = False) -> None:
+        """Task to execute dome home command and wait for it to complete.
+
+        Parameters
+        ----------
+        force : `bool`, optional
+            Force dome to be homed even if it is already homed (default=False).
+        """
+
+        if await self.is_dome_homed() and not force:
+            self.log.warning("Dome already homed. Nothing do to.")
+            return
+        elif force:
+            self.log.info("Dome already homed. Running in force mode, homing it...")
+        else:
+            self.log.info("Homing dome.")
 
         self.rem.atdome.evt_azimuthState.flush()
 
@@ -788,7 +901,7 @@ class ATCS(BaseTCS):
         else:
             self.log.info("Dome azimuth homed successfully.")
 
-    async def close_dome(self, force: bool = False) -> None:
+    async def close_dome(self, force: bool = True) -> None:
         """Task to close ATDome.
 
         Parameters
@@ -829,37 +942,13 @@ class ATCS(BaseTCS):
             timeout=self.fast_timeout
         )
 
-        if shutter_pos.state == ATDome.ShutterDoorState.OPENED:
+        if shutter_pos.state == ATDome.ShutterDoorState.OPENED or force:
 
             self.log.debug("Closing dome shutter...")
 
-            self.rem.atdome.evt_mainDoorState.flush()
-
-            # FIXME: DM-28723: Remove workaround in ATCS class for opening/
-            # closing the dome.
-            # Work around for a problem with moveShutterMainDoor in ATDome
-            # v1.3.3. The CSC is not able to determine reliably when the slit
-            # is opened or closed. See DM-28512.
-
-            close_shutter_task = asyncio.create_task(
-                self.rem.atdome.cmd_closeShutter.set_start(
-                    timeout=self.open_dome_shutter_time
-                )
+            await self.rem.atdome.cmd_closeShutter.set_start(
+                timeout=self.open_dome_shutter_time
             )
-
-            self.rem.atdome.evt_summaryState.flush()
-            task_list = [
-                asyncio.create_task(self.check_component_state("atdome")),
-                asyncio.create_task(
-                    self._wait_for_shutter_door_state(
-                        state=ATDome.ShutterDoorState.CLOSED,
-                        cmd_task=close_shutter_task,
-                        timeout=self.open_dome_shutter_time,
-                    )
-                ),
-            ]
-
-            await self.process_as_completed(task_list)
 
         elif shutter_pos.state == ATDome.ShutterDoorState.CLOSED:
             self.log.info("ATDome Shutter Door is already closed. Ignoring.")

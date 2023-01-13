@@ -284,8 +284,7 @@ class LATISS(BaseCamera):
 
         See Also
         --------
-        `tuple` of [`list` of `str`, `list` of `str`, `list` of `str`]
-            Available instrument setups.
+        setup_instrument: Set up instrument.
         """
 
         try:
