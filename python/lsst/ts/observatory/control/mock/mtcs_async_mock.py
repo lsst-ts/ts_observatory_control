@@ -181,7 +181,9 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
         mtmount_mocks = {
             "evt_target.next.side_effect": self.mtmount_evt_target_next,
             "tel_azimuth.next.side_effect": self.mtmount_tel_azimuth_next,
-            "tel_azimuth.DataType.return_value": self.get_sample("MTMount", "azimuth"),
+            "tel_azimuth.DataType.return_value": self.get_sample(
+                "MTMount", "tel_azimuth"
+            ),
             "tel_elevation.next.side_effect": self.mtmount_tel_elevation_next,
             "tel_elevation.aget.side_effect": self.mtmount_tel_elevation_next,
             "evt_elevationInPosition.next.side_effect": self.mtmount_evt_elevation_in_position_next,
@@ -236,10 +238,7 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
         }
 
         # Compatibility with xml>12
-        if (
-            "logevent_appliedBalanceForces"
-            in self.components_metadata["MTM1M3"].topic_info
-        ):
+        if "evt_appliedBalanceForces" in self.components_metadata["MTM1M3"].topics:
             m1m3_mocks[
                 "evt_appliedBalanceForces.next.side_effect"
             ] = self.mtm1m3_evt_applied_balance_forces
@@ -255,10 +254,7 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
             ] = self.mtm1m3_evt_applied_balance_forces
 
         # Compatibility with xml>16
-        if (
-            "logevent_forceControllerState"
-            in self.components_metadata["MTM1M3"].topic_info
-        ):
+        if "evt_forceControllerState" in self.components_metadata["MTM1M3"].topics:
             m1m3_mocks[
                 "evt_forceControllerState.aget.side_effect"
             ] = self.mtm1m3_evt_force_actuator_state
@@ -266,10 +262,7 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
                 "evt_forceControllerState.next.side_effect"
             ] = self.mtm1m3_evt_force_actuator_state
 
-        if (
-            "logevent_boosterValveStatus"
-            in self.components_metadata["MTM1M3"].topic_info
-        ):
+        if "evt_boosterValveStatus" in self.components_metadata["MTM1M3"].topics:
             m1m3_mocks[
                 "evt_boosterValveStatus.aget.side_effect"
             ] = self.mtm1m3_evt_force_actuator_state
@@ -277,22 +270,22 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
                 "evt_boosterValveStatus.next.side_effect"
             ] = self.mtm1m3_evt_force_actuator_state
 
-        if "command_setAirSlewFlag" in self.components_metadata["MTM1M3"].topic_info:
+        if "cmd_setAirSlewFlag" in self.components_metadata["MTM1M3"].topics:
             m1m3_mocks[
                 "cmd_setAirSlewFlag.set_start.side_effect"
             ] = self.mtm1m3_cmd_set_air_slew_flag
 
-        if "command_setSlewFlag" in self.components_metadata["MTM1M3"].topic_info:
+        if "cmd_setSlewFlag" in self.components_metadata["MTM1M3"].topics:
             m1m3_mocks[
                 "cmd_setSlewFlag.set_start.side_effect"
             ] = self.mtm1m3_cmd_set_slew_flag
 
-        if "command_clearSlewFlag" in self.components_metadata["MTM1M3"].topic_info:
+        if "cmd_clearSlewFlag" in self.components_metadata["MTM1M3"].topics:
             m1m3_mocks[
                 "cmd_clearSlewFlag.set_start.side_effect"
             ] = self.mtm1m3_cmd_clear_slew_flag
 
-        if "command_boosterValveOpen" in self.components_metadata["MTM1M3"].topic_info:
+        if "cmd_boosterValveOpen" in self.components_metadata["MTM1M3"].topics:
             m1m3_mocks[
                 "cmd_boosterValveOpen.start.side_effect"
             ] = self.mtm1m3_cmd_booster_valve_open
