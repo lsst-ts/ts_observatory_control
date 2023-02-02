@@ -181,7 +181,9 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
         mtmount_mocks = {
             "evt_target.next.side_effect": self.mtmount_evt_target_next,
             "tel_azimuth.next.side_effect": self.mtmount_tel_azimuth_next,
-            "tel_azimuth.DataType.return_value": self.get_sample("MTMount", "azimuth"),
+            "tel_azimuth.DataType.return_value": self.get_sample(
+                "MTMount", "tel_azimuth"
+            ),
             "tel_elevation.next.side_effect": self.mtmount_tel_elevation_next,
             "tel_elevation.aget.side_effect": self.mtmount_tel_elevation_next,
             "evt_elevationInPosition.next.side_effect": self.mtmount_evt_elevation_in_position_next,
@@ -236,10 +238,7 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
         }
 
         # Compatibility with xml>12
-        if (
-            "logevent_appliedBalanceForces"
-            in self.components_metadata["MTM1M3"].topic_info
-        ):
+        if "evt_appliedBalanceForces" in self.components_metadata["MTM1M3"].topics:
             m1m3_mocks[
                 "evt_appliedBalanceForces.next.side_effect"
             ] = self.mtm1m3_evt_applied_balance_forces
