@@ -39,7 +39,7 @@ MAKE_TIMEOUT = 60  # Timeout for make_script (sec)
 class TestScriptQueue(RemoteGroupAsyncMock):
     log: logging.Logger
     script_queue: ScriptQueue
-    components_metadata: typing.Dict[str, salobj.IdlMetadata]
+    components_metadata: typing.Dict[str, salobj.ComponentInfo]
 
     @classmethod
     def setUpClass(cls) -> None:
@@ -70,8 +70,8 @@ class TestScriptQueue(RemoteGroupAsyncMock):
     async def setup_types(self) -> None:
         self.available_scripts = types.SimpleNamespace(
             **self.components_metadata["ScriptQueue:1"]
-            .topic_info["logevent_availableScripts"]
-            .field_info
+            .topics["evt_availableScripts"]
+            .fields
         )
         self.standard_scripts = [
             "std_script1,std_script2",
@@ -93,8 +93,8 @@ class TestScriptQueue(RemoteGroupAsyncMock):
 
         self.config_schema = types.SimpleNamespace(
             **self.components_metadata["ScriptQueue:1"]
-            .topic_info["logevent_configSchema"]
-            .field_info
+            .topics["evt_configSchema"]
+            .fields
         )
         self.config_schema.isStandard = True
         self.config_schema.path = "std_script1"
@@ -127,9 +127,7 @@ additionalProperties: false
         """
 
         self.logevent_queue = types.SimpleNamespace(
-            **self.components_metadata["ScriptQueue:1"]
-            .topic_info["logevent_queue"]
-            .field_info
+            **self.components_metadata["ScriptQueue:1"].topics["evt_queue"].fields
         )
         self.logevent_queue.enabled = True
         self.logevent_queue.running = True
