@@ -30,7 +30,7 @@ import typing
 import unittest
 import unittest.mock
 
-from lsst.ts import idl, salobj, utils
+from lsst.ts import salobj, utils
 
 from .. import RemoteGroup
 from ..utils import KwArgsCoro, KwArgsFunc
@@ -50,7 +50,7 @@ class RemoteGroupAsyncMock(
     summary_state_queue: typing.Dict[
         str, typing.List[salobj.type_hints.BaseDdsDataType]
     ]
-    components_metadata: typing.Dict[str, salobj.IdlMetadata]
+    components_metadata: typing.Dict[str, salobj.ComponentInfo]
     component_commands_arguments: typing.Dict[str, typing.Dict[str, typing.Set[str]]]
 
     @property
@@ -62,7 +62,7 @@ class RemoteGroupAsyncMock(
     def get_component_metadata(
         components: typing.List[str],
     ) -> typing.Dict[str, typing.Any]:
-        """Gather metadada information, needed to validate topics versions.
+        """Gather metadata information, needed to validate topics versions.
 
         Parameters
         ----------
@@ -79,10 +79,8 @@ class RemoteGroupAsyncMock(
             [
                 (
                     component,
-                    salobj.parse_idl(
-                        component,
-                        idl.get_idl_dir()
-                        / f"sal_revCoded_{component.split(':')[0]}.idl",
+                    salobj.ComponentInfo(
+                        salobj.name_to_name_index(component)[0], "unit-test"
                     ),
                 )
                 for component in components
@@ -185,12 +183,7 @@ class RemoteGroupAsyncMock(
             List of topics names.
         """
         topics = [
-            topic_name.replace("command_", "cmd_").replace("logevent_", "evt_")
-            if topic_name.startswith("command_")
-            or topic_name.startswith("logevent_")
-            or topic_name == "ackcmd"
-            else f"tel_{topic_name}"
-            for topic_name in self.components_metadata[component_name].topic_info
+            topic_name for topic_name in self.components_metadata[component_name].topics
         ]
 
         return topics
@@ -217,12 +210,12 @@ class RemoteGroupAsyncMock(
                     str(topic_name).split(sep="_", maxsplit=1)[1],
                     set(
                         self.components_metadata[component_name]
-                        .topic_info[topic_name]
-                        .field_info.keys()
+                        .topics[topic_name]
+                        .fields.keys()
                     ),
                 )
-                for topic_name in self.components_metadata[component_name].topic_info
-                if "command_" in topic_name
+                for topic_name in self.components_metadata[component_name].topics
+                if "cmd_" in topic_name
             ]
         )
 
@@ -382,13 +375,15 @@ class RemoteGroupAsyncMock(
             Namespace object with the topic data structure.
         """
 
-        if topic not in self.components_metadata[component].topic_info:
+        _topic = topic.replace("logevent_", "evt_").replace("command_", "cmd_")
+
+        if _topic not in self.components_metadata[component].topics:
             raise RuntimeError(
-                f"No topic {topic} in {component}. "
-                f"Available topics are {self.components_metadata[component].topic_info}"
+                f"No topic {topic} -> {_topic} in {component}. "
+                f"Available topics are {self.components_metadata[component].topics}"
             )
         return types.SimpleNamespace(
-            **self.components_metadata[component].topic_info[topic].field_info
+            **self.components_metadata[component].topics[_topic].fields
         )
 
     @abc.abstractmethod
