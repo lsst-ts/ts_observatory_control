@@ -6,6 +6,12 @@
 Version History
 ###############
 
+v0.24.1
+-------
+
+* In ``constants/latiss_constants.py``, add sweetspot for new grating.
+* Update Jenkinfile to stop using root.
+
 v0.24.0
 -------
 
