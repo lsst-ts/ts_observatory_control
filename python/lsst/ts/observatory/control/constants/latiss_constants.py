@@ -29,5 +29,6 @@ sweet_spots = {  # the sweet spots for the gratings (pixels)
     "ronchi90lpmm": PointD(1780, 1800),
     "ronchi170lpmm": PointD(1750, 300),  # estimate added in DM-28818
     "holo4_003": PointD(1750, 300),  # estimate added in DM-28818
+    "blue300lpmm_qn1": PointD(1750, 300),
     "empty_1": PointD(1780, 1800),
 }
