@@ -152,7 +152,6 @@ class ATCSAsyncMock(RemoteGroupAsyncMock):
         )
 
     async def setup_mocks(self) -> None:
-
         await self.setup_ataos()
         await self.setup_atptg()
         await self.setup_atmcs()
@@ -408,7 +407,6 @@ class ATCSAsyncMock(RemoteGroupAsyncMock):
         *args: typing.Any,
         **kwargs: typing.Any,
     ) -> None:
-
         self._atmcs_all_axes_in_position.inPosition = True
 
         self._atmcs_evt_at_mount_state.state = int(ATMCS.AtMountState.TRACKINGENABLED)
@@ -416,7 +414,6 @@ class ATCSAsyncMock(RemoteGroupAsyncMock):
     async def atmcs_stop_tracking(
         self, *args: typing.Any, **kwargs: typing.Any
     ) -> None:
-
         self._atmcs_all_axes_in_position.inPosition = False
         self._atmcs_evt_at_mount_state.state = int(ATMCS.AtMountState.TRACKINGDISABLED)
 
@@ -553,7 +550,6 @@ class ATCSAsyncMock(RemoteGroupAsyncMock):
         ):
             return
         else:
-
             await asyncio.sleep(0.5)
 
             self._atpneumatics_evt_instrument_state.state = (
@@ -567,7 +563,6 @@ class ATCSAsyncMock(RemoteGroupAsyncMock):
         ):
             return
         else:
-
             await asyncio.sleep(0.5)
 
             self._atpneumatics_evt_main_valve_state.state = (

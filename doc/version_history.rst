@@ -6,6 +6,11 @@
 Version History
 ###############
 
+v0.24.2
+-------
+
+* format souce files with black 23.
+
 v0.24.1
 -------
 

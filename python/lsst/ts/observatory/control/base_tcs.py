@@ -91,7 +91,6 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
         intended_usage: int | None = None,
         concurrent_operation: bool = True,
     ) -> None:
-
         super().__init__(
             components=components,
             domain=domain,
@@ -188,7 +187,6 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
         """
 
         if name not in self._object_list:
-
             object_table = self._query_object(name)
 
             if len(object_table) > 1:
@@ -589,7 +587,6 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
             )
             rot_frame = self.RotFrame.FIXED
         elif rot_type == RotType.Parallactic:
-
             self.log.debug(
                 f"Setting rotator position with respect to parallactic angle to {rot_angle}."
             )
@@ -614,7 +611,6 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
         slew_exception: typing.Union[None, Exception] = None
 
         for rot_angle_to_try in self.get_rot_angle_alternatives(rot_angle.deg):
-
             try:
                 await self.slew(
                     radec_icrs.ra.hour,
@@ -1081,7 +1077,6 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
                 )
             )
         else:
-
             self.log.debug(f"Calculating x/y offset: {x}/{y} ")
 
             bore_sight_angle = await self.get_bore_sight_angle()
@@ -1245,11 +1240,9 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
         await offset_cmd
 
         try:
-
             await self.offset_done()
 
         except asyncio.TimeoutError:
-
             self.log.debug("Timed out waiting for offset done events.")
 
         self.log.debug("Waiting for telescope to settle.")
@@ -1650,7 +1643,6 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
         target_name = target["MAIN_ID"]
 
         if match[1][0] > radius * u.deg:
-
             raise RuntimeError(
                 "Could not find a valid target in the specified radius. "
                 f"Closest target is {target_name}, {match[1][0]:.2f} away."
@@ -1825,7 +1817,6 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
                 self.log.exception("Error handling potential race condition.")
 
         while not in_position.inPosition:
-
             try:
                 in_position = await in_position_event.next(flush=False, timeout=timeout)
             except asyncio.TimeoutError:

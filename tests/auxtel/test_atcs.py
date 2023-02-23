@@ -39,7 +39,6 @@ from lsst.ts.observatory.control.utils import RotType
 
 class TestATTCS(ATCSAsyncMock):
     def test_object_list_get(self) -> None:
-
         name = "HD 185975"
 
         object_table = self.atcs.object_list_get(name)
@@ -48,7 +47,6 @@ class TestATTCS(ATCSAsyncMock):
         assert object_table is not None
 
     def test_object_list_clear(self) -> None:
-
         name = "HD 185975"
 
         object_table = self.atcs.object_list_get(name)
@@ -61,7 +59,6 @@ class TestATTCS(ATCSAsyncMock):
         assert len(self.atcs._object_list) == 0
 
     def test_object_list_remove(self) -> None:
-
         name = "HD 185975"
 
         object_table = self.atcs.object_list_get(name)
@@ -74,7 +71,6 @@ class TestATTCS(ATCSAsyncMock):
         assert name not in self.atcs._object_list
 
     def test_object_list_add(self) -> None:
-
         name = "HD 185975"
 
         object_table = Simbad.query_object(name)
@@ -84,7 +80,6 @@ class TestATTCS(ATCSAsyncMock):
         assert name in self.atcs._object_list
 
     def test_object_list_get_from_catalog(self) -> None:
-
         self.atcs.load_catalog("hd_catalog_6th_mag")
 
         name = "HD  68601"
@@ -106,13 +101,11 @@ class TestATTCS(ATCSAsyncMock):
         assert len(self.atcs._object_list) == 0
 
     def test_list_available_catalogs(self) -> None:
-
         available_catalogs = self.atcs.list_available_catalogs()
 
         assert "hd_catalog_6th_mag" in available_catalogs
 
     def test_load_catalog_and_clear_catalog(self) -> None:
-
         # Need to clear the catalog in case it was loaded before by another
         # test
         self.atcs.clear_catalog()
@@ -132,7 +125,6 @@ class TestATTCS(ATCSAsyncMock):
         raises=RuntimeError,
     )
     async def test_find_target(self) -> None:
-
         # Make sure it searches Simbad and not local catalog
         self.atcs.clear_catalog()
 
@@ -151,7 +143,6 @@ class TestATTCS(ATCSAsyncMock):
         with self.assertLogs(
             self.log.name, level=logging.DEBUG
         ) as log_messages_find_target:
-
             name = await self.atcs.find_target(
                 az=-180.0, el=30.0, mag_limit=4.0, mag_range=2.0, radius=2.0
             )
@@ -164,7 +155,6 @@ class TestATTCS(ATCSAsyncMock):
         self.atcs.object_list_clear()
 
     async def test_find_target_local_catalog_fail_not_loaded(self) -> None:
-
         # Clear catalog to make sure it was not loaded
         self.atcs.clear_catalog()
 
@@ -172,7 +162,6 @@ class TestATTCS(ATCSAsyncMock):
             await self.atcs.find_target_local_catalog(az=-180.0, el=30.0, mag_limit=9.0)
 
     async def test_find_target_local_catalog_fail_outside_mag_limit(self) -> None:
-
         # Clear catalog to make sure it was not loaded
         self.atcs.clear_catalog()
         # Load catalog
@@ -187,7 +176,6 @@ class TestATTCS(ATCSAsyncMock):
         assert "No target in local catalog with magnitude between" in str(excinfo.value)
 
     async def test_find_target_local_catalog_fail_outside_radius(self) -> None:
-
         # Clear catalog to make sure it was not loaded
         self.atcs.clear_catalog()
         # Load catalog
@@ -203,7 +191,6 @@ class TestATTCS(ATCSAsyncMock):
         )
 
     async def test_find_target_local_catalog_loaded(self) -> None:
-
         # Clear catalog to make sure it was not loaded
         self.atcs.clear_catalog()
         # Load catalog
@@ -222,7 +209,6 @@ class TestATTCS(ATCSAsyncMock):
         self.atcs.object_list_clear()
 
     async def test_slew_dome_to_check_false(self) -> None:
-
         az = 45.0
         self.atcs.check.atdome = False
 
@@ -245,7 +231,6 @@ class TestATTCS(ATCSAsyncMock):
         )
 
     async def test_disable_dome_following_passing_check(self) -> None:
-
         check = self.get_all_checks()
 
         await self.atcs.disable_dome_following(check)
@@ -255,7 +240,6 @@ class TestATTCS(ATCSAsyncMock):
         )
 
     async def test_disable_dome_following_check_false(self) -> None:
-
         original_check = copy.copy(self.atcs.check)
 
         try:
@@ -268,7 +252,6 @@ class TestATTCS(ATCSAsyncMock):
             self.atcs.check = original_check
 
     async def test_disable_dome_following_check_true(self) -> None:
-
         original_check = copy.copy(self.atcs.check)
 
         try:
@@ -283,7 +266,6 @@ class TestATTCS(ATCSAsyncMock):
             self.atcs.check = original_check
 
     async def test_enable_dome_following_passing_check(self) -> None:
-
         check = self.get_all_checks()
 
         await self.atcs.enable_dome_following(check)
@@ -293,7 +275,6 @@ class TestATTCS(ATCSAsyncMock):
         )
 
     async def test_enable_dome_following_check_false(self) -> None:
-
         self.atcs.check.atdometrajectory = False
 
         await self.atcs.enable_dome_following()
@@ -301,7 +282,6 @@ class TestATTCS(ATCSAsyncMock):
         self.atcs.rem.atdometrajectory.cmd_setFollowingMode.set_start.assert_not_awaited()
 
     async def test_enable_dome_following_check_true(self) -> None:
-
         self.atcs.check.atdometrajectory = True
 
         await self.atcs.enable_dome_following()
@@ -311,7 +291,6 @@ class TestATTCS(ATCSAsyncMock):
         )
 
     async def test_open_dome_shutter_when_closed(self) -> None:
-
         await self.atcs.enable()
         await self.atcs.assert_all_enabled()
 
@@ -324,7 +303,6 @@ class TestATTCS(ATCSAsyncMock):
         )
 
     async def test_open_dome_shutter_when_open(self) -> None:
-
         self._atdome_evt_main_door_state.state = ATDome.ShutterDoorState.OPENED
 
         await self.atcs.open_dome_shutter()
@@ -332,14 +310,12 @@ class TestATTCS(ATCSAsyncMock):
         self.atcs.rem.atdome.cmd_moveShutterMainDoor.set_start.assert_not_awaited()
 
     async def test_open_dome_shutter_when_opening(self) -> None:
-
         self._atdome_evt_main_door_state.state = ATDome.ShutterDoorState.OPENING
 
         with pytest.raises(RuntimeError):
             await self.atcs.open_dome_shutter()
 
     async def test_close_dome_when_open(self) -> None:
-
         await self.atcs.enable()
         await self.atcs.assert_all_enabled()
 
@@ -352,7 +328,6 @@ class TestATTCS(ATCSAsyncMock):
         )
 
     async def test_close_dome_when_closed(self) -> None:
-
         self._atdome_evt_main_door_state.state = ATDome.ShutterDoorState.CLOSED
 
         await self.atcs.close_dome(force=False)
@@ -360,27 +335,23 @@ class TestATTCS(ATCSAsyncMock):
         self.atcs.rem.atdome.cmd_closeShutter.set_start.assert_not_awaited()
 
     async def test_close_dome_when_opening(self) -> None:
-
         self._atdome_evt_main_door_state.state = ATDome.ShutterDoorState.OPENING
 
         with pytest.raises(RuntimeError):
             await self.atcs.close_dome(force=False)
 
     async def test_assert_m1_correction_disable_when_off(self) -> None:
-
         self._ataos_evt_correction_enabled.m1 = False
 
         await self.atcs.assert_m1_correction_disabled()
 
     async def test_assert_m1_correction_disable_when_on(self) -> None:
-
         self._ataos_evt_correction_enabled.m1 = True
 
         with pytest.raises(AssertionError):
             await self.atcs.assert_m1_correction_disabled()
 
     async def test_open_m1_cover_when_cover_closed(self) -> None:
-
         # make sure cover is closed
         self._atpneumatics_evt_m1_cover_state.state = (
             ATPneumatics.MirrorCoverState.CLOSED
@@ -412,7 +383,6 @@ class TestATTCS(ATCSAsyncMock):
         self.atcs.rem.atptg.cmd_azElTarget.set.assert_not_called()
 
     async def test_open_m1_cover_when_cover_closed_bellow_el_limit(self) -> None:
-
         await self.atcs.enable()
         await self.atcs.assert_all_enabled()
 
@@ -454,7 +424,6 @@ class TestATTCS(ATCSAsyncMock):
         )
 
     async def test_open_m1_cover_when_cover_opened(self) -> None:
-
         # Make sure m1 cover is OPENED
         self._atpneumatics_evt_m1_cover_state.state = (
             ATPneumatics.MirrorCoverState.OPENED
@@ -476,14 +445,12 @@ class TestATTCS(ATCSAsyncMock):
         self.atcs.rem.atpneumatics.cmd_openM1Cover.start.assert_not_awaited()
 
     async def test_open_m1_cover_when_m1_correction_enabled(self) -> None:
-
         self._ataos_evt_correction_enabled.m1 = True
 
         with pytest.raises(AssertionError):
             await self.atcs.open_m1_cover()
 
     async def test_close_m1_cover_when_cover_opened(self) -> None:
-
         # make sure cover is opened
         self._atpneumatics_evt_m1_cover_state.state = (
             ATPneumatics.MirrorCoverState.OPENED
@@ -505,7 +472,6 @@ class TestATTCS(ATCSAsyncMock):
         self.atcs.rem.atptg.cmd_azElTarget.set.assert_not_called()
 
     async def test_close_m1_cover_when_cover_opened_bellow_el_limit(self) -> None:
-
         await self.atcs.enable()
         await self.atcs.assert_all_enabled()
 
@@ -537,7 +503,6 @@ class TestATTCS(ATCSAsyncMock):
         )
 
     async def test_close_m1_cover_when_cover_closed(self) -> None:
-
         # Make sure m1 cover is CLOSED
         self._atpneumatics_evt_m1_cover_state.state = (
             ATPneumatics.MirrorCoverState.CLOSED
@@ -549,14 +514,12 @@ class TestATTCS(ATCSAsyncMock):
         self.atcs.rem.atpneumatics.cmd_closeM1Cover.start.assert_not_awaited()
 
     async def test_close_m1_cover_when_m1_correction_enabled(self) -> None:
-
         self._ataos_evt_correction_enabled.m1 = True
 
         with pytest.raises(AssertionError):
             await self.atcs.close_m1_cover()
 
     async def test_open_m1_vent_when_closed(self) -> None:
-
         await self.atcs.enable()
         await self.atcs.assert_all_enabled()
 
@@ -581,7 +544,6 @@ class TestATTCS(ATCSAsyncMock):
         )
 
     async def test_open_m1_vent_when_opened(self) -> None:
-
         await self.atcs.enable()
         await self.atcs.assert_all_enabled()
 
@@ -609,7 +571,6 @@ class TestATTCS(ATCSAsyncMock):
         )
 
     async def test_open_m1_vent_when_partiallyopened(self) -> None:
-
         self._atpneumatics_evt_m1_vents_position.position = (
             ATPneumatics.VentsPosition.PARTIALLYOPENED
         )
@@ -618,7 +579,6 @@ class TestATTCS(ATCSAsyncMock):
             await self.atcs.open_m1_vent()
 
     async def test_open_m1_vent_when_m1_correction_enabled(self) -> None:
-
         self._ataos_evt_correction_enabled.m1 = True
 
         with pytest.raises(AssertionError):
@@ -653,7 +613,6 @@ class TestATTCS(ATCSAsyncMock):
             assert "WARNING" not in message
 
     async def test_home_dome(self) -> None:
-
         self._atdome_position.azimuthPosition = 45
 
         with self.assertLogs(
@@ -675,7 +634,6 @@ class TestATTCS(ATCSAsyncMock):
         assert await self.atcs.is_dome_homed()
 
     async def test_prepare_for_flatfield(self) -> None:
-
         await self.atcs.enable()
         await self.atcs.assert_all_enabled()
 
@@ -710,7 +668,6 @@ class TestATTCS(ATCSAsyncMock):
         )
 
     async def test_prepare_for_onsky(self) -> None:
-
         await self.atcs.enable()
         await self.atcs.assert_all_enabled()
 
@@ -746,7 +703,6 @@ class TestATTCS(ATCSAsyncMock):
         )
 
     async def test_prepare_for_onsky_no_scb_link(self) -> None:
-
         await self.atcs.enable()
         await self.atcs.assert_all_enabled()
 
@@ -762,7 +718,6 @@ class TestATTCS(ATCSAsyncMock):
             self.atcs.check = original_check
 
     async def test_prepare_for_vent_partially_open(self) -> None:
-
         await self.atcs.enable()
         self.dome_slit_positioning_time = 120.0
         self.atcs.dome_vent_open_shutter_time = 0.5
@@ -810,7 +765,6 @@ class TestATTCS(ATCSAsyncMock):
         )
 
     async def test_prepare_for_vent_keep_dome_closed(self) -> None:
-
         await self.atcs.enable()
         self.dome_slit_positioning_time = 120.0
         self.atcs.dome_vent_open_shutter_time = 0.5
@@ -853,7 +807,6 @@ class TestATTCS(ATCSAsyncMock):
         )
 
     async def test_shutdown(self) -> None:
-
         await self.atcs.enable()
         await self.atcs.assert_all_enabled()
 
@@ -886,7 +839,6 @@ class TestATTCS(ATCSAsyncMock):
         assert self._atdome_evt_main_door_state.state == ATDome.ShutterDoorState.CLOSED
 
     async def test_set_azel_slew_checks(self) -> None:
-
         original_check = copy.copy(self.atcs.check)
 
         check = self.atcs.set_azel_slew_checks(True)
@@ -935,7 +887,6 @@ class TestATTCS(ATCSAsyncMock):
             self.atcs.check = original_check
 
     async def test_stop_tracking(self) -> None:
-
         await self.atcs.stop_tracking()
 
         self.atcs.rem.atptg.cmd_stopTracking.start.assert_called_with(
@@ -953,13 +904,11 @@ class TestATTCS(ATCSAsyncMock):
         )
 
     async def test_monitor_position_dome_following_enabled(self) -> None:
-
         original_check = copy.copy(self.atcs.check)
 
         self.atcs.check = self.get_all_checks()
 
         try:
-
             start_az = 1.0
             end_az = 0.9
 
@@ -1016,13 +965,11 @@ class TestATTCS(ATCSAsyncMock):
         )
 
     async def test_monitor_position_dome_following_disabled(self) -> None:
-
         original_check = copy.copy(self.atcs.check)
 
         self.atcs.check = self.get_all_checks()
 
         try:
-
             start_az = 1.0
             end_az = 0.9
 
@@ -1075,7 +1022,6 @@ class TestATTCS(ATCSAsyncMock):
         self.atcs.rem.atdome.evt_azimuthCommandedState.aget.assert_not_called()
 
     async def test_slew_icrs(self) -> None:
-
         await self.atcs.enable()
         await self.atcs.assert_all_enabled()
 
@@ -1111,7 +1057,6 @@ class TestATTCS(ATCSAsyncMock):
         self.atcs.rem.atptg.cmd_stopTracking.start.assert_not_awaited()
 
     async def test_slew_object(self) -> None:
-
         await self.atcs.enable()
         await self.atcs.assert_all_enabled()
 
@@ -1147,7 +1092,6 @@ class TestATTCS(ATCSAsyncMock):
         self.atcs.rem.atptg.cmd_poriginOffset.set.assert_called_with(dx=0, dy=0, num=0)
 
     async def test_slew_icrs_no_stop(self) -> None:
-
         await self.atcs.enable()
         await self.atcs.assert_all_enabled()
 
@@ -1190,7 +1134,6 @@ class TestATTCS(ATCSAsyncMock):
         )
 
     async def test_slew_icrs_rot(self) -> None:
-
         await self.atcs.enable()
         await self.atcs.assert_all_enabled()
 
@@ -1234,7 +1177,6 @@ class TestATTCS(ATCSAsyncMock):
         )
 
     async def test_slew_icrs_rot_physical(self) -> None:
-
         await self.atcs.enable()
         await self.atcs.assert_all_enabled()
 
@@ -1276,7 +1218,6 @@ class TestATTCS(ATCSAsyncMock):
         )
 
     async def test_slew_icrs_rot_physical_sky(self) -> None:
-
         await self.atcs.enable()
         await self.atcs.assert_all_enabled()
 
@@ -1320,7 +1261,6 @@ class TestATTCS(ATCSAsyncMock):
         )
 
     async def test_slew_icrs_rot_sky_init_angle_out_of_range(self) -> None:
-
         await self.atcs.enable()
         await self.atcs.assert_all_enabled()
 
@@ -1391,7 +1331,6 @@ class TestATTCS(ATCSAsyncMock):
         )
 
     async def test_slew_icrs_fail_runtimeerror(self) -> None:
-
         await self.atcs.enable()
         await self.atcs.assert_all_enabled()
 
@@ -1410,7 +1349,6 @@ class TestATTCS(ATCSAsyncMock):
         self.atcs.rem.atptg.cmd_raDecTarget.start.assert_awaited_once()
 
     async def test_slew_icrs_with_offset(self) -> None:
-
         await self.atcs.enable()
         await self.atcs.assert_all_enabled()
 
@@ -1459,7 +1397,6 @@ class TestATTCS(ATCSAsyncMock):
         )
 
     async def test_point_azel(self) -> None:
-
         await self.atcs.enable()
         await self.atcs.assert_all_enabled()
 
@@ -1484,7 +1421,6 @@ class TestATTCS(ATCSAsyncMock):
         self.atcs.rem.atptg.cmd_stopTracking.start.assert_not_called()
 
     async def test_offset_radec(self) -> None:
-
         # Test offset_radec
         ra_offset, dec_offset = 10.0, -10.0
         await self.atcs.offset_radec(ra=ra_offset, dec=dec_offset)
@@ -1494,7 +1430,6 @@ class TestATTCS(ATCSAsyncMock):
         )
 
     async def test_offset_azel(self) -> None:
-
         az_offset, el_offset = 10.0, -10.0
 
         # Default call should yield relative=True, absorb=False
@@ -1505,7 +1440,6 @@ class TestATTCS(ATCSAsyncMock):
         )
 
     async def test_offset_azel_with_defaults(self) -> None:
-
         az_offset, el_offset = 10.0, -10.0
 
         # Same as default but now pass the parameters
@@ -1518,7 +1452,6 @@ class TestATTCS(ATCSAsyncMock):
         )
 
     async def test_offset_azel_not_relative(self) -> None:
-
         az_offset, el_offset = 10.0, -10.0
 
         # Call with relative=False
@@ -1531,7 +1464,6 @@ class TestATTCS(ATCSAsyncMock):
         )
 
     async def test_offset_azel_relative_absorb(self) -> None:
-
         az_offset, el_offset = 10.0, -10.0
 
         # Call with relative=True and absorb=True
@@ -1555,7 +1487,6 @@ class TestATTCS(ATCSAsyncMock):
         )
 
     async def test_offset_azel_absorb(self) -> None:
-
         az_offset, el_offset = 10.0, -10.0
 
         # Call with relative=False and absorb=True
@@ -1580,7 +1511,6 @@ class TestATTCS(ATCSAsyncMock):
         )
 
     async def test_reset_offsets(self) -> None:
-
         await self.atcs.reset_offsets()
 
         self.atcs.rem.atptg.cmd_poriginClear.set_start.assert_any_call(
@@ -1600,7 +1530,6 @@ class TestATTCS(ATCSAsyncMock):
         )
 
     async def test_reset_offsets_absorbed(self) -> None:
-
         await self.atcs.reset_offsets(absorbed=True, non_absorbed=False)
 
         self.atcs.rem.atptg.cmd_poriginClear.set_start.assert_any_call(
@@ -1614,7 +1543,6 @@ class TestATTCS(ATCSAsyncMock):
         self.atcs.rem.atptg.cmd_offsetClear.set_start.assert_not_called()
 
     async def test_reset_offsets_non_absorbed(self) -> None:
-
         await self.atcs.reset_offsets(absorbed=False, non_absorbed=True)
 
         self.atcs.rem.atptg.cmd_poriginClear.set_start.assert_not_called()
@@ -1628,7 +1556,6 @@ class TestATTCS(ATCSAsyncMock):
         )
 
     async def test_offset_xy(self) -> None:
-
         x_offset, y_offset = 10.0, -10.0
 
         # Default call should yield relative=True, absorb=False
@@ -1650,7 +1577,6 @@ class TestATTCS(ATCSAsyncMock):
         )
 
     async def test_offset_xy_with_defaults(self) -> None:
-
         x_offset, y_offset = 10.0, -10.0
 
         # Same as default but now pass the parameters
@@ -1672,7 +1598,6 @@ class TestATTCS(ATCSAsyncMock):
         )
 
     async def test_offset_xy_not_relative(self) -> None:
-
         x_offset, y_offset = 10.0, -10.0
 
         # Call with relative=False
@@ -1694,7 +1619,6 @@ class TestATTCS(ATCSAsyncMock):
         )
 
     async def test_offset_xy_relative_absorb(self) -> None:
-
         x_offset, y_offset = 10.0, -10.0
 
         # Call with relative=True and absorb=True
@@ -1707,7 +1631,6 @@ class TestATTCS(ATCSAsyncMock):
         )
 
     async def test_offset_xy_absorb(self) -> None:
-
         x_offset, y_offset = 10.0, -10.0
 
         # Call with relative=False and absorb=True
@@ -1720,7 +1643,6 @@ class TestATTCS(ATCSAsyncMock):
         )
 
     async def test_open_valves(self) -> None:
-
         await self.atcs.enable()
         await self.atcs.assert_all_enabled()
 
@@ -1765,7 +1687,6 @@ class TestATTCS(ATCSAsyncMock):
         )
 
     async def test_open_valve_instrument(self) -> None:
-
         await self.atcs.open_valve_instrument()
 
         self.atcs.rem.atpneumatics.evt_instrumentState.aget.assert_awaited_with(
@@ -1788,7 +1709,6 @@ class TestATTCS(ATCSAsyncMock):
         )
 
     async def test_open_valve_main(self) -> None:
-
         await self.atcs.open_valve_main()
 
         self.atcs.rem.atpneumatics.evt_mainValveState.aget.assert_awaited_with(
@@ -1811,7 +1731,6 @@ class TestATTCS(ATCSAsyncMock):
         )
 
     def test_get_rot_angle_alternatives_default(self) -> None:
-
         expected_rot_angle_alternatives = [0.0, 180.0, -180.0, 90.0, -90.0]
 
         count_alternatives = 0
@@ -1822,7 +1741,6 @@ class TestATTCS(ATCSAsyncMock):
         assert count_alternatives == len(expected_rot_angle_alternatives)
 
     def test_set_get_rot_angle_alternatives_empty(self) -> None:
-
         self.atcs.set_rot_angle_alternatives([])
 
         expected_rot_angle_alternatives = [0.0]
@@ -1836,7 +1754,6 @@ class TestATTCS(ATCSAsyncMock):
         assert count_alternatives == len(expected_rot_angle_alternatives)
 
     def test_set_rot_angle_alternatives_zero(self) -> None:
-
         self.atcs.set_rot_angle_alternatives([0, 0.0, 180.0, -180.0])
 
         expected_rot_angle_alternatives = [0.0, 180.0, -180.0]
@@ -1850,7 +1767,6 @@ class TestATTCS(ATCSAsyncMock):
         assert count_alternatives == len(expected_rot_angle_alternatives)
 
     def test_set_rot_angle_alternatives_duplicated_entries(self) -> None:
-
         self.atcs.set_rot_angle_alternatives(
             [0, 0.0, 180.0, -180.0, 180.0, -180.0, 180, -180]
         )
@@ -1868,7 +1784,6 @@ class TestATTCS(ATCSAsyncMock):
     def _handle_fail_angle_out_of_range(
         self, *args: typing.Any, **kwargs: typing.Any
     ) -> None:
-
         if self.atcs.rem.atptg.cmd_raDecTarget.start.await_count < 2:
             raise salobj.AckError(
                 "Target out of rotator limit",
@@ -1882,7 +1797,6 @@ class TestATTCS(ATCSAsyncMock):
 
     @contextmanager
     def fail_ra_dec_target(self, fail_type: str) -> typing.Generator[None, None, None]:
-
         if fail_type == "angle_out_of_range":
             self.atcs.rem.atptg.cmd_raDecTarget.start.side_effect = (
                 self._handle_fail_angle_out_of_range

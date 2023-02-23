@@ -59,7 +59,6 @@ class ATCalSys(RemoteGroup):
         log: typing.Optional[logging.Logger] = None,
         intended_usage: typing.Optional[int] = None,
     ) -> None:
-
         self.electrometer_index = electrometer_index
         self.fiber_spectrograph_index = fiber_spectrograph_index
 

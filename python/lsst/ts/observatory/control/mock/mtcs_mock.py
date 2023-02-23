@@ -50,7 +50,6 @@ class MTCSMock(BaseGroupMock):
     """
 
     def __init__(self) -> None:
-
         super().__init__(
             components=[
                 "MTMount",
@@ -127,7 +126,6 @@ class MTCSMock(BaseGroupMock):
         self.azel_offsets.append(data)
 
     async def offset_clear_callback(self, data: salobj.type_hints.BaseMsgType) -> None:
-
         self.azel_offsets = []
         self.radec_offsets = []
 
@@ -144,7 +142,6 @@ class MTCSMock(BaseGroupMock):
     async def mtptg_stop_tracking_callback(
         self, data: salobj.type_hints.BaseMsgType
     ) -> None:
-
         self.tracking = False
         self.acting = False
         await self.controllers.mtmount.evt_axesInPosition.set_write(
@@ -155,7 +152,6 @@ class MTCSMock(BaseGroupMock):
         await asyncio.sleep(HEARTBEAT_INTERVAL)
 
     async def azel_target_callback(self, data: salobj.type_hints.BaseMsgType) -> None:
-
         if (
             self.controllers.mtptg.evt_summaryState.data.summaryState
             != salobj.State.ENABLED
@@ -185,7 +181,6 @@ class MTCSMock(BaseGroupMock):
         self.controllers.mtrotator.tel_rotation.set(demandPosition=data.rotPA)
 
     async def radec_target_callback(self, data: salobj.type_hints.BaseMsgType) -> None:
-
         if (
             self.controllers.mtptg.evt_summaryState.data.summaryState
             != salobj.State.ENABLED
@@ -206,7 +201,6 @@ class MTCSMock(BaseGroupMock):
         self.acting = True
 
     async def start_task_publish(self) -> None:
-
         await super().start_task_publish()
 
         self.task_list.append(asyncio.create_task(self.mount_telemetry()))
@@ -216,7 +210,6 @@ class MTCSMock(BaseGroupMock):
         self.task_list.append(asyncio.create_task(self.m1m3_telemetry()))
 
     async def mount_telemetry(self) -> None:
-
         await self.controllers.mtmount.evt_elevationMotionState.set_write(
             state=MTMount.AxisMotionState.STOPPED
         )
@@ -238,7 +231,6 @@ class MTCSMock(BaseGroupMock):
                 self.controllers.mtmount.evt_summaryState.data.summaryState
                 == salobj.State.ENABLED
             ):
-
                 # Safely initilize data
                 if not self.controllers.mtmount.tel_azimuth.has_data:
                     self.controllers.mtmount.tel_azimuth.set(
@@ -396,7 +388,6 @@ class MTCSMock(BaseGroupMock):
             await asyncio.sleep(HEARTBEAT_INTERVAL)
 
     async def rotator_telemetry(self) -> None:
-
         await self.controllers.mtrotator.tel_electrical.set_write()
         await self.controllers.mtrotator.evt_connected.set_write(connected=True)
         await self.controllers.mtrotator.evt_configuration.set_write(
@@ -423,7 +414,6 @@ class MTCSMock(BaseGroupMock):
                 self.controllers.mtrotator.evt_summaryState.data.summaryState
                 == salobj.State.ENABLED
             ):
-
                 # Safely initilize topic data.
                 if not self.controllers.mtrotator.tel_rotation.has_data:
                     self.controllers.mtrotator.tel_rotation.set(
@@ -473,13 +463,11 @@ class MTCSMock(BaseGroupMock):
             await asyncio.sleep(HEARTBEAT_INTERVAL)
 
     async def dome_telemetry(self) -> None:
-
         while self.run_telemetry_loop:
             if (
                 self.controllers.mtdome.evt_summaryState.data.summaryState
                 == salobj.State.ENABLED
             ):
-
                 dome_az_set = self.controllers.mtdome.tel_azimuth.data.positionCommanded
                 dome_el_set = (
                     self.controllers.mtdome.tel_lightWindScreen.data.positionCommanded
@@ -526,7 +514,6 @@ class MTCSMock(BaseGroupMock):
             await asyncio.sleep(HEARTBEAT_INTERVAL)
 
     async def mtptg_telemetry(self) -> None:
-
         while self.run_telemetry_loop:
             if (
                 self.controllers.mtptg.evt_summaryState.data.summaryState
@@ -581,7 +568,6 @@ class MTCSMock(BaseGroupMock):
             await asyncio.sleep(HEARTBEAT_INTERVAL)
 
     async def m1m3_telemetry(self) -> None:
-
         await self.publish_m1m3_topic_samples()
 
         while self.run_telemetry_loop:
@@ -589,7 +575,6 @@ class MTCSMock(BaseGroupMock):
                 self.controllers.mtm1m3.evt_summaryState.data.summaryState
                 == salobj.State.ENABLED
             ):
-
                 raw_accelerometer_data = (
                     self.controllers.mtm1m3.tel_accelerometerData.DataType()
                 )

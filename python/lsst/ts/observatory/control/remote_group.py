@@ -155,7 +155,6 @@ class UsagesResources:
         generics: typing.Iterable[str] = (),
         **kwargs: typing.Iterable[str],
     ) -> None:
-
         self.components_attr = frozenset(components_attr)
 
         self.readonly = readonly
@@ -253,7 +252,6 @@ class RemoteGroup:
         intended_usage: typing.Optional[int] = None,
         concurrent_operation: bool = True,
     ) -> None:
-
         if log is None:
             self.log = logging.getLogger(type(self).__name__)
         else:

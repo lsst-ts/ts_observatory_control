@@ -31,7 +31,6 @@ MAKE_TIMEOUT = 60  # Timeout for make_script (sec)
 
 class TestATQueue(unittest.IsolatedAsyncioTestCase):
     async def test_constructor(self) -> None:
-
         mtqueue = MTQueue(domain="FakeDomain", intended_usage=Usages.DryTest)
 
         assert f"ScriptQueue:{SalIndex.MAIN_TEL}" in mtqueue.components
