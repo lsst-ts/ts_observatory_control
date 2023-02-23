@@ -60,7 +60,6 @@ class MTCSUsages(Usages):
     DryTest = 1 << 7
 
     def __iter__(self) -> typing.Iterator[int]:
-
         return iter(
             [
                 self.All,
@@ -98,7 +97,6 @@ class MTCS(BaseTCS):
         log: typing.Optional[logging.Logger] = None,
         intended_usage: typing.Optional[int] = None,
     ) -> None:
-
         super().__init__(
             components=[
                 "MTMount",
@@ -366,7 +364,6 @@ class MTCS(BaseTCS):
                 mtmount_actual_position_name = "angleActual"
 
         while True:
-
             status = ""
 
             if _check.mtmount:
@@ -1347,7 +1344,6 @@ class MTCS(BaseTCS):
 
     @property
     def usages(self) -> typing.Dict[int, UsagesResources]:
-
         if self._usages is None:
             usages = super().usages
 

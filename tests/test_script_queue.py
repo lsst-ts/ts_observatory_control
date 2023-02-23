@@ -68,7 +68,6 @@ class TestScriptQueue(RemoteGroupAsyncMock):
         return self.script_queue
 
     async def setup_types(self) -> None:
-
         self.available_scripts = types.SimpleNamespace(
             **self.components_metadata["ScriptQueue:1"]
             .topic_info["logevent_availableScripts"]
@@ -136,7 +135,6 @@ additionalProperties: false
         self.logevent_queue.running = True
 
     async def setup_mocks(self) -> None:
-
         self.script_queue.rem.scriptqueue_1.evt_availableScripts.attach_mock(
             unittest.mock.Mock(),
             "flush",
@@ -164,7 +162,6 @@ additionalProperties: false
         )
 
     async def test_list_standard_scripts(self) -> None:
-
         standard_scripts = await self.script_queue.list_standard_scripts()
 
         self.script_queue.rem.scriptqueue_1.evt_availableScripts.flush.assert_called_once()
@@ -178,7 +175,6 @@ additionalProperties: false
         assert standard_scripts == self.standard_scripts
 
     async def test_list_external_scripts(self) -> None:
-
         external_scripts = await self.script_queue.list_external_scripts()
 
         self.script_queue.rem.scriptqueue_1.evt_availableScripts.flush.assert_called_once()
@@ -193,7 +189,6 @@ additionalProperties: false
         assert external_scripts == self.external_scripts
 
     async def test_get_script_schema(self) -> None:
-
         schema = await self.script_queue.get_script_schema(
             is_standard=True,
             script="std_script1",
@@ -203,7 +198,6 @@ additionalProperties: false
         assert schema == self.config_schema.configSchema
 
     async def test_validate_config_good(self) -> None:
-
         config = dict(ra=10, dec=-30, name="target")
 
         await self.script_queue.validate_config(
@@ -215,7 +209,6 @@ additionalProperties: false
         self.assert_get_script_schema_calls()
 
     async def test_validate_config_err(self) -> None:
-
         config = dict(ra=10, dec=-30)
 
         with self.assertRaisesRegex(
@@ -230,7 +223,6 @@ additionalProperties: false
         self.assert_get_script_schema_calls()
 
     async def test_add(self) -> None:
-
         is_standard = True
         script = "std_script1"
         config = dict(ra=10, dec=-30, name="target")
@@ -248,7 +240,6 @@ additionalProperties: false
         )
 
     async def test_add_standard(self) -> None:
-
         script = "std_script1"
         config = dict(ra=10, dec=-30, name="target")
 
@@ -264,7 +255,6 @@ additionalProperties: false
         )
 
     async def test_add_external(self) -> None:
-
         script = "ext_script1"
         config = dict(ra=10, dec=-30, name="target")
 
@@ -280,7 +270,6 @@ additionalProperties: false
         )
 
     async def test_get_queue(self) -> None:
-
         queue = await self.script_queue.get_queue()
 
         assert queue == self.logevent_queue
@@ -289,7 +278,6 @@ additionalProperties: false
         )
 
     async def test_wait_queue_paused_when_queue_paused(self) -> None:
-
         self.logevent_queue.running = False
 
         await self.script_queue.wait_queue_paused()
@@ -301,7 +289,6 @@ additionalProperties: false
         self.script_queue.rem.scriptqueue_1.evt_queue.next.assert_not_awaited()
 
     async def test_wait_queue_paused_when_queue_running(self) -> None:
-
         self.logevent_queue.running = True
 
         self.script_queue.long_timeout = 5.0
@@ -322,7 +309,6 @@ additionalProperties: false
         )
 
     async def test_wait_queue_running_when_queue_paused(self) -> None:
-
         self.logevent_queue.running = False
 
         self.script_queue.long_timeout = 5.0
@@ -343,7 +329,6 @@ additionalProperties: false
         )
 
     async def test_wait_queue_running_when_queue_running(self) -> None:
-
         self.logevent_queue.running = True
 
         await self.script_queue.wait_queue_running()
@@ -355,7 +340,6 @@ additionalProperties: false
         self.script_queue.rem.scriptqueue_1.evt_queue.next.assert_not_awaited()
 
     async def test_pause_when_running(self) -> None:
-
         self.logevent_queue.running = True
 
         await self.script_queue.pause()
@@ -372,7 +356,6 @@ additionalProperties: false
         )
 
     async def test_pause_when_paused(self) -> None:
-
         self.logevent_queue.running = False
 
         await self.script_queue.pause()
@@ -385,7 +368,6 @@ additionalProperties: false
         self.script_queue.rem.scriptqueue_1.evt_queue.next.assert_not_awaited()
 
     async def test_resume_when_running(self) -> None:
-
         self.logevent_queue.running = True
 
         await self.script_queue.resume()
@@ -398,7 +380,6 @@ additionalProperties: false
         self.script_queue.rem.scriptqueue_1.evt_queue.next.assert_not_awaited()
 
     async def test_resume_when_paused(self) -> None:
-
         self.logevent_queue.running = False
 
         await self.script_queue.resume()
@@ -418,7 +399,6 @@ additionalProperties: false
         assert self.logevent_queue.running
 
     def assert_get_script_schema_calls(self) -> None:
-
         self.script_queue.rem.scriptqueue_1.evt_configSchema.flush.assert_called_once()
         self.script_queue.rem.scriptqueue_1.cmd_showSchema.set_start.assert_awaited_with(
             isStandard=True,
@@ -439,7 +419,6 @@ additionalProperties: false
         log_level: int = logging.DEBUG,
         pause_checkpoint: str = "",
     ) -> None:
-
         self.script_queue.rem.scriptqueue_1.cmd_add.set_start.assert_awaited_with(
             isStandard=is_standard,
             path=script,

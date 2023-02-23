@@ -48,7 +48,6 @@ class TestComCam(BaseCameraAsyncMock):
         return self.comcam
 
     async def setup_types(self) -> None:
-
         self.end_readout = self.get_sample(
             component="CCCamera",
             topic="logevent_endReadout",
@@ -71,31 +70,26 @@ class TestComCam(BaseCameraAsyncMock):
             await self.comcam.setup_instrument(invalid_key_word=123)
 
     async def test_take_bias(self) -> None:
-
         await self.assert_take_bias(
             nbias=10,
         )
 
     async def test_take_bias_test_type(self) -> None:
-
         await self.assert_take_bias(nbias=10, test_type="LBIAS")
 
     async def test_take_bias_reason(self) -> None:
-
         await self.assert_take_bias(
             nbias=10,
             reason="DAYLIGHT CALIB",
         )
 
     async def test_take_bias_program(self) -> None:
-
         await self.assert_take_bias(
             nbias=10,
             program="CALIB",
         )
 
     async def test_take_bias_test_type_reason_program(self) -> None:
-
         await self.assert_take_bias(
             nbias=10,
             test_type="LBIAS",
@@ -109,7 +103,6 @@ class TestComCam(BaseCameraAsyncMock):
         await self.assert_take_darks(ndarks=ndarks, exptime=exptime)
 
     async def test_take_darks_test_type(self) -> None:
-
         await self.comcam.take_darks(
             ndarks=1,
             exptime=1.0,
@@ -140,7 +133,6 @@ class TestComCam(BaseCameraAsyncMock):
         )
 
     async def test_take_flats(self) -> None:
-
         nflats = 4
         exptime = 1.0
         filter_name = "band1"
@@ -156,7 +148,6 @@ class TestComCam(BaseCameraAsyncMock):
         )
 
     async def test_take_flats_test_type(self) -> None:
-
         await self.assert_take_flats(
             nflats=1,
             exptime=1.0,
@@ -164,7 +155,6 @@ class TestComCam(BaseCameraAsyncMock):
         )
 
     async def test_take_flats_reason(self) -> None:
-
         await self.assert_take_flats(
             nflats=1,
             exptime=1.0,
@@ -172,7 +162,6 @@ class TestComCam(BaseCameraAsyncMock):
         )
 
     async def test_take_flats_program(self) -> None:
-
         await self.assert_take_flats(
             nflats=1,
             exptime=1.0,
@@ -180,7 +169,6 @@ class TestComCam(BaseCameraAsyncMock):
         )
 
     async def test_take_flats_test_type_reason_program(self) -> None:
-
         await self.assert_take_flats(
             nflats=1,
             exptime=1.0,
@@ -190,7 +178,6 @@ class TestComCam(BaseCameraAsyncMock):
         )
 
     async def test_take_object(self) -> None:
-
         nobj = 4
         exptime = 1.0
         filter_name = "band1"
@@ -204,7 +191,6 @@ class TestComCam(BaseCameraAsyncMock):
         self.assert_setup_instrument(entry=dict(filter=filter_name))
 
     async def test_take_object_atcs_sync_fail(self) -> None:
-
         with self.get_fake_tcs() as fake_atcs:
             fake_atcs.fail = True
 
@@ -216,7 +202,6 @@ class TestComCam(BaseCameraAsyncMock):
                 )
 
     async def test_take_object_atcs_sync(self) -> None:
-
         with self.get_fake_tcs() as fake_atcs:
             fake_atcs.fail = False
 
@@ -258,7 +243,6 @@ class TestComCam(BaseCameraAsyncMock):
         )
 
     async def test_take_engtest(self) -> None:
-
         await self.assert_take_engtest(
             n=1,
             exptime=1.0,
@@ -331,7 +315,6 @@ class TestComCam(BaseCameraAsyncMock):
         await self.assert_take_acq()
 
     async def test_take_stuttered(self) -> None:
-
         await self.assert_take_stuttered(
             n=1,
             exptime=0.1,
@@ -361,7 +344,6 @@ class TestComCam(BaseCameraAsyncMock):
         self.comcam.rem.cccamera.cmd_setFilter.set_start.reset_mock()
 
     async def test_take_spot(self) -> None:
-
         await self.comcam.take_spot(
             n=1,
             exptime=1.0,

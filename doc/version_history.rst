@@ -6,6 +6,12 @@
 Version History
 ###############
 
+v0.24.2
+-------
+
+* Format souce files with black 23.
+* Update pre-commit hook versions.
+
 v0.24.1
 -------
 

@@ -58,14 +58,12 @@ class TestGenericCamera(BaseCameraAsyncMock):
         return self.generic_camera
 
     async def setup_types(self) -> None:
-
         self.end_readout = self.get_sample(
             component="GenericCamera:1",
             topic="logevent_endReadout",
         )
 
     async def test_start_live_view(self) -> None:
-
         await self.generic_camera.start_live_view(exptime=1.0)
 
         self.generic_camera.rem.genericcamera_1.cmd_startLiveView.set_start.assert_awaited_with(
@@ -74,7 +72,6 @@ class TestGenericCamera(BaseCameraAsyncMock):
         )
 
     async def test_stop_live_view(self) -> None:
-
         await self.generic_camera.stop_live_view()
 
         self.generic_camera.rem.genericcamera_1.cmd_stopLiveView.start.assert_awaited_with(
@@ -82,7 +79,6 @@ class TestGenericCamera(BaseCameraAsyncMock):
         )
 
     async def test_take_stuttered(self) -> None:
-
         with self.assertRaises(AssertionError):
             await self.generic_camera.take_stuttered(
                 exptime=5,
@@ -91,31 +87,26 @@ class TestGenericCamera(BaseCameraAsyncMock):
             )
 
     async def test_take_bias(self) -> None:
-
         await self.assert_take_bias(
             nbias=10,
         )
 
     async def test_take_bias_test_type(self) -> None:
-
         await self.assert_take_bias(nbias=10, test_type="LBIAS")
 
     async def test_take_bias_reason(self) -> None:
-
         await self.assert_take_bias(
             nbias=10,
             reason="DAYLIGHT CALIB",
         )
 
     async def test_take_bias_program(self) -> None:
-
         await self.assert_take_bias(
             nbias=10,
             program="CALIB",
         )
 
     async def test_take_bias_test_type_reason_program(self) -> None:
-
         await self.assert_take_bias(
             nbias=10,
             test_type="LBIAS",
@@ -129,7 +120,6 @@ class TestGenericCamera(BaseCameraAsyncMock):
         await self.assert_take_darks(ndarks=ndarks, exptime=exptime)
 
     async def test_take_darks_test_type(self) -> None:
-
         await self.generic_camera.take_darks(
             ndarks=1,
             exptime=1.0,
@@ -160,7 +150,6 @@ class TestGenericCamera(BaseCameraAsyncMock):
         )
 
     async def test_take_flats(self) -> None:
-
         nflats = 4
         exptime = 1.0
 
@@ -170,7 +159,6 @@ class TestGenericCamera(BaseCameraAsyncMock):
         )
 
     async def test_take_flats_test_type(self) -> None:
-
         await self.assert_take_flats(
             nflats=1,
             exptime=1.0,
@@ -178,7 +166,6 @@ class TestGenericCamera(BaseCameraAsyncMock):
         )
 
     async def test_take_flats_reason(self) -> None:
-
         await self.assert_take_flats(
             nflats=1,
             exptime=1.0,
@@ -186,7 +173,6 @@ class TestGenericCamera(BaseCameraAsyncMock):
         )
 
     async def test_take_flats_program(self) -> None:
-
         await self.assert_take_flats(
             nflats=1,
             exptime=1.0,
@@ -194,7 +180,6 @@ class TestGenericCamera(BaseCameraAsyncMock):
         )
 
     async def test_take_flats_test_type_reason_program(self) -> None:
-
         await self.assert_take_flats(
             nflats=1,
             exptime=1.0,
@@ -204,7 +189,6 @@ class TestGenericCamera(BaseCameraAsyncMock):
         )
 
     async def test_take_object(self) -> None:
-
         nobj = 4
         exptime = 1.0
 
@@ -214,7 +198,6 @@ class TestGenericCamera(BaseCameraAsyncMock):
         )
 
     async def test_take_object_tcs_sync_fail(self) -> None:
-
         with self.get_fake_tcs() as fake_tcs:
             fake_tcs.fail = True
 
@@ -226,7 +209,6 @@ class TestGenericCamera(BaseCameraAsyncMock):
                 )
 
     async def test_take_object_tcs_sync(self) -> None:
-
         with self.get_fake_tcs() as fake_tcs:
             fake_tcs.fail = False
 
@@ -268,7 +250,6 @@ class TestGenericCamera(BaseCameraAsyncMock):
         )
 
     async def test_take_engtest(self) -> None:
-
         await self.assert_take_engtest(
             n=1,
             exptime=1.0,
@@ -305,7 +286,6 @@ class TestGenericCamera(BaseCameraAsyncMock):
         )
 
     async def test_instrument_parameters(self) -> None:
-
         # Generic camera does not support any keword argument.
         invalid_keyword_sample = [
             "filter",

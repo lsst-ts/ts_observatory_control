@@ -60,7 +60,6 @@ class TestMTCS(MTCSAsyncMock):
         assert pa.value == pytest.approx(3.1269, abs=5e-2)
 
     async def test_set_azel_slew_checks(self) -> None:
-
         original_check = copy.copy(self.mtcs.check)
 
         check = self.mtcs.set_azel_slew_checks(True)
@@ -77,7 +76,6 @@ class TestMTCS(MTCSAsyncMock):
             assert not getattr(check, comp)
 
     async def test_slew_object(self) -> None:
-
         await self.mtcs.enable()
         await self.mtcs.assert_all_enabled()
 
@@ -122,7 +120,6 @@ class TestMTCS(MTCSAsyncMock):
         )
 
     async def test_slew_icrs(self) -> None:
-
         await self.mtcs.enable()
         await self.mtcs.assert_all_enabled()
 
@@ -169,7 +166,6 @@ class TestMTCS(MTCSAsyncMock):
         )
 
     async def test_slew_icrs_stop(self) -> None:
-
         await self.mtcs.enable()
         await self.mtcs.assert_all_enabled()
 
@@ -221,7 +217,6 @@ class TestMTCS(MTCSAsyncMock):
         )
 
     async def test_slew_icrs_rot(self) -> None:
-
         await self.mtcs.enable()
         await self.mtcs.assert_all_enabled()
 
@@ -269,7 +264,6 @@ class TestMTCS(MTCSAsyncMock):
         )
 
     async def test_slew_icrs_rot_physical(self) -> None:
-
         await self.mtcs.enable()
         await self.mtcs.assert_all_enabled()
 
@@ -317,7 +311,6 @@ class TestMTCS(MTCSAsyncMock):
         )
 
     async def test_slew_icrs_rot_physical_sky(self) -> None:
-
         await self.mtcs.enable()
         await self.mtcs.assert_all_enabled()
 
@@ -365,7 +358,6 @@ class TestMTCS(MTCSAsyncMock):
         )
 
     async def test_slew_icrs_with_offset(self) -> None:
-
         await self.mtcs.enable()
         await self.mtcs.assert_all_enabled()
 
@@ -423,7 +415,6 @@ class TestMTCS(MTCSAsyncMock):
         )
 
     async def test_slew_icrs_ccw_following_off(self) -> None:
-
         await self.mtcs.enable()
         await self.mtcs.assert_all_enabled()
 
@@ -475,7 +466,6 @@ class TestMTCS(MTCSAsyncMock):
         )
 
     async def test_point_azel(self) -> None:
-
         await self.mtcs.enable()
         await self.mtcs.assert_all_enabled()
 
@@ -506,7 +496,6 @@ class TestMTCS(MTCSAsyncMock):
         self.mtcs.rem.mtrotator.evt_inPosition.flush.assert_called()
 
     async def test_enable_ccw_following(self) -> None:
-
         await self.mtcs.enable_ccw_following()
 
         self.mtcs.rem.mtmount.cmd_enableCameraCableWrapFollowing.start.assert_awaited_with(
@@ -515,7 +504,6 @@ class TestMTCS(MTCSAsyncMock):
         assert self._mtmount_evt_cameraCableWrapFollowing.enabled == 1
 
     async def test_disable_ccw_following(self) -> None:
-
         await self.mtcs.disable_ccw_following()
 
         self.mtcs.rem.mtmount.cmd_disableCameraCableWrapFollowing.start.assert_awaited_with(
@@ -524,7 +512,6 @@ class TestMTCS(MTCSAsyncMock):
         assert self._mtmount_evt_cameraCableWrapFollowing.enabled == 0
 
     async def test_offset_radec(self) -> None:
-
         # Test offset_radec
         ra_offset, dec_offset = 10.0, -10.0
         await self.mtcs.offset_radec(ra=ra_offset, dec=dec_offset)
@@ -534,7 +521,6 @@ class TestMTCS(MTCSAsyncMock):
         )
 
     async def test_offset_azel(self) -> None:
-
         az_offset, el_offset = 10.0, -10.0
 
         # Default call should yield relative=True, absorb=False
@@ -545,7 +531,6 @@ class TestMTCS(MTCSAsyncMock):
         )
 
     async def test_offset_azel_with_defaults(self) -> None:
-
         az_offset, el_offset = 10.0, -10.0
 
         # Same as default but now pass the parameters
@@ -558,7 +543,6 @@ class TestMTCS(MTCSAsyncMock):
         )
 
     async def test_offset_azel_not_relative(self) -> None:
-
         az_offset, el_offset = 10.0, -10.0
 
         # Call with relative=False
@@ -571,7 +555,6 @@ class TestMTCS(MTCSAsyncMock):
         )
 
     async def test_offset_azel_relative_absorb(self) -> None:
-
         az_offset, el_offset = 10.0, -10.0
 
         # Call with relative=True and absorb=True
@@ -594,7 +577,6 @@ class TestMTCS(MTCSAsyncMock):
         )
 
     async def test_offset_azel_absorb(self) -> None:
-
         az_offset, el_offset = 10.0, -10.0
 
         # Call with relative=False and absorb=True
@@ -617,7 +599,6 @@ class TestMTCS(MTCSAsyncMock):
         )
 
     async def test_reset_offsets(self) -> None:
-
         await self.mtcs.reset_offsets()
 
         self.mtcs.rem.mtptg.cmd_poriginClear.set_start.assert_any_call(
@@ -637,7 +618,6 @@ class TestMTCS(MTCSAsyncMock):
         )
 
     async def test_reset_offsets_absorbed(self) -> None:
-
         await self.mtcs.reset_offsets(absorbed=True, non_absorbed=False)
 
         self.mtcs.rem.mtptg.cmd_poriginClear.set_start.assert_any_call(
@@ -651,7 +631,6 @@ class TestMTCS(MTCSAsyncMock):
         self.mtcs.rem.mtptg.cmd_offsetClear.set_start.assert_not_called()
 
     async def test_reset_offsets_non_absorbed(self) -> None:
-
         await self.mtcs.reset_offsets(absorbed=False, non_absorbed=True)
 
         self.mtcs.rem.mtptg.cmd_poriginClear.set_start.assert_not_called()
@@ -665,7 +644,6 @@ class TestMTCS(MTCSAsyncMock):
         )
 
     async def test_offset_xy(self) -> None:
-
         x_offset, y_offset = 10.0, -10.0
 
         # Default call should yield relative=True, absorb=False
@@ -686,7 +664,6 @@ class TestMTCS(MTCSAsyncMock):
         )
 
     async def test_offset_xy_with_defaults(self) -> None:
-
         x_offset, y_offset = 10.0, -10.0
 
         # Same as default but now pass the parameters
@@ -707,7 +684,6 @@ class TestMTCS(MTCSAsyncMock):
         )
 
     async def test_offset_xy_not_relative(self) -> None:
-
         x_offset, y_offset = 10.0, -10.0
 
         # Call with relative=False
@@ -728,7 +704,6 @@ class TestMTCS(MTCSAsyncMock):
         )
 
     async def test_offset_xy_relative_absorb(self) -> None:
-
         x_offset, y_offset = 10.0, -10.0
 
         # Call with relative=True and absorb=True
@@ -741,7 +716,6 @@ class TestMTCS(MTCSAsyncMock):
         )
 
     async def test_offset_xy_absorb(self) -> None:
-
         x_offset, y_offset = 10.0, -10.0
 
         # Call with relative=False and absorb=True
@@ -754,59 +728,48 @@ class TestMTCS(MTCSAsyncMock):
         )
 
     async def test_slew_dome_to(self) -> None:
-
         az = 90.0
 
         with pytest.raises(NotImplementedError):
             await self.mtcs.slew_dome_to(az)
 
     async def test_close_dome(self) -> None:
-
         with pytest.raises(NotImplementedError):
             await self.mtcs.close_dome()
 
     async def test_open_m1_cover(self) -> None:
-
         with pytest.raises(NotImplementedError):
             await self.mtcs.open_m1_cover()
 
     async def test_close_m1_cover(self) -> None:
-
         with pytest.raises(NotImplementedError):
             await self.mtcs.close_m1_cover()
 
     async def test_home_dome(self) -> None:
-
         with pytest.raises(NotImplementedError):
             await self.mtcs.home_dome()
 
     async def test_open_dome_shutter(self) -> None:
-
         with pytest.raises(NotImplementedError):
             await self.mtcs.open_dome_shutter()
 
     async def test_prepare_for_flatfield(self) -> None:
-
         with pytest.raises(NotImplementedError):
             await self.mtcs.prepare_for_flatfield()
 
     async def test_prepare_for_onsky(self) -> None:
-
         with pytest.raises(NotImplementedError):
             await self.mtcs.prepare_for_onsky()
 
     async def test_shutdown(self) -> None:
-
         with pytest.raises(NotImplementedError):
             await self.mtcs.shutdown()
 
     async def test_stop_all(self) -> None:
-
         with pytest.raises(NotImplementedError):
             await self.mtcs.stop_all()
 
     async def test_raise_m1m3(self) -> None:
-
         await self.mtcs.enable()
         await self.mtcs.assert_all_enabled()
 
@@ -831,7 +794,6 @@ class TestMTCS(MTCSAsyncMock):
         )
 
     async def test_raise_m1m3_when_active(self) -> None:
-
         await self.mtcs.enable()
         await self.mtcs.assert_all_enabled()
 
@@ -846,7 +808,6 @@ class TestMTCS(MTCSAsyncMock):
         self.mtcs.rem.mtm1m3.evt_detailedState.next.assert_not_awaited()
 
     async def test_raise_m1m3_aborted(self) -> None:
-
         await self.mtcs.enable()
         await self.mtcs.assert_all_enabled()
 
@@ -878,7 +839,6 @@ class TestMTCS(MTCSAsyncMock):
         )
 
     async def test_raise_m1m3_not_raisable(self) -> None:
-
         await self.mtcs.enable()
         await self.mtcs.assert_all_enabled()
 
@@ -889,7 +849,6 @@ class TestMTCS(MTCSAsyncMock):
                 idl.enums.MTM1M3.DetailedState.PARKED,
                 idl.enums.MTM1M3.DetailedState.PARKEDENGINEERING,
             }:
-
                 self.log.debug(
                     f"Test m1m3 raise fails if detailed state is {m1m3_detailed_state!r}"
                 )
@@ -899,7 +858,6 @@ class TestMTCS(MTCSAsyncMock):
                     await self.mtcs.raise_m1m3()
 
     async def test_lower_m1m3_when_active(self) -> None:
-
         await self.mtcs.enable()
         await self.mtcs.assert_all_enabled()
 
@@ -924,7 +882,6 @@ class TestMTCS(MTCSAsyncMock):
         )
 
     async def test_lower_m1m3_when_parked(self) -> None:
-
         await self.mtcs.lower_m1m3()
 
         self.mtcs.rem.mtm1m3.evt_detailedState.aget.assert_awaited()
@@ -933,7 +890,6 @@ class TestMTCS(MTCSAsyncMock):
         self.mtcs.rem.mtm1m3.evt_detailedState.next.assert_not_awaited()
 
     async def test_lower_m1m3_not_lowerable(self) -> None:
-
         for m1m3_detailed_state in idl.enums.MTM1M3.DetailedState:
             if m1m3_detailed_state not in {
                 idl.enums.MTM1M3.DetailedState.ACTIVE,
@@ -941,7 +897,6 @@ class TestMTCS(MTCSAsyncMock):
                 idl.enums.MTM1M3.DetailedState.PARKED,
                 idl.enums.MTM1M3.DetailedState.PARKEDENGINEERING,
             }:
-
                 self.log.debug(
                     f"Test m1m3 raise fails is detailed state is {m1m3_detailed_state!r}"
                 )
@@ -951,7 +906,6 @@ class TestMTCS(MTCSAsyncMock):
                     await self.mtcs.raise_m1m3()
 
     async def test_abort_raise_m1m3(self) -> None:
-
         self._mtm1m3_evt_detailed_state.detailedState = (
             idl.enums.MTM1M3.DetailedState.RAISING
         )
@@ -970,7 +924,6 @@ class TestMTCS(MTCSAsyncMock):
         )
 
     async def test_abort_raise_m1m3_active(self) -> None:
-
         await self.mtcs.enable()
         await self.mtcs.assert_all_enabled()
 
@@ -984,7 +937,6 @@ class TestMTCS(MTCSAsyncMock):
         self.mtcs.rem.mtm1m3.cmd_abortRaiseM1M3.start.assert_not_awaited()
 
     async def test_abort_raise_m1m3_parked(self) -> None:
-
         await self.mtcs.enable()
         await self.mtcs.assert_all_enabled()
 
@@ -997,7 +949,6 @@ class TestMTCS(MTCSAsyncMock):
         self.mtcs.rem.mtm1m3.cmd_abortRaiseM1M3.start.assert_not_awaited()
 
     async def test_enable_m1m3_balance_system(self) -> None:
-
         await self.mtcs.enable_m1m3_balance_system()
 
         if hasattr(self.mtcs.rem.mtm1m3, "evt_appliedBalanceForces"):
@@ -1009,7 +960,6 @@ class TestMTCS(MTCSAsyncMock):
         )
 
     async def test_enable_m1m3_balance_system_when_enabled(self) -> None:
-
         self._mtm1m3_evt_applied_balance_forces.forceMagnitude = 2000
 
         # Check that it logs a warning...
@@ -1019,7 +969,6 @@ class TestMTCS(MTCSAsyncMock):
         self.mtcs.rem.mtm1m3.cmd_enableHardpointCorrections.start.assert_not_awaited()
 
     async def test_wait_m1m3_force_balance_system(self) -> None:
-
         await self._execute_enable_hardpoint_corrections()
 
         # Use a shorter timeout on wait_for than in the call to
@@ -1032,7 +981,6 @@ class TestMTCS(MTCSAsyncMock):
         )
 
     async def test_wait_m1m3_force_balance_system_fail_when_off(self) -> None:
-
         with self.assertLogs(self.log.name, level=logging.WARNING), pytest.raises(
             RuntimeError
         ):
@@ -1041,7 +989,6 @@ class TestMTCS(MTCSAsyncMock):
             )
 
     async def test_reset_m1m3_forces(self) -> None:
-
         await self.mtcs.reset_m1m3_forces()
 
         self.mtcs.rem.mtm1m3.cmd_clearActiveOpticForces.start.assert_awaited_once()
@@ -1050,7 +997,6 @@ class TestMTCS(MTCSAsyncMock):
         )
 
     async def test_enable_m2_balance_system(self) -> None:
-
         await self.mtcs.enable_m2_balance_system()
 
         self.mtcs.rem.mtm2.evt_forceBalanceSystemStatus.aget.assert_awaited_once_with(
@@ -1065,7 +1011,6 @@ class TestMTCS(MTCSAsyncMock):
         )
 
     async def test_enable_m2_balance_system_when_on(self) -> None:
-
         self._mtm2_evt_force_balance_system_status.status = True
 
         await self.mtcs.enable_m2_balance_system()
@@ -1078,7 +1023,6 @@ class TestMTCS(MTCSAsyncMock):
         self.mtcs.rem.mtm2.evt_forceBalanceSystemStatus.next.assert_not_awaited()
 
     async def test_reset_m2_forces(self) -> None:
-
         await self.mtcs.reset_m2_forces()
 
         self.mtcs.rem.mtm2.cmd_resetForceOffsets.start.assert_awaited_with(
@@ -1086,7 +1030,6 @@ class TestMTCS(MTCSAsyncMock):
         )
 
     async def test_enable_compensation_mode_for_hexapod_1(self) -> None:
-
         self._mthexapod_1_evt_compensation_mode.enabled = False
 
         await self.mtcs.enable_compensation_mode(component="mthexapod_1")
@@ -1097,7 +1040,6 @@ class TestMTCS(MTCSAsyncMock):
         )
 
     async def test_enable_compensation_mode_for_hexapod_2(self) -> None:
-
         self._mthexapod_2_evt_compensation_mode.enabled = False
 
         await self.mtcs.enable_compensation_mode(component="mthexapod_2")
@@ -1108,7 +1050,6 @@ class TestMTCS(MTCSAsyncMock):
         )
 
     async def test_enable_compensation_mode_when_enabled(self) -> None:
-
         self._mthexapod_1_evt_compensation_mode.enabled = True
 
         await self.mtcs.enable_compensation_mode(component="mthexapod_1")
@@ -1116,12 +1057,10 @@ class TestMTCS(MTCSAsyncMock):
         self.mtcs.rem.mthexapod_1.cmd_setCompensationMode.set_start.assert_not_awaited()
 
     async def test_enable_compensation_mode_bad_component(self) -> None:
-
         with pytest.raises(AssertionError):
             await self.mtcs.enable_compensation_mode(component="mtm1m3")
 
     async def test_disable_compensation_mode_for_hexapod_1(self) -> None:
-
         self._mthexapod_1_evt_compensation_mode.enabled = True
 
         await self.mtcs.disable_compensation_mode(component="mthexapod_1")
@@ -1132,7 +1071,6 @@ class TestMTCS(MTCSAsyncMock):
         )
 
     async def test_disable_compensation_mode_when_disabled(self) -> None:
-
         self._mthexapod_1_evt_compensation_mode.enabled = False
 
         await self.mtcs.disable_compensation_mode(component="mthexapod_1")
@@ -1140,12 +1078,10 @@ class TestMTCS(MTCSAsyncMock):
         self.mtcs.rem.mthexapod_1.cmd_setCompensationMode.set_start.assert_not_awaited()
 
     async def test_disable_compensation_mode_bad_component(self) -> None:
-
         with pytest.raises(AssertionError):
             await self.mtcs.enable_compensation_mode(component="mtm1m3")
 
     async def test_move_rotator(self) -> None:
-
         position = 10.0
 
         await self.mtcs.move_rotator(position=position)
@@ -1163,7 +1099,6 @@ class TestMTCS(MTCSAsyncMock):
         )
 
     async def test_move_camera_hexapod(self) -> None:
-
         hexapod_positions = dict([(axis, np.random.rand()) for axis in "xyzuv"])
 
         await self.mtcs.move_camera_hexapod(**hexapod_positions)
@@ -1190,7 +1125,6 @@ class TestMTCS(MTCSAsyncMock):
         )
 
     async def test_move_m2_hexapod(self) -> None:
-
         hexapod_positions = dict([(axis, np.random.rand()) for axis in "xyzuv"])
 
         await self.mtcs.move_m2_hexapod(**hexapod_positions)
@@ -1217,7 +1151,6 @@ class TestMTCS(MTCSAsyncMock):
         )
 
     async def test_offset_camera_hexapod(self) -> None:
-
         hexapod_positions = dict([(axis, np.random.rand()) for axis in "xyzuv"])
 
         await self.mtcs.offset_camera_hexapod(**hexapod_positions)
@@ -1244,7 +1177,6 @@ class TestMTCS(MTCSAsyncMock):
         )
 
     async def test_offset_m2_hexapod(self) -> None:
-
         hexapod_positions = dict([(axis, np.random.rand()) for axis in "xyzuv"])
 
         await self.mtcs.offset_m2_hexapod(**hexapod_positions)
@@ -1271,7 +1203,6 @@ class TestMTCS(MTCSAsyncMock):
         )
 
     async def test_reset_camera_hexapod_position(self) -> None:
-
         self._mthexapod_1_evt_uncompensated_position.z = 10.0
 
         await self.mtcs.reset_camera_hexapod_position()

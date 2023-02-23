@@ -59,7 +59,6 @@ class TestBaseGroup(RemoteGroupTestCase, unittest.IsolatedAsyncioTestCase):
     async def basic_make_group(
         self, usage: typing.Optional[int] = None
     ) -> typing.Iterable[typing.Union[RemoteGroup, salobj.BaseCsc]]:
-
         self.ntest = 4
 
         self.basegroup = RemoteGroup(
@@ -77,7 +76,6 @@ class TestBaseGroup(RemoteGroupTestCase, unittest.IsolatedAsyncioTestCase):
         return (self.basegroup, *self.mock_test)
 
     async def test_usage_resources(self) -> None:
-
         use_case = UsagesResources(
             components_attr=["test_1", "test_2"], readonly=False, generics=["testTopic"]
         )
@@ -116,11 +114,9 @@ class TestBaseGroup(RemoteGroupTestCase, unittest.IsolatedAsyncioTestCase):
             )
 
     async def test_basic(self) -> None:
-
         async with self.make_group(
             usage=Usages.StateTransition + Usages.MonitorHeartBeat
         ):
-
             # Check get heartbeat
             for comp in self.basegroup.components_attr:
                 with self.subTest(msg=f"Check get heartbeat from {comp}.", comp=comp):
@@ -165,7 +161,6 @@ class TestBaseGroup(RemoteGroupTestCase, unittest.IsolatedAsyncioTestCase):
         async with self.make_group(
             usage=Usages.StateTransition + Usages.MonitorHeartBeat
         ):
-
             with pytest.raises(AssertionError):
                 await self.basegroup.assert_all_enabled()
 
@@ -175,7 +170,6 @@ class TestBaseGroup(RemoteGroupTestCase, unittest.IsolatedAsyncioTestCase):
 
     async def test_get_simulation_mode(self) -> None:
         async with self.make_group(usage=Usages.CheckSimulationMode):
-
             component_simulation_mode = await self.basegroup.get_simulation_mode()
 
             assert len(component_simulation_mode) == len(self.basegroup.components_attr)
@@ -193,7 +187,6 @@ class TestBaseGroup(RemoteGroupTestCase, unittest.IsolatedAsyncioTestCase):
 
     async def test_get_software_versions(self) -> None:
         async with self.make_group(usage=Usages.CheckSoftwareVersions):
-
             software_versions = await self.basegroup.get_software_versions()
 
             assert len(software_versions) == len(self.basegroup.components_attr)
@@ -226,7 +219,6 @@ class TestBaseGroup(RemoteGroupTestCase, unittest.IsolatedAsyncioTestCase):
         async with self.make_group(
             usage=Usages.DryTest
         ), MockAuthorizeCsc() as authorize_csc:
-
             await self.basegroup.request_authorization()
 
             assert authorize_csc.authorized_users == f"+{self.basegroup.get_identity()}"
@@ -236,7 +228,6 @@ class TestBaseGroup(RemoteGroupTestCase, unittest.IsolatedAsyncioTestCase):
         async with self.make_group(
             usage=Usages.DryTest
         ), MockAuthorizeCsc() as authorize_csc:
-
             await self.basegroup.release_authorization()
 
             assert authorize_csc.authorized_users == f"-{self.basegroup.get_identity()}"

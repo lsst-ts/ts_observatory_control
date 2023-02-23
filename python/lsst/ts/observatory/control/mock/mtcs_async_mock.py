@@ -311,11 +311,9 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
         self._mtmount_evt_cameraCableWrapFollowing.enabled = 0
 
     async def mtrotator_cmd_move(self, *args: typing.Any, **kwargs: typing.Any) -> None:
-
         asyncio.create_task(self._mtrotator_move(position=kwargs.get("position", 0.0)))
 
     async def _mtrotator_move(self, position: float) -> None:
-
         self._mtrotator_evt_in_position.inPosition = False
 
         position_vector = (
@@ -384,7 +382,6 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
     async def mtm1m3_cmd_abort_raise_m1m3(
         self, *args: typing.Any, **kwargs: typing.Any
     ) -> None:
-
         if self._mtm1m3_evt_detailed_state.detailedState in {
             idl.enums.MTM1M3.DetailedState.RAISINGENGINEERING,
             idl.enums.MTM1M3.DetailedState.RAISING,
@@ -434,7 +431,6 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
         )
 
     async def execute_abort_raise_m1m3(self) -> None:
-
         if not self._mtm1m3_raise_task.done():
             self.log.debug("Cancel m1m3 raise task...")
             self._mtm1m3_raise_task.cancel()
@@ -459,7 +455,6 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
             )
 
     async def _execute_enable_hardpoint_corrections(self) -> float:
-
         for force_magnitude in range(0, 2200, 200):
             self._mtm1m3_evt_applied_balance_forces.forceMagnitude = force_magnitude
             await asyncio.sleep(self.normal_process_time)
@@ -578,7 +573,6 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
         await asyncio.sleep(self.short_process_time)
 
     async def execute_hexapod_move(self, hexapod: int, **kwargs: typing.Any) -> None:
-
         self.log.debug(f"Execute hexapod {hexapod} movement.")
 
         getattr(self, f"_mthexapod_{hexapod}_evt_in_position").inPosition = False
@@ -611,7 +605,6 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
         getattr(self, f"_mthexapod_{hexapod}_evt_in_position").inPosition = True
 
     async def execute_hexapod_offset(self, hexapod: int, **kwargs: typing.Any) -> None:
-
         self.log.debug(f"Execute hexapod {hexapod} offset.")
         getattr(self, f"_mthexapod_{hexapod}_evt_in_position").inPosition = False
         desired_position = dict(

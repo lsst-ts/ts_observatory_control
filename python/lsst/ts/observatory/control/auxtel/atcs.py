@@ -63,7 +63,6 @@ class ATCSUsages(Usages):
     DryTest = 1 << 8
 
     def __iter__(self) -> typing.Iterator[int]:
-
         return iter(
             [
                 self.All,
@@ -119,7 +118,6 @@ class ATCS(BaseTCS):
         log: typing.Optional[logging.Logger] = None,
         intended_usage: typing.Optional[int] = None,
     ) -> None:
-
         super().__init__(
             components=[
                 "ATMCS",
@@ -365,7 +363,6 @@ class ATCS(BaseTCS):
 
         try:
             for i in range(self._dome_slew_max_iter):
-
                 self.log.debug(
                     f"[{i+1/self._dome_slew_max_iter}] Slewing dome to {az}..."
                 )
@@ -393,7 +390,6 @@ class ATCS(BaseTCS):
                         azimuth=target_az, timeout=self.long_long_timeout
                     )
         finally:
-
             self.stop_monitor()
 
             await monitor_position_task
@@ -615,7 +611,6 @@ class ATCS(BaseTCS):
         await self.close_m1_cover()
 
         if self.check.atdome:
-
             await self._check_atdome_scb_link()
 
             self.log.debug("Homing dome azimuth.")
@@ -785,7 +780,6 @@ class ATCS(BaseTCS):
         )
 
         if shutter_pos.state == ATDome.ShutterDoorState.CLOSED:
-
             self.log.debug("Opening dome shutter...")
 
             self.rem.atdome.evt_mainDoorState.flush()
@@ -943,7 +937,6 @@ class ATCS(BaseTCS):
         )
 
         if shutter_pos.state == ATDome.ShutterDoorState.OPENED or force:
-
             self.log.debug("Closing dome shutter...")
 
             await self.rem.atdome.cmd_closeShutter.set_start(
@@ -1055,7 +1048,6 @@ class ATCS(BaseTCS):
         )
 
         if cover_state.state == ATPneumatics.MirrorCoverState.CLOSED:
-
             self.log.debug("Opening M1 cover.")
 
             # Check that telescope is in a good elevation to open cover.
@@ -1064,7 +1056,6 @@ class ATCS(BaseTCS):
             tel_pos = await self.next_telescope_position(timeout=self.fast_timeout)
 
             if tel_pos.elevationCalculatedAngle[-1] < self.tel_el_operate_pneumatics:
-
                 nasmyth_angle = await self.get_selected_nasmyth_angle()
 
                 await self.point_azel(
@@ -1123,7 +1114,6 @@ class ATCS(BaseTCS):
         )
 
         if cover_state.state == ATPneumatics.MirrorCoverState.OPENED:
-
             self.log.debug("Closing M1 cover.")
             # Check that telescope is in a good elevation to close cover.
             # If not, point to current azimuth and elevation 75 degrees
@@ -1187,7 +1177,6 @@ class ATCS(BaseTCS):
         )
 
         if vent_state.position == ATPneumatics.VentsPosition.CLOSED:
-
             self.log.debug("Opening M1 vents.")
 
             try:
@@ -1229,7 +1218,6 @@ class ATCS(BaseTCS):
         )
 
         if vent_state.position == ATPneumatics.VentsPosition.OPENED:
-
             self.log.debug("Closing M1 vents.")
 
             try:
@@ -1713,7 +1701,6 @@ class ATCS(BaseTCS):
         timeout = self.open_dome_shutter_time
 
         while True:
-
             in_position = await self.rem.atdome.evt_shutterInPosition.next(
                 flush=False, timeout=timeout
             )
@@ -2089,7 +2076,6 @@ class ATCS(BaseTCS):
 
     @property
     def usages(self) -> typing.Dict[int, UsagesResources]:
-
         if self._usages is None:
             usages = super().usages
 

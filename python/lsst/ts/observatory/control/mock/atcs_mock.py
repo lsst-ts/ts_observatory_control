@@ -46,7 +46,6 @@ class ATCSMock(BaseGroupMock):
     """
 
     def __init__(self) -> None:
-
         super().__init__(
             components=[
                 "ATMCS",
@@ -160,7 +159,6 @@ class ATCSMock(BaseGroupMock):
         await self.atpneumatics.evt_m1CoverState.set_write(state=value)
 
     async def start_task_publish(self) -> None:
-
         if self.start_task.done():
             raise RuntimeError("Start task already completed.")
 
@@ -182,7 +180,6 @@ class ATCSMock(BaseGroupMock):
 
     async def atmcs_telemetry(self) -> None:
         while self.run_telemetry_loop:
-
             await self.atmcs.tel_mount_AzEl_Encoders.set_write(
                 elevationCalculatedAngle=np.zeros(100) + self.tel_alt,
                 azimuthCalculatedAngle=np.zeros(100) + self.tel_az,
@@ -216,13 +213,11 @@ class ATCSMock(BaseGroupMock):
             await asyncio.sleep(1.0)
 
     async def ataos_telemetry(self) -> None:
-
         await self.ataos.evt_correctionEnabled.set_write()
 
         correction_times = cycle((1, 1, 2, 4, 10))
         while self.run_telemetry_loop:
             if self.ataos.evt_summaryState.data.summaryState == salobj.State.ENABLED:
-
                 for correction in self.ataos_corrections:
                     if getattr(
                         self.ataos.evt_correctionEnabled.data, correction
@@ -259,7 +254,6 @@ class ATCSMock(BaseGroupMock):
         )
 
     async def open_m1_cover_callback(self, data: salobj.type_hints.BaseMsgType) -> None:
-
         if self.m1_cover_state != ATPneumatics.MirrorCoverState.CLOSED:
             raise RuntimeError(
                 f"M1 cover not closed. Current state is {self.m1_cover_state!r}"
@@ -375,7 +369,6 @@ class ATCSMock(BaseGroupMock):
         self.task_list.append(asyncio.create_task(self.wait_and_send_inposition()))
 
     async def move_dome(self, data: salobj.type_hints.BaseMsgType) -> None:
-
         print(f"Move dome {self.dom_az} -> {data.azimuth}")
         await self.atdome.evt_azimuthInPosition.set_write(
             inPosition=False, force_output=True
@@ -415,7 +408,6 @@ class ATCSMock(BaseGroupMock):
         print("Stop tracking end")
 
     async def wait_and_send_inposition(self) -> None:
-
         await asyncio.sleep(self.slew_time)
         await self.atmcs.evt_allAxesInPosition.set_write(
             inPosition=True, force_output=True
@@ -551,7 +543,6 @@ class ATCSMock(BaseGroupMock):
         await self.ataos.evt_correctionEnabled.set_write(**disable_corrections)
 
     async def close(self) -> None:
-
         # await all tasks created during runtime
 
         try:

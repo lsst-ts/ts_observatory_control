@@ -53,7 +53,6 @@ class TestUtils(unittest.TestCase):
         assert par_angle is not None
 
     def test_handle_exception_in_dict_items_nothing_to_handle(self) -> None:
-
         object_with_nothing_to_handle = dict(item1=1, item2=2, item3=3)
 
         # In this case the call below will not do anything, so there is no
@@ -61,7 +60,6 @@ class TestUtils(unittest.TestCase):
         handle_exception_in_dict_items(object_with_nothing_to_handle)
 
     def test_handle_exception_in_dict_items_with_one_exception(self) -> None:
-
         object_with_one_exception_to_handle = dict(
             item1=1, item2=2, item3=TypeError("Raising some exception for testing.")
         )
@@ -76,7 +74,6 @@ class TestUtils(unittest.TestCase):
             )
 
     def test_handle_exception_in_dict_items_with_two_exceptions(self) -> None:
-
         object_with_two_exceptions_to_handle = dict(
             item1=1,
             item2=asyncio.TimeoutError("Raising some exception for testing."),

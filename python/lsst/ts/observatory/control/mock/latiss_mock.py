@@ -41,7 +41,6 @@ class LATISSMock(BaseGroupMock):
     """
 
     def __init__(self) -> None:
-
         self.components = ("atspec", "atcam", "atheaderservice", "atoods")
 
         super().__init__(["ATSpectrograph", "ATCamera", "ATHeaderService", "ATOODS"])
@@ -110,7 +109,6 @@ class LATISSMock(BaseGroupMock):
             raise RuntimeError("numImages must be larger than 0.")
 
         for i in range(data.numImages):
-
             if self.atcam_image_started:
                 raise RuntimeError("Image started, cannot take image.")
 
