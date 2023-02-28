@@ -1210,7 +1210,23 @@ class RemoteGroup:
 
     async def show_auth_status(self) -> None:
         """Shows the authorization status of a group"""
-        raise NotImplementedError
+
+        async def _log_auth_status(c: salobj.Remote) -> None:
+            """Helper function to log authorization status"""
+            authList = await c.evt_authList.aget()
+            self.log.info(
+                f"private_identity: {authList.private_identity}, "
+                f"authorizedUsers: {authList.authorizedUsers}, "
+                f"nonAuthorizedCSCs: {authList.nonAuthorizedCSCs}"
+            )
+
+        await asyncio.gather(
+            *[
+                _log_auth_status(getattr(self.rem, c))
+                for c in self.components_attr
+                if getattr(self.rem, c) is not None
+            ]
+        )
 
     async def assert_user_is_authorized(
         self, user: typing.Optional[str] = None
