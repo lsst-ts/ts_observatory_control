@@ -1207,3 +1207,19 @@ class RemoteGroup:
 
     async def __aexit__(self, *args: typing.Any) -> None:
         await self.close()
+
+    async def show_auth_status(self) -> None:
+        """Shows the authorization status of a group"""
+        raise NotImplementedError
+
+    async def assert_user_is_authorized(
+        self, user: typing.Optional[str] = None
+    ) -> None:
+        """Asserts that the (current) user is authorized to command all the CSCs in the current group.
+
+        Parameters
+        ----------
+        user : str or None, Default: None
+            The user that should have the authorization to command all the CSCs in the group.
+        """
+        raise NotImplementedError
