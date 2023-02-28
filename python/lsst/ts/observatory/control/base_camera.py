@@ -67,7 +67,6 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
         intended_usage: typing.Optional[int] = None,
         tcs_ready_to_take_data: typing.Callable[[], typing.Awaitable] | None = None,
     ) -> None:
-
         super().__init__(
             components=components,
             domain=domain,
@@ -1096,7 +1095,6 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
         exp_ids = []
 
         async with self.cmd_lock:
-
             if camera_exposure.image_type == "BIAS" and camera_exposure.exp_time > 0.0:
                 self.log.warning("Image type is BIAS, ignoring exptime.")
                 camera_exposure.exp_time = 0.0
@@ -1244,7 +1242,6 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
 
         try:
             for i in range(camera_exposure.n):
-
                 self.camera.evt_endReadout.flush()
 
                 self.log.info(f"Start exposure {i+1} of {camera_exposure.n}")

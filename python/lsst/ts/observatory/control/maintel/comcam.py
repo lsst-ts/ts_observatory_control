@@ -48,7 +48,6 @@ class ComCamUsages(Usages):
     TakeImageFull = 1 << 4
 
     def __iter__(self) -> typing.Iterator[int]:
-
         return iter(
             [
                 self.All,
@@ -83,7 +82,6 @@ class ComCam(BaseCamera):
         intended_usage: int | None = None,
         tcs_ready_to_take_data: typing.Callable[[], typing.Awaitable] | None = None,
     ) -> None:
-
         super().__init__(
             components=["CCCamera", "CCHeaderService", "CCOODS"],
             instrument_setup_attributes=["filter"],
@@ -296,9 +294,7 @@ class ComCam(BaseCamera):
 
     @property
     def usages(self) -> typing.Dict[int, UsagesResources]:
-
         if self._usages is None:
-
             usages = super().usages
 
             usages[self.valid_use_cases.All] = UsagesResources(

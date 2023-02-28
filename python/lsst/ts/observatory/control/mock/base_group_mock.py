@@ -60,7 +60,6 @@ class BaseGroupMock:
     def __init__(
         self, components: typing.List[str], output_only: typing.Iterable[str] = ()
     ) -> None:
-
         self.log = logging.getLogger(type(self).__name__)
 
         self._components = components
@@ -146,7 +145,6 @@ class BaseGroupMock:
         self.done_task: asyncio.Future = asyncio.Future()
 
     async def start_task_publish(self) -> None:
-
         self.run_telemetry_loop = True
 
         if self.start_task.done():
@@ -267,7 +265,6 @@ class BaseGroupMock:
     async def get_exitControl_callback(
         self, data: salobj.type_hints.BaseMsgType, comp: str
     ) -> None:
-
         ss = getattr(self.controllers, comp).evt_summaryState
 
         if ss.data.summaryState != salobj.State.STANDBY:
@@ -289,7 +286,6 @@ class BaseGroupMock:
     async def get_enterControl_callback(
         self, data: salobj.type_hints.BaseMsgType, comp: str
     ) -> None:
-
         ss = getattr(self.controllers, comp).evt_summaryState
 
         if ss.data.summaryState != salobj.State.OFFLINE:
@@ -309,7 +305,6 @@ class BaseGroupMock:
     async def publish_detailed_state(
         self, component: str, detailed_state: salobj.type_hints.BaseMsgType
     ) -> None:
-
         if hasattr(getattr(self.controllers, component), "evt_detailedState"):
             try:
                 await getattr(self.controllers, component).evt_detailedState.set_write(
@@ -349,7 +344,6 @@ class BaseGroupMock:
         return self._output_only
 
     async def close(self) -> None:
-
         self.run_telemetry_loop = False
 
         task_list: typing.List[asyncio.Task] = []

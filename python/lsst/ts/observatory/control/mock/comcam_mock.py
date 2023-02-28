@@ -101,7 +101,6 @@ class ComCamMock(BaseGroupMock):
             raise RuntimeError("Calibration mode on, cannot run take images.")
 
         for i in range(data.numImages):
-
             if self.cccamera_image_started:
                 raise RuntimeError("Image started, cannot take image.")
 

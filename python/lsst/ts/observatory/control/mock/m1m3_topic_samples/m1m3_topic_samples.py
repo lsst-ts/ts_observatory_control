@@ -36,17 +36,19 @@ def get_m1m3_topic_samples_data_path() -> pathlib.Path:
     return pathlib.Path(__file__).resolve().parents[0]
 
 
-def get_m1m3_topic_samples_data() -> typing.Dict[
-    str,
+def get_m1m3_topic_samples_data() -> (
     typing.Dict[
         str,
-        typing.Union[
-            int,
-            float,
+        typing.Dict[
             str,
+            typing.Union[
+                int,
+                float,
+                str,
+            ],
         ],
-    ],
-]:
+    ]
+):
     """Get all M1M3 topic data samples.
 
     Returns

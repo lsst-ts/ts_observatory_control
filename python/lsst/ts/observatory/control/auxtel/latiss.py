@@ -52,7 +52,6 @@ class LATISSUsages(Usages):
     DryTest = 1 << 6
 
     def __iter__(self) -> typing.Iterator[int]:
-
         return iter(
             [
                 self.All,
@@ -100,7 +99,6 @@ class LATISS(BaseCamera):
             typing.Callable[[], typing.Awaitable]
         ] = None,
     ) -> None:
-
         super().__init__(
             components=["ATCamera", "ATSpectrograph", "ATHeaderService", "ATOODS"],
             instrument_setup_attributes=["filter", "grating", "linear_stage"],
@@ -321,7 +319,6 @@ class LATISS(BaseCamera):
 
     @property
     def usages(self) -> typing.Dict[int, UsagesResources]:
-
         if self._usages is None:
             usages = super().usages
 

@@ -68,7 +68,6 @@ class GenericCamera(BaseCamera):
         instrument_setup_attributes: typing.List[str] | None = None,
         tcs_ready_to_take_data: typing.Callable[[], typing.Awaitable] | None = None,
     ) -> None:
-
         self.index = index
 
         super().__init__(

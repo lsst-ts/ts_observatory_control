@@ -60,7 +60,6 @@ class ScriptQueue(RemoteGroup):
         log: logging.Logger | None = None,
         intended_usage: int | None = None,
     ) -> None:
-
         self.queue_index = queue_index
 
         super().__init__(

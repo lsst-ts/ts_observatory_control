@@ -30,7 +30,6 @@ from lsst.ts.observatory.control.utils.extras import (
 
 @pytest.mark.skipif(not DM_STACK_AVAILABLE, reason="DM stack not available.")
 def test_find_target_radec() -> None:
-
     radec_find = astropy.coordinates.ICRS(
         ra=astropy.coordinates.Angle(281.81158107, unit=astropy.units.deg),
         dec=astropy.coordinates.Angle(-25.88640971, unit=astropy.units.deg),

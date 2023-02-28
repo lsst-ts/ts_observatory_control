@@ -787,7 +787,6 @@ class BaseCameraAsyncMock(RemoteGroupAsyncMock):
 
     @contextlib.contextmanager
     def get_fake_tcs(self) -> typing.Generator[FakeTCS, None, None]:
-
         fake_tcs = FakeTCS(self.log)
         self.remote_group.ready_to_take_data = fake_tcs.ready_to_take_data
         yield fake_tcs
