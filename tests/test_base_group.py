@@ -236,3 +236,13 @@ class TestBaseGroup(RemoteGroupTestCase, unittest.IsolatedAsyncioTestCase):
     async def test_show_auth_status(self) -> None:
         async with self.make_group(usage=Usages.DryTest):
             await self.basegroup.show_auth_status()
+
+    async def test_assert_user_is_authorized(self) -> None:
+        async with self.make_group(
+            usage=Usages.DryTest
+        ), MockAuthorizeCsc() as authorize_csc:
+            await self.basegroup.request_authorization()
+            await self.basegroup.assert_user_is_authorized()
+            
+            identity = self.basegroup.get_identity()
+            await self.basegroup.assert_user_is_authorized(identity)

@@ -1238,4 +1238,16 @@ class RemoteGroup:
         user : str or None, Default: None
             The user that should have the authorization to command all the CSCs in the group.
         """
-        raise NotImplementedError
+        identity = user if user else self.get_identity()
+        
+        async def _assert_user_is_authorized(c: salobj.Remote) -> None:
+            authList = await c.evt_authList.aget()
+            assert identity in authList.authorizedUsers
+        
+        await asyncio.gather(
+            *[
+                _log_auth_status(getattr(self.rem, c))
+                for c in self.components_attr
+                if getattr(self.rem, c) is not None
+            ]
+        )
