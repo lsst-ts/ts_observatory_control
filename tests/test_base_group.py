@@ -232,3 +232,7 @@ class TestBaseGroup(RemoteGroupTestCase, unittest.IsolatedAsyncioTestCase):
 
             assert authorize_csc.authorized_users == f"-{self.basegroup.get_identity()}"
             assert authorize_csc.cscs_to_change == ",".join(self.basegroup.components)
+
+    async def test_show_auth_status(self) -> None:
+        async with self.make_group(usage=Usages.DryTest):
+            await self.basegroup.show_auth_status()
