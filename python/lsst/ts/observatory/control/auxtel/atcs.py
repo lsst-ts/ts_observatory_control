@@ -1602,6 +1602,11 @@ class ATCS(BaseTCS):
         -------
         status: `list` of `str`
             String with final status.
+
+        Raises
+        ------
+        RuntimeError:
+            If tasks times out.
         """
 
         # Creates a copy of check so it can be freely modified to control what
@@ -1611,12 +1616,32 @@ class ATCS(BaseTCS):
         tasks = list()
 
         if _check.atmcs:
-            tasks.append(self.wait_for_atmcs_inposition(timeout=timeout))
+            tasks.append(
+                asyncio.create_task(
+                    self.wait_for_atmcs_inposition(timeout=timeout),
+                    name="Telescope",
+                )
+            )
 
         if _check.atdome:
-            tasks.append(self.wait_for_atdome_inposition(timeout))
+            tasks.append(
+                asyncio.create_task(
+                    self.wait_for_atdome_inposition(timeout),
+                    name="Dome",
+                )
+            )
 
-        status = await asyncio.gather(*tasks)
+        try:
+            status = await asyncio.gather(*tasks)
+        except (TimeoutError, asyncio.exceptions.TimeoutError):
+            error_message = ""
+            for task in tasks:
+                if task.done() and task.exception():
+                    error_message += (
+                        f"{task.get_name()} timed out getting in position.\n"
+                    )
+            await self.cancel_not_done(tasks=tasks)
+            raise RuntimeError(error_message)
 
         if wait_settle:
             self.log.debug(
