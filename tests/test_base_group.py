@@ -17,6 +17,7 @@
 # GNU General Public License for more details.
 #
 # You should have received a copy of the GNU General Public License
+import logging
 import typing
 import unittest
 
@@ -235,7 +236,13 @@ class TestBaseGroup(RemoteGroupTestCase, unittest.IsolatedAsyncioTestCase):
 
     async def test_show_auth_status(self) -> None:
         async with self.make_group(usage=Usages.DryTest):
-            await self.basegroup.show_auth_status()
+            with self.assertLogs(
+                self.basegroup.log, level=logging.INFO
+            ) as base_group_logs:
+                await self.basegroup.show_auth_status()
+            assert "private_identity:" in base_group_logs.output
+            assert "authorizedUsers:" in base_group_logs.output
+            assert "nonAuthorizedCSCs:" in base_group_logs.output
 
     async def test_assert_user_is_authorized(self) -> None:
         async with self.make_group(

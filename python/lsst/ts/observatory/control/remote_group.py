@@ -1210,23 +1210,17 @@ class RemoteGroup:
 
     async def show_auth_status(self) -> None:
         """Shows the authorization status of a group"""
-
-        async def _log_auth_status(c: salobj.Remote) -> None:
-            """Helper function to log authorization status"""
-            authList = await c.evt_authList.aget()
-            self.log.info(
-                f"private_identity: {authList.private_identity}, "
-                f"authorizedUsers: {authList.authorizedUsers}, "
-                f"nonAuthorizedCSCs: {authList.nonAuthorizedCSCs}"
-            )
-
-        await asyncio.gather(
-            *[
-                _log_auth_status(getattr(self.rem, c))
-                for c in self.components_attr
-                if getattr(self.rem, c) is not None
-            ]
-        )
+        topics = await self._aget_topic_samples_for_components("evt_authList")
+        for remote, topic in topics.items():
+            if hasattr(topic, "private_identity"):
+                self.log.info(
+                    f"{remote} - "
+                    f"private_identity: {topic.private_identity}, "
+                    f"authorizedUsers: {topic.authorizedUsers}, "
+                    f"nonAuthorizedCSCs: {topic.nonAuthorizedCSCs}"
+                )
+            else:
+                self.log.error(f"{remote} - No auth list information available")
 
     async def assert_user_is_authorized(
         self, user: typing.Optional[str] = None
@@ -1239,6 +1233,7 @@ class RemoteGroup:
             The user that should have the authorization to command all the CSCs in the group.
         """
         identity = user if user else self.get_identity()
+<<<<<<< HEAD
         
         async def _assert_user_is_authorized(c: salobj.Remote) -> None:
             authList = await c.evt_authList.aget()
@@ -1251,3 +1246,23 @@ class RemoteGroup:
                 if getattr(self.rem, c) is not None
             ]
         )
+=======
+
+        topics = await self._aget_topic_samples_for_components("evt_authList")
+        nonAuthRemotes = []
+        for remote, topic in topics.items():
+            try:
+                assert identity in topic.authorizedUsers
+                self.log.info(f"{remote} - {identity} found in authList")
+            except AssertionError:
+                self.log.error(f"{remote} - {identity} not in authList")
+                nonAuthRemotes.append(remote)
+            except AttributeError:
+                self.log.error(f"{remote} - Could not retrieve authList")
+                nonAuthRemotes.append(remote)
+
+        if not nonAuthRemotes:
+            raise AssertionError(
+                f"Identity {identity} not in authorizedUsers of: [{', '.join(nonAuthRemotes)}]"
+            )
+>>>>>>> 49ccf3a (Update new methods remote_group.py to use ...)
