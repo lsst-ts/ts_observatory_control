@@ -978,6 +978,11 @@ class RemoteGroup:
 
         return work_components
 
+    def reset_checks(self) -> None:
+        """Reset all checks, enabling check for all components."""
+        for comp in self.components_attr:
+            setattr(self.check, comp, True)
+
     async def _aget_topic_samples_for_components(
         self,
         topic_name: str,
