@@ -1024,6 +1024,7 @@ class TestATTCS(ATCSAsyncMock):
     async def test_slew_icrs(self) -> None:
         await self.atcs.enable()
         await self.atcs.assert_all_enabled()
+        await self.atcs.enable_dome_following()
 
         name = "HD 185975"
         ra = "20 28 18.7402"
@@ -1059,6 +1060,7 @@ class TestATTCS(ATCSAsyncMock):
     async def test_slew_object(self) -> None:
         await self.atcs.enable()
         await self.atcs.assert_all_enabled()
+        await self.atcs.enable_dome_following()
 
         name = "HD 185975"
 
@@ -1094,11 +1096,11 @@ class TestATTCS(ATCSAsyncMock):
     async def test_slew_icrs_no_stop(self) -> None:
         await self.atcs.enable()
         await self.atcs.assert_all_enabled()
+        await self.atcs.enable_dome_following()
 
         name = "HD 185975"
         ra = "20:28:18.74"
         dec = "-87:28:19.9"
-
         await self.atcs.slew_icrs(
             ra=ra, dec=dec, target_name=name, stop_before_slew=False
         )
@@ -1136,6 +1138,7 @@ class TestATTCS(ATCSAsyncMock):
     async def test_slew_icrs_rot(self) -> None:
         await self.atcs.enable()
         await self.atcs.assert_all_enabled()
+        await self.atcs.enable_dome_following()
 
         name = "HD 185975"
         ra = "20:28:18.74"
@@ -1179,6 +1182,7 @@ class TestATTCS(ATCSAsyncMock):
     async def test_slew_icrs_rot_physical(self) -> None:
         await self.atcs.enable()
         await self.atcs.assert_all_enabled()
+        await self.atcs.enable_dome_following()
 
         name = "HD 185975"
         ra = "20:28:18.74"
@@ -1220,6 +1224,7 @@ class TestATTCS(ATCSAsyncMock):
     async def test_slew_icrs_rot_physical_sky(self) -> None:
         await self.atcs.enable()
         await self.atcs.assert_all_enabled()
+        await self.atcs.enable_dome_following()
 
         name = "HD 185975"
         ra = "20:28:18.74"
@@ -1263,6 +1268,7 @@ class TestATTCS(ATCSAsyncMock):
     async def test_slew_icrs_rot_sky_init_angle_out_of_range(self) -> None:
         await self.atcs.enable()
         await self.atcs.assert_all_enabled()
+        await self.atcs.enable_dome_following()
 
         name = "HD 185975"
         ra = "20:28:18.74"
@@ -1348,9 +1354,53 @@ class TestATTCS(ATCSAsyncMock):
 
         self.atcs.rem.atptg.cmd_raDecTarget.start.assert_awaited_once()
 
+    async def test_slew_icrs_fail_telescope_timeout_error(self) -> None:
+        await self.atcs.enable()
+        await self.atcs.assert_all_enabled()
+        await self.atcs.enable_dome_following()
+
+        name = "HD 185975"
+        ra = "20:28:18.74"
+        dec = "-87:28:19.9"
+        rot = 45.0
+
+        with self.timeout_atmcs_ra_dec_target(delay=1.0), self.assertRaisesRegex(
+            RuntimeError, "Telescope timed out getting in position."
+        ):
+            await self.atcs.slew_icrs(
+                ra=ra, dec=dec, rot=rot, rot_type=RotType.Sky, target_name=name
+            )
+
+        self.atcs.rem.atptg.cmd_raDecTarget.start.assert_awaited_once()
+
+    async def test_slew_icrs_fail_dome_timeout_error(self) -> None:
+        await self.atcs.enable()
+        await self.atcs.assert_all_enabled()
+        await self.atcs.enable_dome_following()
+
+        name = "HD 185975"
+        ra = "20:28:18.74"
+        dec = "-87:28:19.9"
+        rot = 45.0
+
+        with self.timeout_atdome_ra_dec_target(), self.assertRaisesRegex(
+            RuntimeError, "Dome timed out getting in position."
+        ):
+            await self.atcs.slew_icrs(
+                ra=ra,
+                dec=dec,
+                rot=rot,
+                rot_type=RotType.Sky,
+                target_name=name,
+                slew_timeout=1.0,
+            )
+
+        self.atcs.rem.atptg.cmd_raDecTarget.start.assert_awaited_once()
+
     async def test_slew_icrs_with_offset(self) -> None:
         await self.atcs.enable()
         await self.atcs.assert_all_enabled()
+        await self.atcs.enable_dome_following()
 
         name = "HD 185975"
         ra = "20:28:18.74"
@@ -1808,3 +1858,21 @@ class TestATTCS(ATCSAsyncMock):
 
         yield
         self.atcs.rem.atptg.cmd_raDecTarget.start.side_effect = None
+
+    @contextmanager
+    def timeout_atmcs_ra_dec_target(
+        self, delay: float | int
+    ) -> typing.Generator[None, None, None]:
+        async def _delay(**kwargs: typing.Any) -> None:
+            await asyncio.sleep(delay)
+            raise TimeoutError("Unit test timeout error...")
+
+        self._atmcs_all_axes_in_position.inPosition = False
+        self.atcs.rem.atmcs.evt_allAxesInPosition.next.side_effect = _delay
+        yield
+
+    @contextmanager
+    def timeout_atdome_ra_dec_target(self) -> typing.Generator[None, None, None]:
+        self._atdome_position.azimuthPosition = 10.0
+        self._atdome_in_position.inPosition = False
+        yield

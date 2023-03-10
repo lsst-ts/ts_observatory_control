@@ -1789,7 +1789,9 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
         str
             Message indicating the component is in position.
         """
-        self.log.debug(f"Wait for {component_name} in position event.")
+        self.log.debug(
+            f"Wait for {component_name} in position event, (timeout={timeout}s)."
+        )
 
         in_position_event.flush()
         in_position = await in_position_event.aget(timeout=self.fast_timeout)

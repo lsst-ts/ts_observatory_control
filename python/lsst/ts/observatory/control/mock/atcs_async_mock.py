@@ -116,6 +116,7 @@ class ATCSAsyncMock(RemoteGroupAsyncMock):
         # Setup required ATDome data
         self.dome_slit_positioning_time = 0.5
         self._atdome_position = types.SimpleNamespace(azimuthPosition=0.0)
+        self._atdome_in_position = types.SimpleNamespace(inPosition=False)
 
         self._atdome_azimth_commanded_state = types.SimpleNamespace(azimuth=0.0)
 
@@ -209,6 +210,8 @@ class ATCSAsyncMock(RemoteGroupAsyncMock):
             **{
                 "tel_position.next.side_effect": self.atdome_tel_position,
                 "tel_position.aget.side_effect": self.atdome_tel_position,
+                "evt_azimuthInPosition.aget.side_effect": self.atdome_evt_in_position,
+                "evt_azimuthInPosition.next.side_effect": self.atdome_evt_in_position,
                 "evt_azimuthCommandedState.aget.side_effect": self.atdome_evt_azimuth_commanded_state,
                 "evt_azimuthCommandedState.next.side_effect": self.atdome_evt_azimuth_commanded_state,
                 "evt_azimuthState.next.side_effect": self.atdome_evt_azimuth_state,
@@ -218,6 +221,7 @@ class ATCSAsyncMock(RemoteGroupAsyncMock):
                 "evt_mainDoorState.next.side_effect": self.atdome_evt_main_door_state,
                 "cmd_homeAzimuth.start.side_effect": self.atdome_cmd_home_azimuth,
                 "cmd_moveShutterMainDoor.set_start.side_effect": self.atdome_cmd_move_shutter_main_door,
+                "cmd_moveAzimuth.set_start.side_effect": self.atdome_cmd_move_azimuth,
                 "cmd_closeShutter.set_start.side_effect": self.atdome_cmd_close_shutter,
                 "cmd_stopMotion.start.side_effect": self.atdome_cmd_stop_motion,
             }
@@ -288,6 +292,12 @@ class ATCSAsyncMock(RemoteGroupAsyncMock):
     ) -> types.SimpleNamespace:
         return self._atdome_position
 
+    async def atdome_evt_in_position(
+        self, *args: typing.Any, **kwargs: typing.Any
+    ) -> types.SimpleNamespace:
+        await asyncio.sleep(1.0)
+        return self._atdome_in_position
+
     async def atdome_evt_azimuth_commanded_state(
         self, *args: typing.Any, **kwargs: typing.Any
     ) -> types.SimpleNamespace:
@@ -334,6 +344,24 @@ class ATCSAsyncMock(RemoteGroupAsyncMock):
         asyncio.create_task(
             self._atdome_cmd_move_shutter_main_door(open=kwargs["open"])
         )
+
+    async def atdome_cmd_move_azimuth(
+        self, *args: typing.Any, **kwargs: typing.Any
+    ) -> None:
+        self._atdome_in_position.inPosition = False
+        target_position = kwargs["azimuth"]
+
+        asyncio.create_task(self._atdome_move_azimuth(target_position))
+
+    async def _atdome_move_azimuth(self, target_position: float) -> None:
+        dome_positions = np.arange(
+            self._atdome_position.azimuthPosition, target_position, 1.0
+        )
+        for position in dome_positions:
+            self._atdome_position.azimuthPosition = position
+            await asyncio.sleep(0.5)
+        self._atdome_position.azimuthPosition = target_position
+        self._atdome_in_position.inPosition = True
 
     async def atdome_cmd_close_shutter(
         self, *args: typing.Any, **kwargs: typing.Any

@@ -1414,7 +1414,7 @@ class ATCS(BaseTCS):
         self.log.debug("Scheduling check coroutines")
 
         self.scheduled_coro.append(
-            asyncio.ensure_future(
+            asyncio.create_task(
                 self.wait_for_inposition(
                     timeout=slew_timeout,
                     wait_settle=wait_settle,
@@ -1423,18 +1423,19 @@ class ATCS(BaseTCS):
             )
         )
 
-        asyncio.ensure_future(self.monitor_position(check=_check))
+        asyncio.create_task(self.monitor_position(check=_check))
 
-        for comp in self.components_attr:
-            if getattr(_check, comp):
-                getattr(self.rem, comp).evt_summaryState.flush()
-                self.scheduled_coro.append(
-                    asyncio.ensure_future(self.check_component_state(comp))
-                )
+        try:
+            for comp in self.components_attr:
+                if getattr(_check, comp):
+                    getattr(self.rem, comp).evt_summaryState.flush()
+                    self.scheduled_coro.append(
+                        asyncio.create_task(self.check_component_state(comp))
+                    )
 
-        await self.process_as_completed(self.scheduled_coro)
-
-        self.stop_monitor()
+            await self.process_as_completed(self.scheduled_coro)
+        finally:
+            self.stop_monitor()
 
     async def get_bore_sight_angle(self) -> float:
         """Get the instrument bore sight angle with respect to the telescope
@@ -1601,6 +1602,11 @@ class ATCS(BaseTCS):
         -------
         status: `list` of `str`
             String with final status.
+
+        Raises
+        ------
+        RuntimeError:
+            If tasks times out.
         """
 
         # Creates a copy of check so it can be freely modified to control what
@@ -1610,12 +1616,32 @@ class ATCS(BaseTCS):
         tasks = list()
 
         if _check.atmcs:
-            tasks.append(self.wait_for_atmcs_inposition(timeout=timeout))
+            tasks.append(
+                asyncio.create_task(
+                    self.wait_for_atmcs_inposition(timeout=timeout),
+                    name="Telescope",
+                )
+            )
 
         if _check.atdome:
-            tasks.append(self.wait_for_atdome_inposition(timeout))
+            tasks.append(
+                asyncio.create_task(
+                    self.wait_for_atdome_inposition(timeout),
+                    name="Dome",
+                )
+            )
 
-        status = await asyncio.gather(*tasks)
+        try:
+            status = await asyncio.gather(*tasks)
+        except (TimeoutError, asyncio.exceptions.TimeoutError):
+            error_message = ""
+            for task in tasks:
+                if task.done() and task.exception():
+                    error_message += (
+                        f"{task.get_name()} timed out getting in position.\n"
+                    )
+            await self.cancel_not_done(tasks=tasks)
+            raise RuntimeError(error_message)
 
         if wait_settle:
             self.log.debug(
@@ -1749,10 +1775,11 @@ class ATCS(BaseTCS):
         in_position = False
 
         if not self.is_monitor_enabled():
-            self.log.warning("Monitor disabled. Enabling and starting monitoring loop.")
+            self.log.debug("Monitor disabled. Enabling and starting monitoring loop.")
             self.enable_monitor()
 
         while self.is_monitor_enabled():
+            status = ""
             if _check.atmcs:
                 comm_pos = await self.next_telescope_target(timeout=self.long_timeout)
                 tel_pos = await self.next_telescope_position(timeout=self.fast_timeout)
@@ -1776,6 +1803,12 @@ class ATCS(BaseTCS):
                 az_in_position = np.abs(az_dif) < self.tel_az_slew_tolerance
                 na1_in_position = np.abs(nasm1_dif) < self.tel_nasm_slew_tolerance
                 na2_in_position = np.abs(nasm2_dif) < self.tel_nasm_slew_tolerance
+                status += (
+                    f"[Tel]: Az = {tel_pos.azimuthCalculatedAngle[-1]:+08.3f}[{az_dif.deg:+6.1f}]; "
+                    f"El = {tel_pos.elevationCalculatedAngle[-1]:+08.3f}[{alt_dif.deg:+6.1f}] "
+                    f"[Nas1]: {nasm_pos.nasmyth1CalculatedAngle[-1]:+08.3f}[{nasm1_dif.deg:+6.1f}] "
+                    f"[Nas2]: {nasm_pos.nasmyth2CalculatedAngle[-1]:+08.3f}[{nasm2_dif.deg:+6.1f}] "
+                )
 
             if _check.atdome:
                 dom_pos = await self.rem.atdome.tel_position.next(
@@ -1788,15 +1821,15 @@ class ATCS(BaseTCS):
                 dom_az_dif = angle_diff(dom_comm_pos.azimuth, dom_pos.azimuthPosition)
 
                 dom_in_position = np.abs(dom_az_dif) < self.dome_slew_tolerance
+                status += f"[Dome] Az = {dom_pos.azimuthPosition:+08.3f}[{dom_az_dif.deg:+6.1f}]"
+
                 if dom_in_position:
                     self.dome_az_in_position.set()
 
+            if status:
+                self.log.info(status)
+
             if _check.atmcs and _check.atdome:
-                self.log.info(
-                    f"[Telescope] delta Alt = {alt_dif:+08.3f}; delta Az = {az_dif:+08.3f}; "
-                    f"delta N1 = {nasm1_dif:+08.3f}; delta N2 = {nasm2_dif:+08.3f} "
-                    f"[Dome] delta Az = {dom_az_dif:+08.3f}"
-                )
                 in_position = (
                     alt_in_position
                     and az_in_position
@@ -1805,13 +1838,8 @@ class ATCS(BaseTCS):
                     and dom_in_position
                 )
             elif _check.atdome:
-                self.log.info(f"[Dome] delta Az = {dom_az_dif:+08.3f}")
                 in_position = dom_in_position
             elif _check.atmcs:
-                self.log.info(
-                    f"[Telescope] delta Alt = {alt_dif:+08.3f}; delta Az= {az_dif:+08.3f}; "
-                    f"delta N1 = {nasm1_dif:+08.3f}; delta N2 = {nasm2_dif:+08.3f} "
-                )
                 in_position = (
                     alt_in_position
                     and az_in_position
