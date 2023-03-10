@@ -6,6 +6,33 @@
 Version History
 ###############
 
+v0.24.3
+-------
+
+
+* In ``tests/auxtel/test_atcs.py``,  implement some small improvements in the ``ATCS`` test case.
+
+  * Call ``atcs.enable_dome_following`` in all ``test_slew``.
+    This will make sure the ``monitor_loop`` runs and checks the dome position.
+
+  * Add two new slew tests:
+
+    * Test slew icrs when telescope timeout arriving in position.
+
+    * Test slew icrs when dome timeout arriving in position.
+
+* In ``mock/atcs_async_mock.py``, add mocking for the atdome move azimuth command and in position event.
+
+* In ``base_tcs.py``, update ``BaseTCS._handle_in_position`` debug message to also display the timeout.
+
+* In ``auxtel/atcs.py``, update ``ATCS.monitor_position`` to make log messages more similar to the ones in ``MTCS``.
+
+* In ``auxtel/atcs.py``, update  ``ATCS.wait_for_inposition`` to improve reporting of timeout failures.
+  Instead of appending coroutines to the `tasks` list, use ``asyncio.create_task`` and give names to each of the tasks.
+  Then, instead of simply gathering the tasks, which leads to uncomprehensive  tracebacks when tasks timeouts, capture any exception and reprocess the error messages re-raising them as `RuntimeError` with a more comprehensive message.
+
+* In ``auxtel/atcs``, update ``ATCS._slew`` to use the more robust ``asyncio.create_task`` instead of ``ensure_future`` when scheduling background tasks.
+
 v0.24.2
 -------
 
