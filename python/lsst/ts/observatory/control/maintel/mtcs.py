@@ -1120,27 +1120,24 @@ class MTCS(BaseTCS):
                     f"command - 1: {hpWarning.limitSwitch1Operated[hp_index]}"
                     f" 2: {hpWarning.limitSwitch2Operated[hp_index]}"
                 )
+                self.log.info(f"Stopping movement on Hardpoing {hp_index}")
+                await self.rem.mtm1m3.cmd_stopHardpointMotion.set_start(
+                    timeout=self.fast_timeout
+                )
                 break
 
             # Check if timed out
             if timer_task.done():
+                self.log.info(f"Stopping movement on Hardpoing {hp_index}")
+                await self.rem.mtm1m3.cmd_stopHardpointMotion.set_start(
+                    timeout=self.fast_timeout
+                )
                 raise TimeoutError(
                     f"Hardpoing {hp_index} did not move {step_size} steps within"
-                    f" {self.long_long_timeout} seconds."
+                    f" {self.long_long_timeout} seconds. Enforcing an stop command."
                 )
 
             hpActuatorState = await self.rem.mtm1m3.evt_hardpointActuatorState.next()
-
-        # TODO: Do we need the stopHardpointMotion command below? The code
-        #  sends a cmd_moveHardpointActuators and later sends a
-        #  cmd_stopHardpointMotion command. Why do we need the stop? I thought
-        #  that the hardpoint would stop moving when reaching its position or
-        #  when hitting a limit switch (see the while loop right above)
-
-        # Stop hardpoint motion
-        await self.rem.mtm1m3.cmd_stopHardpointMotion.set_start(
-            timeout=self.fast_timeout
-        )
 
         # Give a little buffer room before completing this part of the test
         await asyncio.sleep(1)
