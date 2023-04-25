@@ -1243,3 +1243,14 @@ class TestMTCS(MTCSAsyncMock):
         self.mtcs.rem.mthexapod_2.evt_inPosition.next.assert_awaited_with(
             timeout=self.mtcs.long_timeout, flush=False
         )
+
+    async def test_move_m1m3_hp(self) -> None:
+        hp_index = 1
+        step_size = 1000
+
+        steps = [0] * 6
+        steps[hp_index] = step_size
+
+        await self.mtcs.move_m1m3_hp(hp_index=hp_index, step_size=step_size)
+
+        self._mthexapod_1_evt_compensation_mode.enabled = False

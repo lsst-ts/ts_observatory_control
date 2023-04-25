@@ -1075,6 +1075,84 @@ class MTCS(BaseTCS):
             component_name="MTRotator",
         )
 
+    async def move_m1m3_hp(self, hp_index: int, step_size: int) -> None:
+        """Move a single M1M3 hardpoint (hp) to a new position
+
+        Parameters
+        ----------
+        hp_index: `int`
+            Hardpoints index (from 0 to 5).
+        """
+        steps = [0] * 6
+        steps[hp_index] = step_size
+
+        self.log.info(f"Moving Hardpoint {hp_index} in {step_size} steps - Start")
+        await self.rem.mtm1m3.cmd_moveHardpointActuators.set_start(
+            steps=steps, timeout=self.long_timeout
+        )
+
+        # Wait a bit
+        await asyncio.sleep(1)
+
+        # Verify the commanded actuator is moving
+        hpActuatorState = await self.rem.mtm1m3.evt_hardpointActuatorState.aget()
+        assert (
+            hpActuatorState.motionState[hp_index]
+            == MTM1M3.HardpointActuatorMotionStates.STEPPING
+        )
+
+        # Timeout in case the actuator is not moving
+        timer_task = asyncio.create_task(asyncio.sleep(self.long_long_timeout))
+
+        # Wait for moving to complete or a limit switch is hit
+        hpActuatorState = await self.rem.mtm1m3.evt_hardpointActuatorState.next()
+        while (
+            hpActuatorState.motionState[hp_index]
+            == MTM1M3.HardpointActuatorMotionStates.STANDBY
+        ):
+            # Check if limit switch is hit
+            hpWarning = await self.rem.mtm1m3.evt_hardpointActuatorWarning.next()
+            if (hpWarning.limitSwitch1Operated[hp_index] and step_size > 0) or (
+                hpWarning.limitSwitch2Operated[hp_index] and step_size < 0
+            ):
+                self.log.warn(
+                    f"Limit switch on HP {hp_index} reached on {step_size} "
+                    f"command - 1: {hpWarning.limitSwitch1Operated[hp_index]}"
+                    f" 2: {hpWarning.limitSwitch2Operated[hp_index]}"
+                )
+                break
+
+            # Check if timed out
+            if timer_task.done():
+                raise TimeoutError(
+                    f"Hardpoing {hp_index} did not move {step_size} steps within"
+                    f" {self.long_long_timeout} seconds."
+                )
+
+            hpActuatorState = await self.rem.mtm1m3.evt_hardpointActuatorState.next()
+
+        # TODO: Do we need the stopHardpointMotion command below? The code
+        #  sends a cmd_moveHardpointActuators and later sends a
+        #  cmd_stopHardpointMotion command. Why do we need the stop? I thought
+        #  that the hardpoint would stop moving when reaching its position or
+        #  when hitting a limit switch (see the while loop right above)
+
+        # Stop hardpoint motion
+        await self.rem.mtm1m3.cmd_stopHardpointMotion.set_start(
+            timeout=self.fast_timeout
+        )
+
+        # Give a little buffer room before completing this part of the test
+        await asyncio.sleep(1)
+
+        # Verify hardpoint motion has stopped - useful when hit a limit switch
+        hpActuatorState = await self.rem.mtm1m3.evt_hardpointActuatorState.next()
+        assert (
+            hpActuatorState.motionState[hp_index]
+            == MTM1M3.HardpointActuatorMotionStates.STANDBY
+        )
+        self.log.info(f"Moving Hardpoint {hp_index} in {step_size} steps - Done")
+
     async def move_m2_hexapod(
         self,
         x: float,
