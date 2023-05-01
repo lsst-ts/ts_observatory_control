@@ -1051,7 +1051,7 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
         the field-of-view moving to the right, and therefore, the stellar
         positions will move to the left.
 
-        If the image is diplayed with y-axis in vertical position, increasing
+        If the image is displayed with y-axis in vertical position, increasing
         from bottom to top, a positive y-offset will result in field-of-view
         moving up, and therefore, the stellar positions will move down.
 
