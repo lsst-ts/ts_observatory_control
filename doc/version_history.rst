@@ -6,6 +6,11 @@
 Version History
 ###############
 
+v0.25.0
+-------
+
+* In ``BaseTCS``, add new ``offset_rot`` method to allow offsetting the rotator position.
+
 v0.24.3
 -------
 

@@ -1051,7 +1051,7 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
         the field-of-view moving to the right, and therefore, the stellar
         positions will move to the left.
 
-        If the image is diplayed with y-axis in vertical position, increasing
+        If the image is displayed with y-axis in vertical position, increasing
         from bottom to top, a positive y-offset will result in field-of-view
         moving up, and therefore, the stellar positions will move down.
 
@@ -1086,6 +1086,24 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
                 self.rotation_matrix(bore_sight_angle),
             )
             await self.offset_azel(az=az, el=el, relative=relative, absorb=False)
+
+    async def offset_rot(self, rot: float) -> None:
+        """Apply a rotation offset.
+
+        Parameters
+        ----------
+        rot : `float`
+            Rotator offset (deg).
+        """
+
+        self.log.debug(f"Offset rotator position by {rot} deg.")
+
+        await self._offset(
+            offset_cmd=getattr(self.rem, self.ptg_name).cmd_rotOffset.set_start(
+                iaa=rot,
+                timeout=self.fast_timeout,
+            )
+        )
 
     async def reset_offsets(
         self, absorbed: bool = True, non_absorbed: bool = True
