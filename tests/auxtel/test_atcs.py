@@ -1560,6 +1560,14 @@ class TestATTCS(ATCSAsyncMock):
             num=0,
         )
 
+    async def test_offset_rot(self) -> None:
+        await self.atcs.offset_rot(10.0)
+
+        self.atcs.rem.atptg.cmd_rotOffset.set_start.assert_awaited_with(
+            iaa=10.0,
+            timeout=self.atcs.fast_timeout,
+        )
+
     async def test_reset_offsets(self) -> None:
         await self.atcs.reset_offsets()
 
