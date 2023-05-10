@@ -779,7 +779,10 @@ class ATCS(BaseTCS):
             timeout=self.fast_timeout
         )
 
-        if shutter_pos.state == ATDome.ShutterDoorState.CLOSED:
+        if shutter_pos.state in {
+            ATDome.ShutterDoorState.CLOSED,
+            ATDome.ShutterDoorState.PARTIALLYOPENED,
+        }:
             self.log.debug("Opening dome shutter...")
 
             self.rem.atdome.evt_mainDoorState.flush()
@@ -815,9 +818,10 @@ class ATCS(BaseTCS):
         else:
             raise RuntimeError(
                 f"Shutter Door state is "
-                f"{ATDome.ShutterDoorState(shutter_pos.state)}. "
-                f"expected either {ATDome.ShutterDoorState.CLOSED} or "
-                f"{ATDome.ShutterDoorState.OPENED}"
+                f"{ATDome.ShutterDoorState(shutter_pos.state)!r}. "
+                f"expected either {ATDome.ShutterDoorState.CLOSED!r}, "
+                f"{ATDome.ShutterDoorState.PARTIALLYOPENED!r} or "
+                f"{ATDome.ShutterDoorState.OPENED!r}"
             )
 
     async def home_dome(self, force: bool = False) -> None:
