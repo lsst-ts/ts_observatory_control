@@ -1568,6 +1568,15 @@ class TestATTCS(ATCSAsyncMock):
             timeout=self.atcs.fast_timeout,
         )
 
+    async def test_offset_pa(self) -> None:
+        await self.atcs.offset_pa(angle=5.0, radius=120.0)
+
+        self.atcs.rem.atptg.cmd_offsetPA.set_start.assert_awaited_with(
+            angle=5.0,
+            radius=120.0,
+            timeout=self.atcs.fast_timeout,
+        )
+
     async def test_reset_offsets(self) -> None:
         await self.atcs.reset_offsets()
 
