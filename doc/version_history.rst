@@ -6,6 +6,13 @@
 Version History
 ###############
 
+v0.26.0
+-------
+
+* In ``base_tcs.py``, add new ``offset_pa`` method.
+* In ``auxtel/atcs.py``, minor improvements in ``offset_done`` method.
+* In ``auxtel/atcs.py``, update ``open_dome_shutter`` to also work when the dome is partially opened.
+
 v0.25.0
 -------
 
