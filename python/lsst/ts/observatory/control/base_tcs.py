@@ -1105,6 +1105,26 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
             )
         )
 
+    async def offset_pa(self, angle: float, radius: float) -> None:
+        """Offset the telescope based on a position angle and radius.
+
+        Parameters
+        ----------
+        angle :  `float`
+            Offset position angle, clockwise from North (degrees).
+        radius : `float`
+            Radial offset relative to target position (arcsec).
+        """
+        self.log.debug(f"Offset PA {angle=} deg, {radius=} arcsec.")
+
+        await self._offset(
+            offset_cmd=getattr(self.rem, self.ptg_name).cmd_offsetPA.set_start(
+                angle=angle,
+                radius=radius,
+                timeout=self.fast_timeout,
+            )
+        )
+
     async def reset_offsets(
         self, absorbed: bool = True, non_absorbed: bool = True
     ) -> None:

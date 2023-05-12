@@ -779,7 +779,10 @@ class ATCS(BaseTCS):
             timeout=self.fast_timeout
         )
 
-        if shutter_pos.state == ATDome.ShutterDoorState.CLOSED:
+        if shutter_pos.state in {
+            ATDome.ShutterDoorState.CLOSED,
+            ATDome.ShutterDoorState.PARTIALLYOPENED,
+        }:
             self.log.debug("Opening dome shutter...")
 
             self.rem.atdome.evt_mainDoorState.flush()
@@ -815,9 +818,10 @@ class ATCS(BaseTCS):
         else:
             raise RuntimeError(
                 f"Shutter Door state is "
-                f"{ATDome.ShutterDoorState(shutter_pos.state)}. "
-                f"expected either {ATDome.ShutterDoorState.CLOSED} or "
-                f"{ATDome.ShutterDoorState.OPENED}"
+                f"{ATDome.ShutterDoorState(shutter_pos.state)!r}. "
+                f"expected either {ATDome.ShutterDoorState.CLOSED!r}, "
+                f"{ATDome.ShutterDoorState.PARTIALLYOPENED!r} or "
+                f"{ATDome.ShutterDoorState.OPENED!r}"
             )
 
     async def home_dome(self, force: bool = False) -> None:
@@ -1566,16 +1570,25 @@ class ATCS(BaseTCS):
         offset_radec : Offset in sky coordinates.
         """
 
-        while True:
-            in_position = await self.rem.atmcs.evt_allAxesInPosition.next(
-                flush=False, timeout=self.tel_settle_time
+        self.rem.atmcs.evt_allAxesInPosition.flush()
+
+        in_position = await self.rem.atmcs.evt_allAxesInPosition.aget(
+            timeout=self.long_timeout
+        )
+
+        if in_position.inPosition:
+            self.log.debug("ATMCS in position, handling potential race condition.")
+            await asyncio.sleep(self.tel_settle_time)
+            in_position = await self.rem.atmcs.evt_allAxesInPosition.aget(
+                timeout=self.long_timeout
             )
 
-            if in_position.inPosition:
-                self.log.debug("All axes in position.")
-                return
-            else:
-                self.log.debug("Telescope not in position.")
+        while not in_position.inPosition:
+            self.log.debug("Telescope not in position.")
+            in_position = await self.rem.atmcs.evt_allAxesInPosition.next(
+                flush=False, timeout=self.long_timeout
+            )
+        self.log.debug("All axes in position.")
 
     async def wait_for_inposition(
         self,
