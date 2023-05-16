@@ -768,14 +768,14 @@ class MTCS(BaseTCS):
         expected_m1m3_detailed_state : `MTM1M3.DetailedState`
             Expected m1m3 detailed state.
         unexpected_m1m3_detailed_states : `list` of `MTM1M3.DetailedState`
-            List of unexpedted detailed state. If M1M3 transition to any of
+            List of unexpected detailed state. If M1M3 transition to any of
             these states, raise an exception.
         """
 
         m1m3_raise_check_tasks = [
             asyncio.create_task(
                 self._wait_for_mtm1m3_detailed_state(
-                    expected_m1m3_detailed_state=expected_m1m3_detailed_state,
+                    expected_m1m3_detailed_state={expected_m1m3_detailed_state},
                     unexpected_m1m3_detailed_states=unexpected_m1m3_detailed_states,
                     timeout=self.m1m3_raise_timeout,
                 )
@@ -788,7 +788,7 @@ class MTCS(BaseTCS):
 
     async def _wait_for_mtm1m3_detailed_state(
         self,
-        expected_m1m3_detailed_state: enum.IntEnum,
+        expected_m1m3_detailed_state: set[enum.IntEnum],
         unexpected_m1m3_detailed_states: typing.Set[enum.IntEnum],
         timeout: float,
     ) -> None:
@@ -796,10 +796,10 @@ class MTCS(BaseTCS):
 
         Parameters
         ----------
-        expected_m1m3_detailed_state : `MTM1M3.DetailedState`
+        expected_m1m3_detailed_state : `set`[ `MTM1M3.DetailedState` ]
             Expected m1m3 detailed state.
-        unexpected_m1m3_detailed_states : `list` of `MTM1M3.DetailedState`
-            List of unexpedted detailed state. If M1M3 transition to any of
+        unexpected_m1m3_detailed_states : `set`[ `MTM1M3.DetailedState` ]
+            List of unexpected detailed state. If M1M3 transition to any of
             these states, raise an exception.
         timeout : `float`
             How long to wait for (in seconds).
@@ -811,8 +811,10 @@ class MTCS(BaseTCS):
             If detailed state transition to one of the
             `unexpected_m1m3_detailed_states`.
         """
-        m1m3_detailed_state = await self.rem.mtm1m3.evt_detailedState.aget()
-        while m1m3_detailed_state.detailedState != expected_m1m3_detailed_state:
+        m1m3_detailed_state = await self.rem.mtm1m3.evt_detailedState.aget(
+            timeout=self.long_timeout
+        )
+        while m1m3_detailed_state.detailedState not in expected_m1m3_detailed_state:
             m1m3_detailed_state = await self.rem.mtm1m3.evt_detailedState.next(
                 flush=False, timeout=timeout
             )
