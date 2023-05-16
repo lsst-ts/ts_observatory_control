@@ -1066,6 +1066,43 @@ class TestMTCS(MTCSAsyncMock):
             assert not await self.mtcs.is_m1m3_in_engineering_mode()
             self.mtcs.rem.mtm1m3.cmd_enterEngineering.start.assert_not_awaited()
 
+    async def test_run_m1m3_hard_point_test(self) -> None:
+        await self.mtcs.run_m1m3_hard_point_test(hp=1)
+
+        self.mtcs.rem.mtm1m3.cmd_testHardpoint.set_start.assert_awaited_with(
+            hardpointActuator=1,
+            timeout=self.mtcs.long_timeout,
+        )
+        self.mtcs.rem.mtm1m3.evt_hardpointTestStatus.flush.assert_called()
+        self.mtcs.rem.mtm1m3.evt_hardpointTestStatus.next.assert_awaited_with(
+            flush=False,
+            timeout=self.mtcs.long_timeout,
+        )
+
+    async def test_run_m1m3_hard_point_test_failed(self) -> None:
+        self.desired_hp_test_final_status = idl.enums.MTM1M3.HardpointTest.FAILED
+
+        with pytest.raises(RuntimeError):
+            await self.mtcs.run_m1m3_hard_point_test(hp=1)
+
+        self.mtcs.rem.mtm1m3.cmd_testHardpoint.set_start.assert_awaited_with(
+            hardpointActuator=1,
+            timeout=self.mtcs.long_timeout,
+        )
+        self.mtcs.rem.mtm1m3.evt_hardpointTestStatus.flush.assert_called()
+        self.mtcs.rem.mtm1m3.evt_hardpointTestStatus.next.assert_awaited_with(
+            flush=False,
+            timeout=self.mtcs.long_timeout,
+        )
+
+    async def test_stop_m1m3_hard_point_test(self) -> None:
+        await self.mtcs.stop_m1m3_hard_point_test(hp=1)
+
+        self.mtcs.rem.mtm1m3.cmd_killHardpointTest.set_start.assert_awaited_with(
+            hardpointActuator=1,
+            timeout=self.mtcs.long_timeout,
+        )
+
     async def test_enable_m2_balance_system(self) -> None:
         await self.mtcs.enable_m2_balance_system()
 

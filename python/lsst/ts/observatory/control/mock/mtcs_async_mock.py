@@ -122,6 +122,10 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
         self._mtm1m3_evt_applied_balance_forces = types.SimpleNamespace(
             forceMagnitude=0.0
         )
+        self._mtm1m3_evt_hp_test_status = types.SimpleNamespace(
+            testState=[idl.enums.MTM1M3.HardpointTest.NOTTESTED] * 6
+        )
+        self.desired_hp_test_final_status = idl.enums.MTM1M3.HardpointTest.PASSED
 
         self._mtm1m3_raise_task = utils.make_done_future()
         self._mtm1m3_lower_task = utils.make_done_future()
@@ -198,12 +202,14 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
         m1m3_mocks = {
             "evt_detailedState.next.side_effect": self.mtm1m3_evt_detailed_state,
             "evt_detailedState.aget.side_effect": self.mtm1m3_evt_detailed_state,
+            "evt_hardpointTestStatus.next.side_effect": self.mtm1m3_evt_hp_test_status,
             "cmd_raiseM1M3.set_start.side_effect": self.mtm1m3_cmd_raise_m1m3,
             "cmd_lowerM1M3.set_start.side_effect": self.mtm1m3_cmd_lower_m1m3,
             "cmd_enableHardpointCorrections.start.side_effect": self.mtm1m3_cmd_enable_hardpoint_corrections,
             "cmd_abortRaiseM1M3.start.side_effect": self.mtm1m3_cmd_abort_raise_m1m3,
             "cmd_enterEngineering.start.side_effect": self.mtm1m3_cmd_enter_engineering,
             "cmd_exitEngineering.start.side_effect": self.mtm1m3_cmd_exit_engineering,
+            "cmd_testHardpoint.set_start.side_effect": self.mtm1m3_cmd_test_hardpoint,
         }
 
         # Compatibility with xml>12
@@ -359,6 +365,12 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
         await asyncio.sleep(self.heartbeat_time / 4.0)
         return self._mtm1m3_evt_detailed_state
 
+    async def mtm1m3_evt_hp_test_status(
+        self, *args: typing.Any, **kwargs: typing.Any
+    ) -> types.SimpleNamespace:
+        await asyncio.sleep(self.heartbeat_time / 4.0)
+        return self._mtm1m3_evt_hp_test_status
+
     async def mtm1m3_evt_applied_balance_forces(
         self, *args: typing.Any, **kwargs: typing.Any
     ) -> types.SimpleNamespace:
@@ -402,6 +414,13 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
         # state it was before.
         asyncio.create_task(
             self._set_m1m3_detailed_state(idl.enums.MTM1M3.DetailedState.PARKED)
+        )
+
+    async def mtm1m3_cmd_test_hardpoint(
+        self, *args: typing.Any, **kwargs: typing.Any
+    ) -> None:
+        asyncio.create_task(
+            self._mtm1m3_cmd_test_hardpoint(hp=kwargs["hardpointActuator"] - 1)
         )
 
     async def mtm1m3_cmd_abort_raise_m1m3(
@@ -487,6 +506,18 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
         )
         await asyncio.sleep(self.heartbeat_time / 2.0)
         self._mtm1m3_evt_detailed_state.detailedState = detailed_state
+
+    async def _mtm1m3_cmd_test_hardpoint(self, hp: int) -> None:
+        hp_test_status = [
+            idl.enums.MTM1M3.HardpointTest.TESTINGPOSITIVE,
+            idl.enums.MTM1M3.HardpointTest.TESTINGNEGATIVE,
+            self.desired_hp_test_final_status,
+        ]
+
+        for test_status in hp_test_status:
+            self._mtm1m3_evt_hp_test_status.testState[hp] = test_status
+            self.log.debug(f"{self._mtm1m3_evt_hp_test_status!r}")
+            await asyncio.sleep(self.heartbeat_time / 2.0)
 
     async def _execute_enable_hardpoint_corrections(self) -> float:
         for force_magnitude in range(0, 2200, 200):
