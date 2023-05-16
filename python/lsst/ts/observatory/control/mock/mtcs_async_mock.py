@@ -202,6 +202,8 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
             "cmd_lowerM1M3.set_start.side_effect": self.mtm1m3_cmd_lower_m1m3,
             "cmd_enableHardpointCorrections.start.side_effect": self.mtm1m3_cmd_enable_hardpoint_corrections,
             "cmd_abortRaiseM1M3.start.side_effect": self.mtm1m3_cmd_abort_raise_m1m3,
+            "cmd_enterEngineering.start.side_effect": self.mtm1m3_cmd_enter_engineering,
+            "cmd_exitEngineering.start.side_effect": self.mtm1m3_cmd_exit_engineering,
         }
 
         # Compatibility with xml>12
@@ -354,7 +356,7 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
     async def mtm1m3_evt_detailed_state(
         self, *args: typing.Any, **kwargs: typing.Any
     ) -> types.SimpleNamespace:
-        await asyncio.sleep(self.heartbeat_time)
+        await asyncio.sleep(self.heartbeat_time / 4.0)
         return self._mtm1m3_evt_detailed_state
 
     async def mtm1m3_evt_applied_balance_forces(
@@ -378,6 +380,29 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
             raise RuntimeError(
                 f"MTM1M3 current detailed state is {self._mtm1m3_evt_detailed_state.detailedState!r}."
             )
+
+    async def mtm1m3_cmd_enter_engineering(
+        self, *args: typing.Any, **kwargs: typing.Any
+    ) -> None:
+        # This is a very simple mock of the enter engineering command. I
+        # imagine the actual command only works from certain detailed states
+        # but I don't think it is worth trying to do anything more elaborate
+        # since it could change considerably from what the m1m3 actually does.
+        asyncio.create_task(
+            self._set_m1m3_detailed_state(
+                idl.enums.MTM1M3.DetailedState.PARKEDENGINEERING
+            )
+        )
+
+    async def mtm1m3_cmd_exit_engineering(
+        self, *args: typing.Any, **kwargs: typing.Any
+    ) -> None:
+        # This is a very simple mock of the exit engineering command. It will
+        # simply put m1m3 in PARKED state, regardless of which engineering
+        # state it was before.
+        asyncio.create_task(
+            self._set_m1m3_detailed_state(idl.enums.MTM1M3.DetailedState.PARKED)
+        )
 
     async def mtm1m3_cmd_abort_raise_m1m3(
         self, *args: typing.Any, **kwargs: typing.Any
@@ -453,6 +478,15 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
             self._hardpoint_corrections_task = asyncio.create_task(
                 self._execute_enable_hardpoint_corrections()
             )
+
+    async def _set_m1m3_detailed_state(
+        self, detailed_state: idl.enums.MTM1M3.DetailedState
+    ) -> None:
+        self.log.debug(
+            f"M1M3 detailed state: {self._mtm1m3_evt_detailed_state.detailedState!r} -> {detailed_state!r}"
+        )
+        await asyncio.sleep(self.heartbeat_time / 2.0)
+        self._mtm1m3_evt_detailed_state.detailedState = detailed_state
 
     async def _execute_enable_hardpoint_corrections(self) -> float:
         for force_magnitude in range(0, 2200, 200):

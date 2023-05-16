@@ -996,6 +996,76 @@ class TestMTCS(MTCSAsyncMock):
             timeout=self.mtcs.long_timeout
         )
 
+    async def test_is_m1m3_in_engineering_mode(self) -> None:
+        m1m3_engineering_states = self.mtcs.m1m3_engineering_states
+        m1m3_non_engineering_states = {
+            val
+            for val in idl.enums.MTM1M3.DetailedState
+            if val not in m1m3_engineering_states
+        }
+
+        for detailed_state in m1m3_engineering_states:
+            self._mtm1m3_evt_detailed_state.detailedState = detailed_state
+            assert await self.mtcs.is_m1m3_in_engineering_mode()
+
+        for detailed_state in m1m3_non_engineering_states:
+            self._mtm1m3_evt_detailed_state.detailedState = detailed_state
+            assert not await self.mtcs.is_m1m3_in_engineering_mode()
+
+    async def test_enter_m1m3_engineering_mode_in_eng_mode(self) -> None:
+        for detailed_state in self.mtcs.m1m3_engineering_states:
+            self._mtm1m3_evt_detailed_state.detailedState = detailed_state
+
+            await self.mtcs.enter_m1m3_engineering_mode()
+            assert await self.mtcs.is_m1m3_in_engineering_mode()
+            self.mtcs.rem.mtm1m3.cmd_enterEngineering.start.assert_not_awaited()
+
+    async def test_enter_m1m3_engineering_mode_not_in_eng_mode(self) -> None:
+        m1m3_engineering_states = self.mtcs.m1m3_engineering_states
+        m1m3_non_engineering_states = {
+            val
+            for val in idl.enums.MTM1M3.DetailedState
+            if val not in m1m3_engineering_states
+        }
+        for detailed_state in m1m3_non_engineering_states:
+            self._mtm1m3_evt_detailed_state.detailedState = detailed_state
+
+            await self.mtcs.enter_m1m3_engineering_mode()
+
+            assert await self.mtcs.is_m1m3_in_engineering_mode()
+            self.mtcs.rem.mtm1m3.cmd_enterEngineering.start.assert_awaited_once()
+            self.mtcs.rem.mtm1m3.cmd_enterEngineering.start.assert_awaited_with(
+                timeout=self.mtcs.long_timeout
+            )
+            self.mtcs.rem.mtm1m3.cmd_enterEngineering.start.reset_mock()
+
+    async def test_exit_m1m3_engineering_mode_in_eng_mode(self) -> None:
+        for detailed_state in self.mtcs.m1m3_engineering_states:
+            self._mtm1m3_evt_detailed_state.detailedState = detailed_state
+
+            await self.mtcs.exit_m1m3_engineering_mode()
+            assert not await self.mtcs.is_m1m3_in_engineering_mode()
+            self.mtcs.rem.mtm1m3.cmd_exitEngineering.start.assert_awaited_once()
+            self.mtcs.rem.mtm1m3.cmd_exitEngineering.start.assert_awaited_with(
+                timeout=self.mtcs.long_timeout
+            )
+            self.mtcs.rem.mtm1m3.cmd_exitEngineering.start.reset_mock()
+
+    async def test_exit_m1m3_engineering_mode_not_in_eng_mode(self) -> None:
+        m1m3_engineering_states = self.mtcs.m1m3_engineering_states
+        m1m3_non_engineering_states = {
+            val
+            for val in idl.enums.MTM1M3.DetailedState
+            if val not in m1m3_engineering_states
+        }
+        for detailed_state in m1m3_non_engineering_states:
+            self._mtm1m3_evt_detailed_state.detailedState = detailed_state
+
+            await self.mtcs.exit_m1m3_engineering_mode()
+
+            assert not await self.mtcs.is_m1m3_in_engineering_mode()
+            self.mtcs.rem.mtm1m3.cmd_enterEngineering.start.assert_not_awaited()
+
     async def test_enable_m2_balance_system(self) -> None:
         await self.mtcs.enable_m2_balance_system()
 
