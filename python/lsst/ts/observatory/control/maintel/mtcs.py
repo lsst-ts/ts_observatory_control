@@ -824,6 +824,40 @@ class MTCS(BaseTCS):
                 )
             self.log.debug(f"M1M3 detailed state {m1m3_detailed_state.detailedState!r}")
 
+    async def _wait_hard_point_test_ok(self, hp: int) -> None:
+        """Wait until the hard point test for the specified hard point
+        finishes.
+
+        Parameters
+        ----------
+        hp : `int`
+            Index of the hard point (starting from 1).
+
+        Raises
+        ------
+        RuntimeError
+            If the hp test failed.
+        """
+
+        self.log.info("Checking if the hard point breakaway test has passed.")
+
+        while True:
+            hp_test_state = MTM1M3.HardpointTest(
+                (
+                    await self.rem.mtm1m3.evt_hardpointTestStatus.next(
+                        flush=False, timeout=self.long_timeout
+                    )
+                ).testState[hp - 1]
+            )
+
+            if hp_test_state == MTM1M3.HardpointTest.FAILED:
+                raise RuntimeError(f"Hard point {hp} test FAILED.")
+            elif hp_test_state == MTM1M3.HardpointTest.PASSED:
+                self.log.info(f"Hard point {hp} test PASSED.")
+                return
+            else:
+                self.log.info(f"Hard point {hp} test state: {hp_test_state!r}.")
+
     async def enable_m1m3_balance_system(self) -> None:
         """Enable m1m3 balance system."""
 
@@ -924,6 +958,42 @@ class MTCS(BaseTCS):
             )
         else:
             self.log.warning("M1M3 not in engineering mode.")
+
+    async def run_m1m3_hard_point_test(self, hp: int) -> None:
+        """Test an M1M3 hard point.
+
+        Parameters
+        ----------
+        hp : `int`
+            Id of the hard point to test (start at 1).
+        """
+
+        self.rem.mtm1m3.evt_hardpointTestStatus.flush()
+
+        await self.rem.mtm1m3.cmd_testHardpoint.set_start(
+            hardpointActuator=hp,
+            timeout=self.long_timeout,
+        )
+
+        await asyncio.wait_for(
+            self._wait_hard_point_test_ok(hp=hp),
+            timeout=self.long_long_timeout,
+        )
+
+    async def stop_m1m3_hard_point_test(self, hp: int) -> None:
+        """Interrupt hard point test.
+
+        Parameters
+        ----------
+        hp : `int`
+            Id of the hard point for which the test is to be interrupted
+            (start at 1).
+        """
+
+        await self.rem.mtm1m3.cmd_killHardpointTest.set_start(
+            hardpointActuator=hp,
+            timeout=self.long_timeout,
+        )
 
     async def is_m1m3_in_engineering_mode(self) -> bool:
         """Check if M1M3 is in engineering mode.
