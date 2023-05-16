@@ -1103,6 +1103,259 @@ class TestMTCS(MTCSAsyncMock):
             timeout=self.mtcs.long_timeout,
         )
 
+    async def test_run_m1m3_actuator_bump_test_default(self) -> None:
+        actuator_id = self.mtcs.get_m1m3_actuator_secondary_ids()[0]
+
+        await self.mtcs.run_m1m3_actuator_bump_test(
+            actuator_id=actuator_id,
+        )
+        (
+            actuator_id,
+            primary_status,
+            secondary_status,
+        ) = await self.mtcs.get_m1m3_bump_test_status()
+
+        self.mtcs.rem.mtm1m3.evt_forceActuatorBumpTestStatus.flush.assert_called()
+        self.mtcs.rem.mtm1m3.cmd_forceActuatorBumpTest.set_start.assert_awaited_with(
+            actuatorId=actuator_id,
+            testPrimary=True,
+            testSecondary=False,
+            timeout=self.mtcs.long_timeout,
+        )
+        self.mtcs.rem.mtm1m3.evt_forceActuatorBumpTestStatus.next.assert_awaited_with(
+            flush=False,
+            timeout=self.mtcs.long_timeout,
+        )
+
+        assert actuator_id == actuator_id
+        assert primary_status == idl.enums.MTM1M3.BumpTest.PASSED
+        assert secondary_status == idl.enums.MTM1M3.BumpTest.NOTTESTED
+
+    async def test_run_m1m3_actuator_bump_test_default_no_secondary(self) -> None:
+        await self.mtcs.run_m1m3_actuator_bump_test(
+            actuator_id=101,
+        )
+        (
+            actuator_id,
+            primary_status,
+            secondary_status,
+        ) = await self.mtcs.get_m1m3_bump_test_status()
+
+        self.mtcs.rem.mtm1m3.evt_forceActuatorBumpTestStatus.flush.assert_called()
+        self.mtcs.rem.mtm1m3.cmd_forceActuatorBumpTest.set_start.assert_awaited_with(
+            actuatorId=101,
+            testPrimary=True,
+            testSecondary=False,
+            timeout=self.mtcs.long_timeout,
+        )
+        self.mtcs.rem.mtm1m3.evt_forceActuatorBumpTestStatus.next.assert_awaited_with(
+            flush=False,
+            timeout=self.mtcs.long_timeout,
+        )
+
+        assert actuator_id == 101
+        assert primary_status == idl.enums.MTM1M3.BumpTest.PASSED
+        assert secondary_status is None
+
+    async def test_run_m1m3_actuator_bump_test_primary_secondary(self) -> None:
+        actuator_id = self.mtcs.get_m1m3_actuator_secondary_ids()[0]
+
+        await self.mtcs.run_m1m3_actuator_bump_test(
+            actuator_id=actuator_id,
+            primary=True,
+            secondary=True,
+        )
+        (
+            actuator_id,
+            primary_status,
+            secondary_status,
+        ) = await self.mtcs.get_m1m3_bump_test_status()
+
+        self.mtcs.rem.mtm1m3.evt_forceActuatorBumpTestStatus.flush.assert_called()
+        self.mtcs.rem.mtm1m3.cmd_forceActuatorBumpTest.set_start.assert_awaited_with(
+            actuatorId=actuator_id,
+            testPrimary=True,
+            testSecondary=True,
+            timeout=self.mtcs.long_timeout,
+        )
+        self.mtcs.rem.mtm1m3.evt_forceActuatorBumpTestStatus.next.assert_awaited_with(
+            flush=False,
+            timeout=self.mtcs.long_timeout,
+        )
+
+        assert actuator_id == actuator_id
+        assert primary_status == idl.enums.MTM1M3.BumpTest.PASSED
+        assert secondary_status == idl.enums.MTM1M3.BumpTest.PASSED
+
+    async def test_run_m1m3_actuator_bump_test_secondary(self) -> None:
+        actuator_id = self.mtcs.get_m1m3_actuator_secondary_ids()[0]
+
+        await self.mtcs.run_m1m3_actuator_bump_test(
+            actuator_id=actuator_id,
+            primary=False,
+            secondary=True,
+        )
+        (
+            actuator_id,
+            primary_status,
+            secondary_status,
+        ) = await self.mtcs.get_m1m3_bump_test_status()
+
+        self.mtcs.rem.mtm1m3.evt_forceActuatorBumpTestStatus.flush.assert_called()
+        self.mtcs.rem.mtm1m3.cmd_forceActuatorBumpTest.set_start.assert_awaited_with(
+            actuatorId=actuator_id,
+            testPrimary=False,
+            testSecondary=True,
+            timeout=self.mtcs.long_timeout,
+        )
+        self.mtcs.rem.mtm1m3.evt_forceActuatorBumpTestStatus.next.assert_awaited_with(
+            flush=False,
+            timeout=self.mtcs.long_timeout,
+        )
+
+        assert actuator_id == actuator_id
+        assert primary_status == idl.enums.MTM1M3.BumpTest.NOTTESTED
+        assert secondary_status == idl.enums.MTM1M3.BumpTest.PASSED
+
+    async def test_run_m1m3_actuator_bump_test_fail(self) -> None:
+        actuator_id = self.mtcs.get_m1m3_actuator_secondary_ids()[0]
+
+        self.desired_bump_test_final_status = idl.enums.MTM1M3.BumpTest.FAILED
+
+        with pytest.raises(RuntimeError):
+            await self.mtcs.run_m1m3_actuator_bump_test(
+                actuator_id=actuator_id,
+            )
+        (
+            actuator_id,
+            primary_status,
+            secondary_status,
+        ) = await self.mtcs.get_m1m3_bump_test_status()
+
+        self.mtcs.rem.mtm1m3.evt_forceActuatorBumpTestStatus.flush.assert_called()
+        self.mtcs.rem.mtm1m3.cmd_forceActuatorBumpTest.set_start.assert_awaited_with(
+            actuatorId=actuator_id,
+            testPrimary=True,
+            testSecondary=False,
+            timeout=self.mtcs.long_timeout,
+        )
+        self.mtcs.rem.mtm1m3.evt_forceActuatorBumpTestStatus.next.assert_awaited_with(
+            flush=False,
+            timeout=self.mtcs.long_timeout,
+        )
+
+        assert actuator_id == actuator_id
+        assert primary_status == idl.enums.MTM1M3.BumpTest.FAILED
+        assert secondary_status == idl.enums.MTM1M3.BumpTest.NOTTESTED
+
+    async def test_run_m1m3_actuator_bump_test_2nd_fail(self) -> None:
+        self.desired_bump_test_final_status = idl.enums.MTM1M3.BumpTest.FAILED
+
+        actuator_id = self.mtcs.get_m1m3_actuator_secondary_ids()[0]
+
+        with pytest.raises(RuntimeError) as exception_info:
+            await self.mtcs.run_m1m3_actuator_bump_test(
+                actuator_id=actuator_id,
+                primary=False,
+                secondary=True,
+            )
+        assert f"Secondary bump test failed for actuator {actuator_id}" in str(
+            exception_info.value
+        )
+
+        (
+            actuator_id,
+            primary_status,
+            secondary_status,
+        ) = await self.mtcs.get_m1m3_bump_test_status()
+
+        self.mtcs.rem.mtm1m3.evt_forceActuatorBumpTestStatus.flush.assert_called()
+        self.mtcs.rem.mtm1m3.cmd_forceActuatorBumpTest.set_start.assert_awaited_with(
+            actuatorId=actuator_id,
+            testPrimary=False,
+            testSecondary=True,
+            timeout=self.mtcs.long_timeout,
+        )
+        self.mtcs.rem.mtm1m3.evt_forceActuatorBumpTestStatus.next.assert_awaited_with(
+            flush=False,
+            timeout=self.mtcs.long_timeout,
+        )
+
+        assert actuator_id == actuator_id
+        assert primary_status == idl.enums.MTM1M3.BumpTest.NOTTESTED
+        assert secondary_status == idl.enums.MTM1M3.BumpTest.FAILED
+
+    async def test_run_m1m3_actuator_bump_test_both_fail(self) -> None:
+        self.desired_bump_test_final_status = idl.enums.MTM1M3.BumpTest.FAILED
+
+        with pytest.raises(RuntimeError):
+            await self.mtcs.run_m1m3_actuator_bump_test(
+                actuator_id=102,
+                primary=True,
+                secondary=True,
+            )
+        (
+            actuator_id,
+            primary_status,
+            secondary_status,
+        ) = await self.mtcs.get_m1m3_bump_test_status()
+
+        assert actuator_id == 102
+        assert primary_status == idl.enums.MTM1M3.BumpTest.FAILED
+        assert secondary_status != idl.enums.MTM1M3.BumpTest.FAILED
+
+        with pytest.raises(RuntimeError):
+            await self.mtcs._wait_bump_test_ok(
+                actuator_id=102, primary=False, secondary=True
+            )
+
+        (
+            actuator_id,
+            primary_status,
+            secondary_status,
+        ) = await self.mtcs.get_m1m3_bump_test_status()
+
+        assert actuator_id == 102
+        assert primary_status == idl.enums.MTM1M3.BumpTest.FAILED
+        assert secondary_status == idl.enums.MTM1M3.BumpTest.FAILED
+
+    async def test_stop_m1m3_bump_test(self) -> None:
+        await self.mtcs.stop_m1m3_bump_test()
+
+        self.mtcs.rem.mtm1m3.cmd_killForceActuatorBumpTest.start.assert_awaited_with(
+            timeout=self.mtcs.long_timeout
+        )
+
+    async def test_run_m1m3_actuator_bump_bad_secondary_index(self) -> None:
+        primary_index = self.mtcs.get_m1m3_actuator_ids()
+        secondary_index = self.mtcs.get_m1m3_actuator_secondary_ids()
+        test_index = [index for index in primary_index if index not in secondary_index]
+
+        for index in test_index:
+            with pytest.raises(RuntimeError) as exception_info:
+                await self.mtcs.run_m1m3_actuator_bump_test(
+                    actuator_id=index,
+                    primary=False,
+                    secondary=True,
+                )
+            assert f"Actuator {index} does not have secondary axis." in str(
+                exception_info.value
+            )
+
+    def test_get_m1m3_actuator_index(self) -> None:
+        m1m3_actuator_ids = self.mtcs.get_m1m3_actuator_ids()
+        n_actuators = len(m1m3_actuator_ids)
+        for id in m1m3_actuator_ids:
+            index = self.mtcs.get_m1m3_actuator_index(id)
+            assert 0 <= index <= n_actuators
+
+    def test_get_m1m3_actuator_index_invalid_id(self) -> None:
+        with pytest.raises(RuntimeError):
+            self.mtcs.get_m1m3_actuator_index(0)
+
+        with pytest.raises(RuntimeError):
+            self.mtcs.get_m1m3_actuator_index(1000)
+
     async def test_enable_m2_balance_system(self) -> None:
         await self.mtcs.enable_m2_balance_system()
 
