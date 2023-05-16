@@ -8,13 +8,7 @@ source:
 
 build:
   noarch: python
-  script: python -m pip install --no-deps --ignore-installed .
-  script_env:
-    - PATH
-    - PYTHONPATH
-    - LD_LIBRARY_PATH
-    - TS_CONFIG_OCS_DIR
-    - OSPL_HOME
+  script: {{ PYTHON }} -m pip install --no-deps --ignore-installed .
 
 test:
   requires:
@@ -24,27 +18,34 @@ test:
     - scipy
     - ts-idl {{ idl_version }}
     - ts-salobj {{ salobj_version }}
+    - ts-criopy
   source_files:
     - python
     - tests
     - setup.cfg
     - pyproject.toml
   commands:
-    - py.test
+    - pytest
 
 requirements:
   host:
-    - python
+    - python {{ python }}
+    - numpy {{ numpy }}
     - pip
     - setuptools_scm
     - setuptools
-    - pytest-runner
-  run:
-    - python
+  build:
+    - python {{ python }}
+    - numpy {{ numpy }}
     - setuptools
     - setuptools_scm
+    - ts-conda-build =0.3
+  run:
+    - python {{ python }}
+    - numpy {{ numpy }}
     - astroquery
     - pandas
     - scipy
     - ts-idl
     - ts-salobj
+    - ts-criopy
