@@ -891,6 +891,54 @@ class MTCS(BaseTCS):
             timeout=self.long_timeout
         )
 
+    async def enter_m1m3_engineering_mode(self) -> None:
+        """Enter M1M3 engineering mode."""
+
+        if not await self.is_m1m3_in_engineering_mode():
+            self.log.info("Entering m1m3 engineering mode.")
+            await self.rem.mtm1m3.cmd_enterEngineering.start(timeout=self.long_timeout)
+            await self._wait_for_mtm1m3_detailed_state(
+                expected_m1m3_detailed_state=self.m1m3_engineering_states,
+                unexpected_m1m3_detailed_states=set(),
+                timeout=self.long_timeout,
+            )
+        else:
+            self.log.warning("M1M3 already in engineering mode.")
+
+    async def exit_m1m3_engineering_mode(self) -> None:
+        """Exit M1M3 engineering mode."""
+
+        if await self.is_m1m3_in_engineering_mode():
+            self.log.info("Exiting m1m3 engineering mode.")
+            await self.rem.mtm1m3.cmd_exitEngineering.start(timeout=self.long_timeout)
+            m1m3_engineering_states = self.m1m3_engineering_states
+            expected_states = {
+                detailed_state
+                for detailed_state in MTM1M3.DetailedState
+                if detailed_state not in m1m3_engineering_states
+            }
+            await self._wait_for_mtm1m3_detailed_state(
+                expected_m1m3_detailed_state=expected_states,
+                unexpected_m1m3_detailed_states=set(),
+                timeout=self.long_timeout,
+            )
+        else:
+            self.log.warning("M1M3 not in engineering mode.")
+
+    async def is_m1m3_in_engineering_mode(self) -> bool:
+        """Check if M1M3 is in engineering mode.
+
+        Returns
+        -------
+        `bool`
+            `True` if M1M3 in engineering mode, `False` otherwise.
+        """
+        m1m3_detailed_state = (
+            await self.rem.mtm1m3.evt_detailedState.aget(timeout=self.fast_timeout)
+        ).detailedState
+
+        return m1m3_detailed_state in self.m1m3_engineering_states
+
     async def enable_m2_balance_system(self) -> None:
         """Enable m2 balance system."""
 
@@ -1290,6 +1338,21 @@ class MTCS(BaseTCS):
     async def _ready_to_take_data(self) -> None:
         """Placeholder, still needs to be implemented."""
         # TODO: Finish implementation.
+
+    @property
+    def m1m3_engineering_states(self) -> set[MTM1M3.DetailedState]:
+        """M1M3 engineering states.
+
+        Returns
+        -------
+        `set`[ `MTM1M3.DetailedState` ]
+            Set with the M1M3 detailed states.
+        """
+        return {
+            detailed_state
+            for detailed_state in MTM1M3.DetailedState
+            if "ENGINEERING" in detailed_state.name
+        }
 
     @property
     def compensation_mode_components(self) -> typing.Set[str]:
