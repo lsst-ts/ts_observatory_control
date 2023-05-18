@@ -2067,6 +2067,87 @@ class ATCS(BaseTCS):
                 not ataos_correction_enabled.m1
             ), f"ATAOS m1 correction enabled. {message}"
 
+    async def offset_aos_lut(
+        self,
+        z: float = 0.0,
+        x: float = 0.0,
+        y: float = 0.0,
+        u: float = 0.0,
+        v: float = 0.0,
+        m1: float = 0.0,
+        offset_telescope: bool = True,
+    ) -> None:
+        """Apply offsets to hexapod and optionally re-center telescope after
+        hexapod offset.
+
+        Parameters
+        ----------
+        z : `float`, optional
+            Hexapod offset in z axis (mm)
+        x : `float`, optional
+            Hexapod offset in x axis (mm)
+        y : `float`, optional
+            Hexapod offset in y axis (mm)
+        u : `float`, optional
+            Hexapod Rx offset (deg)
+        v : `float`, optional
+            Hexapod Ry offset (deg)
+        m1 : `float`, optional
+            M1 pressure offset (Pa). Must be less than 0.
+        offset_telescope : `bool`, optional
+            Offset the telescope after the hexpod offset to compensate for
+            chage in pointing.
+        """
+
+        if m1 > 0.0:
+            raise RuntimeError(
+                f"Invalied user-supplied m1 offset: {m1}; must be less than or equal to 0."
+            )
+
+        offset_applied = {
+            "m1": m1,
+            "m2": 0.0,
+            "x": x,
+            "y": y,
+            "z": z,
+            "u": u,
+            "v": v,
+        }
+
+        self.log.info(
+            f"Applying hexapod offset [m1, m2, x, y, z, u, v, w]: {offset_applied}."
+        )
+
+        self.rem.ataos.evt_detailedState.flush()
+
+        await self.rem.ataos.cmd_offset.set_start(
+            **offset_applied, timeout=self.long_timeout
+        )
+
+        if offset_telescope and (x != 0.0 or y != 0.0 or u != 0.0 or v != 0.0):
+            tel_el_offset_xy, tel_az_offset_xy, _ = np.matmul(
+                [x, y, z], atcs_constants.hexapod_offset_scale
+            )
+
+            tel_el_offset_uv, tel_az_offset_uv, _ = np.matmul(
+                [u, v, z], atcs_constants.hexapod_uv_offset_scale
+            )
+            tel_az_offset, tel_el_offset = (
+                tel_el_offset_xy + tel_el_offset_uv,
+                tel_az_offset_xy + tel_az_offset_uv,
+            )
+
+            self.log.info(
+                f"Applying telescope offset [az,el]: [{tel_az_offset:0.3f}, {tel_el_offset:0.3f}]."
+            )
+
+            await self.offset_azel(
+                az=tel_az_offset,
+                el=tel_el_offset,
+                relative=True,
+                persistent=True,
+            )
+
     @property
     def plate_scale(self) -> float:
         """Plate scale in mm/arcsec."""

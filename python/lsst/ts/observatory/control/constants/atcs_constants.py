@@ -22,3 +22,21 @@
 # converted to mm/arcsecond for usage here.
 
 plate_scale = 0.1045  # mm/arcsecond at the telescope focal plane
+
+# Matrix to map hexapod xy-offset to alt/az offset in the focal plane
+# units are arcsec/mm. X-axis is Elevation
+# Measured with data from AT run SUMMIT-5027.
+hexapod_offset_scale = [
+    [52.459, 0.0, 0.0],
+    [0.0, 50.468, 0.0],
+    [0.0, 0.0, 0.0],
+]
+
+# Matrix to map hexapod uv-offset to alt/az offset in the focal plane
+# units are arcsec/degrees.
+# Measured with data from AT run SUMMIT-7280
+hexapod_uv_offset_scale = [
+    [1312.95, 0.0, 0.0],
+    [0.0, -1331.81, 0.0],
+    [0.0, 0.0, 0.0],
+]

@@ -1848,6 +1848,67 @@ class TestATTCS(ATCSAsyncMock):
 
         assert count_alternatives == len(expected_rot_angle_alternatives)
 
+    async def test_offset_aos_lut_with_telescope_offset(self) -> None:
+        hexapod_offset = {
+            "m1": 0.0,
+            "x": 0.2,
+            "y": -0.2,
+            "z": 0.1,
+            "u": 0.5,
+            "v": -0.5,
+        }
+
+        await self.atcs.offset_aos_lut(**hexapod_offset)
+
+        self.atcs.rem.ataos.cmd_offset.set_start.assert_awaited_with(
+            **hexapod_offset,
+            m2=0.0,
+            timeout=self.atcs.long_timeout,
+        )
+
+        self.atcs.rem.atptg.cmd_poriginOffset.set_start.assert_awaited_once()
+
+    async def test_offset_aos_lut_without_telescope_offset(self) -> None:
+        hexapod_offset = {
+            "m1": 0.0,
+            "x": 0.2,
+            "y": -0.2,
+            "z": 0.1,
+            "u": 0.5,
+            "v": -0.5,
+        }
+
+        offset_telescope = False
+
+        await self.atcs.offset_aos_lut(
+            **hexapod_offset, offset_telescope=offset_telescope
+        )
+
+        self.atcs.rem.ataos.cmd_offset.set_start.assert_awaited_with(
+            **hexapod_offset,
+            m2=0.0,
+            timeout=self.atcs.long_timeout,
+        )
+
+        self.atcs.rem.atptg.cmd_poriginOffset.set_start.assert_not_awaited()
+
+    async def test_offset_aos_lut_m1_out_of_range(self) -> None:
+        hexapod_offset = {
+            "m1": 1.0,
+            "x": 0.2,
+            "y": -0.2,
+            "z": 0.1,
+            "u": 0.5,
+            "v": -0.5,
+        }
+
+        with pytest.raises(RuntimeError) as excinfo:
+            await self.atcs.offset_aos_lut(**hexapod_offset)
+
+        self.atcs.rem.ataos.cmd_offset.set_start.assert_not_awaited()
+
+        assert "Invalied user-supplied m1 offset:" in str(excinfo.value)
+
     def _handle_fail_angle_out_of_range(
         self, *args: typing.Any, **kwargs: typing.Any
     ) -> None:
