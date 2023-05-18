@@ -6,6 +6,11 @@
 Version History
 ###############
 
+v0.27.0
+-------
+
+* In ``auxtel/atcs.py``, add new ``offset_aos_lut`` method. 
+
 v0.26.0
 -------
 
