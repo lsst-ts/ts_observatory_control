@@ -30,6 +30,12 @@ import astropy.units as u
 import numpy as np
 from astropy.coordinates import Angle
 from lsst.ts import salobj, utils
+from lsst.ts.cRIOpy.M1M3FATable import (
+    FATABLE,
+    FATABLE_ID,
+    FATABLE_INDEX,
+    FATABLE_SINDEX,
+)
 from lsst.ts.idl.enums import MTM1M3, MTPtg
 from lsst.ts.utils import angle_diff
 
@@ -133,10 +139,22 @@ class MTCS(BaseTCS):
         self._dome_az_in_position: typing.Union[None, asyncio.Event] = None
         self._dome_el_in_positio: typing.Union[None, asyncio.Event] = None
 
-        self.m1m3_raise_timeout = 600.0  # timeout to raise m1m3, in seconds.
+        # timeout to raise m1m3, in seconds.
+        self.m1m3_raise_timeout = 600.0
 
         # Tolerance on the stability of the balance force magnitude
         self.m1m3_force_magnitude_stable_tolerance = 50.0
+
+        self._m1m3_actuator_id_index_table: dict[int, int] = dict(
+            [(fa[FATABLE_ID], fa[FATABLE_INDEX]) for fa in FATABLE]
+        )
+        self._m1m3_actuator_id_sindex_table: dict[int, int] = dict(
+            [
+                (fa[FATABLE_ID], fa[FATABLE_SINDEX])
+                for fa in FATABLE
+                if fa[FATABLE_SINDEX] is not None
+            ]
+        )
 
         try:
             self._create_asyncio_events()
@@ -768,14 +786,14 @@ class MTCS(BaseTCS):
         expected_m1m3_detailed_state : `MTM1M3.DetailedState`
             Expected m1m3 detailed state.
         unexpected_m1m3_detailed_states : `list` of `MTM1M3.DetailedState`
-            List of unexpedted detailed state. If M1M3 transition to any of
+            List of unexpected detailed state. If M1M3 transition to any of
             these states, raise an exception.
         """
 
         m1m3_raise_check_tasks = [
             asyncio.create_task(
                 self._wait_for_mtm1m3_detailed_state(
-                    expected_m1m3_detailed_state=expected_m1m3_detailed_state,
+                    expected_m1m3_detailed_state={expected_m1m3_detailed_state},
                     unexpected_m1m3_detailed_states=unexpected_m1m3_detailed_states,
                     timeout=self.m1m3_raise_timeout,
                 )
@@ -788,7 +806,7 @@ class MTCS(BaseTCS):
 
     async def _wait_for_mtm1m3_detailed_state(
         self,
-        expected_m1m3_detailed_state: enum.IntEnum,
+        expected_m1m3_detailed_state: set[enum.IntEnum],
         unexpected_m1m3_detailed_states: typing.Set[enum.IntEnum],
         timeout: float,
     ) -> None:
@@ -796,10 +814,10 @@ class MTCS(BaseTCS):
 
         Parameters
         ----------
-        expected_m1m3_detailed_state : `MTM1M3.DetailedState`
+        expected_m1m3_detailed_state : `set`[ `MTM1M3.DetailedState` ]
             Expected m1m3 detailed state.
-        unexpected_m1m3_detailed_states : `list` of `MTM1M3.DetailedState`
-            List of unexpedted detailed state. If M1M3 transition to any of
+        unexpected_m1m3_detailed_states : `set`[ `MTM1M3.DetailedState` ]
+            List of unexpected detailed state. If M1M3 transition to any of
             these states, raise an exception.
         timeout : `float`
             How long to wait for (in seconds).
@@ -811,8 +829,10 @@ class MTCS(BaseTCS):
             If detailed state transition to one of the
             `unexpected_m1m3_detailed_states`.
         """
-        m1m3_detailed_state = await self.rem.mtm1m3.evt_detailedState.aget()
-        while m1m3_detailed_state.detailedState != expected_m1m3_detailed_state:
+        m1m3_detailed_state = await self.rem.mtm1m3.evt_detailedState.aget(
+            timeout=self.long_timeout
+        )
+        while m1m3_detailed_state.detailedState not in expected_m1m3_detailed_state:
             m1m3_detailed_state = await self.rem.mtm1m3.evt_detailedState.next(
                 flush=False, timeout=timeout
             )
@@ -821,6 +841,107 @@ class MTCS(BaseTCS):
                     f"M1M3 transitioned to unexpected detailed state {m1m3_detailed_state.detailedState!r}."
                 )
             self.log.debug(f"M1M3 detailed state {m1m3_detailed_state.detailedState!r}")
+
+    async def _wait_hard_point_test_ok(self, hp: int) -> None:
+        """Wait until the hard point test for the specified hard point
+        finishes.
+
+        Parameters
+        ----------
+        hp : `int`
+            Index of the hard point (starting from 1).
+
+        Raises
+        ------
+        RuntimeError
+            If the hp test failed.
+        """
+
+        self.log.info("Checking if the hard point breakaway test has passed.")
+
+        while True:
+            hp_test_state = MTM1M3.HardpointTest(
+                (
+                    await self.rem.mtm1m3.evt_hardpointTestStatus.next(
+                        flush=False, timeout=self.long_timeout
+                    )
+                ).testState[hp - 1]
+            )
+
+            if hp_test_state == MTM1M3.HardpointTest.FAILED:
+                raise RuntimeError(f"Hard point {hp} test FAILED.")
+            elif hp_test_state == MTM1M3.HardpointTest.PASSED:
+                self.log.info(f"Hard point {hp} test PASSED.")
+                return
+            else:
+                self.log.info(f"Hard point {hp} test state: {hp_test_state!r}.")
+
+    async def _wait_bump_test_ok(
+        self, actuator_id: int, primary: bool, secondary: bool
+    ) -> None:
+        """Wait until the bump test for the specified actuator finishes.
+
+        Parameters
+        ----------
+        actuator_id : `int`
+            Actuator id.
+        primary : `bool`
+            Wait for primary (z-axis) test to finish.
+        secondary : `bool`
+            Wait for secondary (xy-axis) test to finish.
+        """
+
+        actuator_index = self.get_m1m3_actuator_index(actuator_id) if primary else -1
+        actuator_sindex = (
+            self.get_m1m3_actuator_secondary_index(actuator_id) if secondary else -1
+        )
+
+        while True:
+            bump_test_status = (
+                await self.rem.mtm1m3.evt_forceActuatorBumpTestStatus.next(
+                    flush=False, timeout=self.long_timeout
+                )
+            )
+
+            if actuator_id != bump_test_status.actuatorId:
+                raise RuntimeError(
+                    f"Expecting status from actuator {actuator_id} got {bump_test_status.actuatorId}."
+                )
+
+            primary_status = (
+                MTM1M3.BumpTest(bump_test_status.primaryTest[actuator_index])
+                if primary
+                else None
+            )
+            secondary_status = (
+                MTM1M3.BumpTest(bump_test_status.secondaryTest[actuator_sindex])
+                if secondary
+                else None
+            )
+
+            done = (primary_status == MTM1M3.BumpTest.PASSED if primary else True) and (
+                secondary_status == MTM1M3.BumpTest.PASSED if secondary else True
+            )
+
+            if done:
+                self.log.info(
+                    f"Bump test for actuator {actuator_id} completed: "
+                    f"{primary_status!r}[{primary}], {secondary_status!r}[{secondary}]"
+                )
+                return
+            elif primary and primary_status == MTM1M3.BumpTest.FAILED:
+                raise RuntimeError(
+                    f"Primary bump test failed for actuator {actuator_id}."
+                )
+            elif secondary and secondary_status == MTM1M3.BumpTest.FAILED:
+                raise RuntimeError(
+                    f"Secondary bump test failed for actuator {actuator_id}."
+                )
+            else:
+                self.log.debug(
+                    f"Actuator {actuator_id} bump test status: "
+                    f"{primary_status!r}[{primary}], {secondary_status!r}[{secondary}]"
+                )
 
     async def enable_m1m3_balance_system(self) -> None:
         """Enable m1m3 balance system."""
@@ -888,6 +1009,218 @@ class MTCS(BaseTCS):
         await self.rem.mtm1m3.cmd_clearActiveOpticForces.start(
             timeout=self.long_timeout
         )
+
+    async def enter_m1m3_engineering_mode(self) -> None:
+        """Enter M1M3 engineering mode."""
+
+        if not await self.is_m1m3_in_engineering_mode():
+            self.log.info("Entering m1m3 engineering mode.")
+            await self.rem.mtm1m3.cmd_enterEngineering.start(timeout=self.long_timeout)
+            await self._wait_for_mtm1m3_detailed_state(
+                expected_m1m3_detailed_state=self.m1m3_engineering_states,
+                unexpected_m1m3_detailed_states=set(),
+                timeout=self.long_timeout,
+            )
+        else:
+            self.log.warning("M1M3 already in engineering mode.")
+
+    async def exit_m1m3_engineering_mode(self) -> None:
+        """Exit M1M3 engineering mode."""
+
+        if await self.is_m1m3_in_engineering_mode():
+            self.log.info("Exiting m1m3 engineering mode.")
+            await self.rem.mtm1m3.cmd_exitEngineering.start(timeout=self.long_timeout)
+            m1m3_engineering_states = self.m1m3_engineering_states
+            expected_states = {
+                detailed_state
+                for detailed_state in MTM1M3.DetailedState
+                if detailed_state not in m1m3_engineering_states
+            }
+            await self._wait_for_mtm1m3_detailed_state(
+                expected_m1m3_detailed_state=expected_states,
+                unexpected_m1m3_detailed_states=set(),
+                timeout=self.long_timeout,
+            )
+        else:
+            self.log.warning("M1M3 not in engineering mode.")
+
+    async def run_m1m3_hard_point_test(self, hp: int) -> None:
+        """Test an M1M3 hard point.
+
+        Parameters
+        ----------
+        hp : `int`
+            Id of the hard point to test (start at 1).
+        """
+
+        self.rem.mtm1m3.evt_hardpointTestStatus.flush()
+
+        await self.rem.mtm1m3.cmd_testHardpoint.set_start(
+            hardpointActuator=hp,
+            timeout=self.long_timeout,
+        )
+
+        await asyncio.wait_for(
+            self._wait_hard_point_test_ok(hp=hp),
+            timeout=self.long_long_timeout,
+        )
+
+    async def stop_m1m3_hard_point_test(self, hp: int) -> None:
+        """Interrupt hard point test.
+
+        Parameters
+        ----------
+        hp : `int`
+            Id of the hard point for which the test is to be interrupted
+            (start at 1).
+        """
+
+        await self.rem.mtm1m3.cmd_killHardpointTest.set_start(
+            hardpointActuator=hp,
+            timeout=self.long_timeout,
+        )
+
+    async def run_m1m3_actuator_bump_test(
+        self,
+        actuator_id: int,
+        primary: bool = True,
+        secondary: bool = False,
+    ) -> None:
+        """M1M3 actuator bump test.
+
+        Parameters
+        ----------
+        actuator_id : `int`
+            Id of the actuator.
+        primary : `bool`, optional
+            Test primary (z) actuator (default=True)?
+        secondary : `bool`, optional
+            Test secondary (x/y) actuators (default=False)?
+        """
+
+        self.rem.mtm1m3.evt_forceActuatorBumpTestStatus.flush()
+        await self.rem.mtm1m3.cmd_forceActuatorBumpTest.set_start(
+            actuatorId=actuator_id,
+            testPrimary=primary,
+            testSecondary=secondary,
+            timeout=self.long_timeout,
+        )
+
+        await asyncio.wait_for(
+            self._wait_bump_test_ok(
+                actuator_id=actuator_id, primary=primary, secondary=secondary
+            ),
+            timeout=self.long_long_timeout,
+        )
+
+    async def stop_m1m3_bump_test(self) -> None:
+        """Stop bump test."""
+
+        await self.rem.mtm1m3.cmd_killForceActuatorBumpTest.start(
+            timeout=self.long_timeout
+        )
+
+    async def get_m1m3_bump_test_status(
+        self,
+    ) -> tuple[int, MTM1M3.BumpTest, MTM1M3.BumpTest | None]:
+        """Get latest m1m3 bump test status.
+
+        Returns
+        -------
+        actuator_id : `int`
+            Id of the actuator.
+        primary_status : `MTM1M3.BumpTest`
+            Status of the primary (z-axis) test.
+        secondary_status : `MTM1M3.BumpTest` | None
+            Status of the secondary (xy-axis) test.
+        """
+        status = await self.rem.mtm1m3.evt_forceActuatorBumpTestStatus.aget(
+            timeout=self.fast_timeout
+        )
+
+        actuator_index = self.get_m1m3_actuator_index(status.actuatorId)
+        primary_status = MTM1M3.BumpTest(status.primaryTest[actuator_index])
+
+        secondary_status = None
+
+        if status.actuatorId in self.get_m1m3_actuator_secondary_ids():
+            actuator_sindex = self.get_m1m3_actuator_secondary_index(status.actuatorId)
+            secondary_status = MTM1M3.BumpTest(status.secondaryTest[actuator_sindex])
+
+        return status.actuatorId, primary_status, secondary_status
+
+    def get_m1m3_actuator_index(self, actuator_id: int) -> int:
+        """Convert from actuator_id into actuator index using M1M3 FATABLE.
+
+        Parameters
+        ----------
+        actuator_id : `int`
+            Actuator id.
+
+        Returns
+        -------
+        actuator_index : `int`
+            Array index of actuator.
+        """
+
+        if actuator_id not in self._m1m3_actuator_id_index_table:
+            raise RuntimeError(f"Invalid actuator id: {actuator_id}.")
+
+        return self._m1m3_actuator_id_index_table[actuator_id]
+
+    def get_m1m3_actuator_secondary_index(self, actuator_id: int) -> int:
+        """Convert from actuator_id into actuator secondary index using M1M3
+        FATABLE.
+
+        Parameters
+        ----------
+        actuator_id : `int`
+            Actuator id.
+
+        Returns
+        -------
+        actuator_index : `int`
+            Secondary array index of actuator.
+        """
+
+        if actuator_id not in self._m1m3_actuator_id_sindex_table:
+            raise RuntimeError(f"Invalid secondary actuator id: {actuator_id}.")
+
+        return self._m1m3_actuator_id_sindex_table[actuator_id]
+
+    def get_m1m3_actuator_ids(self) -> list[int]:
+        """Get a list of the M1M3 actuator ids.
+
+        Returns
+        -------
+        `list`[ `int` ]
+            List of M1M3 actuator ids.
+        """
+        return list(self._m1m3_actuator_id_index_table.keys())
+
+    def get_m1m3_actuator_secondary_ids(self) -> list[int]:
+        """Get a list of the M1M3 actuator secondary ids.
+
+        Returns
+        -------
+        `list`[ `int` ]
+            List of M1M3 actuator secondary ids.
+        """
+        return list(self._m1m3_actuator_id_sindex_table.keys())
+
+    async def is_m1m3_in_engineering_mode(self) -> bool:
+        """Check if M1M3 is in engineering mode.
+
+        Returns
+        -------
+        `bool`
+            `True` if M1M3 in engineering mode, `False` otherwise.
+        """
+        m1m3_detailed_state = (
+            await self.rem.mtm1m3.evt_detailedState.aget(timeout=self.fast_timeout)
+        ).detailedState
+
+        return m1m3_detailed_state in self.m1m3_engineering_states
 
     async def enable_m2_balance_system(self) -> None:
         """Enable m2 balance system."""
@@ -1288,6 +1621,21 @@ class MTCS(BaseTCS):
     async def _ready_to_take_data(self) -> None:
         """Placeholder, still needs to be implemented."""
         # TODO: Finish implementation.
+
+    @property
+    def m1m3_engineering_states(self) -> set[MTM1M3.DetailedState]:
+        """M1M3 engineering states.
+
+        Returns
+        -------
+        `set`[ `MTM1M3.DetailedState` ]
+            Set with the M1M3 detailed states.
+        """
+        return {
+            detailed_state
+            for detailed_state in MTM1M3.DetailedState
+            if "ENGINEERING" in detailed_state.name
+        }
 
     @property
     def compensation_mode_components(self) -> typing.Set[str]:

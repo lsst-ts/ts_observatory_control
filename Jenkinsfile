@@ -42,12 +42,16 @@ pipeline {
                 // to WORKSPACE to have the authority to install the packages.
                 withEnv(["WHOME=${env.WORKSPACE}"]) {
                     sh """
+                        set +x
                         source /home/saluser/.setup_dev.sh || echo "Loading env failed; continuing..."
 
                         # Download git lfs files
                         cd ${env.WHOME}
                         git lfs fetch --all
                         git lfs checkout
+
+                        cd /home/saluser/repos/
+                        [ ! -d "./ts_cRIOpy" ] && (git clone https://github.com/lsst-ts/ts_cRIOpy.git && eups declare -r ./ts_cRIOpy -t current)
 
                         for REPO in \$(ls /home/saluser/repos/); do
                             cd /home/saluser/repos/\${REPO}
@@ -65,6 +69,7 @@ pipeline {
             steps {
                 withEnv(["WHOME=${env.WORKSPACE}"]) {
                     sh """
+                        set +x
                         source /home/saluser/.setup_dev.sh || echo "Loading env failed; continuing..."
                         setup -r .
                         pytest --cov-report html --cov=${env.MODULE_NAME} --junitxml=${env.XML_REPORT_PATH}
@@ -76,6 +81,7 @@ pipeline {
             steps {
                 withEnv(["WHOME=${env.WORKSPACE}"]) {
                     sh """
+                        set +x
                         source /home/saluser/.setup_dev.sh || echo "Loading env failed; continuing..."
                         setup -r .
                         package-docs build
@@ -88,6 +94,7 @@ pipeline {
                 withEnv(["WHOME=${env.WORKSPACE}"]) {
                     catchError(buildResult: 'UNSTABLE', stageResult: 'UNSTABLE') {
                         sh '''
+                            set +x
                             source /home/saluser/.setup_dev.sh || echo "Loading env failed; continuing..."
                             setup -r .
                             ltd -u ${LSST_IO_CREDS_USR} -p ${LSST_IO_CREDS_PSW} upload \
