@@ -692,6 +692,22 @@ class MTCS(BaseTCS):
             },
         )
 
+    async def assert_m1m3_detailed_state(
+        self, detailed_states: set[MTM1M3.DetailedState]
+    ) -> None:
+        """Assert that M1M3 detailed state is one of the input set."""
+
+        m1m3_detailed_state = MTM1M3.DetailedState(
+            (
+                await self.rem.mtm1m3.evt_detailedState.aget(timeout=self.fast_timeout)
+            ).detailedState
+        )
+
+        assert (
+            m1m3_detailed_state in detailed_states
+        ), f"Current M1M3 detailed state {m1m3_detailed_state!r}, "
+        f"expected one of {[ds.name for ds in detailed_states]}."
+
     async def _execute_m1m3_detailed_state_change(
         self,
         execute_command: typing.Callable[[], typing.Awaitable],
