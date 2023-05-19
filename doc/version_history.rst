@@ -20,6 +20,7 @@ v0.27.0
   * Pass timeout to ``aget`` in ``MTCS._wait_for_mtm1m3_detailed_state``.
   * Update ``MTCS._handle_m1m3_detailed_state`` to pass a set with the expected state when calling ``MTCS._wait_for_mtm1m3_detailed_state``.
   * Fix typos in docstring.
+  * Add method to assert that m1m3 is in one of a set of detailed states.
 
 * Add github action to check that version history was updated.
 
