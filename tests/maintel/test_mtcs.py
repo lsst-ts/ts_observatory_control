@@ -838,6 +838,28 @@ class TestMTCS(MTCSAsyncMock):
             flush=False, timeout=self.mtcs.m1m3_raise_timeout
         )
 
+    async def test_assert_m1m3_detailed_state(self) -> None:
+        self._mtm1m3_evt_detailed_state.detailedState = (
+            idl.enums.MTM1M3.DetailedState.ACTIVE
+        )
+
+        for m1m3_detailed_state in idl.enums.MTM1M3.DetailedState:
+            self.log.debug(f"{m1m3_detailed_state!r}")
+            if m1m3_detailed_state != idl.enums.MTM1M3.DetailedState.ACTIVE:
+                with pytest.raises(AssertionError):
+                    await self.mtcs.assert_m1m3_detailed_state(
+                        detailed_states={m1m3_detailed_state}
+                    )
+            else:
+                assert (
+                    await self.mtcs.assert_m1m3_detailed_state({m1m3_detailed_state})
+                    is None
+                )
+            self.mtcs.rem.mtm1m3.evt_detailedState.aget.assert_awaited_with(
+                timeout=self.mtcs.fast_timeout
+            )
+            self.mtcs.rem.mtm1m3.evt_detailedState.aget.reset_mock()
+
     async def test_raise_m1m3_not_raisable(self) -> None:
         await self.mtcs.enable()
         await self.mtcs.assert_all_enabled()
