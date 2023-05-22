@@ -6,6 +6,31 @@
 Version History
 ###############
 
+v0.27.0
+-------
+
+* In ``auxtel/atcs.py``, add new ``offset_aos_lut`` method. 
+
+* In ``maintel/mtcs.py``:
+
+  * Add support for running/stopping m1m3 actuator bump test.
+  * Add support for running/stopping m1m3 hard point tests.
+  * Add support for entering/existing m1m3 engineering mode.
+  * Update ``MTCS._wait_for_mtm1m3_detailed_state`` to accept a set of expected detailed states instead of a single value.
+  * Pass timeout to ``aget`` in ``MTCS._wait_for_mtm1m3_detailed_state``.
+  * Update ``MTCS._handle_m1m3_detailed_state`` to pass a set with the expected state when calling ``MTCS._wait_for_mtm1m3_detailed_state``.
+  * Fix typos in docstring.
+  * Add method to assert that m1m3 is in one of a set of detailed states.
+
+* Add github action to check that version history was updated.
+
+* Setup ts_cRIOpy as part of the dependencies for the CI.
+
+* Add ts_cRIOpy to the eups dependency table.
+
+* Modernize conda recipe and include ts-criopy as a dependency.
+
+
 v0.26.0
 -------
 
