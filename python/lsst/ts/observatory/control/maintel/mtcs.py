@@ -123,6 +123,7 @@ class MTCS(BaseTCS):
         )
 
         self.open_dome_shutter_time = 1200.0
+        self.timeout_hardpoint_test_status = 600.0
 
         self.tel_park_el = 80.0
         self.tel_park_az = 0.0
@@ -879,7 +880,7 @@ class MTCS(BaseTCS):
             hp_test_state = MTM1M3.HardpointTest(
                 (
                     await self.rem.mtm1m3.evt_hardpointTestStatus.next(
-                        flush=False, timeout=self.long_timeout
+                        flush=False, timeout=self.timeout_hardpoint_test_status
                     )
                 ).testState[hp - 1]
             )
