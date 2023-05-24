@@ -1032,7 +1032,21 @@ class MTCS(BaseTCS):
 
         if not await self.is_m1m3_in_engineering_mode():
             self.log.info("Entering m1m3 engineering mode.")
-            await self.rem.mtm1m3.cmd_enterEngineering.start(timeout=self.long_timeout)
+            try:
+                await self.rem.mtm1m3.cmd_enterEngineering.start(
+                    timeout=self.long_timeout
+                )
+            except asyncio.TimeoutError:
+                # TODO (DM-39458): Remove this workaround.
+                # This command was timing out frequently even though it is
+                # completing successfully. I will implement this workaround
+                # here while we investigate the problem. Note that it will
+                # still check that the m1m3 transitioned to the expected state
+                # afterwards.
+                self.log.warning(
+                    "Timeout waiting for ack for enter engineering command. Continuing..."
+                )
+
             await self._wait_for_mtm1m3_detailed_state(
                 expected_m1m3_detailed_state=self.m1m3_engineering_states,
                 unexpected_m1m3_detailed_states=set(),
