@@ -1077,10 +1077,10 @@ class MTCS(BaseTCS):
             timeout=self.long_timeout,
         )
 
-        await asyncio.wait_for(
-            self._wait_hard_point_test_ok(hp=hp),
-            timeout=self.long_long_timeout,
-        )
+        try:
+            await self._wait_hard_point_test_ok(hp=hp)
+        except asyncio.TimeoutError:
+            raise RuntimeError("Timeout waiting for hardpoint test.")
 
     async def stop_m1m3_hard_point_test(self, hp: int) -> None:
         """Interrupt hard point test.
