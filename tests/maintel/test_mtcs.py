@@ -1061,6 +1061,28 @@ class TestMTCS(MTCSAsyncMock):
             )
             self.mtcs.rem.mtm1m3.cmd_enterEngineering.start.reset_mock()
 
+    # TODO (DM-39458): Remove this workaround.
+    async def test_enter_m1m3_engineering_mode_ignore_cmd_timeout(self) -> None:
+        self.mtm1m3_cmd_enter_engineering_timeout = True
+
+        m1m3_engineering_states = self.mtcs.m1m3_engineering_states
+        m1m3_non_engineering_states = {
+            val
+            for val in idl.enums.MTM1M3.DetailedState
+            if val not in m1m3_engineering_states
+        }
+        for detailed_state in m1m3_non_engineering_states:
+            self._mtm1m3_evt_detailed_state.detailedState = detailed_state
+
+            await self.mtcs.enter_m1m3_engineering_mode()
+
+            assert await self.mtcs.is_m1m3_in_engineering_mode()
+            self.mtcs.rem.mtm1m3.cmd_enterEngineering.start.assert_awaited_once()
+            self.mtcs.rem.mtm1m3.cmd_enterEngineering.start.assert_awaited_with(
+                timeout=self.mtcs.long_timeout
+            )
+            self.mtcs.rem.mtm1m3.cmd_enterEngineering.start.reset_mock()
+
     async def test_exit_m1m3_engineering_mode_in_eng_mode(self) -> None:
         for detailed_state in self.mtcs.m1m3_engineering_states:
             self._mtm1m3_evt_detailed_state.detailedState = detailed_state
@@ -1098,7 +1120,7 @@ class TestMTCS(MTCSAsyncMock):
         self.mtcs.rem.mtm1m3.evt_hardpointTestStatus.flush.assert_called()
         self.mtcs.rem.mtm1m3.evt_hardpointTestStatus.next.assert_awaited_with(
             flush=False,
-            timeout=self.mtcs.long_timeout,
+            timeout=self.mtcs.timeout_hardpoint_test_status,
         )
 
     async def test_run_m1m3_hard_point_test_failed(self) -> None:
@@ -1114,7 +1136,7 @@ class TestMTCS(MTCSAsyncMock):
         self.mtcs.rem.mtm1m3.evt_hardpointTestStatus.flush.assert_called()
         self.mtcs.rem.mtm1m3.evt_hardpointTestStatus.next.assert_awaited_with(
             flush=False,
-            timeout=self.mtcs.long_timeout,
+            timeout=self.mtcs.timeout_hardpoint_test_status,
         )
 
     async def test_stop_m1m3_hard_point_test(self) -> None:
