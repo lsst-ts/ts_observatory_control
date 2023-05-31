@@ -209,6 +209,8 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
     async def setup_mtm1m3(self) -> None:
         """Augment MTM1M3."""
 
+        self.mtm1m3_cmd_enter_engineering_timeout = False
+
         m1m3_mocks = {
             "evt_detailedState.next.side_effect": self.mtm1m3_evt_detailed_state,
             "evt_detailedState.aget.side_effect": self.mtm1m3_evt_detailed_state,
@@ -424,6 +426,17 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
                 idl.enums.MTM1M3.DetailedState.PARKEDENGINEERING
             )
         )
+
+        # TODO (DM-39458): Remove this workaround.
+        # While running this command at the summit/production environment we
+        # have have experienced higher than average command timeouts. For the
+        # time being I implemented a workaround in
+        # MTCS.enter_m1m3_engineering_mode to ignore command timeouts. Once we
+        # figure out what is causing this issues (or we finish moving from DDS
+        # to Kafka and these issues, hopefully disappears) this work around
+        # should be removed.
+        if self.mtm1m3_cmd_enter_engineering_timeout:
+            raise asyncio.TimeoutError("Mock command timeout.")
 
     async def mtm1m3_cmd_exit_engineering(
         self, *args: typing.Any, **kwargs: typing.Any

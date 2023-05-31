@@ -123,6 +123,7 @@ class MTCS(BaseTCS):
         )
 
         self.open_dome_shutter_time = 1200.0
+        self.timeout_hardpoint_test_status = 600.0
 
         self.tel_park_el = 80.0
         self.tel_park_az = 0.0
@@ -879,7 +880,7 @@ class MTCS(BaseTCS):
             hp_test_state = MTM1M3.HardpointTest(
                 (
                     await self.rem.mtm1m3.evt_hardpointTestStatus.next(
-                        flush=False, timeout=self.long_timeout
+                        flush=False, timeout=self.timeout_hardpoint_test_status
                     )
                 ).testState[hp - 1]
             )
@@ -1031,7 +1032,21 @@ class MTCS(BaseTCS):
 
         if not await self.is_m1m3_in_engineering_mode():
             self.log.info("Entering m1m3 engineering mode.")
-            await self.rem.mtm1m3.cmd_enterEngineering.start(timeout=self.long_timeout)
+            try:
+                await self.rem.mtm1m3.cmd_enterEngineering.start(
+                    timeout=self.long_timeout
+                )
+            except asyncio.TimeoutError:
+                # TODO (DM-39458): Remove this workaround.
+                # This command was timing out frequently even though it is
+                # completing successfully. I will implement this workaround
+                # here while we investigate the problem. Note that it will
+                # still check that the m1m3 transitioned to the expected state
+                # afterwards.
+                self.log.warning(
+                    "Timeout waiting for ack for enter engineering command. Continuing..."
+                )
+
             await self._wait_for_mtm1m3_detailed_state(
                 expected_m1m3_detailed_state=self.m1m3_engineering_states,
                 unexpected_m1m3_detailed_states=set(),
@@ -1076,10 +1091,10 @@ class MTCS(BaseTCS):
             timeout=self.long_timeout,
         )
 
-        await asyncio.wait_for(
-            self._wait_hard_point_test_ok(hp=hp),
-            timeout=self.long_long_timeout,
-        )
+        try:
+            await self._wait_hard_point_test_ok(hp=hp)
+        except asyncio.TimeoutError:
+            raise RuntimeError("Timeout waiting for hardpoint test.")
 
     async def stop_m1m3_hard_point_test(self, hp: int) -> None:
         """Interrupt hard point test.

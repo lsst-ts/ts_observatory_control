@@ -6,6 +6,15 @@
 Version History
 ###############
 
+v0.27.1
+-------
+
+* In ``maintel/mtcs.py``:
+
+  * Add a specific timeout for the hard point test that is long enough to allow it to execute.
+  * Update ``run_m1m3_hard_point_test`` to wait for ``_wait_hard_point_test_ok``, catch timeout exceptions and raise a runtime error instead.
+  * Update ``enter_m1m3_engineering_mode`` to ignore timeout error in ``cmd_enterEngineering``.
+
 v0.27.0
 -------
 
