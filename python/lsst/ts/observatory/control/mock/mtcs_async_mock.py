@@ -131,6 +131,9 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
             * len(self.mtcs.get_m1m3_actuator_ids()),
             secondaryTest=[idl.enums.MTM1M3.BumpTest.NOTTESTED]
             * len(self.mtcs.get_m1m3_actuator_secondary_ids()),
+            primaryTestTimestamps=[0.0] * len(self.mtcs.get_m1m3_actuator_ids()),
+            secondaryTestTimestamps=[0.0]
+            * len(self.mtcs.get_m1m3_actuator_secondary_ids()),
         )
         self.desired_hp_test_final_status = idl.enums.MTM1M3.HardpointTest.PASSED
         self.desired_bump_test_final_status = idl.enums.MTM1M3.BumpTest.PASSED
@@ -577,7 +580,6 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
             idl.enums.MTM1M3.BumpTest.TESTINGPOSITIVEWAIT,
             idl.enums.MTM1M3.BumpTest.TESTINGNEGATIVE,
             idl.enums.MTM1M3.BumpTest.TESTINGNEGATIVEWAIT,
-            self.desired_bump_test_final_status,
         ]
 
         if test_primary:
@@ -587,7 +589,19 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
                 self._mtm1m3_evt_force_actuator_bump_test_status.primaryTest[
                     actuator_index
                 ] = state
+                self._mtm1m3_evt_force_actuator_bump_test_status.primaryTestTimestamps[
+                    actuator_index
+                ] = utils.current_tai()
                 await asyncio.sleep(self.heartbeat_time / 2.0)
+
+            if not test_secondary:
+                self._mtm1m3_evt_force_actuator_bump_test_status.actuatorId = -1
+            self._mtm1m3_evt_force_actuator_bump_test_status.primaryTest[
+                actuator_index
+            ] = self.desired_bump_test_final_status
+            self._mtm1m3_evt_force_actuator_bump_test_status.primaryTestTimestamps[
+                actuator_index
+            ] = utils.current_tai()
 
         if test_secondary:
             actuator_sindex = self.mtcs.get_m1m3_actuator_secondary_index(
@@ -597,7 +611,18 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
                 self._mtm1m3_evt_force_actuator_bump_test_status.secondaryTest[
                     actuator_sindex
                 ] = state
+                self._mtm1m3_evt_force_actuator_bump_test_status.secondaryTestTimestamps[
+                    actuator_sindex
+                ] = utils.current_tai()
                 await asyncio.sleep(self.heartbeat_time / 2.0)
+
+            self._mtm1m3_evt_force_actuator_bump_test_status.actuatorId = -1
+            self._mtm1m3_evt_force_actuator_bump_test_status.secondaryTest[
+                actuator_sindex
+            ] = self.desired_bump_test_final_status
+            self._mtm1m3_evt_force_actuator_bump_test_status.secondaryTestTimestamps[
+                actuator_sindex
+            ] = utils.current_tai()
 
     async def _execute_enable_hardpoint_corrections(self) -> float:
         for force_magnitude in range(0, 2200, 200):
