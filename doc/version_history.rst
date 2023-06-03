@@ -6,6 +6,22 @@
 Version History
 ###############
 
+v0.28.0
+-------
+
+* In ``maintel/mtcs.py``:
+
+  * Update ``get_m1m3_bump_test_status`` to accept ``actuator_id`` as an input parameter and return the primary and secondary test status.
+    The secondary test status is ``None`` if the actuator has no secondary element.
+
+  * Extract the code that parses the M1M3 ``forceActuatorBumpTestStatus`` into a separate method, ``_extract_bump_test_status_info``.
+
+  * Use ``_extract_bump_test_status_info`` in ``_wait_bump_test_ok`` to parse the information from the M1M3 ``forceActuatorBumpTestStatus``.
+
+  * Update docstring of ``get_m1m3_actuator_index`` and ``get_m1m3_actuator_secondary_index`` to document exception raised by the methods and include a "See Also" session.
+
+* In ``mock/mtcs_async_mock.py``, improve mocking of the m1m3 actuator testing to more closely resemble m1m3 behavior.
+
 v0.27.1
 -------
 
