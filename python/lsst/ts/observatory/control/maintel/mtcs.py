@@ -1179,6 +1179,32 @@ class MTCS(BaseTCS):
             timeout=self.fast_timeout
         )
 
+        return self._extract_bump_test_status_info(actuator_id, status)
+
+    def _extract_bump_test_status_info(
+        self,
+        actuator_id: int,
+        status: salobj.BaseDdsDataType,
+    ) -> tuple[MTM1M3.BumpTest, MTM1M3.BumpTest | None]:
+        """Extract the bump status information from the
+        forceActuatorBumpTestStatus event.
+
+        Parameters
+        ----------
+        actuator_id : `int`
+            Id of the actuator.
+        status : `salobj.BaseDdsDataType`
+            M1M3 forceActuatorBumpTestStatus event sample to extract
+            information from.
+
+        Returns
+        -------
+        primary_status : `MTM1M3.BumpTest`
+            Status of the primary (z-axis) test.
+        secondary_status : `MTM1M3.BumpTest` | None
+            Status of the secondary (xy-axis) test.
+        """
+
         actuator_index = self.get_m1m3_actuator_index(actuator_id)
         primary_status = MTM1M3.BumpTest(status.primaryTest[actuator_index])
 
