@@ -1159,14 +1159,17 @@ class MTCS(BaseTCS):
             self.log.info("M1M3 bump test is not running.")
 
     async def get_m1m3_bump_test_status(
-        self,
-    ) -> tuple[int, MTM1M3.BumpTest, MTM1M3.BumpTest | None]:
+        self, actuator_id: int
+    ) -> tuple[MTM1M3.BumpTest, MTM1M3.BumpTest | None]:
         """Get latest m1m3 bump test status.
+
+        Parameters
+        ----------
+        actuator_id : `int`
+            Id of the actuator.
 
         Returns
         -------
-        actuator_id : `int`
-            Id of the actuator.
         primary_status : `MTM1M3.BumpTest`
             Status of the primary (z-axis) test.
         secondary_status : `MTM1M3.BumpTest` | None
@@ -1176,16 +1179,16 @@ class MTCS(BaseTCS):
             timeout=self.fast_timeout
         )
 
-        actuator_index = self.get_m1m3_actuator_index(status.actuatorId)
+        actuator_index = self.get_m1m3_actuator_index(actuator_id)
         primary_status = MTM1M3.BumpTest(status.primaryTest[actuator_index])
 
         secondary_status = None
 
-        if status.actuatorId in self.get_m1m3_actuator_secondary_ids():
-            actuator_sindex = self.get_m1m3_actuator_secondary_index(status.actuatorId)
+        if actuator_id in self.get_m1m3_actuator_secondary_ids():
+            actuator_sindex = self.get_m1m3_actuator_secondary_index(actuator_id)
             secondary_status = MTM1M3.BumpTest(status.secondaryTest[actuator_sindex])
 
-        return status.actuatorId, primary_status, secondary_status
+        return primary_status, secondary_status
 
     def get_m1m3_actuator_index(self, actuator_id: int) -> int:
         """Convert from actuator_id into actuator index using M1M3 FATABLE.
