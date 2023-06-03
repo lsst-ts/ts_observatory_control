@@ -908,11 +908,6 @@ class MTCS(BaseTCS):
             Wait for secondary (xy-axis) test to finish.
         """
 
-        actuator_index = self.get_m1m3_actuator_index(actuator_id) if primary else -1
-        actuator_sindex = (
-            self.get_m1m3_actuator_secondary_index(actuator_id) if secondary else -1
-        )
-
         while True:
             bump_test_status = (
                 await self.rem.mtm1m3.evt_forceActuatorBumpTestStatus.next(
@@ -920,20 +915,12 @@ class MTCS(BaseTCS):
                 )
             )
 
-            if actuator_id != bump_test_status.actuatorId:
-                raise RuntimeError(
-                    f"Expecting status from actuator {actuator_id} got {bump_test_status.actuatorId}."
-                )
-
-            primary_status = (
-                MTM1M3.BumpTest(bump_test_status.primaryTest[actuator_index])
-                if primary
-                else None
-            )
-            secondary_status = (
-                MTM1M3.BumpTest(bump_test_status.secondaryTest[actuator_sindex])
-                if secondary
-                else None
+            (
+                primary_status,
+                secondary_status,
+            ) = self._extract_bump_test_status_info(
+                actuator_id=actuator_id,
+                status=bump_test_status,
             )
 
             done = (primary_status == MTM1M3.BumpTest.PASSED if primary else True) and (
