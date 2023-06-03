@@ -1192,6 +1192,16 @@ class MTCS(BaseTCS):
         -------
         actuator_index : `int`
             Array index of actuator.
+
+        Raises
+        ------
+        RuntimeError
+            If `actuator_id` is not valid.
+
+        See Also
+        --------
+        get_m1m3_actuator_secondary_index: Get m1m3 actuator secondary index
+            from actuator secondary id.
         """
 
         if actuator_id not in self._m1m3_actuator_id_index_table:
@@ -1212,6 +1222,15 @@ class MTCS(BaseTCS):
         -------
         actuator_index : `int`
             Secondary array index of actuator.
+
+        Raises
+        ------
+        RuntimeError
+            If `actuator_id` is not valid.
+
+        See Also
+        --------
+        get_m1m3_actuator_index: Get m1m3 actuator index from actuator id.
         """
 
         if actuator_id not in self._m1m3_actuator_id_sindex_table:
