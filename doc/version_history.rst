@@ -6,6 +6,23 @@
 Version History
 ###############
 
+v0.29.0
+-------
+
+* In ``tests/maintel/test_mtcs.py``:
+
+  * Update ``test_slew_icrs`` to check that ``m1m3_booster_valve`` is correctly called while slewing.
+  * Add unit tests for new move point to point methods.
+  * Add unit tests for ``MTCS.m1m3_booster_valve``.
+
+* In ``mock/mtcs_async_mock.py``, add mocking for the m1m3 booster valve.
+
+* In ``maintel/mtcs.py``:
+
+  * Add methods to move the telescope using point to point movement instead of slewing.
+  * Update ``_slew_to`` method to use ``m1m3_booster_valve`` when executing a slew command.
+  * Add a new async context manager ``m1m3_booster_valve`` to handle opening/closing the M1M3 booster valve for a particular operation.
+
 v0.28.0
 -------
 
