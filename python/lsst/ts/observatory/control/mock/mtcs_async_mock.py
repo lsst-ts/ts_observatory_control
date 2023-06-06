@@ -135,6 +135,7 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
             secondaryTestTimestamps=[0.0]
             * len(self.mtcs.get_m1m3_actuator_secondary_ids()),
         )
+        self._mtm1m3_evt_force_actuator_state = types.SimpleNamespace(slewFlag=False)
         self.desired_hp_test_final_status = idl.enums.MTM1M3.HardpointTest.PASSED
         self.desired_bump_test_final_status = idl.enums.MTM1M3.BumpTest.PASSED
 
@@ -248,6 +249,42 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
             m1m3_mocks[
                 "tel_appliedBalanceForces.aget.side_effect"
             ] = self.mtm1m3_evt_applied_balance_forces
+
+        # Compatibility with xml>16
+        if (
+            "logevent_forceActuatorState"
+            in self.components_metadata["MTM1M3"].topic_info
+        ):
+            m1m3_mocks[
+                "evt_forceActuatorState.aget.side_effect"
+            ] = self.mtm1m3_evt_force_actuator_state
+            m1m3_mocks[
+                "evt_forceActuatorState.next.side_effect"
+            ] = self.mtm1m3_evt_force_actuator_state
+
+        if (
+            "logevent_boosterValveStatus"
+            in self.components_metadata["MTM1M3"].topic_info
+        ):
+            m1m3_mocks[
+                "evt_boosterValveStatus.aget.side_effect"
+            ] = self.mtm1m3_evt_force_actuator_state
+            m1m3_mocks[
+                "evt_boosterValveStatus.next.side_effect"
+            ] = self.mtm1m3_evt_force_actuator_state
+
+        if "command_setAirSlewFlag" in self.components_metadata["MTM1M3"].topic_info:
+            m1m3_mocks[
+                "cmd_setAirSlewFlag.set_start.side_effect"
+            ] = self.mtm1m3_cmd_set_air_slew_flag
+
+        if "command_boosterValveOpen" in self.components_metadata["MTM1M3"].topic_info:
+            m1m3_mocks[
+                "cmd_boosterValveOpen.start.side_effect"
+            ] = self.mtm1m3_cmd_booster_valve_open
+            m1m3_mocks[
+                "cmd_boosterValveClose.start.side_effect"
+            ] = self.mtm1m3_cmd_booster_valve_close
 
         self.mtcs.rem.mtm1m3.configure_mock(**m1m3_mocks)
 
@@ -400,6 +437,33 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
     ) -> types.SimpleNamespace:
         await asyncio.sleep(self.normal_process_time)
         return self._mtm1m3_evt_applied_balance_forces
+
+    async def mtm1m3_evt_force_actuator_state(
+        self, *args: typing.Any, **kwargs: typing.Any
+    ) -> types.SimpleNamespace:
+        await asyncio.sleep(self.heartbeat_time / 4.0)
+        return self._mtm1m3_evt_force_actuator_state
+
+    async def mtm1m3_cmd_set_air_slew_flag(
+        self, *args: typing.Any, **kwargs: typing.Any
+    ) -> None:
+        asyncio.create_task(
+            self._mtm1m3_cmd_set_air_slew_flag(slew_flag=kwargs["slewFlag"])
+        )
+
+    async def mtm1m3_cmd_booster_valve_open(
+        self, *args: typing.Any, **kwargs: typing.Any
+    ) -> None:
+        asyncio.create_task(self._mtm1m3_cmd_set_air_slew_flag(slew_flag=True))
+
+    async def mtm1m3_cmd_booster_valve_close(
+        self, *args: typing.Any, **kwargs: typing.Any
+    ) -> None:
+        asyncio.create_task(self._mtm1m3_cmd_set_air_slew_flag(slew_flag=False))
+
+    async def _mtm1m3_cmd_set_air_slew_flag(self, slew_flag: bool) -> None:
+        await asyncio.sleep(self.heartbeat_time / 2.0)
+        self._mtm1m3_evt_force_actuator_state.slewFlag = slew_flag
 
     async def mtm1m3_cmd_raise_m1m3(
         self, *args: typing.Any, **kwargs: typing.Any
