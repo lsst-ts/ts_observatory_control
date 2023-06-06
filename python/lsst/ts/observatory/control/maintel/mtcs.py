@@ -1536,6 +1536,52 @@ class MTCS(BaseTCS):
             component_name="M2 Hexapod",
         )
 
+    async def move_p2p_azel(self, az: float, el: float, timeout: float = 120.0) -> None:
+        """Move telescope using point to point mode.
+
+        Parameters
+        ----------
+        az : `float`
+            Azimuth (in deg).
+        el : `float`
+            Elevation (in deg).
+        timeout : `float`, optional
+            Timeout for positioning the telescope, by default=120.0
+            (in seconds).
+        """
+
+        async with self.m1m3_booster_valve():
+            await self.rem.mtmount.cmd_moveToTarget.set_start(
+                azimuth=az,
+                elevation=el,
+                timeout=timeout,
+            )
+
+    async def move_p2p_radec(
+        self, ra: float, dec: float, timeout: float = 120.0
+    ) -> None:
+        """Move telescope using point to point mode.
+
+        Telescope will *not* track after getting in position.
+
+        Parameters
+        ----------
+        ra : `float`
+            Desired right ascension (in hours).
+        dec : `float`
+            Desired declination (in deg).
+        timeout : `float`, optional
+            Timeout for positioning the telescope, by default 120.0
+            (in seconds)
+        """
+        async with self.m1m3_booster_valve():
+            azel = self.azel_from_radec(ra=ra, dec=dec)
+            await self.rem.mtmount.cmd_moveToTarget.set_start(
+                azimuth=azel.az.value,
+                elevation=azel.alt.value,
+                timeout=timeout,
+            )
+
     async def offset_camera_hexapod(
         self,
         x: float,
