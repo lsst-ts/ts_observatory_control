@@ -264,28 +264,31 @@ class MTCS(BaseTCS):
             self.flush_offset_events()
             self.rem.mtrotator.evt_inPosition.flush()
 
-        await slew_cmd.start(timeout=slew_timeout)
-        self._dome_az_in_position.clear()
-        if offset_cmd is not None:
-            await offset_cmd.start(timeout=self.fast_timeout)
+        async with self.m1m3_booster_valve():
+            await slew_cmd.start(timeout=slew_timeout)
+            self._dome_az_in_position.clear()
+            if offset_cmd is not None:
+                await offset_cmd.start(timeout=self.fast_timeout)
 
-        self.log.debug("Scheduling check coroutines")
+            self.log.debug("Scheduling check coroutines")
 
-        self.scheduled_coro.append(
-            asyncio.create_task(
-                self.wait_for_inposition(timeout=slew_timeout, wait_settle=wait_settle)
-            )
-        )
-        self.scheduled_coro.append(asyncio.create_task(self.monitor_position()))
-
-        for comp in self.components_attr:
-            if getattr(_check, comp):
-                getattr(self.rem, comp).evt_summaryState.flush()
-                self.scheduled_coro.append(
-                    asyncio.create_task(self.check_component_state(comp))
+            self.scheduled_coro.append(
+                asyncio.create_task(
+                    self.wait_for_inposition(
+                        timeout=slew_timeout, wait_settle=wait_settle
+                    )
                 )
+            )
+            self.scheduled_coro.append(asyncio.create_task(self.monitor_position()))
 
-        await self.process_as_completed(self.scheduled_coro)
+            for comp in self.components_attr:
+                if getattr(_check, comp):
+                    getattr(self.rem, comp).evt_summaryState.flush()
+                    self.scheduled_coro.append(
+                        asyncio.create_task(self.check_component_state(comp))
+                    )
+
+            await self.process_as_completed(self.scheduled_coro)
 
     async def wait_for_inposition(
         self,
