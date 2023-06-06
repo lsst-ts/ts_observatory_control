@@ -166,6 +166,8 @@ class TestMTCS(MTCSAsyncMock):
             timeout=self.mtcs.fast_timeout
         )
 
+        self.assert_m1m3_booster_valve()
+
     async def test_slew_icrs_stop(self) -> None:
         await self.mtcs.enable()
         await self.mtcs.assert_all_enabled()
