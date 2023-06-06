@@ -1651,6 +1651,48 @@ class TestMTCS(MTCSAsyncMock):
             timeout=self.mtcs.long_timeout, flush=False
         )
 
+    async def test_move_p2p_azel(self) -> None:
+        await self.mtcs.move_p2p_azel(az=0.0, el=80.0)
+
+        self.mtcs.rem.mtmount.cmd_moveToTarget.set_start.assert_awaited_with(
+            azimuth=0.0,
+            elevation=80.0,
+            timeout=120.0,
+        )
+
+        self.assert_m1m3_booster_valve()
+
+    async def test_move_p2p_azel_with_timeout(self) -> None:
+        await self.mtcs.move_p2p_azel(az=0.0, el=80.0, timeout=30.0)
+
+        self.mtcs.rem.mtmount.cmd_moveToTarget.set_start.assert_awaited_with(
+            azimuth=0.0,
+            elevation=80.0,
+            timeout=30.0,
+        )
+
+        self.assert_m1m3_booster_valve()
+
+    async def test_move_p2p_radec(self) -> None:
+        az = 90.0
+        el = 80.0
+
+        radec = self.mtcs.radec_from_azel(az=az, el=el)
+
+        self.log.info(f"{radec=}")
+        await self.mtcs.move_p2p_radec(
+            ra=radec.ra.to(units.hourangle).value,
+            dec=radec.dec.value,
+        )
+
+        self.mtcs.rem.mtmount.cmd_moveToTarget.set_start.assert_awaited_with(
+            azimuth=pytest.approx(az, abs=1e-1),
+            elevation=pytest.approx(el, abs=1e-1),
+            timeout=120.0,
+        )
+
+        self.assert_m1m3_booster_valve()
+
     async def test_m1m3_booster_valve(self) -> None:
         async with self.mtcs.m1m3_booster_valve():
             await asyncio.sleep(0)
