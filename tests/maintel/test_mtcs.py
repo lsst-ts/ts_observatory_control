@@ -21,6 +21,7 @@
 import asyncio
 import copy
 import logging
+import unittest.mock
 
 import astropy.units as units
 import numpy as np
@@ -164,6 +165,8 @@ class TestMTCS(MTCSAsyncMock):
         self.mtcs.rem.mtptg.cmd_poriginOffset.start.assert_called_with(
             timeout=self.mtcs.fast_timeout
         )
+
+        self.assert_m1m3_booster_valve()
 
     async def test_slew_icrs_stop(self) -> None:
         await self.mtcs.enable()
@@ -1649,3 +1652,142 @@ class TestMTCS(MTCSAsyncMock):
         self.mtcs.rem.mthexapod_2.evt_inPosition.next.assert_awaited_with(
             timeout=self.mtcs.long_timeout, flush=False
         )
+
+    async def test_move_p2p_azel(self) -> None:
+        await self.mtcs.move_p2p_azel(az=0.0, el=80.0)
+
+        self.mtcs.rem.mtmount.cmd_moveToTarget.set_start.assert_awaited_with(
+            azimuth=0.0,
+            elevation=80.0,
+            timeout=120.0,
+        )
+
+        self.assert_m1m3_booster_valve()
+
+    async def test_move_p2p_azel_with_timeout(self) -> None:
+        await self.mtcs.move_p2p_azel(az=0.0, el=80.0, timeout=30.0)
+
+        self.mtcs.rem.mtmount.cmd_moveToTarget.set_start.assert_awaited_with(
+            azimuth=0.0,
+            elevation=80.0,
+            timeout=30.0,
+        )
+
+        self.assert_m1m3_booster_valve()
+
+    async def test_move_p2p_radec(self) -> None:
+        az = 90.0
+        el = 80.0
+
+        radec = self.mtcs.radec_from_azel(az=az, el=el)
+
+        self.log.info(f"{radec=}")
+        await self.mtcs.move_p2p_radec(
+            ra=radec.ra.to(units.hourangle).value,
+            dec=radec.dec.value,
+        )
+
+        self.mtcs.rem.mtmount.cmd_moveToTarget.set_start.assert_awaited_with(
+            azimuth=pytest.approx(az, abs=1e-1),
+            elevation=pytest.approx(el, abs=1e-1),
+            timeout=120.0,
+        )
+
+        self.assert_m1m3_booster_valve()
+
+    async def test_m1m3_booster_valve(self) -> None:
+        async with self.mtcs.m1m3_booster_valve():
+            await asyncio.sleep(0)
+
+        self.assert_m1m3_booster_valve()
+
+    async def test_m1m3_booster_valve_no_m1m3(self) -> None:
+        self.mtcs.check.mtm1m3 = False
+
+        async with self.mtcs.m1m3_booster_valve():
+            await asyncio.sleep(0)
+
+        self.assert_m1m3_booster_valve_no_m1m3()
+
+    async def test_m1m3_booster_valve_opened(self) -> None:
+        self._mtm1m3_evt_force_actuator_state.slewFlag = True
+
+        async with self.mtcs.m1m3_booster_valve():
+            await asyncio.sleep(0)
+
+        self.assert_m1m3_booster_valve_opened()
+
+    def assert_m1m3_booster_valve(self) -> None:
+        # M1M3 booster valve, xml 16/17 compatibility
+        if hasattr(self.mtcs.rem.mtm1m3, "cmd_setAirSlewFlag"):
+            self.mtcs.rem.mtm1m3.evt_forceActuatorState.flush.assert_called()
+            self.mtcs.rem.mtm1m3.evt_forceActuatorState.aget.assert_awaited_with(
+                timeout=self.mtcs.fast_timeout
+            )
+            self.mtcs.rem.mtm1m3.evt_forceActuatorState.next.assert_awaited_with(
+                flush=False, timeout=self.mtcs.long_timeout
+            )
+            mtm1m3_cmd_set_air_slew_flags_calls = [
+                unittest.mock.call(slewFlag=True, timeout=self.mtcs.fast_timeout),
+                unittest.mock.call(slewFlag=False, timeout=self.mtcs.fast_timeout),
+            ]
+            self.mtcs.rem.mtm1m3.cmd_setAirSlewFlag.set_start.assert_has_awaits(
+                mtm1m3_cmd_set_air_slew_flags_calls
+            )
+        else:
+            self.mtcs.rem.mtm1m3.evt_boosterValveStatus.flush.assert_called()
+            self.mtcs.rem.mtm1m3.evt_boosterValveStatus.aget.assert_awaited_with(
+                timeout=self.mtcs.fast_timeout
+            )
+            self.mtcs.rem.mtm1m3.evt_boosterValveStatus.next.assert_awaited_with(
+                flush=False, timeout=self.mtcs.long_timeout
+            )
+            self.mtcs.rem.mtm1m3.cmd_boosterValveOpen.start.assert_awaited_with(
+                timeout=self.mtcs.fast_timeout,
+            )
+            self.mtcs.rem.mtm1m3.cmd_boosterValveClose.start.assert_awaited_with(
+                timeout=self.mtcs.fast_timeout,
+            )
+
+    def assert_m1m3_booster_valve_opened(self) -> None:
+        # M1M3 booster valve, xml 16/17 compatibility
+        if hasattr(self.mtcs.rem.mtm1m3, "cmd_setAirSlewFlag"):
+            self.mtcs.rem.mtm1m3.evt_forceActuatorState.flush.assert_called()
+            self.mtcs.rem.mtm1m3.evt_forceActuatorState.aget.assert_awaited_with(
+                timeout=self.mtcs.fast_timeout
+            )
+            self.mtcs.rem.mtm1m3.evt_forceActuatorState.next.assert_awaited_with(
+                flush=False, timeout=self.mtcs.long_timeout
+            )
+            mtm1m3_cmd_set_air_slew_flags_calls = [
+                unittest.mock.call(slewFlag=False, timeout=self.mtcs.fast_timeout),
+            ]
+            self.mtcs.rem.mtm1m3.cmd_setAirSlewFlag.set_start.assert_awaited_once()
+            self.mtcs.rem.mtm1m3.cmd_setAirSlewFlag.set_start.assert_has_awaits(
+                mtm1m3_cmd_set_air_slew_flags_calls
+            )
+        else:
+            self.mtcs.rem.mtm1m3.evt_boosterValveStatus.flush.assert_called()
+            self.mtcs.rem.mtm1m3.evt_boosterValveStatus.aget.assert_awaited_with(
+                timeout=self.mtcs.fast_timeout
+            )
+            self.mtcs.rem.mtm1m3.evt_boosterValveStatus.next.assert_awaited_with(
+                flush=False, timeout=self.mtcs.long_timeout
+            )
+            self.mtcs.rem.mtm1m3.cmd_boosterValveOpen.start.assert_not_awaited()
+            self.mtcs.rem.mtm1m3.cmd_boosterValveClose.start.assert_awaited_with(
+                timeout=self.mtcs.fast_timeout,
+            )
+
+    def assert_m1m3_booster_valve_no_m1m3(self) -> None:
+        if hasattr(self.mtcs.rem.mtm1m3, "cmd_setAirSlewFlag"):
+            self.mtcs.rem.mtm1m3.evt_forceActuatorState.flush.assert_not_called()
+            self.mtcs.rem.mtm1m3.evt_forceActuatorState.aget.assert_not_awaited()
+            self.mtcs.rem.mtm1m3.evt_forceActuatorState.next.assert_not_awaited()
+            self.mtcs.rem.mtm1m3.cmd_setAirSlewFlag.set_start.assert_not_awaited()
+        else:
+            self.mtcs.rem.mtm1m3.evt_boosterValveStatus.flush.assert_not_called()
+            self.mtcs.rem.mtm1m3.evt_boosterValveStatus.aget.assert_not_awaited()
+            self.mtcs.rem.mtm1m3.evt_boosterValveStatus.next.assert_not_awaited()
+            self.mtcs.rem.mtm1m3.cmd_boosterValveOpen.start.assert_not_awaited()
+            self.mtcs.rem.mtm1m3.cmd_boosterValveClose.start.assert_not_awaited()

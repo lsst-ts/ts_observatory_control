@@ -21,6 +21,7 @@
 __all__ = ["MTCS"]
 
 import asyncio
+import contextlib
 import copy
 import enum
 import logging
@@ -263,28 +264,31 @@ class MTCS(BaseTCS):
             self.flush_offset_events()
             self.rem.mtrotator.evt_inPosition.flush()
 
-        await slew_cmd.start(timeout=slew_timeout)
-        self._dome_az_in_position.clear()
-        if offset_cmd is not None:
-            await offset_cmd.start(timeout=self.fast_timeout)
+        async with self.m1m3_booster_valve():
+            await slew_cmd.start(timeout=slew_timeout)
+            self._dome_az_in_position.clear()
+            if offset_cmd is not None:
+                await offset_cmd.start(timeout=self.fast_timeout)
 
-        self.log.debug("Scheduling check coroutines")
+            self.log.debug("Scheduling check coroutines")
 
-        self.scheduled_coro.append(
-            asyncio.create_task(
-                self.wait_for_inposition(timeout=slew_timeout, wait_settle=wait_settle)
-            )
-        )
-        self.scheduled_coro.append(asyncio.create_task(self.monitor_position()))
-
-        for comp in self.components_attr:
-            if getattr(_check, comp):
-                getattr(self.rem, comp).evt_summaryState.flush()
-                self.scheduled_coro.append(
-                    asyncio.create_task(self.check_component_state(comp))
+            self.scheduled_coro.append(
+                asyncio.create_task(
+                    self.wait_for_inposition(
+                        timeout=slew_timeout, wait_settle=wait_settle
+                    )
                 )
+            )
+            self.scheduled_coro.append(asyncio.create_task(self.monitor_position()))
 
-        await self.process_as_completed(self.scheduled_coro)
+            for comp in self.components_attr:
+                if getattr(_check, comp):
+                    getattr(self.rem, comp).evt_summaryState.flush()
+                    self.scheduled_coro.append(
+                        asyncio.create_task(self.check_component_state(comp))
+                    )
+
+            await self.process_as_completed(self.scheduled_coro)
 
     async def wait_for_inposition(
         self,
@@ -1532,6 +1536,52 @@ class MTCS(BaseTCS):
             component_name="M2 Hexapod",
         )
 
+    async def move_p2p_azel(self, az: float, el: float, timeout: float = 120.0) -> None:
+        """Move telescope using point to point mode.
+
+        Parameters
+        ----------
+        az : `float`
+            Azimuth (in deg).
+        el : `float`
+            Elevation (in deg).
+        timeout : `float`, optional
+            Timeout for positioning the telescope, by default=120.0
+            (in seconds).
+        """
+
+        async with self.m1m3_booster_valve():
+            await self.rem.mtmount.cmd_moveToTarget.set_start(
+                azimuth=az,
+                elevation=el,
+                timeout=timeout,
+            )
+
+    async def move_p2p_radec(
+        self, ra: float, dec: float, timeout: float = 120.0
+    ) -> None:
+        """Move telescope using point to point mode.
+
+        Telescope will *not* track after getting in position.
+
+        Parameters
+        ----------
+        ra : `float`
+            Desired right ascension (in hours).
+        dec : `float`
+            Desired declination (in deg).
+        timeout : `float`, optional
+            Timeout for positioning the telescope, by default 120.0
+            (in seconds)
+        """
+        async with self.m1m3_booster_valve():
+            azel = self.azel_from_radec(ra=ra, dec=dec)
+            await self.rem.mtmount.cmd_moveToTarget.set_start(
+                azimuth=azel.az.value,
+                elevation=azel.alt.value,
+                timeout=timeout,
+            )
+
     async def offset_camera_hexapod(
         self,
         x: float,
@@ -1694,6 +1744,80 @@ class MTCS(BaseTCS):
     async def _ready_to_take_data(self) -> None:
         """Placeholder, still needs to be implemented."""
         # TODO: Finish implementation.
+
+    async def open_m1m3_booster_valve(self) -> None:
+        """Open M1M3 booster valves."""
+        if self.check.mtm1m3:
+            await self._handle_m1m3_booster_valve(open=True)
+        else:
+            self.log.info("M1M3 check disabled.")
+
+    async def close_m1m3_booster_valve(self) -> None:
+        """Close M1M3 booster valves."""
+        if self.check.mtm1m3:
+            await self._handle_m1m3_booster_valve(open=False)
+
+    async def _handle_m1m3_booster_valve(self, open: bool) -> None:
+        """Handle opening the M1M3 booster valves"""
+
+        desired_state = "open" if open else "close"
+        # xml 16/17 compatibility
+        if hasattr(self.rem.mtm1m3, "cmd_setAirSlewFlag"):
+            force_actuator_state = await self.rem.mtm1m3.evt_forceActuatorState.aget(
+                timeout=self.fast_timeout
+            )
+            if force_actuator_state.slewFlag != open:
+                self.log.info(f"Setting booster valves to {desired_state}.")
+                self.rem.mtm1m3.evt_forceActuatorState.flush()
+                await self.rem.mtm1m3.cmd_setAirSlewFlag.set_start(
+                    slewFlag=open, timeout=self.fast_timeout
+                )
+                while force_actuator_state.slewFlag != open:
+                    self.log.debug(f"Waiting for valve to {desired_state}.")
+                    force_actuator_state = (
+                        await self.rem.mtm1m3.evt_forceActuatorState.next(
+                            flush=False, timeout=self.long_timeout
+                        )
+                    )
+                self.log.debug(f"Booster valve {desired_state}.")
+            else:
+                self.log.info(f"Booster valve already {desired_state}.")
+        else:
+            booster_valve_status = await self.rem.mtm1m3.evt_boosterValveStatus.aget(
+                timeout=self.fast_timeout
+            )
+
+            if booster_valve_status.slewFlag != open:
+                self.log.info(f"Setting booster valves to {desired_state}.")
+                self.rem.mtm1m3.evt_boosterValveStatus.flush()
+                if open:
+                    await self.rem.mtm1m3.cmd_boosterValveOpen.start(
+                        timeout=self.fast_timeout
+                    )
+                else:
+                    await self.rem.mtm1m3.cmd_boosterValveClose.start(
+                        timeout=self.fast_timeout
+                    )
+                while booster_valve_status.slewFlag != open:
+                    self.log.debug(f"Waiting for valve to {desired_state}.")
+                    booster_valve_status = (
+                        await self.rem.mtm1m3.evt_boosterValveStatus.next(
+                            flush=False, timeout=self.long_timeout
+                        )
+                    )
+                self.log.debug(f"Booster valve {desired_state}.")
+            else:
+                self.log.info(f"Booster valve already {desired_state}.")
+
+    @contextlib.asynccontextmanager
+    async def m1m3_booster_valve(self) -> typing.AsyncIterator[None]:
+        """Context manager to handle opening/closing M1M3 booster valves."""
+
+        try:
+            await self.open_m1m3_booster_valve()
+            yield
+        finally:
+            await self.close_m1m3_booster_valve()
 
     @property
     def m1m3_engineering_states(self) -> set[MTM1M3.DetailedState]:
