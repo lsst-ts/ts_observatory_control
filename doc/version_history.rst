@@ -6,6 +6,11 @@
 Version History
 ###############
 
+v0.29.1
+-------
+
+* In ``maintel/mtcs.py``, update MTCS usages to add booster valve status event to Slew usage.
+
 v0.29.0
 -------
 
