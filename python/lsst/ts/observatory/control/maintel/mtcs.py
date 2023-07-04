@@ -959,6 +959,14 @@ class MTCS(BaseTCS):
 
         await self._handle_m1m3_hardpoint_correction_command(cmd, enable)
 
+    async def disable_m1m3_balance_system(self) -> None:
+        """Disable m1m3 balance system."""
+
+        cmd = self.rem.mtm1m3.cmd_disableHardpointCorrections
+        enable = False
+
+        await self._handle_m1m3_hardpoint_correction_command(cmd, enable)
+
     async def _handle_m1m3_hardpoint_correction_command(
         self, cmd: salobj.topics.RemoteCommand, enable: bool
     ) -> None:
