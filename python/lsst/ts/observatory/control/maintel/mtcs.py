@@ -757,12 +757,18 @@ class MTCS(BaseTCS):
         self.rem.mtm1m3.evt_detailedState.flush()
 
         # xml 9/10 compatibility
-        if hasattr(self.rem.mtm1m3.cmd_raiseM1M3.DataType(), "raiseM1M3"):
-            await self.rem.mtm1m3.cmd_raiseM1M3.set_start(
-                raiseM1M3=True, timeout=self.long_timeout
+        try:
+            if hasattr(self.rem.mtm1m3.cmd_raiseM1M3.DataType(), "raiseM1M3"):
+                await self.rem.mtm1m3.cmd_raiseM1M3.set_start(
+                    raiseM1M3=True, timeout=self.long_timeout
+                )
+            else:
+                await self.rem.mtm1m3.cmd_raiseM1M3.set_start(timeout=self.long_timeout)
+
+        except asyncio.TimeoutError:
+            self.log.warning(
+                "Raise M1M3 command timed out. Continuing to inspect detailed state."
             )
-        else:
-            await self.rem.mtm1m3.cmd_raiseM1M3.set_start(timeout=self.long_timeout)
 
         await self._handle_m1m3_detailed_state(
             expected_m1m3_detailed_state=MTM1M3.DetailedState.ACTIVE,
@@ -775,13 +781,18 @@ class MTCS(BaseTCS):
         """Handle lowering m1m3."""
         self.rem.mtm1m3.evt_detailedState.flush()
 
-        # xml 9/10 compatibility
-        if hasattr(self.rem.mtm1m3.cmd_lowerM1M3.DataType(), "lowerM1M3"):
-            await self.rem.mtm1m3.cmd_lowerM1M3.set_start(
-                lowerM1M3=True, timeout=self.long_timeout
+        try:
+            # xml 9/10 compatibility
+            if hasattr(self.rem.mtm1m3.cmd_lowerM1M3.DataType(), "lowerM1M3"):
+                await self.rem.mtm1m3.cmd_lowerM1M3.set_start(
+                    lowerM1M3=True, timeout=self.long_timeout
+                )
+            else:
+                await self.rem.mtm1m3.cmd_lowerM1M3.set_start(timeout=self.long_timeout)
+        except asyncio.TimeoutError:
+            self.log.warning(
+                "Lower M1M3 command timed out. Continuing to inspect detailed state."
             )
-        else:
-            await self.rem.mtm1m3.cmd_lowerM1M3.set_start(timeout=self.long_timeout)
 
         await self._handle_m1m3_detailed_state(
             expected_m1m3_detailed_state=MTM1M3.DetailedState.PARKED,
