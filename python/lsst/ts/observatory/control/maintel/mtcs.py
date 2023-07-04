@@ -1840,6 +1840,8 @@ class MTCS(BaseTCS):
     async def open_m1m3_booster_valve(self) -> None:
         """Open M1M3 booster valves."""
         if self.check.mtm1m3:
+            await self.enter_m1m3_engineering_mode()
+            await self.disable_m1m3_balance_system()
             await self._handle_m1m3_booster_valve(open=True)
         else:
             self.log.info("M1M3 check disabled.")
