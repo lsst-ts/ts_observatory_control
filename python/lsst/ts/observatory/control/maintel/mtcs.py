@@ -771,7 +771,10 @@ class MTCS(BaseTCS):
             )
 
         await self._handle_m1m3_detailed_state(
-            expected_m1m3_detailed_state=MTM1M3.DetailedState.ACTIVE,
+            expected_m1m3_detailed_state={
+                MTM1M3.DetailedState.ACTIVE,
+                MTM1M3.DetailedState.ACTIVEENGINEERING,
+            },
             unexpected_m1m3_detailed_states={
                 MTM1M3.DetailedState.LOWERING,
             },
@@ -795,7 +798,10 @@ class MTCS(BaseTCS):
             )
 
         await self._handle_m1m3_detailed_state(
-            expected_m1m3_detailed_state=MTM1M3.DetailedState.PARKED,
+            expected_m1m3_detailed_state={
+                MTM1M3.DetailedState.PARKED,
+                MTM1M3.DetailedState.PARKEDENGINEERING,
+            },
             unexpected_m1m3_detailed_states=set(),
         )
 
@@ -804,22 +810,25 @@ class MTCS(BaseTCS):
         await self.rem.mtm1m3.cmd_abortRaiseM1M3.start(timeout=self.long_timeout)
 
         await self._handle_m1m3_detailed_state(
-            expected_m1m3_detailed_state=MTM1M3.DetailedState.PARKED,
+            expected_m1m3_detailed_state={
+                MTM1M3.DetailedState.PARKED,
+                MTM1M3.DetailedState.PARKEDENGINEERING,
+            },
             unexpected_m1m3_detailed_states=set(),
         )
 
     async def _handle_m1m3_detailed_state(
         self,
-        expected_m1m3_detailed_state: enum.IntEnum,
-        unexpected_m1m3_detailed_states: typing.Set[enum.IntEnum],
+        expected_m1m3_detailed_state: set[enum.IntEnum],
+        unexpected_m1m3_detailed_states: set[enum.IntEnum],
     ) -> None:
         """Handle m1m3 detailed state.
 
         Parameters
         ----------
-        expected_m1m3_detailed_state : `MTM1M3.DetailedState`
+        expected_m1m3_detailed_state : `set` of `MTM1M3.DetailedState`
             Expected m1m3 detailed state.
-        unexpected_m1m3_detailed_states : `list` of `MTM1M3.DetailedState`
+        unexpected_m1m3_detailed_states : `set` of `MTM1M3.DetailedState`
             List of unexpected detailed state. If M1M3 transition to any of
             these states, raise an exception.
         """
@@ -827,7 +836,7 @@ class MTCS(BaseTCS):
         m1m3_raise_check_tasks = [
             asyncio.create_task(
                 self._wait_for_mtm1m3_detailed_state(
-                    expected_m1m3_detailed_state={expected_m1m3_detailed_state},
+                    expected_m1m3_detailed_state=expected_m1m3_detailed_state,
                     unexpected_m1m3_detailed_states=unexpected_m1m3_detailed_states,
                     timeout=self.m1m3_raise_timeout,
                 )
