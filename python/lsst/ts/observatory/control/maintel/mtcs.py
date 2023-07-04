@@ -732,7 +732,9 @@ class MTCS(BaseTCS):
         final_detailed_states : `set` of `MTM1M3.DetailedState`
             The expected final detailed state.
         """
-        m1m3_detailed_state = await self.rem.mtm1m3.evt_detailedState.aget()
+        m1m3_detailed_state = await self.rem.mtm1m3.evt_detailedState.aget(
+            timeout=self.fast_timeout
+        )
 
         if m1m3_detailed_state.detailedState in initial_detailed_states:
             self.log.debug(
