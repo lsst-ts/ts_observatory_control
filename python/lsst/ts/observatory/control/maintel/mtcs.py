@@ -1849,6 +1849,7 @@ class MTCS(BaseTCS):
     async def close_m1m3_booster_valve(self) -> None:
         """Close M1M3 booster valves."""
         if self.check.mtm1m3:
+            await self.enable_m1m3_balance_system()
             await self._handle_m1m3_booster_valve(open=False)
 
     async def _handle_m1m3_booster_valve(self, open: bool) -> None:
