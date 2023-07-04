@@ -954,15 +954,86 @@ class MTCS(BaseTCS):
     async def enable_m1m3_balance_system(self) -> None:
         """Enable m1m3 balance system."""
 
-        applied_balance_forces = await self.get_m1m3_applied_balance_forces()
+        cmd = self.rem.mtm1m3.cmd_enableHardpointCorrections
+        enable = True
 
-        if applied_balance_forces.forceMagnitude == 0.0:
-            self.log.debug("Enabling hardpoint corrections.")
-            await self.rem.mtm1m3.cmd_enableHardpointCorrections.start(
-                timeout=self.long_timeout
+        await self._handle_m1m3_hardpoint_correction_command(cmd, enable)
+
+    async def _handle_m1m3_hardpoint_correction_command(
+        self, cmd: salobj.topics.RemoteCommand, enable: bool
+    ) -> None:
+        """Handle running enable/disable m1m3 hardpoint correction commands.
+
+        Parameters
+        ----------
+        cmd : `salobj.topics.RemoteCommand`
+            The command to execute.
+
+        enable : `bool`
+            Is the command to enable or disable hard point corrections?
+        """
+        force_actuator_state = await self.rem.mtm1m3.evt_forceActuatorState.aget(
+            timeout=self.fast_timeout
+        )
+
+        if force_actuator_state.balanceForcesApplied != enable:
+            self.log.debug(
+                f"Force balance state is {force_actuator_state.balanceForcesApplied}, "
+                f"desired state is {enable}. "
+                "Executing command."
             )
+
+            self.rem.mtm1m3.evt_forceActuatorState.flush()
+            try:
+                await cmd.start(
+                    timeout=self.long_timeout,
+                )
+            except asyncio.TimeoutError:
+                self.log.warning("Command timed out, continuing.")
+            else:
+                self.log.debug("Waiting for force balance system to settle.")
+            await self._wait_force_balance_system_state(enable=enable)
         else:
-            self.log.warning("Hardpoint corrections already enabled. Nothing to do.")
+            self.log.warning(
+                f"Hardpoint corrections already in desired state ({enable}). Nothing to do."
+            )
+
+    async def _wait_force_balance_system_state(self, enable: bool) -> None:
+        """Wait for the M1M3 force balance system to arrive at the desired
+        enable/disabled state.
+
+        Parameters
+        ----------
+        enable : `bool`
+            Wait for the balance system to be enable (True) or disabled
+            (False)?
+
+        Raises
+        ------
+        RuntimeError:
+            If force actuator system times out.
+        """
+        force_actuator_state = await self.rem.mtm1m3.evt_forceActuatorState.aget(
+            timeout=self.fast_timeout
+        )
+
+        desired_state = "enable" if enable else "disable"
+
+        while force_actuator_state.balanceForcesApplied != enable:
+            try:
+                force_actuator_state = (
+                    await self.rem.mtm1m3.evt_forceActuatorState.next(
+                        flush=False, timeout=self.long_long_timeout
+                    )
+                )
+            except asyncio.TimeoutError:
+                raise RuntimeError(
+                    f"Force balance systems did not {desired_state} in {self.long_long_timeout}s. "
+                    "Check M1M3 component for errors."
+                )
+            self.log.debug(
+                f"Force actuator state: {force_actuator_state.balanceForcesApplied}."
+            )
 
     async def wait_m1m3_force_balance_system(self, timeout: float) -> None:
         """Wait for m1m3 force balance system to stabilize.
