@@ -6,6 +6,20 @@
 Version History
 ###############
 
+v0.30.0
+-------
+
+* In ``maintel/mtcs.py``:
+
+  * Add ``forceActuatorState`` to mtm1m3 Slew usages.
+  * Fix lower/raise m1m3 to handle m1m3 in engineering mode.
+  * Update ``close_m1m3_booster_valve`` to enable force balance system before closing the booster valves.
+  * Update ``open_m1m3_booster_valve`` to enter engineering mode and to disable m1m3 force balance system before opening the booster valves.
+  * Update ``_handle_raise_m1m3`` and ``_handle_lower_m1m3`` to work around command timeout.
+  * Add timeout when getting ``detailedState`` in ``_execute_m1m3_detailed_state_change``.
+  * Add ``disable_m1m3_balance_system``.
+  * Refactor ``enable_m1m3_balance_system`` to extract code into two general purpose private methods; ``_handle_m1m3_hardpoint_correction_command`` and ``_wait_force_balance_system_state``.
+
 v0.29.2
 -------
 
