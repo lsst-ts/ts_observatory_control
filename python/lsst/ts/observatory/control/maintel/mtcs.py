@@ -31,12 +31,7 @@ import astropy.units as u
 import numpy as np
 from astropy.coordinates import Angle
 from lsst.ts import salobj, utils
-from lsst.ts.cRIOpy.M1M3FATable import (
-    FATABLE,
-    FATABLE_ID,
-    FATABLE_INDEX,
-    FATABLE_SINDEX,
-)
+from lsst.ts.criopy.M1M3FATable import FATABLE
 from lsst.ts.idl.enums import MTM1M3, MTPtg
 from lsst.ts.utils import angle_diff
 
@@ -148,14 +143,10 @@ class MTCS(BaseTCS):
         self.m1m3_force_magnitude_stable_tolerance = 50.0
 
         self._m1m3_actuator_id_index_table: dict[int, int] = dict(
-            [(fa[FATABLE_ID], fa[FATABLE_INDEX]) for fa in FATABLE]
+            [(fa.actuator_id, fa.index) for fa in FATABLE]
         )
         self._m1m3_actuator_id_sindex_table: dict[int, int] = dict(
-            [
-                (fa[FATABLE_ID], fa[FATABLE_SINDEX])
-                for fa in FATABLE
-                if fa[FATABLE_SINDEX] is not None
-            ]
+            [(fa.actuator_id, fa.s_index) for fa in FATABLE if fa.s_index is not None]
         )
 
         try:
