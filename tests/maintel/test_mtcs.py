@@ -973,25 +973,56 @@ class TestMTCS(MTCSAsyncMock):
 
         self.mtcs.rem.mtm1m3.cmd_abortRaiseM1M3.start.assert_not_awaited()
 
-    async def test_enable_m1m3_balance_system(self) -> None:
+    async def test_enable_m1m3_balance_system_when_disabled(self) -> None:
+        self._mtm1m3_evt_force_actuator_state.balanceForcesApplied = False
+
         await self.mtcs.enable_m1m3_balance_system()
 
-        if hasattr(self.mtcs.rem.mtm1m3, "evt_appliedBalanceForces"):
-            self.mtcs.rem.mtm1m3.evt_appliedBalanceForces.aget.assert_awaited()
-        else:
-            self.mtcs.rem.mtm1m3.tel_appliedBalanceForces.aget.assert_awaited()
+        self.mtcs.rem.mtm1m3.evt_forceActuatorState.aget.assert_awaited_with(
+            timeout=self.mtcs.fast_timeout
+        )
+        self.mtcs.rem.mtm1m3.evt_forceActuatorState.flush.assert_called()
+        self.mtcs.rem.mtm1m3.evt_forceActuatorState.next.assert_awaited_with(
+            flush=False, timeout=self.mtcs.long_long_timeout
+        )
+
         self.mtcs.rem.mtm1m3.cmd_enableHardpointCorrections.start.assert_awaited_with(
             timeout=self.mtcs.long_timeout
         )
 
     async def test_enable_m1m3_balance_system_when_enabled(self) -> None:
-        self._mtm1m3_evt_applied_balance_forces.forceMagnitude = 2000
+        self._mtm1m3_evt_force_actuator_state.balanceForcesApplied = True
 
         # Check that it logs a warning...
         with self.assertLogs(self.log.name, level=logging.WARNING):
             await self.mtcs.enable_m1m3_balance_system()
 
         self.mtcs.rem.mtm1m3.cmd_enableHardpointCorrections.start.assert_not_awaited()
+
+    async def test_disable_m1m3_balance_system_when_enabled(self) -> None:
+        self._mtm1m3_evt_force_actuator_state.balanceForcesApplied = True
+        await self.mtcs.disable_m1m3_balance_system()
+
+        self.mtcs.rem.mtm1m3.evt_forceActuatorState.aget.assert_awaited_with(
+            timeout=self.mtcs.fast_timeout
+        )
+        self.mtcs.rem.mtm1m3.evt_forceActuatorState.flush.assert_called()
+        self.mtcs.rem.mtm1m3.evt_forceActuatorState.next.assert_awaited_with(
+            flush=False, timeout=self.mtcs.long_long_timeout
+        )
+
+        self.mtcs.rem.mtm1m3.cmd_disableHardpointCorrections.start.assert_awaited_with(
+            timeout=self.mtcs.long_timeout
+        )
+
+    async def test_disable_m1m3_balance_system_when_disabled(self) -> None:
+        self._mtm1m3_evt_force_actuator_state.balanceForcesApplied = False
+
+        # Check that it logs a warning...
+        with self.assertLogs(self.log.name, level=logging.WARNING):
+            await self.mtcs.disable_m1m3_balance_system()
+
+        self.mtcs.rem.mtm1m3.cmd_disableHardpointCorrections.start.assert_not_awaited()
 
     async def test_wait_m1m3_force_balance_system(self) -> None:
         await self._execute_enable_hardpoint_corrections()
