@@ -135,7 +135,10 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
             secondaryTestTimestamps=[0.0]
             * len(self.mtcs.get_m1m3_actuator_secondary_ids()),
         )
-        self._mtm1m3_evt_force_actuator_state = types.SimpleNamespace(slewFlag=False)
+        self._mtm1m3_evt_force_actuator_state = types.SimpleNamespace(
+            slewFlag=False,
+            balanceForcesApplied=False,
+        )
         self.desired_hp_test_final_status = idl.enums.MTM1M3.HardpointTest.PASSED
         self.desired_bump_test_final_status = idl.enums.MTM1M3.BumpTest.PASSED
 
@@ -224,6 +227,7 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
             "cmd_raiseM1M3.set_start.side_effect": self.mtm1m3_cmd_raise_m1m3,
             "cmd_lowerM1M3.set_start.side_effect": self.mtm1m3_cmd_lower_m1m3,
             "cmd_enableHardpointCorrections.start.side_effect": self.mtm1m3_cmd_enable_hardpoint_corrections,
+            "cmd_disableHardpointCorrections.start.side_effect": self.mtm1m3_cmd_disable_hp_corrections,
             "cmd_abortRaiseM1M3.start.side_effect": self.mtm1m3_cmd_abort_raise_m1m3,
             "cmd_enterEngineering.start.side_effect": self.mtm1m3_cmd_enter_engineering,
             "cmd_exitEngineering.start.side_effect": self.mtm1m3_cmd_exit_engineering,
@@ -610,9 +614,20 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
         self, *args: typing.Any, **kwargs: typing.Any
     ) -> None:
         await asyncio.sleep(self.short_process_time)
-        if self._mtm1m3_evt_applied_balance_forces.forceMagnitude == 0.0:
+
+        if not self._mtm1m3_evt_force_actuator_state.balanceForcesApplied:
             self._hardpoint_corrections_task = asyncio.create_task(
                 self._execute_enable_hardpoint_corrections()
+            )
+
+    async def mtm1m3_cmd_disable_hp_corrections(
+        self, *args: typing.Any, **kwargs: typing.Any
+    ) -> None:
+        await asyncio.sleep(self.short_process_time)
+
+        if self._mtm1m3_evt_force_actuator_state.balanceForcesApplied:
+            self._hardpoint_corrections_task = asyncio.create_task(
+                self._execute_disable_hardpoint_corrections()
             )
 
     async def _set_m1m3_detailed_state(
@@ -692,7 +707,14 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
         for force_magnitude in range(0, 2200, 200):
             self._mtm1m3_evt_applied_balance_forces.forceMagnitude = force_magnitude
             await asyncio.sleep(self.normal_process_time)
+        self._mtm1m3_evt_force_actuator_state.balanceForcesApplied = True
+        return self._mtm1m3_evt_applied_balance_forces.forceMagnitude
 
+    async def _execute_disable_hardpoint_corrections(self) -> float:
+        for force_magnitude in range(2000, -200, -200):
+            self._mtm1m3_evt_applied_balance_forces.forceMagnitude = force_magnitude
+            await asyncio.sleep(self.normal_process_time)
+        self._mtm1m3_evt_force_actuator_state.balanceForcesApplied = False
         return self._mtm1m3_evt_applied_balance_forces.forceMagnitude
 
     async def mtm2_evt_force_balance_system_status(
