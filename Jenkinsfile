@@ -51,13 +51,15 @@ pipeline {
                         git lfs checkout
 
                         cd /home/saluser/repos/
-                        [ ! -d "./ts_cRIOpy" ] && (git clone https://github.com/lsst-ts/ts_cRIOpy.git && eups declare -r ./ts_cRIOpy -t current)
+                        [ ! -d "./ts_cRIOpy" ] && (git clone https://github.com/lsst-ts/ts_cRIOpy.git )
 
                         for REPO in \$(ls /home/saluser/repos/); do
                             cd /home/saluser/repos/\${REPO}
                             /home/saluser/.checkout_repo.sh ${WORK_BRANCHES}
                             git pull
                         done
+
+                        eups declare -r /home/saluser/repos/ts_cRIOpy -t current
 
                         # Make IDL files
                         make_idl_files.py ${env.IDL_NAMES} &> /dev/null
