@@ -1,11 +1,20 @@
 from abc import ABCMeta, abstractmethod
 from .remote_group import RemoteGroup
-from typing import Iterable, Optional, Tuple, List, Union, Callable
+from typing import Iterable, Optional, Tuple, List, Union
+from typing import Sequence, Callable, Mapping, TypeAlias
 from functools import reduce
 from operator import mul
 from lsst.ts import salobj
 import logging
 import asyncio
+from importlib.resources import files
+import csv
+from scipy.interpolate import InterpolatedUnivariateSpline
+from astropy.units import ampere, watt, nm, Quantity
+import astropy.units as un
+
+Responsivity: TypeAlias = Quantity[ampere/watt]
+
 
 class CalsysThroughputCalculationMixin:
     """mixin class to allow pluggable source for calculation of throughputs"""
@@ -32,16 +41,14 @@ class CalsysThroughputCalculationMixin:
         """
 
     @abstractmethod
-    @property
     def spectrograph_throughput(self, wavelen: float, calsys_power: float) -> float:
         """ the throughput expected of the fiber spectrograph of the calibration system.
         To aid calculations  of total throughput
         """
 
     @abstractmethod
-    @property
-    def radiometer_throughput(self, wavelen: float, calsys_power: float) -> float:
-        """ same as spectrograph_throughput but for radiometer """
+    def radiometer_responsivity(self, wavelen: Quantity["length"]) -> Responsivity:
+        """ return the responsivity of the radiometer """
 
     def end_to_end_throughput(self, wavelen: float, calsys_power: float) -> float:
         #intended to be SOMETHING LIKE
@@ -49,8 +56,16 @@ class CalsysThroughputCalculationMixin:
                       [self.detector_throughput, self.spectrograph_throughput,
                        self.radiometer_throughput])
 
+    def total_radiometer_exposure_time(self, cam_integration_time: Quantity["time"],
+                                       nplc: Quantity["time"]) -> Quantity["time"]:
+        # Note: magic numbers from communication with Parker F. To be added to electrometer CSC docs
+        rad_int_time = nplc / (60 * un.s)
 
-class ButlerCalsysThroughput(CalsysThroughpu_etCalculationMixin):
+        # FIXME: need to ask about units of nplc and what the units of the 3.07 magic number are
+
+
+
+class ButlerCalsysThroughput(CalsysThroughputCalculationMixin):
     """Mixin class for calculating throughput of the calibration system backed by measurements stored
     in  a DM butler"""
 
@@ -58,7 +73,28 @@ class ButlerCalsysThroughput(CalsysThroughpu_etCalculationMixin):
 class HardcodeCalsysThroughput(CalsysThroughputCalculationMixin):
     """Mixin class for calculating throughput of the calibration system with hardcoded values,
     i.e. which can be directly imported from python code """
+    BASERES: str = "lsst.ts.observatory.control.cal_curves"
+    RADIOMETER_CALFILE: str = "hamamatsu_responsivity.csv"
 
+    @classmethod
+    def load_calibration_csv(cls, fname: str) -> Mapping[str, Sequence[float]]:
+        res = files(cls.BASERES).joinpath(fname)
+        with res.open("r") as f:
+            rdr = csv.DictReader(f)
+            out = { k : [] for k in rdr.fieldnames}
+            for row in rdr:
+                for k,v in row.items():
+                    out[k].append(float(v))
+        return out
+
+    def radiometer_responsivity(self, wavelen: Quantity["length"]) -> Responsivity:
+        calres = self.load_calibration_csv(self.RADIOMETER_CALFILE)
+        itp = InterpolatedUnivariateSpline(calres["wavelength"], calres["responsivity"])
+
+        wlin : float = wavelen.to(nm).value
+        Rawout: float = itp(wlin)
+
+        return (Rawout << un.ampere / un.watt)
 
 
 class BaseCalsys(RemoteGroup, metaclass=ABCMeta):
@@ -98,7 +134,7 @@ class BaseCalsys(RemoteGroup, metaclass=ABCMeta):
         return pkgtask()
 
 
-    def detector_exposure_time_for_nelectrons(self, wavelen: float, nelec: float) -> float:
+    def detector_exposure_time_for_nelectrons(self, wavelen: Quantity["length"], nelec: float) -> float:
         """ using the appropriate mixin for obtaining calibration data on throughput,
         will calculate and return the exposure time needed to obtain a flat field calibration of n
         electrons at the imager specified in the class definition
@@ -115,7 +151,7 @@ class BaseCalsys(RemoteGroup, metaclass=ABCMeta):
         exposure time: float - time  (in seconds??) needed for the imager to obtain desired calibration field
 
         """
-        
+
         #must have a way to access the calibration data
         assert issubclass(type(self), CalsysThroughputCalculationMixin)
 
@@ -161,17 +197,13 @@ class BaseCalsys(RemoteGroup, metaclass=ABCMeta):
         """ awaitable which starts the exposures for the calibration instruments (i.e the spectrographs, electrometers etc) according to the setup. It does not take images with the instrument under test, it is intended that script components which use this class do that themselves"""
         pass
 
-        
+
     @property
     @abstractmethod
-    def wavelen(self) -> float:
+    def wavelen(self) -> Quantity[nm]:
         """ returns the currently configured wavelength"""
 
     @abstractmethod
     async def take_data(self):
         """This will fire off all async tasks to take calibration data in sequence, and return locations and metadata about the files supplied etc"""
 
-        
-    
-
-    
