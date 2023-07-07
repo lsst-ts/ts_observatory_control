@@ -6,6 +6,11 @@
 Version History
 ###############
 
+v0.29.2
+-------
+
+* In ``auxtel/atcs.py``, update the dome and telescope flat field position.
+
 v0.29.1
 -------
 
