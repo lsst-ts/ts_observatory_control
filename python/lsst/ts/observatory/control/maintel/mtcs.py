@@ -31,12 +31,7 @@ import astropy.units as u
 import numpy as np
 from astropy.coordinates import Angle
 from lsst.ts import salobj, utils
-from lsst.ts.cRIOpy.M1M3FATable import (
-    FATABLE,
-    FATABLE_ID,
-    FATABLE_INDEX,
-    FATABLE_SINDEX,
-)
+from lsst.ts.criopy.M1M3FATable import FATABLE
 from lsst.ts.idl.enums import MTM1M3, MTPtg
 from lsst.ts.utils import angle_diff
 
@@ -148,14 +143,10 @@ class MTCS(BaseTCS):
         self.m1m3_force_magnitude_stable_tolerance = 50.0
 
         self._m1m3_actuator_id_index_table: dict[int, int] = dict(
-            [(fa[FATABLE_ID], fa[FATABLE_INDEX]) for fa in FATABLE]
+            [(fa.actuator_id, fa.index) for fa in FATABLE]
         )
         self._m1m3_actuator_id_sindex_table: dict[int, int] = dict(
-            [
-                (fa[FATABLE_ID], fa[FATABLE_SINDEX])
-                for fa in FATABLE
-                if fa[FATABLE_SINDEX] is not None
-            ]
+            [(fa.actuator_id, fa.s_index) for fa in FATABLE if fa.s_index is not None]
         )
 
         try:
@@ -732,7 +723,9 @@ class MTCS(BaseTCS):
         final_detailed_states : `set` of `MTM1M3.DetailedState`
             The expected final detailed state.
         """
-        m1m3_detailed_state = await self.rem.mtm1m3.evt_detailedState.aget()
+        m1m3_detailed_state = await self.rem.mtm1m3.evt_detailedState.aget(
+            timeout=self.fast_timeout
+        )
 
         if m1m3_detailed_state.detailedState in initial_detailed_states:
             self.log.debug(
@@ -755,15 +748,24 @@ class MTCS(BaseTCS):
         self.rem.mtm1m3.evt_detailedState.flush()
 
         # xml 9/10 compatibility
-        if hasattr(self.rem.mtm1m3.cmd_raiseM1M3.DataType(), "raiseM1M3"):
-            await self.rem.mtm1m3.cmd_raiseM1M3.set_start(
-                raiseM1M3=True, timeout=self.long_timeout
+        try:
+            if hasattr(self.rem.mtm1m3.cmd_raiseM1M3.DataType(), "raiseM1M3"):
+                await self.rem.mtm1m3.cmd_raiseM1M3.set_start(
+                    raiseM1M3=True, timeout=self.long_timeout
+                )
+            else:
+                await self.rem.mtm1m3.cmd_raiseM1M3.set_start(timeout=self.long_timeout)
+
+        except asyncio.TimeoutError:
+            self.log.warning(
+                "Raise M1M3 command timed out. Continuing to inspect detailed state."
             )
-        else:
-            await self.rem.mtm1m3.cmd_raiseM1M3.set_start(timeout=self.long_timeout)
 
         await self._handle_m1m3_detailed_state(
-            expected_m1m3_detailed_state=MTM1M3.DetailedState.ACTIVE,
+            expected_m1m3_detailed_state={
+                MTM1M3.DetailedState.ACTIVE,
+                MTM1M3.DetailedState.ACTIVEENGINEERING,
+            },
             unexpected_m1m3_detailed_states={
                 MTM1M3.DetailedState.LOWERING,
             },
@@ -773,16 +775,24 @@ class MTCS(BaseTCS):
         """Handle lowering m1m3."""
         self.rem.mtm1m3.evt_detailedState.flush()
 
-        # xml 9/10 compatibility
-        if hasattr(self.rem.mtm1m3.cmd_lowerM1M3.DataType(), "lowerM1M3"):
-            await self.rem.mtm1m3.cmd_lowerM1M3.set_start(
-                lowerM1M3=True, timeout=self.long_timeout
+        try:
+            # xml 9/10 compatibility
+            if hasattr(self.rem.mtm1m3.cmd_lowerM1M3.DataType(), "lowerM1M3"):
+                await self.rem.mtm1m3.cmd_lowerM1M3.set_start(
+                    lowerM1M3=True, timeout=self.long_timeout
+                )
+            else:
+                await self.rem.mtm1m3.cmd_lowerM1M3.set_start(timeout=self.long_timeout)
+        except asyncio.TimeoutError:
+            self.log.warning(
+                "Lower M1M3 command timed out. Continuing to inspect detailed state."
             )
-        else:
-            await self.rem.mtm1m3.cmd_lowerM1M3.set_start(timeout=self.long_timeout)
 
         await self._handle_m1m3_detailed_state(
-            expected_m1m3_detailed_state=MTM1M3.DetailedState.PARKED,
+            expected_m1m3_detailed_state={
+                MTM1M3.DetailedState.PARKED,
+                MTM1M3.DetailedState.PARKEDENGINEERING,
+            },
             unexpected_m1m3_detailed_states=set(),
         )
 
@@ -791,22 +801,25 @@ class MTCS(BaseTCS):
         await self.rem.mtm1m3.cmd_abortRaiseM1M3.start(timeout=self.long_timeout)
 
         await self._handle_m1m3_detailed_state(
-            expected_m1m3_detailed_state=MTM1M3.DetailedState.PARKED,
+            expected_m1m3_detailed_state={
+                MTM1M3.DetailedState.PARKED,
+                MTM1M3.DetailedState.PARKEDENGINEERING,
+            },
             unexpected_m1m3_detailed_states=set(),
         )
 
     async def _handle_m1m3_detailed_state(
         self,
-        expected_m1m3_detailed_state: enum.IntEnum,
-        unexpected_m1m3_detailed_states: typing.Set[enum.IntEnum],
+        expected_m1m3_detailed_state: set[enum.IntEnum],
+        unexpected_m1m3_detailed_states: set[enum.IntEnum],
     ) -> None:
         """Handle m1m3 detailed state.
 
         Parameters
         ----------
-        expected_m1m3_detailed_state : `MTM1M3.DetailedState`
+        expected_m1m3_detailed_state : `set` of `MTM1M3.DetailedState`
             Expected m1m3 detailed state.
-        unexpected_m1m3_detailed_states : `list` of `MTM1M3.DetailedState`
+        unexpected_m1m3_detailed_states : `set` of `MTM1M3.DetailedState`
             List of unexpected detailed state. If M1M3 transition to any of
             these states, raise an exception.
         """
@@ -814,7 +827,7 @@ class MTCS(BaseTCS):
         m1m3_raise_check_tasks = [
             asyncio.create_task(
                 self._wait_for_mtm1m3_detailed_state(
-                    expected_m1m3_detailed_state={expected_m1m3_detailed_state},
+                    expected_m1m3_detailed_state=expected_m1m3_detailed_state,
                     unexpected_m1m3_detailed_states=unexpected_m1m3_detailed_states,
                     timeout=self.m1m3_raise_timeout,
                 )
@@ -954,15 +967,94 @@ class MTCS(BaseTCS):
     async def enable_m1m3_balance_system(self) -> None:
         """Enable m1m3 balance system."""
 
-        applied_balance_forces = await self.get_m1m3_applied_balance_forces()
+        cmd = self.rem.mtm1m3.cmd_enableHardpointCorrections
+        enable = True
 
-        if applied_balance_forces.forceMagnitude == 0.0:
-            self.log.debug("Enabling hardpoint corrections.")
-            await self.rem.mtm1m3.cmd_enableHardpointCorrections.start(
-                timeout=self.long_timeout
+        await self._handle_m1m3_hardpoint_correction_command(cmd, enable)
+
+    async def disable_m1m3_balance_system(self) -> None:
+        """Disable m1m3 balance system."""
+
+        cmd = self.rem.mtm1m3.cmd_disableHardpointCorrections
+        enable = False
+
+        await self._handle_m1m3_hardpoint_correction_command(cmd, enable)
+
+    async def _handle_m1m3_hardpoint_correction_command(
+        self, cmd: salobj.topics.RemoteCommand, enable: bool
+    ) -> None:
+        """Handle running enable/disable m1m3 hardpoint correction commands.
+
+        Parameters
+        ----------
+        cmd : `salobj.topics.RemoteCommand`
+            The command to execute.
+
+        enable : `bool`
+            Is the command to enable or disable hard point corrections?
+        """
+        force_actuator_state = await self.rem.mtm1m3.evt_forceActuatorState.aget(
+            timeout=self.fast_timeout
+        )
+
+        if force_actuator_state.balanceForcesApplied != enable:
+            self.log.debug(
+                f"Force balance state is {force_actuator_state.balanceForcesApplied}, "
+                f"desired state is {enable}. "
+                "Executing command."
             )
+
+            self.rem.mtm1m3.evt_forceActuatorState.flush()
+            try:
+                await cmd.start(
+                    timeout=self.long_timeout,
+                )
+            except asyncio.TimeoutError:
+                self.log.warning("Command timed out, continuing.")
+            else:
+                self.log.debug("Waiting for force balance system to settle.")
+            await self._wait_force_balance_system_state(enable=enable)
         else:
-            self.log.warning("Hardpoint corrections already enabled. Nothing to do.")
+            self.log.warning(
+                f"Hardpoint corrections already in desired state ({enable}). Nothing to do."
+            )
+
+    async def _wait_force_balance_system_state(self, enable: bool) -> None:
+        """Wait for the M1M3 force balance system to arrive at the desired
+        enable/disabled state.
+
+        Parameters
+        ----------
+        enable : `bool`
+            Wait for the balance system to be enable (True) or disabled
+            (False)?
+
+        Raises
+        ------
+        RuntimeError:
+            If force actuator system times out.
+        """
+        force_actuator_state = await self.rem.mtm1m3.evt_forceActuatorState.aget(
+            timeout=self.fast_timeout
+        )
+
+        desired_state = "enable" if enable else "disable"
+
+        while force_actuator_state.balanceForcesApplied != enable:
+            try:
+                force_actuator_state = (
+                    await self.rem.mtm1m3.evt_forceActuatorState.next(
+                        flush=False, timeout=self.long_long_timeout
+                    )
+                )
+            except asyncio.TimeoutError:
+                raise RuntimeError(
+                    f"Force balance systems did not {desired_state} in {self.long_long_timeout}s. "
+                    "Check M1M3 component for errors."
+                )
+            self.log.debug(
+                f"Force actuator state: {force_actuator_state.balanceForcesApplied}."
+            )
 
     async def wait_m1m3_force_balance_system(self, timeout: float) -> None:
         """Wait for m1m3 force balance system to stabilize.
@@ -1748,6 +1840,8 @@ class MTCS(BaseTCS):
     async def open_m1m3_booster_valve(self) -> None:
         """Open M1M3 booster valves."""
         if self.check.mtm1m3:
+            await self.enter_m1m3_engineering_mode()
+            await self.disable_m1m3_balance_system()
             await self._handle_m1m3_booster_valve(open=True)
         else:
             self.log.info("M1M3 check disabled.")
@@ -1755,6 +1849,7 @@ class MTCS(BaseTCS):
     async def close_m1m3_booster_valve(self) -> None:
         """Close M1M3 booster valves."""
         if self.check.mtm1m3:
+            await self.enable_m1m3_balance_system()
             await self._handle_m1m3_booster_valve(open=False)
 
     async def _handle_m1m3_booster_valve(self, open: bool) -> None:
@@ -1957,7 +2052,7 @@ class MTCS(BaseTCS):
                     "cameraCableWrapFollowing",
                 ],
                 mtdome=["azimuth", "lightWindScreen"],
-                mtm1m3=["boosterValveStatus"],
+                mtm1m3=["boosterValveStatus", "forceActuatorState"],
             )
 
             usages[self.valid_use_cases.StartUp] = UsagesResources(
