@@ -138,6 +138,8 @@ class MTCS(BaseTCS):
 
         # timeout to raise m1m3, in seconds.
         self.m1m3_raise_timeout = 600.0
+        # time it takes for m1m3 to settle after a slew finishes.
+        self.m1m3_settle_time = 5.0
 
         # Tolerance on the stability of the balance force magnitude
         self.m1m3_force_magnitude_stable_tolerance = 50.0
@@ -1912,7 +1914,16 @@ class MTCS(BaseTCS):
             await self.open_m1m3_booster_valve()
             yield
         finally:
+            await self.wait_m1m3_settle()
             await self.close_m1m3_booster_valve()
+
+    async def wait_m1m3_settle(self) -> None:
+        """Wait until m1m3 has settle."""
+        # For now this method will only sleep for m1m3_settle_time.
+        # Later we need to implement a better way to check that the hardpoint
+        # forces have settle. See OBS-194.
+        self.log.debug("Waiting for m1m3 to settle.")
+        await asyncio.sleep(self.m1m3_settle_time)
 
     @property
     def m1m3_engineering_states(self) -> set[MTM1M3.DetailedState]:
