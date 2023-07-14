@@ -1011,7 +1011,7 @@ class MTCS(BaseTCS):
                 await cmd.start(
                     timeout=self.long_timeout,
                 )
-            except asyncio.TimeoutError:
+            except (asyncio.TimeoutError, salobj.base.AckTimeoutError):
                 self.log.warning("Command timed out, continuing.")
             else:
                 self.log.debug("Waiting for force balance system to settle.")
