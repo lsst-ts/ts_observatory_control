@@ -138,6 +138,8 @@ class MTCS(BaseTCS):
 
         # timeout to raise m1m3, in seconds.
         self.m1m3_raise_timeout = 600.0
+        # time it takes for m1m3 to settle after a slew finishes.
+        self.m1m3_settle_time = 5.0
 
         # Tolerance on the stability of the balance force magnitude
         self.m1m3_force_magnitude_stable_tolerance = 50.0
@@ -1009,7 +1011,7 @@ class MTCS(BaseTCS):
                 await cmd.start(
                     timeout=self.long_timeout,
                 )
-            except asyncio.TimeoutError:
+            except (asyncio.TimeoutError, salobj.base.AckTimeoutError):
                 self.log.warning("Command timed out, continuing.")
             else:
                 self.log.debug("Waiting for force balance system to settle.")
@@ -1849,8 +1851,9 @@ class MTCS(BaseTCS):
     async def close_m1m3_booster_valve(self) -> None:
         """Close M1M3 booster valves."""
         if self.check.mtm1m3:
-            await self.enable_m1m3_balance_system()
             await self._handle_m1m3_booster_valve(open=False)
+            await asyncio.sleep(self.fast_timeout)
+            await self.enable_m1m3_balance_system()
 
     async def _handle_m1m3_booster_valve(self, open: bool) -> None:
         """Handle opening the M1M3 booster valves"""
@@ -1912,7 +1915,16 @@ class MTCS(BaseTCS):
             await self.open_m1m3_booster_valve()
             yield
         finally:
+            await self.wait_m1m3_settle()
             await self.close_m1m3_booster_valve()
+
+    async def wait_m1m3_settle(self) -> None:
+        """Wait until m1m3 has settle."""
+        # For now this method will only sleep for m1m3_settle_time.
+        # Later we need to implement a better way to check that the hardpoint
+        # forces have settle. See OBS-194.
+        self.log.debug("Waiting for m1m3 to settle.")
+        await asyncio.sleep(self.m1m3_settle_time)
 
     @property
     def m1m3_engineering_states(self) -> set[MTM1M3.DetailedState]:
@@ -2052,7 +2064,7 @@ class MTCS(BaseTCS):
                     "cameraCableWrapFollowing",
                 ],
                 mtdome=["azimuth", "lightWindScreen"],
-                mtm1m3=["boosterValveStatus", "forceActuatorState"],
+                mtm1m3=["boosterValveStatus", "forceActuatorState", "detailedState"],
             )
 
             usages[self.valid_use_cases.StartUp] = UsagesResources(

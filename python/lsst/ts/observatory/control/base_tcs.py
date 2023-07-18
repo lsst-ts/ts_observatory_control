@@ -1857,19 +1857,8 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
                 self.log.exception("Error handling potential race condition.")
 
         while not in_position.inPosition:
-            try:
-                in_position = await in_position_event.next(flush=False, timeout=timeout)
-            except asyncio.TimeoutError:
-                self.log.debug(
-                    "No new in position event in the last "
-                    f"{timeout}s. "
-                    f"Assuming {component_name} in position."
-                )
-                break
-            else:
-                self.log.info(
-                    f"{component_name} in position: {in_position.inPosition}."
-                )
+            in_position = await in_position_event.next(flush=False, timeout=timeout)
+            self.log.info(f"{component_name} in position: {in_position.inPosition}.")
 
         self.log.debug(
             f"{component_name} in position {in_position.inPosition}. "
