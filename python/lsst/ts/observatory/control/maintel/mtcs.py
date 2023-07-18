@@ -2064,7 +2064,7 @@ class MTCS(BaseTCS):
                     "cameraCableWrapFollowing",
                 ],
                 mtdome=["azimuth", "lightWindScreen"],
-                mtm1m3=["boosterValveStatus", "forceActuatorState"],
+                mtm1m3=["boosterValveStatus", "forceActuatorState", "detailedState"],
             )
 
             usages[self.valid_use_cases.StartUp] = UsagesResources(
