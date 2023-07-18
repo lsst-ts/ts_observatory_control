@@ -6,6 +6,23 @@
 Version History
 ###############
 
+v0.30.1
+-------
+
+* In ``maintel/mtcs.py``:
+
+  * Add ``detailedState`` to list of Slew events for m1m3.
+
+  * Change order of closing booster valves and enabling hardpoint corrections.
+
+  * Update ``_handle_m1m3_hardpoint_correction_command`` to also skip ``salobj.base.AckTimeoutError``.
+
+  * Add new ``wait_m1m3_settle`` and call it before closing the booster valve in ``m1m3_booster_valve`` context manager.
+
+    For now this only waits for a pre-defined time, but in the future we should implement a better way to determine if M1M3 has settled or not.
+
+* In ``base_tcs.py``, update ``_handle_in_position`` to not ignore timeout error when waiting for a new event in the waiting loop.
+
 v0.30.0
 -------
 
