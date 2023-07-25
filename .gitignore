@@ -26,3 +26,7 @@ pytest_session.txt
 
 # pypi files
 *.egg-info/
+.pre-commit-config.yaml
+.flake8
+.isort.cfg
+.mypy.ini
