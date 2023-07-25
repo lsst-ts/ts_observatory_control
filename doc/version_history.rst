@@ -6,6 +6,13 @@
 Version History
 ###############
 
+v0.30.2
+-------
+
+* Update ``pyproject.toml`` to remove usage of flake8 and black pytest plugins.
+* Add github linting workflow.
+* Add support for ``ts-pre-commit-config``.
+
 v0.30.1
 -------
 
