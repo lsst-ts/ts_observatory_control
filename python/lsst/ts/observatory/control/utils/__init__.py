@@ -22,5 +22,6 @@
 from .camera_exposure import *
 from .enums import *
 from .remote_group_test_case import *
+from .roi_spec import *
 from .type_hints import *
 from .utils import *
