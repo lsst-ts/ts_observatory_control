@@ -29,7 +29,7 @@ import astropy
 from lsst.ts import salobj
 
 from .remote_group import RemoteGroup
-from .utils import CameraExposure
+from .utils import CameraExposure, ROISpec
 
 
 class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
@@ -1131,6 +1131,21 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
             return await self._handle_take_images(camera_exposure=camera_exposure)
         else:
             return await self._handle_take_stuttered(camera_exposure=camera_exposure)
+
+    async def init_guider(self, roi_spec: ROISpec) -> None:
+        """Initialize guiders with the provided region of interest
+        specification.
+
+        Parameters
+        ----------
+        roi_spec : `ROISpec`
+            Region of interest specification.
+        """
+
+        await self.camera.cmd_initGuiders.set_start(
+            roiSpec=roi_spec.json(),
+            timeout=self.long_timeout,
+        )
 
     async def _handle_take_images(
         self, camera_exposure: CameraExposure
