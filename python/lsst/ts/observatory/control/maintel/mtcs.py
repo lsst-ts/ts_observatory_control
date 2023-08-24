@@ -39,6 +39,10 @@ from ..base_tcs import BaseTCS
 from ..constants import mtcs_constants
 from ..remote_group import Usages, UsagesResources
 
+if not hasattr(MTM1M3, "DetailedState"):
+    # Compatibility with ts-idl 4.7
+    MTM1M3.DetailedState = MTM1M3.DetailedStates
+
 
 class MTCSUsages(Usages):
     """MTCS usages definition.
