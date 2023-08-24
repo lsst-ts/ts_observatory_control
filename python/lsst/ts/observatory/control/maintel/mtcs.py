@@ -1863,7 +1863,7 @@ class MTCS(BaseTCS):
         """Handle opening the M1M3 booster valves"""
 
         desired_state = "open" if open else "close"
-        # xml 16/17 compatibility
+        # xml 16/17/19 compatibility
         if hasattr(self.rem.mtm1m3, "cmd_setAirSlewFlag"):
             force_actuator_state = await self.rem.mtm1m3.evt_forceControllerState.aget(
                 timeout=self.fast_timeout
@@ -1874,6 +1874,30 @@ class MTCS(BaseTCS):
                 await self.rem.mtm1m3.cmd_setAirSlewFlag.set_start(
                     slewFlag=open, timeout=self.fast_timeout
                 )
+                while force_actuator_state.slewFlag != open:
+                    self.log.debug(f"Waiting for valve to {desired_state}.")
+                    print(self.long_timeout)
+                    force_actuator_state = (
+                        await self.rem.mtm1m3.evt_forceControllerState.next(
+                            flush=False, timeout=self.long_timeout
+                        )
+                    )
+                self.log.debug(f"Booster valve {desired_state}.")
+            else:
+                self.log.info(f"Booster valve already {desired_state}.")
+        elif hasattr(self.rem.mtm1m3, "cmd_setSlewFlag"):
+            force_actuator_state = await self.rem.mtm1m3.evt_forceControllerState.aget(
+                timeout=self.fast_timeout
+            )
+            if force_actuator_state.slewFlag != open:
+                self.log.info(f"Setting booster valves to {desired_state}.")
+                self.rem.mtm1m3.evt_forceControllerState.flush()
+                cmd = (
+                    self.rem.mtm1m3.cmd_setSlewFlag
+                    if open
+                    else self.rem.mtm1m3.cmd_clearSlewFlag
+                )
+                await cmd.set_start(timeout=self.fast_timeout)
                 while force_actuator_state.slewFlag != open:
                     self.log.debug(f"Waiting for valve to {desired_state}.")
                     force_actuator_state = (
