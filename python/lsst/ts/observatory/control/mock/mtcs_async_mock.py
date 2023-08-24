@@ -256,14 +256,14 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
 
         # Compatibility with xml>16
         if (
-            "logevent_forceActuatorState"
+            "logevent_forceControllerState"
             in self.components_metadata["MTM1M3"].topic_info
         ):
             m1m3_mocks[
-                "evt_forceActuatorState.aget.side_effect"
+                "evt_forceControllerState.aget.side_effect"
             ] = self.mtm1m3_evt_force_actuator_state
             m1m3_mocks[
-                "evt_forceActuatorState.next.side_effect"
+                "evt_forceControllerState.next.side_effect"
             ] = self.mtm1m3_evt_force_actuator_state
 
         if (
