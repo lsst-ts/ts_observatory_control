@@ -995,7 +995,7 @@ class MTCS(BaseTCS):
         enable : `bool`
             Is the command to enable or disable hard point corrections?
         """
-        force_actuator_state = await self.rem.mtm1m3.evt_forceActuatorState.aget(
+        force_actuator_state = await self.rem.mtm1m3.evt_forceControllerState.aget(
             timeout=self.fast_timeout
         )
 
@@ -1006,7 +1006,7 @@ class MTCS(BaseTCS):
                 "Executing command."
             )
 
-            self.rem.mtm1m3.evt_forceActuatorState.flush()
+            self.rem.mtm1m3.evt_forceControllerState.flush()
             try:
                 await cmd.start(
                     timeout=self.long_timeout,
@@ -1036,7 +1036,7 @@ class MTCS(BaseTCS):
         RuntimeError:
             If force actuator system times out.
         """
-        force_actuator_state = await self.rem.mtm1m3.evt_forceActuatorState.aget(
+        force_actuator_state = await self.rem.mtm1m3.evt_forceControllerState.aget(
             timeout=self.fast_timeout
         )
 
@@ -1045,7 +1045,7 @@ class MTCS(BaseTCS):
         while force_actuator_state.balanceForcesApplied != enable:
             try:
                 force_actuator_state = (
-                    await self.rem.mtm1m3.evt_forceActuatorState.next(
+                    await self.rem.mtm1m3.evt_forceControllerState.next(
                         flush=False, timeout=self.long_long_timeout
                     )
                 )
@@ -1861,19 +1861,19 @@ class MTCS(BaseTCS):
         desired_state = "open" if open else "close"
         # xml 16/17 compatibility
         if hasattr(self.rem.mtm1m3, "cmd_setAirSlewFlag"):
-            force_actuator_state = await self.rem.mtm1m3.evt_forceActuatorState.aget(
+            force_actuator_state = await self.rem.mtm1m3.evt_forceControllerState.aget(
                 timeout=self.fast_timeout
             )
             if force_actuator_state.slewFlag != open:
                 self.log.info(f"Setting booster valves to {desired_state}.")
-                self.rem.mtm1m3.evt_forceActuatorState.flush()
+                self.rem.mtm1m3.evt_forceControllerState.flush()
                 await self.rem.mtm1m3.cmd_setAirSlewFlag.set_start(
                     slewFlag=open, timeout=self.fast_timeout
                 )
                 while force_actuator_state.slewFlag != open:
                     self.log.debug(f"Waiting for valve to {desired_state}.")
                     force_actuator_state = (
-                        await self.rem.mtm1m3.evt_forceActuatorState.next(
+                        await self.rem.mtm1m3.evt_forceControllerState.next(
                             flush=False, timeout=self.long_timeout
                         )
                     )
