@@ -282,6 +282,16 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
                 "cmd_setAirSlewFlag.set_start.side_effect"
             ] = self.mtm1m3_cmd_set_air_slew_flag
 
+        if "command_setSlewFlag" in self.components_metadata["MTM1M3"].topic_info:
+            m1m3_mocks[
+                "cmd_setSlewFlag.set_start.side_effect"
+            ] = self.mtm1m3_cmd_set_slew_flag
+
+        if "command_clearSlewFlag" in self.components_metadata["MTM1M3"].topic_info:
+            m1m3_mocks[
+                "cmd_clearSlewFlag.set_start.side_effect"
+            ] = self.mtm1m3_cmd_clear_slew_flag
+
         if "command_boosterValveOpen" in self.components_metadata["MTM1M3"].topic_info:
             m1m3_mocks[
                 "cmd_boosterValveOpen.start.side_effect"
@@ -454,6 +464,16 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
         asyncio.create_task(
             self._mtm1m3_cmd_set_air_slew_flag(slew_flag=kwargs["slewFlag"])
         )
+
+    async def mtm1m3_cmd_set_slew_flag(
+        self, *args: typing.Any, **kwargs: typing.Any
+    ) -> None:
+        asyncio.create_task(self._mtm1m3_cmd_set_air_slew_flag(slew_flag=True))
+
+    async def mtm1m3_cmd_clear_slew_flag(
+        self, *args: typing.Any, **kwargs: typing.Any
+    ) -> None:
+        asyncio.create_task(self._mtm1m3_cmd_set_air_slew_flag(slew_flag=False))
 
     async def mtm1m3_cmd_booster_valve_open(
         self, *args: typing.Any, **kwargs: typing.Any
