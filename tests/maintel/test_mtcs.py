@@ -978,11 +978,11 @@ class TestMTCS(MTCSAsyncMock):
 
         await self.mtcs.enable_m1m3_balance_system()
 
-        self.mtcs.rem.mtm1m3.evt_forceActuatorState.aget.assert_awaited_with(
+        self.mtcs.rem.mtm1m3.evt_forceControllerState.aget.assert_awaited_with(
             timeout=self.mtcs.fast_timeout
         )
-        self.mtcs.rem.mtm1m3.evt_forceActuatorState.flush.assert_called()
-        self.mtcs.rem.mtm1m3.evt_forceActuatorState.next.assert_awaited_with(
+        self.mtcs.rem.mtm1m3.evt_forceControllerState.flush.assert_called()
+        self.mtcs.rem.mtm1m3.evt_forceControllerState.next.assert_awaited_with(
             flush=False, timeout=self.mtcs.long_long_timeout
         )
 
@@ -1003,11 +1003,11 @@ class TestMTCS(MTCSAsyncMock):
         self._mtm1m3_evt_force_actuator_state.balanceForcesApplied = True
         await self.mtcs.disable_m1m3_balance_system()
 
-        self.mtcs.rem.mtm1m3.evt_forceActuatorState.aget.assert_awaited_with(
+        self.mtcs.rem.mtm1m3.evt_forceControllerState.aget.assert_awaited_with(
             timeout=self.mtcs.fast_timeout
         )
-        self.mtcs.rem.mtm1m3.evt_forceActuatorState.flush.assert_called()
-        self.mtcs.rem.mtm1m3.evt_forceActuatorState.next.assert_awaited_with(
+        self.mtcs.rem.mtm1m3.evt_forceControllerState.flush.assert_called()
+        self.mtcs.rem.mtm1m3.evt_forceControllerState.next.assert_awaited_with(
             flush=False, timeout=self.mtcs.long_long_timeout
         )
 
@@ -1751,11 +1751,11 @@ class TestMTCS(MTCSAsyncMock):
     def assert_m1m3_booster_valve(self) -> None:
         # M1M3 booster valve, xml 16/17 compatibility
         if hasattr(self.mtcs.rem.mtm1m3, "cmd_setAirSlewFlag"):
-            self.mtcs.rem.mtm1m3.evt_forceActuatorState.flush.assert_called()
-            self.mtcs.rem.mtm1m3.evt_forceActuatorState.aget.assert_awaited_with(
+            self.mtcs.rem.mtm1m3.evt_forceControllerState.flush.assert_called()
+            self.mtcs.rem.mtm1m3.evt_forceControllerState.aget.assert_awaited_with(
                 timeout=self.mtcs.fast_timeout
             )
-            self.mtcs.rem.mtm1m3.evt_forceActuatorState.next.assert_awaited_with(
+            self.mtcs.rem.mtm1m3.evt_forceControllerState.next.assert_awaited_with(
                 flush=False, timeout=self.mtcs.long_timeout
             )
             mtm1m3_cmd_set_air_slew_flags_calls = [
@@ -1783,11 +1783,11 @@ class TestMTCS(MTCSAsyncMock):
     def assert_m1m3_booster_valve_opened(self) -> None:
         # M1M3 booster valve, xml 16/17 compatibility
         if hasattr(self.mtcs.rem.mtm1m3, "cmd_setAirSlewFlag"):
-            self.mtcs.rem.mtm1m3.evt_forceActuatorState.flush.assert_called()
-            self.mtcs.rem.mtm1m3.evt_forceActuatorState.aget.assert_awaited_with(
+            self.mtcs.rem.mtm1m3.evt_forceControllerState.flush.assert_called()
+            self.mtcs.rem.mtm1m3.evt_forceControllerState.aget.assert_awaited_with(
                 timeout=self.mtcs.fast_timeout
             )
-            self.mtcs.rem.mtm1m3.evt_forceActuatorState.next.assert_awaited_with(
+            self.mtcs.rem.mtm1m3.evt_forceControllerState.next.assert_awaited_with(
                 flush=False, timeout=self.mtcs.long_timeout
             )
             mtm1m3_cmd_set_air_slew_flags_calls = [
@@ -1812,9 +1812,9 @@ class TestMTCS(MTCSAsyncMock):
 
     def assert_m1m3_booster_valve_no_m1m3(self) -> None:
         if hasattr(self.mtcs.rem.mtm1m3, "cmd_setAirSlewFlag"):
-            self.mtcs.rem.mtm1m3.evt_forceActuatorState.flush.assert_not_called()
-            self.mtcs.rem.mtm1m3.evt_forceActuatorState.aget.assert_not_awaited()
-            self.mtcs.rem.mtm1m3.evt_forceActuatorState.next.assert_not_awaited()
+            self.mtcs.rem.mtm1m3.evt_forceControllerState.flush.assert_not_called()
+            self.mtcs.rem.mtm1m3.evt_forceControllerState.aget.assert_not_awaited()
+            self.mtcs.rem.mtm1m3.evt_forceControllerState.next.assert_not_awaited()
             self.mtcs.rem.mtm1m3.cmd_setAirSlewFlag.set_start.assert_not_awaited()
         else:
             self.mtcs.rem.mtm1m3.evt_boosterValveStatus.flush.assert_not_called()
