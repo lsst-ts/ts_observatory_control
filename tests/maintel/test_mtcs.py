@@ -1749,7 +1749,7 @@ class TestMTCS(MTCSAsyncMock):
         self.assert_m1m3_booster_valve_opened()
 
     def assert_m1m3_booster_valve(self) -> None:
-        # M1M3 booster valve, xml 16/17 compatibility
+        # M1M3 booster valve, xml 16/17/19 compatibility
         if hasattr(self.mtcs.rem.mtm1m3, "cmd_setAirSlewFlag"):
             self.mtcs.rem.mtm1m3.evt_forceControllerState.flush.assert_called()
             self.mtcs.rem.mtm1m3.evt_forceControllerState.aget.assert_awaited_with(
@@ -1764,6 +1764,25 @@ class TestMTCS(MTCSAsyncMock):
             ]
             self.mtcs.rem.mtm1m3.cmd_setAirSlewFlag.set_start.assert_has_awaits(
                 mtm1m3_cmd_set_air_slew_flags_calls
+            )
+        elif hasattr(self.mtcs.rem.mtm1m3, "cmd_setSlewFlag"):
+            self.mtcs.rem.mtm1m3.evt_forceControllerState.flush.assert_called()
+            self.mtcs.rem.mtm1m3.evt_forceControllerState.aget.assert_awaited_with(
+                timeout=self.mtcs.fast_timeout
+            )
+            mtm1m3_evt_force_controller_state_next_calls = [
+                unittest.mock.call(flush=False, timeout=self.mtcs.long_timeout),
+                unittest.mock.call(flush=False, timeout=self.mtcs.long_long_timeout),
+            ]
+
+            self.mtcs.rem.mtm1m3.evt_forceControllerState.next.assert_has_awaits(
+                mtm1m3_evt_force_controller_state_next_calls
+            )
+            self.mtcs.rem.mtm1m3.cmd_setSlewFlag.set_start.assert_awaited_with(
+                timeout=self.mtcs.fast_timeout,
+            )
+            self.mtcs.rem.mtm1m3.cmd_clearSlewFlag.set_start.assert_awaited_with(
+                timeout=self.mtcs.fast_timeout,
             )
         else:
             self.mtcs.rem.mtm1m3.evt_boosterValveStatus.flush.assert_called()
@@ -1781,7 +1800,7 @@ class TestMTCS(MTCSAsyncMock):
             )
 
     def assert_m1m3_booster_valve_opened(self) -> None:
-        # M1M3 booster valve, xml 16/17 compatibility
+        # M1M3 booster valve, xml 16/17/19 compatibility
         if hasattr(self.mtcs.rem.mtm1m3, "cmd_setAirSlewFlag"):
             self.mtcs.rem.mtm1m3.evt_forceControllerState.flush.assert_called()
             self.mtcs.rem.mtm1m3.evt_forceControllerState.aget.assert_awaited_with(
@@ -1796,6 +1815,22 @@ class TestMTCS(MTCSAsyncMock):
             self.mtcs.rem.mtm1m3.cmd_setAirSlewFlag.set_start.assert_awaited_once()
             self.mtcs.rem.mtm1m3.cmd_setAirSlewFlag.set_start.assert_has_awaits(
                 mtm1m3_cmd_set_air_slew_flags_calls
+            )
+        elif hasattr(self.mtcs.rem.mtm1m3, "cmd_setSlewFlag"):
+            self.mtcs.rem.mtm1m3.evt_forceControllerState.flush.assert_called()
+            self.mtcs.rem.mtm1m3.evt_forceControllerState.aget.assert_awaited_with(
+                timeout=self.mtcs.fast_timeout
+            )
+            mtm1m3_evt_force_controller_state_next_calls = [
+                unittest.mock.call(flush=False, timeout=self.mtcs.long_timeout),
+                unittest.mock.call(flush=False, timeout=self.mtcs.long_long_timeout),
+            ]
+            self.mtcs.rem.mtm1m3.evt_forceControllerState.next.assert_has_awaits(
+                mtm1m3_evt_force_controller_state_next_calls
+            )
+            self.mtcs.rem.mtm1m3.cmd_setSlewFlag.set_start.assert_not_awaited()
+            self.mtcs.rem.mtm1m3.cmd_clearSlewFlag.set_start.assert_awaited_with(
+                timeout=self.mtcs.fast_timeout
             )
         else:
             self.mtcs.rem.mtm1m3.evt_boosterValveStatus.flush.assert_called()
