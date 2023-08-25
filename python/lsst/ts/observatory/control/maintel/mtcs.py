@@ -1897,7 +1897,12 @@ class MTCS(BaseTCS):
                     if open
                     else self.rem.mtm1m3.cmd_clearSlewFlag
                 )
-                await cmd.set_start(timeout=self.fast_timeout)
+                try:
+                    await cmd.set_start(timeout=self.fast_timeout)
+                except salobj.AckTimeoutError:
+                    self.log.warning(
+                        f"No command ack seen in {self.fast_timeout}s. Continuing."
+                    )
                 while force_actuator_state.slewFlag != open:
                     self.log.debug(f"Waiting for valve to {desired_state}.")
                     force_actuator_state = (
