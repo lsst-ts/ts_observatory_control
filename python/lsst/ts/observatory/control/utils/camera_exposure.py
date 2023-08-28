@@ -34,6 +34,7 @@ class CameraExposure:
     n_snaps: int
     n_shift: typing.Union[int, None]
     row_shift: typing.Union[int, None]
+    change_focus: typing.Union[bool, None]
     test_type: typing.Union[str, None]
     reason: typing.Union[str, None]
     program: typing.Union[str, None]
