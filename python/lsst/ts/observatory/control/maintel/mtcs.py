@@ -39,6 +39,10 @@ from ..base_tcs import BaseTCS
 from ..constants import mtcs_constants
 from ..remote_group import Usages, UsagesResources
 
+if not hasattr(MTM1M3, "DetailedState"):
+    # Compatibility with ts-idl 4.7
+    MTM1M3.DetailedState = MTM1M3.DetailedStates
+
 
 class MTCSUsages(Usages):
     """MTCS usages definition.
@@ -995,7 +999,7 @@ class MTCS(BaseTCS):
         enable : `bool`
             Is the command to enable or disable hard point corrections?
         """
-        force_actuator_state = await self.rem.mtm1m3.evt_forceActuatorState.aget(
+        force_actuator_state = await self.rem.mtm1m3.evt_forceControllerState.aget(
             timeout=self.fast_timeout
         )
 
@@ -1006,7 +1010,7 @@ class MTCS(BaseTCS):
                 "Executing command."
             )
 
-            self.rem.mtm1m3.evt_forceActuatorState.flush()
+            self.rem.mtm1m3.evt_forceControllerState.flush()
             try:
                 await cmd.start(
                     timeout=self.long_timeout,
@@ -1036,7 +1040,7 @@ class MTCS(BaseTCS):
         RuntimeError:
             If force actuator system times out.
         """
-        force_actuator_state = await self.rem.mtm1m3.evt_forceActuatorState.aget(
+        force_actuator_state = await self.rem.mtm1m3.evt_forceControllerState.aget(
             timeout=self.fast_timeout
         )
 
@@ -1045,7 +1049,7 @@ class MTCS(BaseTCS):
         while force_actuator_state.balanceForcesApplied != enable:
             try:
                 force_actuator_state = (
-                    await self.rem.mtm1m3.evt_forceActuatorState.next(
+                    await self.rem.mtm1m3.evt_forceControllerState.next(
                         flush=False, timeout=self.long_long_timeout
                     )
                 )
@@ -1859,21 +1863,50 @@ class MTCS(BaseTCS):
         """Handle opening the M1M3 booster valves"""
 
         desired_state = "open" if open else "close"
-        # xml 16/17 compatibility
+        # xml 16/17/19 compatibility
         if hasattr(self.rem.mtm1m3, "cmd_setAirSlewFlag"):
-            force_actuator_state = await self.rem.mtm1m3.evt_forceActuatorState.aget(
+            force_actuator_state = await self.rem.mtm1m3.evt_forceControllerState.aget(
                 timeout=self.fast_timeout
             )
             if force_actuator_state.slewFlag != open:
                 self.log.info(f"Setting booster valves to {desired_state}.")
-                self.rem.mtm1m3.evt_forceActuatorState.flush()
+                self.rem.mtm1m3.evt_forceControllerState.flush()
                 await self.rem.mtm1m3.cmd_setAirSlewFlag.set_start(
                     slewFlag=open, timeout=self.fast_timeout
                 )
                 while force_actuator_state.slewFlag != open:
                     self.log.debug(f"Waiting for valve to {desired_state}.")
+                    print(self.long_timeout)
                     force_actuator_state = (
-                        await self.rem.mtm1m3.evt_forceActuatorState.next(
+                        await self.rem.mtm1m3.evt_forceControllerState.next(
+                            flush=False, timeout=self.long_timeout
+                        )
+                    )
+                self.log.debug(f"Booster valve {desired_state}.")
+            else:
+                self.log.info(f"Booster valve already {desired_state}.")
+        elif hasattr(self.rem.mtm1m3, "cmd_setSlewFlag"):
+            force_actuator_state = await self.rem.mtm1m3.evt_forceControllerState.aget(
+                timeout=self.fast_timeout
+            )
+            if force_actuator_state.slewFlag != open:
+                self.log.info(f"Setting booster valves to {desired_state}.")
+                self.rem.mtm1m3.evt_forceControllerState.flush()
+                cmd = (
+                    self.rem.mtm1m3.cmd_setSlewFlag
+                    if open
+                    else self.rem.mtm1m3.cmd_clearSlewFlag
+                )
+                try:
+                    await cmd.set_start(timeout=self.fast_timeout)
+                except salobj.AckTimeoutError:
+                    self.log.warning(
+                        f"No command ack seen in {self.fast_timeout}s. Continuing."
+                    )
+                while force_actuator_state.slewFlag != open:
+                    self.log.debug(f"Waiting for valve to {desired_state}.")
+                    force_actuator_state = (
+                        await self.rem.mtm1m3.evt_forceControllerState.next(
                             flush=False, timeout=self.long_timeout
                         )
                     )
@@ -2064,7 +2097,12 @@ class MTCS(BaseTCS):
                     "cameraCableWrapFollowing",
                 ],
                 mtdome=["azimuth", "lightWindScreen"],
-                mtm1m3=["boosterValveStatus", "forceActuatorState", "detailedState"],
+                mtm1m3=[
+                    "boosterValveStatus",
+                    "forceActuatorState",
+                    "detailedState",
+                    "forceControllerState",
+                ],
             )
 
             usages[self.valid_use_cases.StartUp] = UsagesResources(

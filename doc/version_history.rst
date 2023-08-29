@@ -6,6 +6,15 @@
 Version History
 ###############
 
+v0.30.3
+-------
+
+* In ``maintel/mtcs.py``:
+
+  * Update hard point correction handlers to use ``evt_forceControllerState`` instead of ``evt_forceActuatorState``.
+  * Add support for m1m3 setSlewFlag/clearSlewFlag.
+  * Add ``forceControllerState`` to the list m1m3 events for the slew usage.
+
 v0.30.2
 -------
 

@@ -256,14 +256,14 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
 
         # Compatibility with xml>16
         if (
-            "logevent_forceActuatorState"
+            "logevent_forceControllerState"
             in self.components_metadata["MTM1M3"].topic_info
         ):
             m1m3_mocks[
-                "evt_forceActuatorState.aget.side_effect"
+                "evt_forceControllerState.aget.side_effect"
             ] = self.mtm1m3_evt_force_actuator_state
             m1m3_mocks[
-                "evt_forceActuatorState.next.side_effect"
+                "evt_forceControllerState.next.side_effect"
             ] = self.mtm1m3_evt_force_actuator_state
 
         if (
@@ -281,6 +281,16 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
             m1m3_mocks[
                 "cmd_setAirSlewFlag.set_start.side_effect"
             ] = self.mtm1m3_cmd_set_air_slew_flag
+
+        if "command_setSlewFlag" in self.components_metadata["MTM1M3"].topic_info:
+            m1m3_mocks[
+                "cmd_setSlewFlag.set_start.side_effect"
+            ] = self.mtm1m3_cmd_set_slew_flag
+
+        if "command_clearSlewFlag" in self.components_metadata["MTM1M3"].topic_info:
+            m1m3_mocks[
+                "cmd_clearSlewFlag.set_start.side_effect"
+            ] = self.mtm1m3_cmd_clear_slew_flag
 
         if "command_boosterValveOpen" in self.components_metadata["MTM1M3"].topic_info:
             m1m3_mocks[
@@ -454,6 +464,16 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
         asyncio.create_task(
             self._mtm1m3_cmd_set_air_slew_flag(slew_flag=kwargs["slewFlag"])
         )
+
+    async def mtm1m3_cmd_set_slew_flag(
+        self, *args: typing.Any, **kwargs: typing.Any
+    ) -> None:
+        asyncio.create_task(self._mtm1m3_cmd_set_air_slew_flag(slew_flag=True))
+
+    async def mtm1m3_cmd_clear_slew_flag(
+        self, *args: typing.Any, **kwargs: typing.Any
+    ) -> None:
+        asyncio.create_task(self._mtm1m3_cmd_set_air_slew_flag(slew_flag=False))
 
     async def mtm1m3_cmd_booster_valve_open(
         self, *args: typing.Any, **kwargs: typing.Any
