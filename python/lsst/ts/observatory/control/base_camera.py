@@ -987,6 +987,7 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
             n_snaps=n_snaps,
             n_shift=n_shift,
             row_shift=row_shift,
+            checkpoint=checkpoint,
             test_type=test_type,
             reason=reason,
             program=program,
