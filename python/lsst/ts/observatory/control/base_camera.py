@@ -978,12 +978,6 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
         else:
             self.log.debug(f"imagetype: {imgtype}, skip TCS synchronization.")
 
-        if checkpoint is not None:
-            if change_focus:
-                self.checkpoint=checkpoint
-            else:
-                await checkpoint(f"Expose {n} {imgtype}")
-
         camera_exposure = CameraExposure(
             exp_time=exptime if imgtype != "BIAS" else 0.0,
             shutter=imgtype not in ["BIAS", "DARK"],
