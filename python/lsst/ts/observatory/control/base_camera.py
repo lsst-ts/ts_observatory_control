@@ -163,7 +163,6 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
             n_snaps=1,
             n_shift=None,
             row_shift=None,
-            change_focus=None,
             group_id=group_id,
             test_type=test_type,
             reason=reason,
@@ -237,7 +236,6 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
             n_snaps=1,
             n_shift=None,
             row_shift=None,
-            change_focus=None,
             group_id=group_id,
             test_type=test_type,
             reason=reason,
@@ -322,7 +320,6 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
             n_snaps=1,
             n_shift=None,
             row_shift=None,
-            change_focus=None,
             group_id=group_id,
             test_type=test_type,
             reason=reason,
@@ -426,7 +423,6 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
             n_snaps=n_snaps,
             n_shift=None,
             row_shift=None,
-            change_focus=None,
             group_id=group_id,
             test_type=test_type,
             reason=reason,
@@ -507,7 +503,6 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
             n_snaps=1,
             n_shift=None,
             row_shift=None,
-            change_focus=None,
             group_id=group_id,
             test_type=test_type,
             reason=reason,
@@ -597,7 +592,6 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
             n_snaps=1,
             n_shift=None,
             row_shift=None,
-            change_focus=None,
             group_id=group_id,
             test_type=test_type,
             reason=reason,
@@ -683,7 +677,6 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
             n_snaps=1,
             n_shift=None,
             row_shift=None,
-            change_focus=None,
             group_id=group_id,
             test_type=test_type,
             reason=reason,
@@ -772,7 +765,6 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
             n_snaps=1,
             n_shift=None,
             row_shift=None,
-            change_focus=None,
             group_id=group_id,
             test_type=test_type,
             reason=reason,
@@ -788,7 +780,6 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
         exptime: float,
         n_shift: int,
         row_shift: int,
-        change_focus: bool,
         n: int = 1,
         group_id: typing.Optional[str] = None,
         test_type: typing.Optional[str] = None,
@@ -816,8 +807,6 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
             Number of shift-expose sequences.
         row_shift : `int`
             How many rows to shift at each sequence.
-        change_focus : 'bool'
-            Whether or not to shift focus on odd numbered shifts
         n : `int`, optional
             Number of frames to take.
         group_id : `str`, optional
@@ -873,7 +862,6 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
             n_snaps=1,
             n_shift=n_shift,
             row_shift=row_shift,
-            change_focus=change_focus,
             group_id=group_id,
             test_type=test_type,
             reason=reason,
@@ -892,7 +880,6 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
         n_snaps: int = 1,
         n_shift: typing.Optional[int] = None,
         row_shift: typing.Optional[int] = None,
-        change_focus=None,
         group_id: typing.Optional[str] = None,
         test_type: typing.Optional[str] = None,
         reason: typing.Optional[str] = None,
@@ -919,9 +906,6 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
         row_shift : `int`, optional
             How many rows to shift at each sequence. Only used for stuttered
             images.
-        change_focus : `bool`, optional
-            Whether or not to shift focus during stuttered images. 
-            Only used for stuttered images.
         reason : `str`, optional
             Reason for the data being taken. This must be a short tag-like
             string that can be used to disambiguate a set of observations.
@@ -1009,7 +993,6 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
             n_snaps=n_snaps,
             n_shift=n_shift,
             row_shift=row_shift,
-            change_focus=change_focus,
             test_type=test_type,
             reason=reason,
             program=program,
@@ -1303,9 +1286,9 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
         assert type(camera_exposure.n_shift) is int
 
         for i in range(camera_exposure.n_shift - 1):
-            if camera_exposure.change_focus and (i % 2 == 1):
+            if (camera_exposure.checkpoint is not None) and (i % 2 == 1):
                 # shift focus on odd numbered shifts
-                self.checkpoint("Shifting hexapod z")
+                await camera_exposure.checkpoint("Shifting hexapod z")
 
             self.log.debug(
                 f"Exposing {i+1} of {camera_exposure.n_shift} for {camera_exposure.exp_time} seconds."
