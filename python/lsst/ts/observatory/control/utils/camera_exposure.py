@@ -34,7 +34,7 @@ class CameraExposure:
     n_snaps: int
     n_shift: typing.Union[int, None]
     row_shift: typing.Union[int, None]
-    checkpoint: None | typing.Coroutine[None, None, None]
+    checkpoint: None | typing.Optional[typing.Callable[[str], typing.Awaitable]]
     test_type: typing.Union[str, None]
     reason: typing.Union[str, None]
     program: typing.Union[str, None]
