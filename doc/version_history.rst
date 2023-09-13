@@ -6,6 +6,11 @@
 Version History
 ###############
 
+v0.30.5
+-------
+
+* Add ``DOFName`` enum to ``enums.py``
+
 v0.30.4
 -------
 
