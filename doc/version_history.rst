@@ -6,6 +6,11 @@
 Version History
 ###############
 
+v0.30.4
+-------
+
+* In ``latiss_constants.py``, add initial sweet spot for holo4_001 grating.
+
 v0.30.3
 -------
 
