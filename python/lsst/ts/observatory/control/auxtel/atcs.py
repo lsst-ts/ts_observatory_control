@@ -182,6 +182,8 @@ class ATCS(BaseTCS):
 
         self._monitor_position = True
 
+        self._overslew_az = True
+
         try:
             self._create_asyncio_events()
         except RuntimeError:
@@ -1363,9 +1365,6 @@ class ATCS(BaseTCS):
 
         Parameters
         ----------
-        slew_cmd : `coro`
-            One of the slew commands from the atptg remote. Command need to be
-            setup before calling this method.
         slew_cmd: `coro`
             One of the slew commands from the ptg remote. Command need to be
             setup before calling this method.
