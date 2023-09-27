@@ -356,7 +356,7 @@ class TestLATISS(BaseCameraAsyncMock):
             self.latiss.rem.atspectrograph.cmd_changeFilter.set_start.assert_awaited_with(
                 filter=selected_filter, name="", timeout=self.latiss.long_timeout
             )
-        elif type(selected_filter) == str:
+        elif isinstance(selected_filter, str):
             self.latiss.rem.atspectrograph.cmd_changeFilter.set_start.assert_awaited_with(
                 filter=0, name=selected_filter, timeout=self.latiss.long_timeout
             )
@@ -368,7 +368,7 @@ class TestLATISS(BaseCameraAsyncMock):
             self.latiss.rem.atspectrograph.cmd_changeDisperser.set_start.assert_awaited_with(
                 disperser=selected_grating, name="", timeout=self.latiss.long_timeout
             )
-        elif type(selected_grating) == str:
+        elif isinstance(selected_grating, str):
             self.latiss.rem.atspectrograph.cmd_changeDisperser.set_start.assert_awaited_with(
                 disperser=0, name=selected_grating, timeout=self.latiss.long_timeout
             )
