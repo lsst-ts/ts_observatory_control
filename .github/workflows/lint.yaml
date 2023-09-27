@@ -19,7 +19,7 @@ jobs:
         run: |
           $CONDA/bin/conda install -c lsstts ts-pre-commit-config -y
           $CONDA/bin/conda install -c conda-forge pre-commit -y
-          $CONDA/bin/generate_pre_commit_conf
+          $CONDA/bin/generate_pre_commit_conf --skip-pre-commit-install
 
       - name: Run pre commit checks
         run: $CONDA/bin/pre-commit run --all
