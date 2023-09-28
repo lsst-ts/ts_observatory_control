@@ -201,7 +201,7 @@ class LATISS(BaseCamera):
         if filter is not None:
             if isinstance(filter, int):
                 filter_kwargs = dict(filter=filter, name="")
-            elif type(filter) == str:
+            elif isinstance(filter, str):
                 filter_kwargs = dict(filter=0, name=filter)
             else:
                 raise RuntimeError(
@@ -217,7 +217,7 @@ class LATISS(BaseCamera):
         if grating is not None:
             if isinstance(grating, int):
                 grating_kwargs = dict(disperser=grating, name="")
-            elif type(grating) == str:
+            elif isinstance(grating, str):
                 grating_kwargs = dict(disperser=0, name=grating)
             else:
                 raise RuntimeError(
