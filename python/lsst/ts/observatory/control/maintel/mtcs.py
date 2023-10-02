@@ -31,7 +31,7 @@ import astropy.units as u
 import numpy as np
 from astropy.coordinates import Angle
 from lsst.ts import salobj, utils
-from lsst.ts.criopy.M1M3FATable import FATABLE
+from lsst.ts.xml.tables.m1m3 import FATable
 from lsst.ts.idl.enums import MTM1M3, MTPtg
 from lsst.ts.utils import angle_diff
 
@@ -149,10 +149,10 @@ class MTCS(BaseTCS):
         self.m1m3_force_magnitude_stable_tolerance = 50.0
 
         self._m1m3_actuator_id_index_table: dict[int, int] = dict(
-            [(fa.actuator_id, fa.index) for fa in FATABLE]
+            [(fa.actuator_id, fa.index) for fa in FATable]
         )
         self._m1m3_actuator_id_sindex_table: dict[int, int] = dict(
-            [(fa.actuator_id, fa.s_index) for fa in FATABLE if fa.s_index is not None]
+            [(fa.actuator_id, fa.s_index) for fa in FATable if fa.s_index is not None]
         )
 
         try:
@@ -1306,7 +1306,7 @@ class MTCS(BaseTCS):
         return primary_status, secondary_status
 
     def get_m1m3_actuator_index(self, actuator_id: int) -> int:
-        """Convert from actuator_id into actuator index using M1M3 FATABLE.
+        """Convert from actuator_id into actuator index using M1M3 FATable.
 
         Parameters
         ----------
@@ -1336,7 +1336,7 @@ class MTCS(BaseTCS):
 
     def get_m1m3_actuator_secondary_index(self, actuator_id: int) -> int:
         """Convert from actuator_id into actuator secondary index using M1M3
-        FATABLE.
+        FATable.
 
         Parameters
         ----------

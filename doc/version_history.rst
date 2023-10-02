@@ -10,6 +10,7 @@ v0.30.5
 -------
 
 * Add ``DOFName`` enum to ``enums.py``
+* Use lsst.ts.xml.tables.m1m1 instead of ts.lsst.criopy for M1M3 FATable.
 
 v0.30.4
 -------
