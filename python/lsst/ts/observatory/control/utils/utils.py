@@ -121,4 +121,4 @@ def cast_int_or_str(value: typing.Any) -> typing.Union[int, str]:
     `int` or `str`
         Recasted value.
     """
-    return int(value) if type(value) is int else str(value)
+    return int(value) if isinstance(value, int) else str(value)

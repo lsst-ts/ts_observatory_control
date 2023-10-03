@@ -31,9 +31,9 @@ import astropy.units as u
 import numpy as np
 from astropy.coordinates import Angle
 from lsst.ts import salobj, utils
-from lsst.ts.xml.tables.m1m3 import FATable
 from lsst.ts.idl.enums import MTM1M3, MTPtg
 from lsst.ts.utils import angle_diff
+from lsst.ts.xml.tables.m1m3 import FATable
 
 from ..base_tcs import BaseTCS
 from ..constants import mtcs_constants
