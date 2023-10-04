@@ -12,6 +12,7 @@ v0.30.5
 * Add ``DOFName`` enum to ``enums.py``
 * Update atcs telescope and dome flatfield position following atwhitelight alignment.
 * Use lsst.ts.xml.tables.m1m1 instead of ts.lsst.criopy for M1M3 FATable.
+* In ``maintel/mtcs.py``, add exception to allow backwards compatability with M1M3 FATable import from ts.lsst.criopy.
 
 v0.30.4
 -------
