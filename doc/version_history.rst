@@ -6,6 +6,11 @@
 Version History
 ###############
 
+v0.31.0
+-------
+
+* Add ``LSSTCam`` class to interface with the LSSTCam CSC using the ``BaseCamera`` interface.
+
 v0.30.5
 -------
 
