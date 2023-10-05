@@ -23,7 +23,7 @@ class TestBaseCalsysLogic(unittest.TestCase):
     def test_interpolate(self):
         obj = HardcodeCalsysThroughput()
         throughput_low = obj.radiometer_throughput(875.0)
-        
+
 
 
 class TestATCalsys(unittest.TestCase): ...

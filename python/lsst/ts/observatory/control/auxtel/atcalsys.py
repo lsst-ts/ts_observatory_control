@@ -1,81 +1,290 @@
-from typing import List, Optional, NamedTuple
-from ..base_calsys import BaseCalsys, HardcodeCalsysThroughput
+from typing import List, Optional, NamedTuple, TYPE_CHECKING
+from ..base_calsys import BaseCalsys, HardcodeCalsysThroughput, CalibrationSequenceStepBase
+from ..base_calsys import CalsysScriptIntention
 from lsst.ts import salobj
 from lsst.ts.idl.enums import ATMonochromator
+from lsst.ts.idl.enums import ATWhiteLight
 import asyncio
+import astropy.units as un
+from astropy.units import Quantity
+from datetime import datetime
+from collections.abc import Awaitable
+from dataclasses import dataclass
+
 
 class ATSpectrographSlits(NamedTuple):
     FRONTENTRANCE: float
     FRONTEXIT: float
-
+    
+@dataclass
+class ATCalibrationSequenceStep(CalibrationSequenceStepBase):
+    grating: ATMonochromator.Grating
+    latiss_filter: str
+    latiss_grating: str
+    entrance_slit_width: float
+    exit_slit_width: float
+    fs_exp_time: float
+    fs_n_exp: int
+    em_exp_time: float
+    em_n_exp: int
 
 class ATCalsys(BaseCalsys, HardcodeCalsysThroughput):
-    """ class which specifically handles the calibration system for auxtel"""
-    _AT_SAL_COMPONENTS: List[str] = ["ATMonochromator", "FiberSpectrograph", "Electrometer"]
-    CHANGE_GRATING_TIME: int = 60
+    """class which specifically handles the calibration system for auxtel"""
 
-    #these below numbers should be able to be loaded from a (fairly static) config!
-    GRATING_CHANGEOVER_WL: float = 532.0 #WARNING: PLACEHOLDER VALUE!!!
-    GRATING_CHANGEOVER_BW: float = 55.0 #WARNING! PLACEHOLDER VALUE!!!
+    _AT_SAL_COMPONENTS: List[str] = [
+        "ATMonochromator",
+        "FiberSpectrograph",
+        "Electrometer",
+        "ATWhiteLight"
+    ]
+    CHANGE_GRATING_TIME: Quantity[un.physical.time] = 60 << un.s
 
+    # these below numbers should be able to be loaded from a (fairly static) config!
+    GRATING_CHANGEOVER_WL: Quantity[un.physical.length] = 532.0 << un.nm
+    GRATING_CHANGEOVER_BW: Quantity[un.physical.length] = 55.0 << un.nm  # WARNING! PLACEHOLDER VALUE!!!
 
-    def __init__(self, **kwargs:)
-        super().__init__(self._AT_SAL_COMPONENTS, **kwargs)
+    CHILLER_COOLDOWN_TIMEOUT: Quantity[un.physical.time] = 15 << un.min
+    CHILLER_SETPOINT_TEMP: Quantity[un.physical.temperature] = 20 << un.deg_C
+    CHILLER_TEMP_REL_TOL: float = 0.2
+
+    WHITELIGHT_POWER: Quantity[un.physical.power] = 910 << un.W
+    WHITELIGHT_LAMP_WARMUP_TIMEOUT: Quantity[un.physical.time] = 15 << un.min
+
+    SHUTTER_OPEN_TIMEOUT: Quantity[un.physical.time] = 15 << un.min
+
+    def __init__(self, intention: CalsysScriptIntention, **kwargs):
+        super().__init__(intention, components=self._AT_SAL_COMPONENTS, **kwargs)
         self._specsposure_time: Optional[float] = None
         self._elecsposure_time: Optional[float] = None
 
+    async def setup_for_wavelength(
+        self, wavelen: float, nelec: float, spectral_res: float
+    ) -> None:
 
-
-    async def setup_for_wavelength(self, wavelen: float, nelec: float, spectral_res: float) -> None:
-        # to be copied basically from existing SAL script mechanisms
 
         grating = self.calculate_grating_type(wavelen, spectral_res)
         slit_widths = self.calculate_slit_widths(spectral_res, grating)
 
-        self.log.debug(f"setting up monochromtor with wavlength {wavelen} nm and spectral resolution {spectral_res}")
+        self.log.debug(
+            f"setting up monochromtor with wavlength {wavelen} nm and spectral resolution {spectral_res}"
+        )
         self.log.debug(f"calculated slit widthsare {slit_widths}")
         self.log.debug(f"calculated grating is {grating}")
-        
-        monoch_fut = self._sal_cmd_helper("monochromator", "updateMonochromatorSetup",
-                                   gratingType = grating,
-                                   frontExitSlitWidth = slit_widths.FRONTEXIT,
-                                   frontEntranceSlitWdth = slit_widths.FRONTENTRACE,
-                                   wavelength = wavelen)
 
-        elect_fut = self._sal_cmd_helper("electrometer", "performZeroCalib")
-        elect_fut2 = self._sal_cmd_helper("electrometer", "setDigitalFilter",
-                                          activateFilter=False,
-                                          activateAvgFilter=False,
-                                          activateMedFilter=False)
+        monoch_fut = self._sal_cmd(
+            self.ATMonoChromator,
+            "updateMonochromatorSetup",
+            gratingType=grating,
+            frontExitSlitWidth=slit_widths.FRONTEXIT,
+            frontEntranceSlitWdth=slit_widths.FRONTENTRACE,
+            wavelength=wavelen,
+        )
 
-        
-                                         
+        elect_fut = self._sal_cmd("electrometer", "performZeroCalib")
+        elect_fut2 = self._sal_cmd( 
+            self.Electrometer,
+            "setDigitalFilter",
+            activateFilter=False,
+            activateAvgFilter=False,
+            activateMedFilter=False,
+        )
 
-        #TODO: electrometer
-        #TODO: fibre spectrograph
-
-        asyncio.wait([monoch_fut, elect_fut, elect_fut2], return_when=asyncio.ALL_COMPLETED)
+        await asyncio.wait(
+            [monoch_fut, elect_fut, elect_fut2], return_when=asyncio.ALL_COMPLETED
+        )
         self.log.debug("all SAL setup commands returned")
-
         specsposure_time = self.spectrograph_exposure_time_for_nelectrons(nelec)
-
-        
         return
 
-
     def calculate_slit_width(self, spectral_res: float, grating) -> ATSpectrographSlits:
-        #NOTE: this will either need to be derived by doing calculations on the Grating equation, or by loading in calibration data (which I couldn't find yet!)
+        # NOTE: this will either need to be derived by doing calculations on the Grating equation, or by loading in calibration data (which I couldn't find yet!)
         pass
 
-    def calculate_grating_type(self, wavelen: float, spectral_res: float):
-        #TODO: placeholder logic, in particular the exact numbers will be WRONG!
-        #likely something like the below
+    def calculate_grating_type(self, wavelen: float, spectral_res: float) -> ATMonochromator.Grating:
+        # TODO: placeholder logic, in particular the exact numbers will be WRONG!
+        # likely something like the below
         if spectral_res > self.GRATING_CHANGEOVER_BW:
             return ATMonochromator.Grating.MIRROR
         elif wavelen < self.GRATING_CHANGEOVER_WL:
             return ATMonochromator.Grating.BLUE
-        return ATMonochromator.Grating.RED    
-            
+        return ATMonochromator.Grating.RED
 
     async def _setup_spectrograph(self, int_time: float) -> None:
         pass
+
+    async def _setup_electrometer(self, int_time: float):
+        pass
+
+
+
+    async def verify_chiller_operation(self):
+        chiller_temps = await self._sal_readvalue_helper(self.ATWhiteLight, "chillerTemperatures")
+
+        self.log.debug(f"Chiller supply temperature: {chiller_temps.supplyTemperature:0.1f} C"
+                       f"Chiller return temperature: {chiller_temps.returnTemperature:0.1f} C"
+                       f"Chiller set temperature: {chiller_temps.setTemperature:0.1f} C"
+                       f"Chiller ambient temperature: {chiller_temps.ambientTemperature:0.1f} C")
+
+
+
+    async def turn_on_light(self, lamp_power: Quantity["power"]) -> None:
+        #check lamp state first
+        lamp_state = await self._sal_readvalue_helper(self.ATWhiteLight, "lampState")
+        if lamp_state == ATWhiteLight.LampBasicState.On:
+            #nothing to do
+            return
+
+        #check the shutter state 
+        shutter_state = await self._sal_waitevent(self.ATWhiteLight, "shutterState")
+        if shutter_state in [ATWhiteLight.ShutterState.Unknown, ATWhiteLight.ShutterState.Open]:
+            await self._sal_cmd(self.ATWhiteLight, "pcloseShutter")
+
+        power_watts = int(lamp_power.to(un.W).value)
+        #turn on lamp and let it warm up
+        await self._sal_cmd(self.ATWhiteLight, "turnLampOn", power=power_watts)
+
+    async def wait_ready(self) -> None:
+        #in the case of auxtel, need to wait for lamp to have warmed up
+        #check that lamp state
+        lamp_state = await self._sal_waitevent(self.ATWhiteLight, "lampState", run_immediate=False)
+        if lamp_state == ATWhiteLight.LampBasicState.On:
+            return
+
+        if lamp_state not in {ATWhiteLight.LampBasicState.Warmup, ATWhiteLight.LampBasicState.TurningOn}:
+            raise RuntimeError("unexpected lamp state when waiting for readiness!")
+
+
+    async def _electrometer_expose(self, exp_time: float) -> Awaitable[str]:
+        await self._sal_cmd(self.Electrometer, "startScanDt", scanDuration=exp_time,
+                            run_immediate=False)
+        lfa_obj =  self._sal_waitevent(self.Electrometer, "largeFileObjectAvailable",
+                                       run_immediate=False)
+        return lfa_obj.url
+
+    async def _spectrograph_expose(self, exp_time: float, numExposures: int) -> Awaitable[str]:
+        await self._sal_cmd(self.ATSpectrograph, "expose", numExposures = numExposures)
+        lfa_obj = await self._sal_waitevent(self.ATSpectrograph, "largeFileObjectAvailable",
+                                      run_immediate=False)
+        return lfa_obj.url
+
+
+    @property
+    def script_time_estimate_s(self) -> float:
+        """Property that returns the estimated time for the script to run in units of seconds
+        For script time estimation purposes.
+        For now just returns a default long time"""
+
+        match(self._intention):
+            case(CalsysScriptIntention.POWER_ON):
+                #for now just use fixed values from previous script
+                #start out with chiller time maximum
+                total_time: Quantity[un.physical.time] = self.CHILLER_COOLDOWN_TIMEOUT
+                #add on the lamp warmup timeout
+                total_time += self.WHITELIGHT_LAMP_WARMUP_TIMEOUT
+                total_time += self.SHUTTER_OPEN_TIMEOUT
+                return total_time.to(un.s).value
+            case(_):
+                raise NotImplementedError("don't know how to handle this script intention")
+
+    async def power_sequence_run(self, scriptobj: salobj.BaseScript):
+        match(self._intention):
+            case(CalsysScriptIntention.POWER_ON):
+                await self._chiller_power(True)
+                await scriptobj.checkpoint("Chiller started")
+                chiller_start, chiller_end = await self._chiller_settle(True)
+                await scriptobj.checkpoint("Chiller setpoint temperature reached")
+                shutter_wait_fut = asyncio.create_task(self._lamp_power(True), "lamp_start_shutter_open")
+                lamp_settle_fut =  asyncio.create_task(self._lamp_settle(True), "lamp_power_settle")
+                shutter_start, shutter_end = await shutter_wait_fut
+
+                await scriptobj.checkpoint("shutter open and lamp started")
+                lamp_settle_start, lamp_settle_end = await lamp_settle_fut
+                self.log.info("lamp is warmed up, ATCalsys is powered on and ready")
+
+            case(CalsysScriptIntention.POWER_OFF):
+                await self._lamp_power(False)
+                await scriptobj.checkpoint("lamp commanded off and shutter commanded closed")
+                shutter_wait_fut = asyncio.create_task(self._lamp_power(False), "lamp stop shutter close")
+                lamp_settle_fut = asyncio.create_task(self._lamp_settle(False), "lamp power settle")
+
+                shutter_start, shutter_end = await shutter_wait_fut
+                await scriptobj.checkpoint("shutter closed annd lamp turned off")
+                lamp_settle_start, lamp_settle_end = await lamp_settle_fut
+
+                await scriptobj.checkpoint("lamp has cooled down")
+                await self._chiller_power(False)
+                self.log.info("chiller has been turned off, ATCalsys is powered down"!)
+
+
+            case(_):
+                raise NotImplementedError("don't know how to handle this script intention")
+
+            #TODO: log the start and end times
+
+    def _chiller_temp_check(self, temps) -> bool:
+        self.log.debug(f"Chiller supply temperature: {temps.supplyTemperature:0.1f} C "
+                       f"[set:{temps.setTemperature} deg].")
+        pct_dev: float = (temps.supplyTemperature - temps.setTemperature) / temps.setTemperature
+
+        if pct_dev <= self.CHILLER_TEMP_REL_TOL:
+            self.log.info(
+                f"Chiller reached target temperature, {temps.supplyTemperature:0.1f} deg ")
+            return True
+        return False
+
+    async def _chiller_power(self, onoff: bool):
+        cmd_target = "startChiller" if onoff else "stopChiller"
+        if onoff:
+            chiller_setpoint_temp: float = self.CHILLER_SETPOINT_TEMP.to(un.s).value
+            await self._sal_cmd(self.ATWhiteLight, "setChillerTemperature",
+                            temperature=chiller_setpoint_temp)
+        await self._sal_cmd(self.ATWhiteLight, cmd_target)
+
+    async def _chiller_settle(self) -> Awaitable[tuple[datetime,datetime]]:
+        chiller_wait_timeout: float = self.CHILLER_COOLDOWN_TIMEOUT.to(un.s).value
+        chiller_temp_gen = self._sal_telem_gen(self.ATWhiteLight, "chillerTemperatures")
+
+        return await self._long_wait_err_handle(chiller_temp_gen, chiller_wait_timeout,
+                                                self._chiller_temp_check, "chiller temperature range settle")
+
+    async def _lamp_power(self, onoff:bool) -> Awaitable:
+        shutter_cmd_target = "openShutter" if onoff else "closeShutter"
+        lamp_cmd_target = "turnLampOn" if onoff else "turnLampOff"
+        #TODO: do we want asserts etc here to check the lamp state is correct first?
+        #first, open the shutter
+        shutter_task = self._sal_cmd(self.ATWhiteLight, shutter_cmd_target, run_immediate=False)
+
+        #now start the lamp
+        lamp_start_task = self._sal_cmd(self.ATWhiteLight, lamp_cmd_target, run_immediate=False)
+
+        await asyncio.wait([shutter_task, lamp_start_task], timeout=self._cmd_timeout,
+                           return_when=asyncio.FIRST_EXCEPTION)
+
+        #now run long wait for shutter
+        shutter_evt_gen = self._sal_evt_gen(self.ATWhiteLight, "shutterState")
+        shutter_wait_timeout: float = self.SHUTTER_OPEN_TIMEOUT.to(un.s).value
+
+        #TODO: also probably bail out if this reports an unexpected state
+        def shutter_verify(evt):
+            return evt.actualState == evt.commandedState
+
+        #TODO: this can be smarter, lamp reports time when it will be warm,
+        #can use this to update scripts etc
+        return self._long_wait_err_handle(shutter_evt_gen, shutter_wait_timeout,
+                                         shutter_verify, "shutter state")
+
+
+    async def _lamp_settle(self, onoff: bool) -> Awaitable:
+        lamp_evt_gen = self._sal_evt_gen(self.ATWhiteLight, "lampState")
+        lamp_settle_timeout: float = self.WHITELIGHT_LAMP_WARMUP_TIMEOUT.to(un.s).value
+        lamp_tgt_state = ATWhiteLight.LampBasicState.On if onoff else ATWhiteLight.LampBasicState.Off
+        lamp_transition_name = "lamp warming up" if onoff else "lamp cooling down"
+        
+        def lamp_verify(evt):
+            nonlocal lamp_tgt_state
+            return evt.basicState == lamp_tgt_state
+
+        return self._long_wait_err_handle(lamp_evt_gen, lamp_settle_timeout,
+                                          lamp_verify, lamp_transition_name)
+
+    
