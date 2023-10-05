@@ -1238,7 +1238,7 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
 
         key_value_map = camera_exposure.get_key_value_map()
 
-        assert type(camera_exposure.n_shift) is int
+        assert isinstance(camera_exposure.n_shift, int)
 
         try:
             for i in range(camera_exposure.n):
@@ -1280,7 +1280,7 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
         camera_exposure : CameraExposure
         """
 
-        assert type(camera_exposure.n_shift) is int
+        assert isinstance(camera_exposure.n_shift, int)
 
         for i in range(camera_exposure.n_shift - 1):
             self.log.debug(

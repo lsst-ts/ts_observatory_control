@@ -159,7 +159,7 @@ class ATCalSys(RemoteGroup):
 
         Returns
         -------
-        large_file_data : ``fiberspectrograph.evt_largeFileObjectAvailable.DataType``  # noqa: W505
+        file_data : `fiberspectrograph.evt_largeFileObjectAvailable.DataType`
             Large file object available event data.
         """
         if wait_for is not None:

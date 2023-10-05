@@ -69,3 +69,72 @@ class InstrumentFocus(enum.IntEnum):
 
     Prime = 1
     Nasmyth = 2
+
+
+class ClosedLoopMode(enum.IntEnum):
+    """Defines the different mode to run closed loop.
+
+    CWFS: Using only the corner wavefront sensors with focal
+    plane in focus.
+
+    FAM: Full Array Mode.
+
+    """
+
+    CWFS = 0
+    FAM = 1
+
+
+class DOFName(enum.IntEnum):
+    """Defines the different Degrees of Freedom used in AOS."""
+
+    M2_dz = 0
+    M2_dx = 1
+    M2_dy = 2
+    M2_rx = 3
+    M2_ry = 4
+    Cam_dz = 5
+    Cam_dx = 6
+    Cam_dy = 7
+    Cam_rx = 8
+    Cam_ry = 9
+    M1M3_B1 = 10
+    M1M3_B2 = 11
+    M1M3_B3 = 12
+    M1M3_B4 = 13
+    M1M3_B5 = 14
+    M1M3_B6 = 15
+    M1M3_B7 = 16
+    M1M3_B8 = 17
+    M1M3_B9 = 18
+    M1M3_B10 = 19
+    M1M3_B11 = 20
+    M1M3_B12 = 21
+    M1M3_B13 = 22
+    M1M3_B14 = 23
+    M1M3_B15 = 24
+    M1M3_B16 = 25
+    M1M3_B17 = 26
+    M1M3_B18 = 27
+    M1M3_B19 = 28
+    M1M3_B20 = 29
+    M2_B1 = 30
+    M2_B2 = 31
+    M2_B3 = 32
+    M2_B4 = 33
+    M2_B5 = 34
+    M2_B6 = 35
+    M2_B7 = 36
+    M2_B8 = 37
+    M2_B9 = 38
+    M2_B10 = 39
+    M2_B11 = 40
+    M2_B12 = 41
+    M2_B13 = 42
+    M2_B14 = 43
+    M2_B15 = 44
+    M2_B16 = 45
+    M2_B17 = 46
+    M2_B18 = 47
+    M2_B19 = 48
+    M2_B20 = 49
