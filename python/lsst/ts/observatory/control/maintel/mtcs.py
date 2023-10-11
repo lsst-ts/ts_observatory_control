@@ -1567,7 +1567,9 @@ class MTCS(BaseTCS):
             component_name="Camera Hexapod",
         )
 
-    async def move_rotator(self, position: float) -> None:
+    async def move_rotator(
+        self, position: float, wait_for_in_position: bool = True
+    ) -> None:
         """Move rotator to specified position and wait for movement to
         complete.
 
@@ -1575,17 +1577,23 @@ class MTCS(BaseTCS):
         ----------
         position : `float`
             Desired rotator position (deg).
+        wait_for_in_position : `bool`, optional
+            Wait for rotator to reach desired position before returning the
+            function? Default True.
         """
 
         await self.rem.mtrotator.cmd_move.set_start(
             position=position, timeout=self.long_timeout
         )
 
-        await self._handle_in_position(
-            in_position_event=self.rem.mtrotator.evt_inPosition,
-            timeout=self.long_long_timeout,
-            component_name="MTRotator",
-        )
+        if wait_for_in_position:
+            await self._handle_in_position(
+                in_position_event=self.rem.mtrotator.evt_inPosition,
+                timeout=self.long_long_timeout,
+                component_name="MTRotator",
+            )
+        else:
+            self.log.warning("Not waiting for rotator to reach desired position.")
 
     async def move_m2_hexapod(
         self,
