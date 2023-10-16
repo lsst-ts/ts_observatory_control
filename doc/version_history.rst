@@ -10,6 +10,7 @@ v0.31.0
 -------
 
 * Add ``LSSTCam`` class to interface with the LSSTCam CSC using the ``BaseCamera`` interface.
+* In ``constants/latiss_constants.py``, update blue300lppm_qn1, holo4_003, and holo4_001 sweet spots.
 
 v0.30.5
 -------
