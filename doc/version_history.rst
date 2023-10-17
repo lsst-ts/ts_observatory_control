@@ -11,6 +11,7 @@ v0.31.0
 
 * Add ``LSSTCam`` class to interface with the LSSTCam CSC using the ``BaseCamera`` interface.
 * In ``constants/latiss_constants.py``, update blue300lppm_qn1, holo4_003, and holo4_001 sweet spots.
+* Add new option to ``MTCS.move_rotator`` to allow the function to return before the rotator is in position.
 
 v0.30.5
 -------
