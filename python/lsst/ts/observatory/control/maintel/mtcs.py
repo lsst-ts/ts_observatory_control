@@ -31,7 +31,7 @@ import astropy.units as u
 import numpy as np
 from astropy.coordinates import Angle
 from lsst.ts import salobj, utils
-from lsst.ts.idl.enums import MTM1M3, MTPtg
+from lsst.ts.idl.enums import MTM1M3, MTPtg, MTRotator
 from lsst.ts.utils import angle_diff
 
 try:
@@ -1594,6 +1594,26 @@ class MTCS(BaseTCS):
             )
         else:
             self.log.warning("Not waiting for rotator to reach desired position.")
+
+    async def stop_rotator(self) -> None:
+        """Stop rotator movement and wait for controller to publish Stationary
+        substate event."""
+
+        self.rem.mtrotator.evt_controllerState.flush()
+
+        await self.rem.mtrotator.cmd_stop.start(timeout=self.long_timeout)
+
+        mtrotator_state = await self.rem.mtrotator.evt_controllerState.aget(
+            timeout=self.long_timeout
+        )
+
+        while mtrotator_state.enabledSubstate != MTRotator.EnabledSubstate.STATIONARY:
+            self.log.debug(
+                f"MTRotator substate: {MTRotator.EnabledSubstate(mtrotator_state.enabledSubstate)!r}"
+            )
+            mtrotator_state = await self.rem.mtrotator.evt_controllerState.next(
+                flush=False, timeout=self.long_timeout
+            )
 
     async def move_m2_hexapod(
         self,
