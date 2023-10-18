@@ -10,6 +10,8 @@ v0.31.0
 -------
 
 * Add ``LSSTCam`` class to interface with the LSSTCam CSC using the ``BaseCamera`` interface.
+* In ``maintel/mtcs.py``, add ``stop_rotator`` method to stop rotator movement.
+* Add support for mtrotator cmd_stop and evt_controllerState in ``mock/mtcs_async_mock.py``.
 * In ``constants/latiss_constants.py``, update blue300lppm_qn1, holo4_003, and holo4_001 sweet spots.
 * Add new option to ``MTCS.move_rotator`` to allow the function to return before the rotator is in position.
 
