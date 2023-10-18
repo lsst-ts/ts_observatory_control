@@ -103,6 +103,9 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
             actualPosition=0.0,
         )
         self._mtrotator_evt_in_position = types.SimpleNamespace(inPosition=True)
+        self._mtrotator_evt_controller_state = types.SimpleNamespace(
+            enabledSubstate=idl.enums.MTRotator.EnabledSubstate.INITIALIZING
+        )
 
         # MTDome data
         self._mtdome_tel_azimuth = types.SimpleNamespace(
@@ -201,6 +204,9 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
             "evt_inPosition.next.side_effect": self.mtrotator_evt_in_position_next,
             "evt_inPosition.aget.side_effect": self.mtrotator_evt_in_position_next,
             "cmd_move.set_start.side_effect": self.mtrotator_cmd_move,
+            "cmd_stop.start.side_effect": self.mtrotator_cmd_stop,
+            "evt_controllerState.next.side_effect": self.mtrotator_evt_controller_state_next,
+            "evt_controllerState.aget.side_effect": self.mtrotator_evt_controller_state_next,
         }
         self.mtcs.rem.mtrotator.configure_mock(**mtrotator_mocks)
 
@@ -406,6 +412,18 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
         self._mtrotator_tel_rotation.actualPosition = position
         self._mtrotator_evt_in_position.inPosition = True
 
+    async def mtrotator_cmd_stop(self, *args: typing.Any, **kwargs: typing.Any) -> None:
+        asyncio.create_task(self._mtrotator_stop())
+
+    async def _mtrotator_stop(self) -> None:
+        self._mtrotator_evt_controller_state.enabledSubstate = (
+            idl.enums.MTRotator.EnabledSubstate.CONSTANT_VELOCITY
+        )
+        await asyncio.sleep(1.0)
+        self._mtrotator_evt_controller_state.enabledSubstate = (
+            idl.enums.MTRotator.EnabledSubstate.STATIONARY
+        )
+
     async def mtrotator_tel_rotation_next(
         self, *args: typing.Any, **kwargs: typing.Any
     ) -> types.SimpleNamespace:
@@ -417,6 +435,12 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
     ) -> types.SimpleNamespace:
         await asyncio.sleep(self.heartbeat_time)
         return self._mtrotator_evt_in_position
+
+    async def mtrotator_evt_controller_state_next(
+        self, *args: typing.Any, **kwargs: typing.Any
+    ) -> types.SimpleNamespace:
+        await asyncio.sleep(self.heartbeat_time)
+        return self._mtrotator_evt_controller_state
 
     async def mtdome_tel_azimuth_next(
         self, *args: typing.Any, **kwargs: typing.Any
