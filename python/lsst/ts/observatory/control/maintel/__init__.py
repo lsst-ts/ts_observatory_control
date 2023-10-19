@@ -19,5 +19,6 @@
 # You should have received a copy of the GNU General Public License
 
 from .comcam import ComCam
+from .lsstcam import LSSTCam
 from .mtcs import MTCS
 from .mtqueue import *

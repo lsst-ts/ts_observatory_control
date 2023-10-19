@@ -1538,6 +1538,39 @@ class TestMTCS(MTCSAsyncMock):
             timeout=self.mtcs.long_long_timeout, flush=False
         )
 
+    async def test_stop_rotator(self) -> None:
+        await self.mtcs.stop_rotator()
+
+        self.mtcs.rem.mtrotator.evt_controllerState.flush.assert_called()
+
+        self.mtcs.rem.mtrotator.cmd_stop.start.assert_awaited_with(
+            timeout=self.mtcs.long_timeout
+        )
+
+        self.mtcs.rem.mtrotator.evt_controllerState.aget.assert_awaited_with(
+            timeout=self.mtcs.long_timeout
+        )
+
+        self.mtcs.rem.mtrotator.evt_controllerState.next.assert_awaited_with(
+            flush=False, timeout=self.mtcs.long_timeout
+        )
+
+        assert (
+            self._mtrotator_evt_controller_state.enabledSubstate
+            == idl.enums.MTRotator.EnabledSubstate.STATIONARY
+        )
+
+    async def test_move_rotator_without_wait(self) -> None:
+        position = 10.0
+
+        await self.mtcs.move_rotator(position=position, wait_for_in_position=False)
+
+        self.mtcs.rem.mtrotator.cmd_move.set_start.assert_awaited_with(
+            position=position, timeout=self.mtcs.long_timeout
+        )
+        self.mtcs.rem.mtrotator.evt_inPosition.aget.assert_not_awaited()
+        self.mtcs.rem.mtrotator.evt_inPosition.next.assert_not_awaited()
+
     async def test_move_camera_hexapod(self) -> None:
         hexapod_positions = dict([(axis, np.random.rand()) for axis in "xyzuv"])
 
