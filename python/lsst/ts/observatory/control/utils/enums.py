@@ -18,7 +18,7 @@
 #
 # You should have received a copy of the GNU General Public License
 
-__all__ = ["RotType", "InstrumentFocus"]
+__all__ = ["RotType", "InstrumentFocus", "ClosedLoopMode", "DOFName"]
 
 import enum
 
