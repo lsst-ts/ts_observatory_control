@@ -1,0 +1,3 @@
+Updates to make the package compatible with salobj 8.
+Changes involves mostly updating how the async mock objects are created.
+Instead of relying in ts-idl and ts-salobj to generate specs for the remote's, use the newly introduced method in ts-xml.
