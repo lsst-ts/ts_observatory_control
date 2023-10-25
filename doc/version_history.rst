@@ -8,6 +8,23 @@ Version History
 
 .. towncrier release notes start
 
+v0.31.1 (2023-10-25)
+====================
+
+Documentation
+-------------
+
+- Integrate towncrier for release notes and change log management. (`DM-41258 <https://jira.lsstcorp.org/browse/DM-41258>`_)
+
+
+Other Changes and Additions
+---------------------------
+
+- Updates to make the package compatible with salobj 8.
+  Changes involves mostly updating how the async mock objects are created.
+  Instead of relying in ts-idl and ts-salobj to generate specs for the remote's, use the newly introduced method in ts-xml. (`DM-40580 <https://jira.lsstcorp.org/browse/DM-40580>`_)
+
+
 v0.31.0
 =======
 
