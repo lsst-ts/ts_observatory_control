@@ -2,12 +2,14 @@
 
 .. _lsst.ts.observatory.control.version_history:
 
-###############
+===============
 Version History
-###############
+===============
+
+.. towncrier release notes start
 
 v0.31.0
--------
+=======
 
 * Add ``LSSTCam`` class to interface with the LSSTCam CSC using the ``BaseCamera`` interface.
 * In ``maintel/mtcs.py``, add ``stop_rotator`` method to stop rotator movement.
@@ -17,7 +19,7 @@ v0.31.0
 * Export enum classes ``DOFName`` and ``ClosedLoopMode`` in ``enums.py``.
 
 v0.30.5
--------
+=======
 
 * Add ``DOFName`` enum to ``enums.py``
 * Update atcs telescope and dome flatfield position following atwhitelight alignment.
@@ -25,12 +27,12 @@ v0.30.5
 * In ``maintel/mtcs.py``, add exception to allow backwards compatability with M1M3 FATable import from ts.lsst.criopy.
 
 v0.30.4
--------
+=======
 
 * In ``latiss_constants.py``, add initial sweet spot for holo4_001 grating.
 
 v0.30.3
--------
+=======
 
 * In ``maintel/mtcs.py``:
 
@@ -39,14 +41,14 @@ v0.30.3
   * Add ``forceControllerState`` to the list m1m3 events for the slew usage.
 
 v0.30.2
--------
+=======
 
 * Update ``pyproject.toml`` to remove usage of flake8 and black pytest plugins.
 * Add github linting workflow.
 * Add support for ``ts-pre-commit-config``.
 
 v0.30.1
--------
+=======
 
 * In ``maintel/mtcs.py``:
 
@@ -63,7 +65,7 @@ v0.30.1
 * In ``base_tcs.py``, update ``_handle_in_position`` to not ignore timeout error when waiting for a new event in the waiting loop.
 
 v0.30.0
--------
+=======
 
 * In ``maintel/mtcs.py``:
 
@@ -77,17 +79,17 @@ v0.30.0
   * Refactor ``enable_m1m3_balance_system`` to extract code into two general purpose private methods; ``_handle_m1m3_hardpoint_correction_command`` and ``_wait_force_balance_system_state``.
 
 v0.29.2
--------
+=======
 
 * In ``auxtel/atcs.py``, update the dome and telescope flat field position.
 
 v0.29.1
--------
+=======
 
 * In ``maintel/mtcs.py``, update MTCS usages to add booster valve status event to Slew usage.
 
 v0.29.0
--------
+=======
 
 * In ``tests/maintel/test_mtcs.py``:
 
@@ -104,7 +106,7 @@ v0.29.0
   * Add a new async context manager ``m1m3_booster_valve`` to handle opening/closing the M1M3 booster valve for a particular operation.
 
 v0.28.0
--------
+=======
 
 * In ``maintel/mtcs.py``:
 
@@ -120,7 +122,7 @@ v0.28.0
 * In ``mock/mtcs_async_mock.py``, improve mocking of the m1m3 actuator testing to more closely resemble m1m3 behavior.
 
 v0.27.1
--------
+=======
 
 * In ``maintel/mtcs.py``:
 
@@ -129,7 +131,7 @@ v0.27.1
   * Update ``enter_m1m3_engineering_mode`` to ignore timeout error in ``cmd_enterEngineering``.
 
 v0.27.0
--------
+=======
 
 * In ``auxtel/atcs.py``, add new ``offset_aos_lut`` method. 
 
@@ -154,19 +156,19 @@ v0.27.0
 
 
 v0.26.0
--------
+=======
 
 * In ``base_tcs.py``, add new ``offset_pa`` method.
 * In ``auxtel/atcs.py``, minor improvements in ``offset_done`` method.
 * In ``auxtel/atcs.py``, update ``open_dome_shutter`` to also work when the dome is partially opened.
 
 v0.25.0
--------
+=======
 
 * In ``BaseTCS``, add new ``offset_rot`` method to allow offsetting the rotator position.
 
 v0.24.3
--------
+=======
 
 
 * In ``tests/auxtel/test_atcs.py``,  implement some small improvements in the ``ATCS`` test case.
@@ -193,19 +195,19 @@ v0.24.3
 * In ``auxtel/atcs``, update ``ATCS._slew`` to use the more robust ``asyncio.create_task`` instead of ``ensure_future`` when scheduling background tasks.
 
 v0.24.2
--------
+=======
 
 * Format souce files with black 23.
 * Update pre-commit hook versions.
 
 v0.24.1
--------
+=======
 
 * In ``constants/latiss_constants.py``, add sweetspot for new grating.
 * Update Jenkinfile to stop using root.
 
 v0.24.0
--------
+=======
 
 * In ``BaseTCS``, update ``radec_from_azel`` to convert ``AltAz`` into a ``SkyCoord`` before converting to ``ICRS``.
   Directly converting from ``AltAz`` into ``ICRS`` will be deprecated in the future.
@@ -226,13 +228,13 @@ v0.24.0
   * Update ``prepare_for_flatfield`` to disable ataos corrections before opening the mirror covers and enable them afterwards.
 
 v0.23.3
--------
+=======
 
 * In ``BaseCamera``, update ``_handle_take_stuttered`` to remove call to ``cmd_clear``.
 * In ``BaseCameraAsyncMock``, update ``assert_take_calibration`` to remove call to ``cmd_clear``.
 
 v0.23.2
--------
+=======
 
 * In ``ScriptQueue``:
 
@@ -240,12 +242,12 @@ v0.23.2
   * Fix text separator when splitting list of scripts in ``list_standard_scripts`` and ``list_external_scripts`.
 
 v0.23.1
--------
+=======
 
 * Add support for authorization.
 
 v0.23.0
--------
+=======
 
 * In ``MTCS``:
 
@@ -256,7 +258,7 @@ v0.23.0
     This method can be used when performing optical alignment with the MTAlignment component or when performing optical alignment with curvature wavefront sensing to take the intra/extra focal data.
 
 v0.22.1
--------
+=======
 
 * Update ``ATCS`` unit test to use the new ``ATCSAsyncMock`` class.
 
@@ -305,7 +307,7 @@ v0.22.1
 * Ignore files generated by pypi.
 
 v0.22.0
--------
+=======
 
 * Add new type hints to allow type annotation of methods and coroutines that has signature like ``func(**kwargs: Any) -> None``.
 
@@ -338,7 +340,7 @@ v0.22.0
 * Update ``.gitignore`` to ignore all ``.log`` files.
 
 v0.21.0
--------
+=======
 
 * In ``BaseTCS`` class:
 
@@ -355,24 +357,24 @@ v0.21.0
   * In ``slew_icrs`` use new rotator angle alternatives to cycle throught different rotator angles when the value requested is outside the rotator limits.
 
 v0.20.1
--------
+=======
 
 * Fix issue with ``LATISS.setup_instrument`` which would fail if linear stage position was passed as ``None``, which is a valid entry.
 * Add unit test for ``LATISS.setup_instrument``.
 
 v0.20.0
--------
+=======
 
 * Update build configuration to use ``pyproject.toml``.
 * Implement type-checking in the entire package.
 
 v0.19.0
--------
+=======
 
 * Add new high-level class to interact with the ``ScriptQueue``, and child classes to interact with ATQueue and MTQueue.
 
 v0.18.2
--------
+=======
 
 * Add support for stuttered image keywords.
 * In ``BaseCamera``:
@@ -380,12 +382,12 @@ v0.18.2
   * Update ``_handle_take_stuttered`` method to call ``set`` and then ``start`` separately, so it can set the ``timeout`` parameter.
 
 v0.18.1
--------
+=======
 
 * `MTCSMock`: stop calling lsst.ts.salobj.topics.WriteTopic.write with arguments.
 
 v0.18.0
--------
+=======
 
 * In `BaseCamera`:
 
@@ -415,7 +417,7 @@ v0.18.0
 
 
 v0.17.0
--------
+=======
 
 * In `test_atcs`, rename `test_monitor` -> `test_monitor_position_dome_following_enabled`, and make sure dome following is enabled before running test.
   Add `test_monitor_position_dome_following_disabled` test to check condition when dome following is disabled.
@@ -439,17 +441,17 @@ v0.17.0
 * Update `MTCS.wait_for_rotator_inposition` to use `_handle_in_position`.
 
 v0.16.1
--------
+=======
 
 * Update to black 22.
 
 v0.16.0
--------
+=======
 
 * Change archiver references to oods ones due to image creation process change (DMTN-143).
 
 v0.15.0
--------
+=======
 
 * Update for ts_salobj v7, which is required.
   This also requires ts_xml 11.
@@ -458,7 +460,7 @@ v0.15.0
   Remove the ``inspect_settings`` method and rename ``expand_settings`` to ``expand_overrides``.
 
 v0.14.0
--------
+=======
 
 * Remove usage of deprecated methods from salobj.
 * In `BaseTCS`:
@@ -478,19 +480,19 @@ v0.14.0
   * Update unit tests for new default value of `stop_before_slew`.
 
 v0.13.2
--------
+=======
 
 * Fix unit test failure in `slew_object` due to coordinate convertion issue.
 
 v0.13.1
--------
+=======
 
 * Make MTCS non-concurrent.
 * In `BaseTcs` add interface to enable/disable concurrent operation.
 * In `RemoteGroup` implement mechanism to prevent concurrent operation.
 
 v0.13.0
--------
+=======
 
 * Update MTCSMock for the latest xml.
 * Add unit tests for additional keywords in LATISS and ComCam.
@@ -513,18 +515,18 @@ v0.13.0
   * Add new abstract method `parse_sensors`
 
 v0.12.1
--------
+=======
 
 * Update expand `RemoteGroup.inspect_settings` to deal with non-configurable components.
 
 v0.12.0
--------
+=======
 
 * Update the code to use ts_utils.
 * Modernize the unit tests to use bare asserts.
 
 v0.11.2
--------
+=======
 
 * Update `mock.BaseGroupMock` to be compatible with xml 10.1 and sal 6.
 * In `MTCS`:
@@ -533,7 +535,7 @@ v0.11.2
     The work around consist of sending a move command to the rotator current position then stopping, thus resetting the trajectory.
 
 v0.11.1
--------
+=======
 
 * Update conda recipe to add new dependencies; pandas and scipy.
 * Update setup.py to include `.pd` files.
@@ -563,7 +565,7 @@ v0.11.1
 * Update Jenkinsfile to pull git lfs files before running tests.
 
 v0.11.0
--------
+=======
 
 * In MTCS: 
   * add longer timeout for raising/lowering the system.
@@ -619,7 +621,7 @@ v0.11.0
   * Make `ATCS` more resilient when the dome following is disabled.
 
 v0.10.3
--------
+=======
 
 * Add `DryTest` to `LATISSUsages`. 
   This is useful for unit testing.
@@ -628,7 +630,7 @@ v0.10.3
 * In `BaseTCS.find_target` fix magnitude range to use input parameter instead of hard coded value.
 
 v0.10.2
--------
+=======
 
 * In `ATCS`:
   * Small fixes to find_target and object_list_get.
@@ -648,14 +650,14 @@ v0.10.2
 
 
 v0.10.1
--------
+=======
 
 * In ATCS update algorithm to open m1 cover.
 * Add object storing and finding facility to BaseTCS.
 * In ATCS add functionality to stop the monitor position loop.
 
 v0.10.0
--------
+=======
 
 * Refactor MTCS and ATCS unit tests to use ``DryTest`` mode (no remotes) and mock the expected behavior with ``unittest.mock``. This allows the unit tests to run much more quickly and reliable. The old unit tests relying on DDS will be converted to integration tests.
 * Add support in ``RemoteGroup`` and ``BaseTCS`` to support setting up the class when there is no event loop running.
