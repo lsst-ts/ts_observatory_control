@@ -121,6 +121,8 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
         self.parity_x = 1.0
         self.parity_y = 1.0
 
+        self._overslew_az = False
+
         self._ready_to_take_data_task: typing.Union[asyncio.Task, None] = None
 
         # Define alternative rotation angles to try when slewing the telescope.
@@ -649,6 +651,9 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
                 slew_exception = e
                 break
             else:
+                if self._overslew_az:
+                    await self.offset_azel(az=2.0 * 3600.0 * np.cos(alt_az.alt), el=0)
+                    await self.offset_azel(az=-2.0 * 3600.0 * np.cos(alt_az.alt), el=0)
                 break
 
         if slew_exception is not None:
