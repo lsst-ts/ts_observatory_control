@@ -652,7 +652,9 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
                 break
             else:
                 if self._overslew_az:
+                    await asyncio.sleep(self.tel_settle_time)
                     await self.offset_azel(az=2.0 * 3600.0 * np.cos(alt_az.alt), el=0)
+                    await asyncio.sleep(self.tel_settle_time)
                     await self.offset_azel(az=-2.0 * 3600.0 * np.cos(alt_az.alt), el=0)
                 break
 
