@@ -16,6 +16,7 @@ from scipy.interpolate import InterpolatedUnivariateSpline
 from astropy.units import ampere, watt, nm, Quantity
 import astropy.units as un
 import enum
+from datetime import datetime
 
 Responsivity: TypeAlias = Quantity[ampere / watt]
 
@@ -257,7 +258,18 @@ class BaseCalsys(RemoteGroup, metaclass=ABCMeta):
             self.log.error(f"waited {wait_time} seconds but {name_of_wait} did not succeed")
             raise err
 
-               
+
+    @classmethod
+    def log_event_timings(cls, logger, time_evt_name: str,
+                          start_time: datetime, end_time: datetime,
+                          expd_duration: Quantity[un.physical.time]) -> None:
+        logstr = f"event: {time_evt_name} started at {start_time} and finished at {end_time}"
+        logger.info(logstr)
+        duration = (start_time - end_time).total_seconds() << un.s
+        logstr2 = f"the duration was: {duration}, and our timeout allowance was: {expt_duration}" 
+        logger.info(logstr2)
+        
+        
 
     async def take_electrometer_exposures(
         self, electrobj, exp_time_s: float, n: int
@@ -300,18 +312,13 @@ class BaseCalsys(RemoteGroup, metaclass=ABCMeta):
 
 
     @abstractmethod
+    async def validate_hardware_status_for_acquisition(self) -> Awaitable:
+        pass
+    
+    @abstractmethod
     async def power_sequence_run(self, scriptobj, **kwargs):
         pass
 
-    @abstractmethod
-    async def turn_on_light(self, **kwargs) -> None:
-        """awaitable command which turns on the calibration light, having
-        already set up the appropriate wavelength and (if applicable) time delays for stabilization etc
-        """
-
-    @abstractmethod
-    async def turn_off_light(self) -> None:
-        """awaitable which turns off the calibration light"""
 
     @abstractmethod
     async def setup_for_wavelength(self, wavelen: float, **extra_params) -> None:

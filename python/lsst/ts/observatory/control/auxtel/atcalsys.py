@@ -15,7 +15,7 @@ from dataclasses import dataclass
 class ATSpectrographSlits(NamedTuple):
     FRONTENTRANCE: float
     FRONTEXIT: float
-    
+
 @dataclass
 class ATCalibrationSequenceStep(CalibrationSequenceStepBase):
     grating: ATMonochromator.Grating
@@ -116,44 +116,6 @@ class ATCalsys(BaseCalsys, HardcodeCalsysThroughput):
         pass
 
 
-
-    async def verify_chiller_operation(self):
-        chiller_temps = await self._sal_readvalue_helper(self.ATWhiteLight, "chillerTemperatures")
-
-        self.log.debug(f"Chiller supply temperature: {chiller_temps.supplyTemperature:0.1f} C"
-                       f"Chiller return temperature: {chiller_temps.returnTemperature:0.1f} C"
-                       f"Chiller set temperature: {chiller_temps.setTemperature:0.1f} C"
-                       f"Chiller ambient temperature: {chiller_temps.ambientTemperature:0.1f} C")
-
-
-
-    async def turn_on_light(self, lamp_power: Quantity["power"]) -> None:
-        #check lamp state first
-        lamp_state = await self._sal_readvalue_helper(self.ATWhiteLight, "lampState")
-        if lamp_state == ATWhiteLight.LampBasicState.On:
-            #nothing to do
-            return
-
-        #check the shutter state 
-        shutter_state = await self._sal_waitevent(self.ATWhiteLight, "shutterState")
-        if shutter_state in [ATWhiteLight.ShutterState.Unknown, ATWhiteLight.ShutterState.Open]:
-            await self._sal_cmd(self.ATWhiteLight, "pcloseShutter")
-
-        power_watts = int(lamp_power.to(un.W).value)
-        #turn on lamp and let it warm up
-        await self._sal_cmd(self.ATWhiteLight, "turnLampOn", power=power_watts)
-
-    async def wait_ready(self) -> None:
-        #in the case of auxtel, need to wait for lamp to have warmed up
-        #check that lamp state
-        lamp_state = await self._sal_waitevent(self.ATWhiteLight, "lampState", run_immediate=False)
-        if lamp_state == ATWhiteLight.LampBasicState.On:
-            return
-
-        if lamp_state not in {ATWhiteLight.LampBasicState.Warmup, ATWhiteLight.LampBasicState.TurningOn}:
-            raise RuntimeError("unexpected lamp state when waiting for readiness!")
-
-
     async def _electrometer_expose(self, exp_time: float) -> Awaitable[str]:
         await self._sal_cmd(self.Electrometer, "startScanDt", scanDuration=exp_time,
                             run_immediate=False)
@@ -175,7 +137,7 @@ class ATCalsys(BaseCalsys, HardcodeCalsysThroughput):
         For now just returns a default long time"""
 
         match(self._intention):
-            case(CalsysScriptIntention.POWER_ON):
+            case CalsysScriptIntention.POWER_ON | CalsysScriptIntention.POWER_OFF:
                 #for now just use fixed values from previous script
                 #start out with chiller time maximum
                 total_time: Quantity[un.physical.time] = self.CHILLER_COOLDOWN_TIMEOUT
@@ -183,43 +145,77 @@ class ATCalsys(BaseCalsys, HardcodeCalsysThroughput):
                 total_time += self.WHITELIGHT_LAMP_WARMUP_TIMEOUT
                 total_time += self.SHUTTER_OPEN_TIMEOUT
                 return total_time.to(un.s).value
-            case(_):
+            case _:
                 raise NotImplementedError("don't know how to handle this script intention")
 
     async def power_sequence_run(self, scriptobj: salobj.BaseScript):
         match(self._intention):
-            case(CalsysScriptIntention.POWER_ON):
+            case CalsysScriptIntention.POWER_ON:
                 await self._chiller_power(True)
                 await scriptobj.checkpoint("Chiller started")
                 chiller_start, chiller_end = await self._chiller_settle(True)
+                self.log_event_timings(self.log, "chiller cooldown time", chiller_start, chiller_end,
+                                       self.CHILLER_COOLDOWN_TIMEOUT)
+                
                 await scriptobj.checkpoint("Chiller setpoint temperature reached")
                 shutter_wait_fut = asyncio.create_task(self._lamp_power(True), "lamp_start_shutter_open")
                 lamp_settle_fut =  asyncio.create_task(self._lamp_settle(True), "lamp_power_settle")
                 shutter_start, shutter_end = await shutter_wait_fut
+                self.log_event_timings(self.log, "shutter open time", shutter_start, shutter_end,
+                                       self.SHUTTER_OPEN_TIMEOUT)
 
                 await scriptobj.checkpoint("shutter open and lamp started")
                 lamp_settle_start, lamp_settle_end = await lamp_settle_fut
+                self.log_event_timings(self.log, "lamp warm up", lamp_settle_start, lamp_settle_end,
+                                       self.WHITELIGHT_LAMP_WARMUP_TIMEOUT)
                 self.log.info("lamp is warmed up, ATCalsys is powered on and ready")
 
-            case(CalsysScriptIntention.POWER_OFF):
+            case CalsysScriptIntention.POWER_OFF:
                 await self._lamp_power(False)
                 await scriptobj.checkpoint("lamp commanded off and shutter commanded closed")
                 shutter_wait_fut = asyncio.create_task(self._lamp_power(False), "lamp stop shutter close")
                 lamp_settle_fut = asyncio.create_task(self._lamp_settle(False), "lamp power settle")
 
                 shutter_start, shutter_end = await shutter_wait_fut
+                self.log_event_timings(self.log, "shutter close", shutter_start, shutter_end,
+                                       self.SHUTTER_OPEN_TIMEOUT)
                 await scriptobj.checkpoint("shutter closed annd lamp turned off")
                 lamp_settle_start, lamp_settle_end = await lamp_settle_fut
-
+                self.log_event_timings(self.log, "lamp cooldown", lamp_settle_start, lamp_settle_end,
+                                       self.WHITELIGHT_LAMP_WARMUP_TIMEOUT)
                 await scriptobj.checkpoint("lamp has cooled down")
                 await self._chiller_power(False)
                 self.log.info("chiller has been turned off, ATCalsys is powered down"!)
 
-
-            case(_):
+            case _:
                 raise NotImplementedError("don't know how to handle this script intention")
 
-            #TODO: log the start and end times
+    async def validate_hardware_status_for_acquisition(self) -> Awaitable[float]:
+        shutter_fut = self._sal_waitevent(self.ATWhiteLight, "shutterState")
+        lamp_fut = self._sal_waitevent(self.ATWhiteLight, "lampState")
+
+        shutter_state = await shutter_fut
+        if shutter_state.commandedState != ATWhiteLight.ShutterState.OPEN:
+            errmsg = f"shutter has not been commanded to open, likely a programming error. Commanded state is {repr(shutter_state.commandedState)}"
+            self.log.error(errmsg)
+            raise RuntimeError(errmsg)
+
+        if shutter_state.actualState != ATWhiteLight.ShutterState.OPEN:
+            errmsg = f"shutter is not open, its state is reported as {repr(shutter_state.actualState)}")
+            self.log.error(errmsg)
+            raise RuntimeError(errmsg)
+
+        lamp_state = await lamp_fut
+        if lamp_state.basicState != ATWhiteLight.LampBasicState.ON:
+            errmsg = f"lamp state is not on, its state is reported as {repr(lamp_state.basicState)}"
+            self.log.error(errmsg)
+            raise RuntimeError(errmsg)
+        
+        if !lamp_state.lightDetected:
+            self.log.warning(f"all states seem fine, but lamp is not reporting light detected!")
+
+        lamp_power: float = lamp_state.setPower
+        return lamp_power
 
     def _chiller_temp_check(self, temps) -> bool:
         self.log.debug(f"Chiller supply temperature: {temps.supplyTemperature:0.1f} C "
