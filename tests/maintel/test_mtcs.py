@@ -1755,6 +1755,8 @@ class TestMTCS(MTCSAsyncMock):
         )
 
     async def test_move_p2p_azel(self) -> None:
+        await self.mtcs.enable()
+
         await self.mtcs.move_p2p_azel(az=0.0, el=80.0)
 
         self.mtcs.rem.mtmount.cmd_moveToTarget.set_start.assert_awaited_with(
@@ -1766,6 +1768,8 @@ class TestMTCS(MTCSAsyncMock):
         self.assert_m1m3_booster_valve()
 
     async def test_move_p2p_azel_with_timeout(self) -> None:
+        await self.mtcs.enable()
+
         await self.mtcs.move_p2p_azel(az=0.0, el=80.0, timeout=30.0)
 
         self.mtcs.rem.mtmount.cmd_moveToTarget.set_start.assert_awaited_with(

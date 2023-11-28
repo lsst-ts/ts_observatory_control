@@ -652,8 +652,16 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
                 break
             else:
                 if self._overslew_az:
-                    await self.offset_azel(az=2.0 * 3600.0 * np.cos(alt_az.alt), el=0)
-                    await self.offset_azel(az=-2.0 * 3600.0 * np.cos(alt_az.alt), el=0)
+                    overslew_az = 2.0 * 3600.0 * np.cos(alt_az.alt.rad)
+                    self.log.info(
+                        "Overslew Azimuth feature is enabled. Slewing past target position by"
+                        f"{(overslew_az/3600.):.1f} degrees and waiting for settle."
+                    )
+                    await asyncio.sleep(self.tel_settle_time)
+                    await self.offset_azel(az=overslew_az, el=0, relative=False)
+                    await asyncio.sleep(self.tel_settle_time)
+                    self.log.info("Slewing back to target position.")
+                    await self.offset_azel(az=0, el=0, relative=False)
                 break
 
         if slew_exception is not None:

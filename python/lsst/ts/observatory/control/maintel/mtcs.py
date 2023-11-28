@@ -1744,11 +1744,20 @@ class MTCS(BaseTCS):
         """
 
         async with self.m1m3_booster_valve():
-            await self.rem.mtmount.cmd_moveToTarget.set_start(
-                azimuth=az,
-                elevation=el,
-                timeout=timeout,
+            tasks = [
+                asyncio.create_task(self.check_component_state(component))
+                for component in self.components_to_check()
+            ]
+            tasks.append(
+                asyncio.create_task(
+                    self.rem.mtmount.cmd_moveToTarget.set_start(
+                        azimuth=az,
+                        elevation=el,
+                        timeout=timeout,
+                    )
+                )
             )
+            await self.process_as_completed(tasks)
 
     async def move_p2p_radec(
         self, ra: float, dec: float, timeout: float = 120.0
