@@ -8,6 +8,18 @@ Version History
 
 .. towncrier release notes start
 
+v0.32.0 (2023-11-28)
+====================
+
+New Features
+------------
+
+- Add _overslew_azimuth feature to base_tcs class to slew past the target position and return. Set default to FALSE in base_tcs class and TRUE for atcs. (`DM-40913 <https://jira.lsstcorp.org/browse/DM-40913>`_)
+- Update ``MTCS`` class to support running M2 bump tests. (`DM-41111 <https://jira.lsstcorp.org/browse/DM-41111>`_)
+- Update overslew feature and add log messages.
+  In ``mtcs``, add a check in move_p2p that the components are enabled while moving. (`DM-41538 <https://jira.lsstcorp.org/browse/DM-41538>`_)
+
+
 v0.31.1 (2023-10-25)
 ====================
 

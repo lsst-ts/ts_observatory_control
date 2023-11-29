@@ -1,1 +1,0 @@
-Update ``MTCS`` class to support running M2 bump tests.
