@@ -1469,6 +1469,43 @@ class TestMTCS(MTCSAsyncMock):
             timeout=self.mtcs.long_timeout
         )
 
+    async def test_run_m2_actuator_bump_test_default(self) -> None:
+        actuator = 55
+        period = 60
+        force = 10
+
+        await self.mtcs.run_m2_actuator_bump_test(
+            actuator=actuator,
+            period=period,
+            force=force,
+        )
+
+        self.mtcs.rem.mtm2.cmd_actuatorBumpTest.set_start.assert_awaited_with(
+            actuator=actuator,
+            period=period,
+            force=force,
+        )
+
+    async def test_run_m2_actuator_bump_test_hardpoint(self) -> None:
+        actuator = 5
+        period = 60
+        force = 10
+
+        with pytest.raises(Exception):
+            await self.mtcs.run_m2_actuator_bump_test(
+                actuator=actuator,
+                period=period,
+                force=force,
+            )
+
+    async def test_get_m2_hardpoints(self) -> None:
+        hardpoints = await self.mtcs.get_m2_hardpoints()
+        assert hardpoints == self._mtm2_evt_hardpointList.actuators
+
+    async def test_stop_m2_actuator_bump(self) -> None:
+        with pytest.raises(NotImplementedError):
+            await self.mtcs.stop_m2_bump_test()
+
     async def test_enable_compensation_mode_for_hexapod_1(self) -> None:
         self._mthexapod_1_evt_compensation_mode.enabled = False
 
@@ -1718,6 +1755,8 @@ class TestMTCS(MTCSAsyncMock):
         )
 
     async def test_move_p2p_azel(self) -> None:
+        await self.mtcs.enable()
+
         await self.mtcs.move_p2p_azel(az=0.0, el=80.0)
 
         self.mtcs.rem.mtmount.cmd_moveToTarget.set_start.assert_awaited_with(
@@ -1729,6 +1768,8 @@ class TestMTCS(MTCSAsyncMock):
         self.assert_m1m3_booster_valve()
 
     async def test_move_p2p_azel_with_timeout(self) -> None:
+        await self.mtcs.enable()
+
         await self.mtcs.move_p2p_azel(az=0.0, el=80.0, timeout=30.0)
 
         self.mtcs.rem.mtmount.cmd_moveToTarget.set_start.assert_awaited_with(

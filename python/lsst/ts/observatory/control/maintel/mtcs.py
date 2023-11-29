@@ -1401,6 +1401,69 @@ class MTCS(BaseTCS):
 
         return m1m3_detailed_state in self.m1m3_engineering_states
 
+    async def run_m2_actuator_bump_test(
+        self,
+        actuator: int,
+        force: float,
+        period: float = 60,
+    ) -> None:
+        """M2 actuator bump test.
+
+        Parameters
+        ----------
+        actuator : `int`
+            Id of the actuator.
+        force : `float`
+            the +/- push/pull foce to be applied in N
+        period : `float`, optional
+            There will be two bumps and each bump will wait for (2 * period)
+            seconds.
+            Default time is 60 seconds.
+        """
+        # check that actuator_id is not hardpoint
+        hardpoint_ids = await self.get_m2_hardpoints()
+
+        # csc actuator id is 0 based and hardpoint id is 1 based
+        if actuator + 1 in hardpoint_ids:
+            raise Exception(
+                f"Cannot bump test one of the M2 hardpoints: actuator = {actuator}."
+            )
+
+        # bump test single actuator
+        await self.rem.mtm2.cmd_actuatorBumpTest.set_start(
+            actuator=actuator,
+            period=period,
+            force=force,
+        )
+
+    async def get_m2_hardpoints(
+        self,
+    ) -> list[int]:
+        """Retrieve the current list of M2 hardpoints.
+
+        Returns
+        -------
+        `list` [ `int` ]
+            List of M2 hardpoints.
+        """
+        m2_hard_points = await self.rem.mtm2.evt_hardpointList.aget(
+            timeout=self.fast_timeout
+        )
+        return m2_hard_points.actuators
+
+    async def stop_m2_bump_test(
+        self,
+    ) -> None:
+        """Stop the M2 actuator bump test.
+
+        Raises
+        ------
+        NotImplementedError
+            This method is not currently implemented.
+        """
+        # TODO: Implement (DM-41363)
+        raise NotImplementedError("TODO: Implement (DM-41363)")
+
     async def enable_m2_balance_system(self) -> None:
         """Enable m2 balance system."""
 
@@ -1681,11 +1744,20 @@ class MTCS(BaseTCS):
         """
 
         async with self.m1m3_booster_valve():
-            await self.rem.mtmount.cmd_moveToTarget.set_start(
-                azimuth=az,
-                elevation=el,
-                timeout=timeout,
+            tasks = [
+                asyncio.create_task(self.check_component_state(component))
+                for component in self.components_to_check()
+            ]
+            tasks.append(
+                asyncio.create_task(
+                    self.rem.mtmount.cmd_moveToTarget.set_start(
+                        azimuth=az,
+                        elevation=el,
+                        timeout=timeout,
+                    )
+                )
             )
+            await self.process_as_completed(tasks)
 
     async def move_p2p_radec(
         self, ra: float, dec: float, timeout: float = 120.0

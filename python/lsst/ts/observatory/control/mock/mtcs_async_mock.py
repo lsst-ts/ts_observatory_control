@@ -153,6 +153,9 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
 
         # MTM2 data
         self._mtm2_evt_force_balance_system_status = types.SimpleNamespace(status=False)
+        self._mtm2_evt_hardpointList = types.SimpleNamespace(
+            actuators=list([6, 16, 26, 74, 76, 78])
+        )
 
         # Camera hexapod data
         self._mthexapod_1_evt_compensation_mode = types.SimpleNamespace(enabled=False)
@@ -308,6 +311,8 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
             "evt_forceBalanceSystemStatus.aget.side_effect": self.mtm2_evt_force_balance_system_status,
             "evt_forceBalanceSystemStatus.next.side_effect": self.mtm2_evt_force_balance_system_status,
             "cmd_switchForceBalanceSystem.set_start.side_effect": self.mtm2_cmd_switch_force_balance_system,
+            "cmd_actuatorBumpTest.set_start.side_effect": self.mtm2_cmd_actuator_bump_test,
+            "evt_hardpointList.aget.side_effect": self.mtm2_evt_hardpointList,
         }
 
         self.mtcs.rem.mtm2.configure_mock(**m2_mocks)
@@ -774,6 +779,19 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
             )
             await asyncio.sleep(self.heartbeat_time)
             self._mtm2_evt_force_balance_system_status.status = status
+
+    async def mtm2_cmd_actuator_bump_test(
+        self, *args: typing.Any, **kwargs: typing.Any
+    ) -> None:
+        for key in ["actuator", "period", "force"]:
+            if key not in kwargs:
+                raise Exception(f"{key} not given in call")
+
+    async def mtm2_evt_hardpointList(
+        self, *args: typing.Any, **kwargs: typing.Any
+    ) -> types.SimpleNamespace:
+        await asyncio.sleep(self.heartbeat_time)
+        return self._mtm2_evt_hardpointList
 
     async def mthexapod_1_evt_compensation_mode(
         self, *args: typing.Any, **kwargs: typing.Any
