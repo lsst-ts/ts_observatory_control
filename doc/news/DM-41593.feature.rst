@@ -1,0 +1,1 @@
+In ``maintel/mtcs.py``, update ``move_p2p_radec`` to check that the mtcs is in ENABLED state while moving.
