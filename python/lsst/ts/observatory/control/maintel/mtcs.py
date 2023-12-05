@@ -1778,11 +1778,20 @@ class MTCS(BaseTCS):
         """
         async with self.m1m3_booster_valve():
             azel = self.azel_from_radec(ra=ra, dec=dec)
-            await self.rem.mtmount.cmd_moveToTarget.set_start(
-                azimuth=azel.az.value,
-                elevation=azel.alt.value,
-                timeout=timeout,
+            tasks = [
+                asyncio.create_task(self.check_component_state(component))
+                for component in self.components_to_check()
+            ]
+            tasks.append(
+                asyncio.create_task(
+                    self.rem.mtmount.cmd_moveToTarget.set_start(
+                        azimuth=azel.az.value,
+                        elevation=azel.alt.value,
+                        timeout=timeout,
+                    )
+                )
             )
+            await self.process_as_completed(tasks)
 
     async def offset_camera_hexapod(
         self,
