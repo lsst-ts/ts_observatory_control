@@ -1780,11 +1780,20 @@ class TestMTCS(MTCSAsyncMock):
 
         self.assert_m1m3_booster_valve()
 
+    async def test_move_p2p_azel_fail_cscs_not_enabled(self) -> None:
+        with pytest.raises(
+            RuntimeError,
+            match=".* state is <State.STANDBY: 5>, expected <State.ENABLED: 2>",
+        ):
+            await self.mtcs.move_p2p_azel(az=0.0, el=80.0, timeout=30.0)
+
     async def test_move_p2p_radec(self) -> None:
         az = 90.0
         el = 80.0
 
         radec = self.mtcs.radec_from_azel(az=az, el=el)
+
+        await self.mtcs.enable()
 
         self.log.info(f"{radec=}")
         await self.mtcs.move_p2p_radec(
@@ -1799,6 +1808,21 @@ class TestMTCS(MTCSAsyncMock):
         )
 
         self.assert_m1m3_booster_valve()
+
+    async def test_move_p2p_radec_fail_cscs_not_enabled(self) -> None:
+        az = 90.0
+        el = 80.0
+
+        radec = self.mtcs.radec_from_azel(az=az, el=el)
+
+        with pytest.raises(
+            RuntimeError,
+            match=".* state is <State.STANDBY: 5>, expected <State.ENABLED: 2>",
+        ):
+            await self.mtcs.move_p2p_radec(
+                ra=radec.ra.to(units.hourangle).value,
+                dec=radec.dec.value,
+            )
 
     async def test_m1m3_booster_valve(self) -> None:
         async with self.mtcs.m1m3_booster_valve():
