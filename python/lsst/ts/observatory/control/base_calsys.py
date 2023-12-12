@@ -17,6 +17,7 @@ from typing import (
     Optional,
     Sequence,
     TypeAlias,
+    TypeVar,
     Union,
 )
 
@@ -29,15 +30,16 @@ from scipy.interpolate import InterpolatedUnivariateSpline
 from .remote_group import RemoteGroup
 
 Responsivity: TypeAlias = Quantity[ampere / watt]
+T = TypeVar("T")
 
 
 def _calsys_get_parameter(
-    indct: dict[str, Any],
+    indct: dict[str, T],
     key: str,
     factory_callable: Callable,
-    *factory_args,
-    **factory_kwargs,
-):
+    *factory_args: Any,
+    **factory_kwargs: Any,
+) -> T:
     if indct.get(key, None) is None:
         return factory_callable(*factory_args, **factory_kwargs)
 
@@ -104,7 +106,7 @@ class CalsysThroughputCalculationMixin:
             [
                 self.detector_throughput,
                 self.spectrograph_throughput,
-                self.radiometer_throughput,
+                self.radiometer_responsivity,
             ],
         )
 
@@ -153,7 +155,10 @@ class HardcodeCalsysThroughput(CalsysThroughputCalculationMixin):
         res = files(cls.BASERES).joinpath(fname)
         with res.open("r") as f:
             rdr = csv.DictReader(f)
-            out = {k: [] for k in rdr.fieldnames}
+            if rdr.fieldnames is None:
+                raise ValueError("calibration curve has no fieldnames!")
+            
+            out: dict[str, list[float]] = {k: [] for k in rdr.fieldnames}
             for row in rdr:
                 for k, v in row.items():
                     val: float = float(v) if len(v) > 0 else 0.0
@@ -177,12 +182,11 @@ class HardcodeCalsysThroughput(CalsysThroughputCalculationMixin):
             "radiometer", self.RADIOMETER_CALFILE, "wavelength", "responsivity"
         )
 
-        wlin: float = wavelen.to(nm).value
         Rawout: float = itp(wlin)
         return Rawout << un.ampere / un.watt
 
     def maintel_throughput(
-        self, wavelen: Quantity[un.physical.length], filter_band: chr
+        self, wavelen: Quantity[un.physical.length], filter_band: str
     ) -> Quantity[un.dimensionless_unscaled]:
         calfilename: str = f"calibration_tput_init_{filter_band}.csv"
         itp = self._ensure_itp(
@@ -204,7 +208,7 @@ class BaseCalsys(RemoteGroup, metaclass=ABCMeta):
     def __init__(
         self,
         intention: CalsysScriptIntention,
-        components: Iterable[str],
+        components: list[str],
         domain: Optional[salobj.domain.Domain] = None,
         cmd_timeout: Optional[int] = 10,
         log: Optional[logging.Logger] = None,
@@ -282,7 +286,7 @@ class BaseCalsys(RemoteGroup, metaclass=ABCMeta):
     def _long_wait(
         self,
         gen: AsyncGenerator,
-        timeout_seconds,
+        timeout_seconds: float,
         validate_fun: Callable[[Any], bool],
         run_immediate: bool = True,
     ) -> TaskOrCoro:
@@ -298,7 +302,7 @@ class BaseCalsys(RemoteGroup, metaclass=ABCMeta):
 
     async def _cal_expose_helper(
         self, obj, n: int, cmdname: str, **extra_kwargs
-    ) -> Awaitable[list[str]]:
+    ) -> list[str]:
         out_urls: list[str] = []
         for i in range(n):
             await self._sal_cmd(obj, cmdname, **extra_kwargs)
@@ -309,7 +313,7 @@ class BaseCalsys(RemoteGroup, metaclass=ABCMeta):
     async def _long_wait_err_handle(
         self,
         gen: AsyncGenerator,
-        timeout_seconds,
+        timeout_seconds: float,
         validate_fun: Callable[[Any], bool],
         name_of_wait: str,
     ) -> tuple[datetime, datetime]:
@@ -366,6 +370,7 @@ class BaseCalsys(RemoteGroup, metaclass=ABCMeta):
 
         # must have a way to access the calibration data
         assert issubclass(type(self), CalsysThroughputCalculationMixin)
+        raise NotImplementedError("throughput calc for detector not implemented yet!")
 
     def spectrograph_exposure_time_for_nelectrons(self, nelec: float) -> float:
         raise NotImplementedError(

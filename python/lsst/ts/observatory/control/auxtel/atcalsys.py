@@ -211,7 +211,7 @@ class ATCalsys(BaseCalsys, HardcodeCalsysThroughput):
             case CalsysScriptIntention.POWER_ON:
                 await self._chiller_power(True)
                 await scriptobj.checkpoint("Chiller started")
-                chiller_start, chiller_end = await self._chiller_settle(True)
+                chiller_start, chiller_end = await self._chiller_settle()
                 self.log_event_timings(
                     self.log,
                     "chiller cooldown time",
@@ -253,10 +253,10 @@ class ATCalsys(BaseCalsys, HardcodeCalsysThroughput):
                     "lamp commanded off and shutter commanded closed"
                 )
                 shutter_wait_fut = asyncio.create_task(
-                    self._lamp_power(False), "lamp stop shutter close"
+                    self._lamp_power(False), name="lamp stop shutter close"
                 )
                 lamp_settle_fut = asyncio.create_task(
-                    self._lamp_settle(False), "lamp power settle"
+                    self._lamp_settle(False), name="lamp power settle"
                 )
 
                 shutter_start, shutter_end = await shutter_wait_fut
@@ -366,9 +366,10 @@ class ATCalsys(BaseCalsys, HardcodeCalsysThroughput):
             power=self.WHITELIGHT_POWER,
         )
 
+        timeout = self.CMD_TIMEOUT.to(un.s)
         await asyncio.wait(
             [shutter_task, lamp_start_task],
-            timeout=self._cmd_timeout,
+            timeout=timeout,
             return_when=asyncio.FIRST_EXCEPTION,
         )
 
