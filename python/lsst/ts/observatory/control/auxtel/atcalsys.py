@@ -1,19 +1,21 @@
-from typing import List, Optional, NamedTuple
-from ..base_calsys import (
-    BaseCalsys,
-    HardcodeCalsysThroughput,
-    CalibrationSequenceStepBase,
-)
-from ..base_calsys import CalsysScriptIntention, _calsys_get_parameter
-from lsst.ts import salobj
-from lsst.ts.idl.enums import ATMonochromator
-from lsst.ts.idl.enums import ATWhiteLight
 import asyncio
-import astropy.units as un
-from astropy.units import Quantity
-from datetime import datetime
 from collections.abc import Awaitable
 from dataclasses import dataclass
+from datetime import datetime
+from typing import List, NamedTuple, Optional
+
+import astropy.units as un
+from astropy.units import Quantity
+from lsst.ts import salobj
+from lsst.ts.idl.enums import ATMonochromator, ATWhiteLight
+
+from ..base_calsys import (
+    BaseCalsys,
+    CalibrationSequenceStepBase,
+    CalsysScriptIntention,
+    HardcodeCalsysThroughput,
+    _calsys_get_parameter,
+)
 
 
 class ATSpectrographSlits(NamedTuple):
@@ -83,7 +85,7 @@ class ATCalsys(BaseCalsys, HardcodeCalsysThroughput):
         slit_widths = _calsys_get_parameter(
             override_kwargs,
             "slit_widths",
-            self.calculate_slit_widths,
+            self.calculate_slit_width,
             wavelen,
             spectral_res,
             grating,
@@ -95,7 +97,7 @@ class ATCalsys(BaseCalsys, HardcodeCalsysThroughput):
         self.log.debug(f"calculated grating is {grating}")
 
         monoch_fut = self._sal_cmd(
-            self.ATMonoChromator,
+            self.ATMonochromator,
             "updateMonochromatorSetup",
             gratingType=grating,
             frontExitSlitWidth=slit_widths.FRONTEXIT,
@@ -160,7 +162,7 @@ class ATCalsys(BaseCalsys, HardcodeCalsysThroughput):
     async def _electrometer_expose(self) -> Awaitable[list[str]]:
         assert self._n_elec_exps is not None
         assert self._elecsposure_time is not None
-        return await self._cal_expose_helper(
+        return  self._cal_expose_helper(
             self.Electrometer,
             self._n_elec_exps,
             "startScanDt",
@@ -171,7 +173,7 @@ class ATCalsys(BaseCalsys, HardcodeCalsysThroughput):
         assert self._n_spec_exps is not None
         assert self._specsposure_time is not None
 
-        return await self._cal_expose_helper(
+        return self._cal_expose_helper(
             self.ATSpectrograph,
             self._n_spec_exps,
             "expose",
@@ -204,7 +206,7 @@ class ATCalsys(BaseCalsys, HardcodeCalsysThroughput):
                     "don't know how to handle this script intention"
                 )
 
-    async def power_sequence_run(self, scriptobj: salobj.BaseScript):
+    async def power_sequence_run(self, scriptobj: salobj.BaseScript, **kwargs) -> None:
         match (self._intention):
             case CalsysScriptIntention.POWER_ON:
                 await self._chiller_power(True)
@@ -220,10 +222,10 @@ class ATCalsys(BaseCalsys, HardcodeCalsysThroughput):
 
                 await scriptobj.checkpoint("Chiller setpoint temperature reached")
                 shutter_wait_fut = asyncio.create_task(
-                    self._lamp_power(True), "lamp_start_shutter_open"
+                    self._lamp_power(True), name="lamp_start_shutter_open"
                 )
                 lamp_settle_fut = asyncio.create_task(
-                    self._lamp_settle(True), "lamp_power_settle"
+                    self._lamp_settle(True), name="lamp_power_settle"
                 )
                 shutter_start, shutter_end = await shutter_wait_fut
                 self.log_event_timings(
@@ -340,7 +342,7 @@ class ATCalsys(BaseCalsys, HardcodeCalsysThroughput):
         chiller_wait_timeout: float = self.CHILLER_COOLDOWN_TIMEOUT.to(un.s).value
         chiller_temp_gen = self._sal_telem_gen(self.ATWhiteLight, "chillerTemperatures")
 
-        return await self._long_wait_err_handle(
+        return  self._long_wait_err_handle(
             chiller_temp_gen,
             chiller_wait_timeout,
             self._chiller_temp_check,
@@ -400,7 +402,7 @@ class ATCalsys(BaseCalsys, HardcodeCalsysThroughput):
             lamp_evt_gen, lamp_settle_timeout, lamp_verify, lamp_transition_name
         )
 
-    async def take_calibration_data(self) -> Awaitable[dict[str, list[str]]]:
+    async def take_calibration_data(self) -> dict[str, list[str]]:
         spec_fut = self._spectrograph_expose()
         elec_fut = self._electrometer_expose()
 

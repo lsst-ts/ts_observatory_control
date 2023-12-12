@@ -1,23 +1,32 @@
+import asyncio
+import csv
+import enum
+import logging
 from abc import ABCMeta, abstractmethod
+from collections.abc import AsyncGenerator, Callable, Coroutine
 from dataclasses import dataclass
-from .remote_group import RemoteGroup
-from typing import Iterable, Optional, Union
-from typing import Sequence, Mapping, TypeAlias, Any, Awaitable
+from datetime import datetime
 from functools import reduce
-from collections.abc import Coroutine, Callable, AsyncGenerator
+from importlib.resources import files
+from itertools import count
+from typing import (
+    Any,
+    Awaitable,
+    Iterable,
+    Mapping,
+    Optional,
+    Sequence,
+    TypeAlias,
+    Union,
+)
+
+import astropy.units as un
+from astropy.units import Quantity, ampere, nm, watt
 from lsst.ts import salobj
 from lsst.ts.idl.enums import Electrometer
-import logging
-import asyncio
-from importlib.resources import files
-import csv
 from scipy.interpolate import InterpolatedUnivariateSpline
-from astropy.units import ampere, watt, nm, Quantity
-import astropy.units as un
-import enum
-from datetime import datetime
-from itertools import count
 
+from .remote_group import RemoteGroup
 
 Responsivity: TypeAlias = Quantity[ampere / watt]
 
