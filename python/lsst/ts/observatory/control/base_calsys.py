@@ -1,13 +1,12 @@
 from abc import ABCMeta, abstractmethod
 from dataclasses import dataclass
 from .remote_group import RemoteGroup
-from typing import Iterable, Optional, Tuple, List, Union
-from typing import Sequence, Mapping, TypeAlias, Any
-from typing import TypeVar
+from typing import Iterable, Optional, Union
+from typing import Sequence, Mapping, TypeAlias, Any, Awaitable
 from functools import reduce
 from collections.abc import Coroutine, Callable, AsyncGenerator
-from operator import mul
 from lsst.ts import salobj
+from lsst.ts.idl.enums import Electrometer
 import logging
 import asyncio
 from importlib.resources import files
@@ -17,8 +16,16 @@ from astropy.units import ampere, watt, nm, Quantity
 import astropy.units as un
 import enum
 from datetime import datetime
+from itertools import count
+
 
 Responsivity: TypeAlias = Quantity[ampere / watt]
+
+def _calsys_get_parameter(indct: dict[str, Any], key: str, factory_callable: Callable,
+                          *factory_args, **factory_kwargs):
+    if indct.get(key, None) is None:
+        return factory_callable(*factory_args, **factory_kwargs)
+
 
 @dataclass
 class CalibrationSequenceStepBase:
@@ -173,12 +180,13 @@ class BaseCalsys(RemoteGroup, metaclass=ABCMeta):
     CMD_TIMEOUT: Quantity[un.physical.time] = 30 << un.s
     EVT_TIMEOUT: Quantity[un.physical.time] = 30 << un.s
     TELEM_TIMEOUT: Quantity[un.physical.time] = 30 << un.s
+    CAL_PROGRAM_NAME: str = "flats"
 
     def __init__(
         self,
             intention: CalsysScriptIntention,
             components: Iterable[str],
-            domain: Optional[salobj.domain] = None,
+            domain: Optional[salobj.domain.Domain] = None,
             cmd_timeout: Optional[int] = 10,
             log: Optional[logging.Logger] = None,
     ):
@@ -269,12 +277,11 @@ class BaseCalsys(RemoteGroup, metaclass=ABCMeta):
         logstr2 = f"the duration was: {duration}, and our timeout allowance was: {expt_duration}" 
         logger.info(logstr2)
         
-        
 
     async def take_electrometer_exposures(
         self, electrobj, exp_time_s: float, n: int
-    ) -> List[str]:
-        urlout: List[str] = []
+    ) -> list[str]:
+        urlout: list[str] = []
         for i in range(n):
             await electrobj.cmd_StartScanDt.set_start(scanDuration=exp_time)
             lfaurl = await self._lfa_event_helper(electrobj)
@@ -305,20 +312,30 @@ class BaseCalsys(RemoteGroup, metaclass=ABCMeta):
         assert issubclass(type(self), CalsysThroughputCalculationMixin)
 
     def spectrograph_exposure_time_for_nelectrons(self, nelec: float) -> float:
-        pass
+        raise NotImplementerError("throughput calc for spectrograph not implemented yet!")
+
+    def spectrograph_n_exps_for_nelectrons(self, nelec: float) -> int:
+        raise NotImplementedError("throughput calc for spectrograph not implemented yet!")
 
     def pd_exposure_time_for_nelectrons(self, nelec: float) -> float:
-        pass
+        raise NotImplementedError("throughput calc for electrometer not implemented yet!")
 
+    def pd_n_exps_for_nelectrons(self, nelec: float) -> int:
+        raise NotImplementedError("throughput calc for electrometer not implemented yet")
+
+
+    @property
+    @abstractmethod
+    def _electrometer_object(self) -> Electrometer:
+        pass
 
     @abstractmethod
     async def validate_hardware_status_for_acquisition(self) -> Awaitable:
         pass
     
     @abstractmethod
-    async def power_sequence_run(self, scriptobj, **kwargs):
+    async def power_sequence_run(self, scriptobj, **kwargs) -> Awaitable:
         pass
-
 
     @abstractmethod
     async def setup_for_wavelength(self, wavelen: float, **extra_params) -> None:
@@ -339,25 +356,35 @@ class BaseCalsys(RemoteGroup, metaclass=ABCMeta):
         pass
 
     @abstractmethod
-    async def take_calibration_instr_exposures(self) -> None:
+    async def take_calibration_data(self):
         """awaitable which starts the exposures for the calibration instruments (i.e the spectrographs, electrometers etc) according to the setup. It does not take images with the instrument under test, it is intended that script components which use this class do that themselves"""
         pass
 
+
+    async def generate_data_flats(self, instrobj, scriptobj, exposure_time_s: float,  n_iter: Optional[int] = None):
+        """returns an async generator which yields sets of exposures from """
+
+        # Run forever if n_iter was not given, don't worry it's just a generator
+        nrange = count() if n_iter is None else range(n_iter)
+
+        for i in nrange:
+            self.log.info("taking flats number %d", i)
+            instr_task = instrobj.take_flats(exposure_time_s, nflats=1, groupid=scriptobj.group_id,
+                                             program = self.CAL_PROGRAM_NAME,
+                                             reason = self.program_reason,
+                                             note = self.program_note
+                                             )
+            instr_fut = asyncio.create_task(instr_task)
+            aux_cal_fut = self.take_calibration_data()
+            instr_results, aux_cal_results = await asyncio.gather(aux_cal_fut, instr_fut)
+            yield instr_results, aux_cal_results
+
     @property
     @abstractmethod
-    def wavelen(self) -> Quantity[nm]:
-        """returns the currently configured wavelength"""
+    def program_reason(self) -> str: ...
 
+    @property
     @abstractmethod
-    async def take_detector_data(self):
-        """This will fire off all async tasks to take calibration data in sequence, and return locations a
-        nd metadata about the files supplied etc"""
+    def program_note(self) -> str: ...
 
-
-    @abstractmethod
-    async def gen_calibration_auxiliaries(self):
-        pass
-
-    async def wait_ready(self):
-        """ Method to wait for prepared state for taking data - e.g. lamps on, warmed up, laser warmed up etc"""
 

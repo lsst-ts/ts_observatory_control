@@ -1,8 +1,8 @@
 from typing import List, Optional, NamedTuple, TYPE_CHECKING
 from ..base_calsys import BaseCalsys, HardcodeCalsysThroughput, CalibrationSequenceStepBase
-from ..base_calsys import CalsysScriptIntention
+from ..base_calsys import CalsysScriptIntention, _calsys_get_parameter
 from lsst.ts import salobj
-from lsst.ts.idl.enums import ATMonochromator
+from lsst.ts.idl.enums import ATMonochromator, Electrometer
 from lsst.ts.idl.enums import ATWhiteLight
 import asyncio
 import astropy.units as un
@@ -51,20 +51,25 @@ class ATCalsys(BaseCalsys, HardcodeCalsysThroughput):
     WHITELIGHT_LAMP_WARMUP_TIMEOUT: Quantity[un.physical.time] = 15 << un.min
 
     SHUTTER_OPEN_TIMEOUT: Quantity[un.physical.time] = 15 << un.min
+    CAL_PROGRAM_NAME: str = "AT_flats"
 
     def __init__(self, intention: CalsysScriptIntention, **kwargs):
         super().__init__(intention, components=self._AT_SAL_COMPONENTS, **kwargs)
+
+        #instance variables we'll set later
         self._specsposure_time: Optional[float] = None
         self._elecsposure_time: Optional[float] = None
+        self._n_spec_exps: Optional[int] = None
+        self._n_elec_exps: Optional[int] = None
 
     async def setup_for_wavelength(
-        self, wavelen: float, nelec: float, spectral_res: float
+            self, wavelen: float, nelec: float, spectral_res: float, **override_kwargs
     ) -> None:
 
-
-        grating = self.calculate_grating_type(wavelen, spectral_res)
-        slit_widths = self.calculate_slit_widths(spectral_res, grating)
-
+        grating = _calsys_get_parameter(override_kwargs, "grating", self.calculate_grating_type,
+                                        wavelen, spectral_res)
+        slit_widths = _calsys_get_parameter(override_kwargs, "slit_widths", self.calculate_slit_widths,
+                                            wavelen, spectral_res, grating)
         self.log.debug(
             f"setting up monochromtor with wavlength {wavelen} nm and spectral resolution {spectral_res}"
         )
@@ -93,12 +98,22 @@ class ATCalsys(BaseCalsys, HardcodeCalsysThroughput):
             [monoch_fut, elect_fut, elect_fut2], return_when=asyncio.ALL_COMPLETED
         )
         self.log.debug("all SAL setup commands returned")
-        specsposure_time = self.spectrograph_exposure_time_for_nelectrons(nelec)
-        return
+        self._specsposure_time = _calsys_get_parameter(override_kwargs, "specsposure_time",
+                                                       self.spectrograph_exposure_time_for_nelectrons,
+                                                       nelec)
+        self._elecsposure_time = _calsys_get_parameter(override_kwargs, "elecsposure_time",
+                                                       self.pd_exposure_time_for_nelectrons,
+                                                       nelec)
+        self._n_spec_exps = _calsys_get_parameter(override_kwargs, "n_spec_exps",
+                                                  self.spectrograph_n_exps_for_nelectrons, nelec)
+        self._n_elec_exps = _calsys_get_parameter(override_kwargs, "n_elec_exps",
+                                                  self.pd_n_exps_for_nelectrons, nelec)
+        
 
-    def calculate_slit_width(self, spectral_res: float, grating) -> ATSpectrographSlits:
-        # NOTE: this will either need to be derived by doing calculations on the Grating equation, or by loading in calibration data (which I couldn't find yet!)
-        pass
+
+    def calculate_slit_width(self,wavelen: float, spectral_res: float, grating) -> Optional[ATSpectrographSlits]:
+        # NOTE: this will either need to be derived by doing calculations on the Grating equation, or by loading in calibration data (which I couldn't find yet!). For now we just return the 
+        raise NotImplementedError("calculation of slit widths not available yet, override in script parameters!")
 
     def calculate_grating_type(self, wavelen: float, spectral_res: float) -> ATMonochromator.Grating:
         # TODO: placeholder logic, in particular the exact numbers will be WRONG!
@@ -109,27 +124,35 @@ class ATCalsys(BaseCalsys, HardcodeCalsysThroughput):
             return ATMonochromator.Grating.BLUE
         return ATMonochromator.Grating.RED
 
-    async def _setup_spectrograph(self, int_time: float) -> None:
-        pass
 
-    async def _setup_electrometer(self, int_time: float):
-        pass
+    async def _electrometer_expose(self) -> Awaitable[list[str]]:
+        assert self._n_elec_exps is not None
+        assert self._elecsposure_time is not None
+        out_urls: list[str] = []
 
+        for i in range(self._n_elec_exps):
+            await self._sal_cmd(self.Electrometer, "startScanDt", scanDuration=self._elecsposure_time)
+            lfa_obj_fut =  await self._sal_waitevent(self.Electrometer, "largeFileObjectAvailable")
+            out_urls.append(lfa_obj_fut.url)
+        return out_urls
 
-    async def _electrometer_expose(self, exp_time: float) -> Awaitable[str]:
-        await self._sal_cmd(self.Electrometer, "startScanDt", scanDuration=exp_time,
-                            run_immediate=False)
-        lfa_obj =  self._sal_waitevent(self.Electrometer, "largeFileObjectAvailable",
-                                       run_immediate=False)
-        return lfa_obj.url
+    async def _spectrograph_expose(self) -> Awaitable[list[str]]:
+        assert self._n_spec_exps is not None
+        assert self._specsposure_time is not None
 
-    async def _spectrograph_expose(self, exp_time: float, numExposures: int) -> Awaitable[str]:
-        await self._sal_cmd(self.ATSpectrograph, "expose", numExposures = numExposures)
-        lfa_obj = await self._sal_waitevent(self.ATSpectrograph, "largeFileObjectAvailable",
-                                      run_immediate=False)
-        return lfa_obj.url
+        out_urls: list[str] = []
+        for i in range(self._n_spec_exps):
+            await self._sal_cmd(self.ATSpectrograph, "expose", numExposures = numExposures)
+            lfa_obj_fut = await self._sal_waitevent(self.ATSpectrograph, "largeFileObjectAvailable",
+                                                    run_immediate=true)
 
+            out_urls.append(lfa_obj_fut.url)
+        return out_urls
 
+    @property
+    def _electrometer_object(self):
+        return self.Electrometer
+    
     @property
     def script_time_estimate_s(self) -> float:
         """Property that returns the estimated time for the script to run in units of seconds
@@ -185,12 +208,12 @@ class ATCalsys(BaseCalsys, HardcodeCalsysThroughput):
                                        self.WHITELIGHT_LAMP_WARMUP_TIMEOUT)
                 await scriptobj.checkpoint("lamp has cooled down")
                 await self._chiller_power(False)
-                self.log.info("chiller has been turned off, ATCalsys is powered down"!)
+                self.log.info("chiller has been turned off, ATCalsys is powered down")
 
             case _:
                 raise NotImplementedError("don't know how to handle this script intention")
 
-    async def validate_hardware_status_for_acquisition(self) -> Awaitable[float]:
+    async def validate_hardware_status_for_acquisition(self) -> Awaitable:
         shutter_fut = self._sal_waitevent(self.ATWhiteLight, "shutterState")
         lamp_fut = self._sal_waitevent(self.ATWhiteLight, "lampState")
 
@@ -201,7 +224,7 @@ class ATCalsys(BaseCalsys, HardcodeCalsysThroughput):
             raise RuntimeError(errmsg)
 
         if shutter_state.actualState != ATWhiteLight.ShutterState.OPEN:
-            errmsg = f"shutter is not open, its state is reported as {repr(shutter_state.actualState)}")
+            errmsg = f"shutter is not open, its state is reported as {repr(shutter_state.actualState)}"
             self.log.error(errmsg)
             raise RuntimeError(errmsg)
 
@@ -211,11 +234,9 @@ class ATCalsys(BaseCalsys, HardcodeCalsysThroughput):
             self.log.error(errmsg)
             raise RuntimeError(errmsg)
         
-        if !lamp_state.lightDetected:
+        if  not lamp_state.lightDetected:
             self.log.warning(f"all states seem fine, but lamp is not reporting light detected!")
 
-        lamp_power: float = lamp_state.setPower
-        return lamp_power
 
     def _chiller_temp_check(self, temps) -> bool:
         self.log.debug(f"Chiller supply temperature: {temps.supplyTemperature:0.1f} C "
@@ -251,7 +272,8 @@ class ATCalsys(BaseCalsys, HardcodeCalsysThroughput):
         shutter_task = self._sal_cmd(self.ATWhiteLight, shutter_cmd_target, run_immediate=False)
 
         #now start the lamp
-        lamp_start_task = self._sal_cmd(self.ATWhiteLight, lamp_cmd_target, run_immediate=False)
+        lamp_start_task = self._sal_cmd(self.ATWhiteLight, lamp_cmd_target, run_immediate=False,
+                                        power=self.WHITELIGHT_POWER)
 
         await asyncio.wait([shutter_task, lamp_start_task], timeout=self._cmd_timeout,
                            return_when=asyncio.FIRST_EXCEPTION)
@@ -283,4 +305,22 @@ class ATCalsys(BaseCalsys, HardcodeCalsysThroughput):
         return self._long_wait_err_handle(lamp_evt_gen, lamp_settle_timeout,
                                           lamp_verify, lamp_transition_name)
 
+
+    async def take_calibration_data(self) -> Awaitable[dict[str, list[str]]]:
+        spec_fut = self._spectrograph_expose()
+        elec_fut = self._electrometer_expose()
+
+        spec_results,  elec_results = await asyncio.gather(spec_fut, elec_fut)
+        return {"spectrometer_urls" : spec_results,
+                "electrometer_urls" : elec_results}
+
+
+    @property
+    def program_reason(self) -> str:
+        return "AT_flats"
+
+    @property
+    def prgoram_note(self) -> str:
+        return "TODO"
+    
     
