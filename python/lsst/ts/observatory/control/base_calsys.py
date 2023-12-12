@@ -253,6 +253,14 @@ class BaseCalsys(RemoteGroup, metaclass=ABCMeta):
             return asyncio.create_task(coro)
         return coro
 
+    async def _cal_expose_helper(self, obj, n: int, cmdname: str, **extra_kwargs) -> Awaitable[list[str]]:
+        out_urls: list[str] = []
+        for i in range(n):
+            await self._sal_cmd(obj, cmdname, **extra_kwargs)
+            lfa_obj = await self._sal_waitevent(obj, "largeFileObjectAvailable")
+            out_urls.append(lfa_obj.url)
+        return out_urls
+
     async def _long_wait_err_handle(self, gen: AsyncGenerator, timeout_seconds,
                                     validate_fun: Callable[[Any], bool], name_of_wait: str) -> tuple[datetime,datetime]:
         starttime = datetime.now()

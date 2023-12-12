@@ -1,8 +1,8 @@
-from typing import List, Optional, NamedTuple, TYPE_CHECKING
+from typing import List, Optional, NamedTuple
 from ..base_calsys import BaseCalsys, HardcodeCalsysThroughput, CalibrationSequenceStepBase
 from ..base_calsys import CalsysScriptIntention, _calsys_get_parameter
 from lsst.ts import salobj
-from lsst.ts.idl.enums import ATMonochromator, Electrometer
+from lsst.ts.idl.enums import ATMonochromator
 from lsst.ts.idl.enums import ATWhiteLight
 import asyncio
 import astropy.units as un
@@ -15,6 +15,7 @@ from dataclasses import dataclass
 class ATSpectrographSlits(NamedTuple):
     FRONTENTRANCE: float
     FRONTEXIT: float
+
 
 @dataclass
 class ATCalibrationSequenceStep(CalibrationSequenceStepBase):
@@ -108,7 +109,7 @@ class ATCalsys(BaseCalsys, HardcodeCalsysThroughput):
                                                   self.spectrograph_n_exps_for_nelectrons, nelec)
         self._n_elec_exps = _calsys_get_parameter(override_kwargs, "n_elec_exps",
                                                   self.pd_n_exps_for_nelectrons, nelec)
-        
+
 
 
     def calculate_slit_width(self,wavelen: float, spectral_res: float, grating) -> Optional[ATSpectrographSlits]:
@@ -128,31 +129,21 @@ class ATCalsys(BaseCalsys, HardcodeCalsysThroughput):
     async def _electrometer_expose(self) -> Awaitable[list[str]]:
         assert self._n_elec_exps is not None
         assert self._elecsposure_time is not None
-        out_urls: list[str] = []
+        return await self._cal_expose_helper(self.Electrometer, self._n_elec_exps,
+                                             "startScanDt", scanDuration=self._elecsposure_time)
 
-        for i in range(self._n_elec_exps):
-            await self._sal_cmd(self.Electrometer, "startScanDt", scanDuration=self._elecsposure_time)
-            lfa_obj_fut =  await self._sal_waitevent(self.Electrometer, "largeFileObjectAvailable")
-            out_urls.append(lfa_obj_fut.url)
-        return out_urls
 
     async def _spectrograph_expose(self) -> Awaitable[list[str]]:
         assert self._n_spec_exps is not None
         assert self._specsposure_time is not None
 
-        out_urls: list[str] = []
-        for i in range(self._n_spec_exps):
-            await self._sal_cmd(self.ATSpectrograph, "expose", numExposures = numExposures)
-            lfa_obj_fut = await self._sal_waitevent(self.ATSpectrograph, "largeFileObjectAvailable",
-                                                    run_immediate=true)
-
-            out_urls.append(lfa_obj_fut.url)
-        return out_urls
+        return await self._cal_expose_helper(self.ATSpectrograph, self._n_spec_exps,
+                                             "expose", numExposures=1, duration=self._specsposure_time)
 
     @property
     def _electrometer_object(self):
         return self.Electrometer
-    
+
     @property
     def script_time_estimate_s(self) -> float:
         """Property that returns the estimated time for the script to run in units of seconds
