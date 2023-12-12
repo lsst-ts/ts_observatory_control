@@ -78,6 +78,7 @@ class CalsysThroughputCalculationMixin:
     @abstractmethod
     def spectrograph_throughput(self, wavelen: float, calsys_power: float) -> float:
         """the throughput expected of the fiber spectrograph of the calibration system.
+        
         To aid calculations  of total throughput
         """
 
@@ -100,7 +101,7 @@ class CalsysThroughputCalculationMixin:
 
     def total_radiometer_exposure_time(
         self, rad_exposure_time: Quantity[un.physical.time], nplc: float
-    ) -> Quantity["time"]:
+    ) -> Quantity[un.physical.time]:
         # Note comm from Parker: "valid nplc values are from 0.01 to 10 (seconds)
         if not (0.01 <= nplc <= 10.0):
             raise ValueError(
@@ -137,7 +138,6 @@ class HardcodeCalsysThroughput(CalsysThroughputCalculationMixin):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._itps: dict[str, InterpolatedUnivariateSpline] = dict()
-        self._intention = intention
 
     @classmethod
     def load_calibration_csv(cls, fname: str) -> Mapping[str, Sequence[float]]:
@@ -161,7 +161,7 @@ class HardcodeCalsysThroughput(CalsysThroughputCalculationMixin):
         else:
             return self._itps[itpname]
 
-    def radiometer_responsivity(self, wavelen: Quantity["length"]) -> Responsivity:
+    def radiometer_responsivity(self, wavelen: Quantity[un.physical.length]) -> Responsivity:
         wlin: float = wavelen.to(nm).value
 
         itp = self._ensure_itp(
@@ -173,7 +173,7 @@ class HardcodeCalsysThroughput(CalsysThroughputCalculationMixin):
         return Rawout << un.ampere / un.watt
 
     def maintel_throughput(
-        self, wavelen: Quantity["length"], filter_band: chr
+        self, wavelen: Quantity[un.physical.length], filter_band: chr
     ) -> Quantity[un.dimensionless_unscaled]:
         calfilename: str = f"calibration_tput_init_{filter_band}.csv"
         itp = self._ensure_itp(
@@ -333,21 +333,12 @@ class BaseCalsys(RemoteGroup, metaclass=ABCMeta):
         )
         logger.info(logstr)
         duration = (start_time - end_time).total_seconds() << un.s
-        logstr2 = f"the duration was: {duration}, and our timeout allowance was: {expt_duration}"
+        logstr2 = f"the duration was: {duration}, and our timeout allowance was: {expd_duration}"
         logger.info(logstr2)
 
-    async def take_electrometer_exposures(
-        self, electrobj, exp_time_s: float, n: int
-    ) -> list[str]:
-        urlout: list[str] = []
-        for i in range(n):
-            await electrobj.cmd_StartScanDt.set_start(scanDuration=exp_time)
-            lfaurl = await self._lfa_event_helper(electrobj)
-            urlout.append(lfaurl)
-        return urlout
 
     def detector_exposure_time_for_nelectrons(
-        self, wavelen: Quantity["length"], nelec: float
+        self, wavelen: Quantity[un.physical.length], nelec: float
     ) -> float:
         """using the appropriate mixin for obtaining calibration data on throughput,
         will calculate and return the exposure time needed to obtain a flat field calibration of n
@@ -355,13 +346,11 @@ class BaseCalsys(RemoteGroup, metaclass=ABCMeta):
 
         Parameters
         ----------
-
         wavelen: float - wavelength (in nm??) of the intended calibration
         nelec: float - number of electrons (probably measured in ke-??) desired in calibration field
 
         Returns
         -------
-
         exposure time: float - time  (in seconds??) needed for the imager to obtain desired calibration field
 
         """
@@ -370,7 +359,7 @@ class BaseCalsys(RemoteGroup, metaclass=ABCMeta):
         assert issubclass(type(self), CalsysThroughputCalculationMixin)
 
     def spectrograph_exposure_time_for_nelectrons(self, nelec: float) -> float:
-        raise NotImplementerError(
+        raise NotImplementedError(
             "throughput calc for spectrograph not implemented yet!"
         )
 

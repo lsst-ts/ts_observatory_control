@@ -35,7 +35,7 @@ class ATCalibrationSequenceStep(CalibrationSequenceStepBase):
 
 
 class ATCalsys(BaseCalsys, HardcodeCalsysThroughput):
-    """class which specifically handles the calibration system for auxtel"""
+    """class which specifically handles the calibration system for auxtel."""
 
     _AT_SAL_COMPONENTS: List[str] = [
         "ATMonochromator",
@@ -185,7 +185,8 @@ class ATCalsys(BaseCalsys, HardcodeCalsysThroughput):
 
     @property
     def script_time_estimate_s(self) -> float:
-        """Property that returns the estimated time for the script to run in units of seconds
+        """Property that returns the estimated time for the script to run in units of seconds.
+
         For script time estimation purposes.
         For now just returns a default long time"""
 
@@ -305,7 +306,7 @@ class ATCalsys(BaseCalsys, HardcodeCalsysThroughput):
 
         if not lamp_state.lightDetected:
             self.log.warning(
-                f"all states seem fine, but lamp is not reporting light detected!"
+                "all states seem fine, but lamp is not reporting light detected!"
             )
 
     def _chiller_temp_check(self, temps) -> bool:
