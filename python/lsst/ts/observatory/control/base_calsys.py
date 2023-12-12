@@ -21,8 +21,14 @@ from itertools import count
 
 Responsivity: TypeAlias = Quantity[ampere / watt]
 
-def _calsys_get_parameter(indct: dict[str, Any], key: str, factory_callable: Callable,
-                          *factory_args, **factory_kwargs):
+
+def _calsys_get_parameter(
+    indct: dict[str, Any],
+    key: str,
+    factory_callable: Callable,
+    *factory_args,
+    **factory_kwargs,
+):
     if indct.get(key, None) is None:
         return factory_callable(*factory_args, **factory_kwargs)
 
@@ -39,6 +45,7 @@ class CalsysScriptIntention(enum.IntEnum):
     TURN_OFF = 1
     QUICK_CALIBRATION_RUN = 2
     LONG_CALIBRATION_RUN = 3
+
 
 TaskOrCoro = Union[asyncio.Task, Coroutine]
 
@@ -75,7 +82,9 @@ class CalsysThroughputCalculationMixin:
         """
 
     @abstractmethod
-    def radiometer_responsivity(self, wavelen: Quantity[un.physical.length]) -> Responsivity:
+    def radiometer_responsivity(
+        self, wavelen: Quantity[un.physical.length]
+    ) -> Responsivity:
         """return the responsivity of the radiometer"""
 
     def end_to_end_throughput(self, wavelen: float, calsys_power: float) -> float:
@@ -177,6 +186,7 @@ class HardcodeCalsysThroughput(CalsysThroughputCalculationMixin):
 
 class BaseCalsys(RemoteGroup, metaclass=ABCMeta):
     """Base class for calibration systems"""
+
     CMD_TIMEOUT: Quantity[un.physical.time] = 30 << un.s
     EVT_TIMEOUT: Quantity[un.physical.time] = 30 << un.s
     TELEM_TIMEOUT: Quantity[un.physical.time] = 30 << un.s
@@ -184,11 +194,11 @@ class BaseCalsys(RemoteGroup, metaclass=ABCMeta):
 
     def __init__(
         self,
-            intention: CalsysScriptIntention,
-            components: Iterable[str],
-            domain: Optional[salobj.domain.Domain] = None,
-            cmd_timeout: Optional[int] = 10,
-            log: Optional[logging.Logger] = None,
+        intention: CalsysScriptIntention,
+        components: Iterable[str],
+        domain: Optional[salobj.domain.Domain] = None,
+        cmd_timeout: Optional[int] = 10,
+        log: Optional[logging.Logger] = None,
     ):
         super().__init__(
             components,
@@ -201,7 +211,7 @@ class BaseCalsys(RemoteGroup, metaclass=ABCMeta):
         self._intention = intention
 
     def _sal_cmd(
-            self, obj: salobj.Remote, cmdname: str, run_immediate: bool = True, **setargs
+        self, obj: salobj.Remote, cmdname: str, run_immediate: bool = True, **setargs
     ) -> TaskOrCoro:
         timeout = self.CMD_TIMEOUT.to(un.s).value
         cmdfun: salobj.topics.RemoteCommand = getattr(obj, f"cmd_{cmdname}")
@@ -210,8 +220,14 @@ class BaseCalsys(RemoteGroup, metaclass=ABCMeta):
             return asyncio.create_task(pkgtask)
         return pkgtask
 
-    def _sal_waitevent(self, obj: salobj.Remote, evtname: str, run_immediate: bool=True, flush: bool=True,
-                              **evtargs) -> TaskOrCoro:
+    def _sal_waitevent(
+        self,
+        obj: salobj.Remote,
+        evtname: str,
+        run_immediate: bool = True,
+        flush: bool = True,
+        **evtargs,
+    ) -> TaskOrCoro:
         timeout = self.EVT_TIMEOUT.to(un.s).value
         cmdfun: salobj.topics.RemoteEvent = getattr(obj, f"evt_{evtname}")
         pkgtask = cmdfun.next(timeout=timeout, flush=flush)
@@ -219,16 +235,28 @@ class BaseCalsys(RemoteGroup, metaclass=ABCMeta):
             return asyncio.create_task(pkgtask)
         return pkgtask
 
-    def _lfa_event(self, obj: salobj.Remote, telname: str, run_immediate: bool = True,
-                   flush: bool=True,  **evtargs) -> TaskOrCoro:
-        return self._sal_waitevent(obj, "largeFileObjectAvailable", run_immediate, flush, **evtargs)
+    def _lfa_event(
+        self,
+        obj: salobj.Remote,
+        telname: str,
+        run_immediate: bool = True,
+        flush: bool = True,
+        **evtargs,
+    ) -> TaskOrCoro:
+        return self._sal_waitevent(
+            obj, "largeFileObjectAvailable", run_immediate, flush, **evtargs
+        )
 
-    def _sal_evt_gen(self, obj:salobj.Remote, evtname: str, flush: bool=True) -> AsyncGenerator:
+    def _sal_evt_gen(
+        self, obj: salobj.Remote, evtname: str, flush: bool = True
+    ) -> AsyncGenerator:
         pkgtask = self._sal_waitevent(obj, evtname, run_immediate=False, flush=flush)
+
         async def gen():
             while True:
                 v = await pkgtask
                 yield v
+
         return gen()
 
     def _sal_telem_gen(self, obj: salobj.Remote, telname: str) -> AsyncGenerator:
@@ -239,13 +267,19 @@ class BaseCalsys(RemoteGroup, metaclass=ABCMeta):
             while True:
                 v = await cmdfun.next(timeout=timeout, flush=True)
                 yield v
+
         return gen()
 
-    def _long_wait(self, gen: AsyncGenerator, timeout_seconds, validate_fun: Callable[[Any], bool],
-                   run_immediate: bool=True) -> TaskOrCoro:
+    def _long_wait(
+        self,
+        gen: AsyncGenerator,
+        timeout_seconds,
+        validate_fun: Callable[[Any], bool],
+        run_immediate: bool = True,
+    ) -> TaskOrCoro:
         async def completer() -> None:
             async for value in gen:
-                if(validate_fun(value)):
+                if validate_fun(value):
                     return
 
         coro = asyncio.wait_for(completer(), timeout_seconds)
@@ -253,7 +287,9 @@ class BaseCalsys(RemoteGroup, metaclass=ABCMeta):
             return asyncio.create_task(coro)
         return coro
 
-    async def _cal_expose_helper(self, obj, n: int, cmdname: str, **extra_kwargs) -> Awaitable[list[str]]:
+    async def _cal_expose_helper(
+        self, obj, n: int, cmdname: str, **extra_kwargs
+    ) -> Awaitable[list[str]]:
         out_urls: list[str] = []
         for i in range(n):
             await self._sal_cmd(obj, cmdname, **extra_kwargs)
@@ -261,30 +297,44 @@ class BaseCalsys(RemoteGroup, metaclass=ABCMeta):
             out_urls.append(lfa_obj.url)
         return out_urls
 
-    async def _long_wait_err_handle(self, gen: AsyncGenerator, timeout_seconds,
-                                    validate_fun: Callable[[Any], bool], name_of_wait: str) -> tuple[datetime,datetime]:
+    async def _long_wait_err_handle(
+        self,
+        gen: AsyncGenerator,
+        timeout_seconds,
+        validate_fun: Callable[[Any], bool],
+        name_of_wait: str,
+    ) -> tuple[datetime, datetime]:
         starttime = datetime.now()
         try:
-            await self._long_wait(gen, timeout_seconds, validate_fun, run_immediate=False)
+            await self._long_wait(
+                gen, timeout_seconds, validate_fun, run_immediate=False
+            )
             endtime = datetime.now()
             return starttime, endtime
         except TimeoutError as err:
             nowfail = datetime.now()
             wait_time: float = (nowfail - starttime).total_seconds()
-            self.log.error(f"waited {wait_time} seconds but {name_of_wait} did not succeed")
+            self.log.error(
+                f"waited {wait_time} seconds but {name_of_wait} did not succeed"
+            )
             raise err
 
-
     @classmethod
-    def log_event_timings(cls, logger, time_evt_name: str,
-                          start_time: datetime, end_time: datetime,
-                          expd_duration: Quantity[un.physical.time]) -> None:
-        logstr = f"event: {time_evt_name} started at {start_time} and finished at {end_time}"
+    def log_event_timings(
+        cls,
+        logger,
+        time_evt_name: str,
+        start_time: datetime,
+        end_time: datetime,
+        expd_duration: Quantity[un.physical.time],
+    ) -> None:
+        logstr = (
+            f"event: {time_evt_name} started at {start_time} and finished at {end_time}"
+        )
         logger.info(logstr)
         duration = (start_time - end_time).total_seconds() << un.s
-        logstr2 = f"the duration was: {duration}, and our timeout allowance was: {expt_duration}" 
+        logstr2 = f"the duration was: {duration}, and our timeout allowance was: {expt_duration}"
         logger.info(logstr2)
-        
 
     async def take_electrometer_exposures(
         self, electrobj, exp_time_s: float, n: int
@@ -320,17 +370,24 @@ class BaseCalsys(RemoteGroup, metaclass=ABCMeta):
         assert issubclass(type(self), CalsysThroughputCalculationMixin)
 
     def spectrograph_exposure_time_for_nelectrons(self, nelec: float) -> float:
-        raise NotImplementerError("throughput calc for spectrograph not implemented yet!")
+        raise NotImplementerError(
+            "throughput calc for spectrograph not implemented yet!"
+        )
 
     def spectrograph_n_exps_for_nelectrons(self, nelec: float) -> int:
-        raise NotImplementedError("throughput calc for spectrograph not implemented yet!")
+        raise NotImplementedError(
+            "throughput calc for spectrograph not implemented yet!"
+        )
 
     def pd_exposure_time_for_nelectrons(self, nelec: float) -> float:
-        raise NotImplementedError("throughput calc for electrometer not implemented yet!")
+        raise NotImplementedError(
+            "throughput calc for electrometer not implemented yet!"
+        )
 
     def pd_n_exps_for_nelectrons(self, nelec: float) -> int:
-        raise NotImplementedError("throughput calc for electrometer not implemented yet")
-
+        raise NotImplementedError(
+            "throughput calc for electrometer not implemented yet"
+        )
 
     @property
     @abstractmethod
@@ -340,7 +397,7 @@ class BaseCalsys(RemoteGroup, metaclass=ABCMeta):
     @abstractmethod
     async def validate_hardware_status_for_acquisition(self) -> Awaitable:
         pass
-    
+
     @abstractmethod
     async def power_sequence_run(self, scriptobj, **kwargs) -> Awaitable:
         pass
@@ -368,31 +425,37 @@ class BaseCalsys(RemoteGroup, metaclass=ABCMeta):
         """awaitable which starts the exposures for the calibration instruments (i.e the spectrographs, electrometers etc) according to the setup. It does not take images with the instrument under test, it is intended that script components which use this class do that themselves"""
         pass
 
-
-    async def generate_data_flats(self, instrobj, scriptobj, exposure_time_s: float,  n_iter: Optional[int] = None):
-        """returns an async generator which yields sets of exposures from """
+    async def generate_data_flats(
+        self, instrobj, scriptobj, exposure_time_s: float, n_iter: Optional[int] = None
+    ):
+        """returns an async generator which yields sets of exposures from"""
 
         # Run forever if n_iter was not given, don't worry it's just a generator
         nrange = count() if n_iter is None else range(n_iter)
 
         for i in nrange:
             self.log.info("taking flats number %d", i)
-            instr_task = instrobj.take_flats(exposure_time_s, nflats=1, groupid=scriptobj.group_id,
-                                             program = self.CAL_PROGRAM_NAME,
-                                             reason = self.program_reason,
-                                             note = self.program_note
-                                             )
+            instr_task = instrobj.take_flats(
+                exposure_time_s,
+                nflats=1,
+                groupid=scriptobj.group_id,
+                program=self.CAL_PROGRAM_NAME,
+                reason=self.program_reason,
+                note=self.program_note,
+            )
             instr_fut = asyncio.create_task(instr_task)
             aux_cal_fut = self.take_calibration_data()
-            instr_results, aux_cal_results = await asyncio.gather(aux_cal_fut, instr_fut)
+            instr_results, aux_cal_results = await asyncio.gather(
+                aux_cal_fut, instr_fut
+            )
             yield instr_results, aux_cal_results
 
     @property
     @abstractmethod
-    def program_reason(self) -> str: ...
+    def program_reason(self) -> str:
+        ...
 
     @property
     @abstractmethod
-    def program_note(self) -> str: ...
-
-
+    def program_note(self) -> str:
+        ...
