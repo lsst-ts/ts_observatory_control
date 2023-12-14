@@ -200,7 +200,7 @@ class MTCS(BaseTCS):
         slew_cmd: typing.Any,
         slew_timeout: float,
         offset_cmd: typing.Any = None,
-        stop_before_slew: bool = True,
+        stop_before_slew: bool = False,
         wait_settle: bool = True,
         check: typing.Any = None,
     ) -> None:
