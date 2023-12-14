@@ -469,13 +469,13 @@ class MTCS(BaseTCS):
             self._handle_in_position(
                 self.rem.mtmount.evt_elevationInPosition,
                 timeout=timeout,
-                settle_time=self.tel_settle_time,
+                settle_time=0.0,
                 component_name="MTMount elevation",
             ),
             self._handle_in_position(
                 self.rem.mtmount.evt_azimuthInPosition,
                 timeout=timeout,
-                settle_time=self.tel_settle_time,
+                settle_time=0.0,
                 component_name="MTMount azimuth",
             ),
         )
