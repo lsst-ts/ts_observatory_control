@@ -76,6 +76,31 @@ class TestMTCS(MTCSAsyncMock):
         for comp in {"mtdome", "mtdometrajectory"}:
             assert not getattr(check, comp)
 
+    async def test_slew_ephem_target(self) -> None:
+        await self.mtcs.enable()
+        await self.mtcs.assert_all_enabled()
+        await self.mtcs.enable_dome_following()
+
+        ephem_file = "test_ephem.json"
+        target_name = "Chariklo"
+        rot_sky = 0.0
+
+        await self.mtcs.slew_ephem_target(
+            ephem_file=ephem_file, target_name=target_name, rot_sky=rot_sky
+        )
+
+        self.mtcs.rem.mtptg.cmd_ephemTarget.set.assert_called_with(
+            ephemFile=ephem_file,
+            targetName=target_name,
+            dRA=0.0,
+            dDec=0.0,
+            rotPA=Angle(rot_sky, unit=units.deg).deg,
+            validateOnly=False,
+            timeout=240.0,
+        )
+
+        self.mtcs.rem.mtptg.cmd_stopTracking.start.assert_not_awaited()
+
     async def test_slew_object(self) -> None:
         await self.mtcs.enable()
         await self.mtcs.assert_all_enabled()
@@ -490,9 +515,7 @@ class TestMTCS(MTCSAsyncMock):
 
         self.mtcs.rem.mtptg.cmd_poriginOffset.set.assert_not_called()
 
-        self.mtcs.rem.mtptg.cmd_stopTracking.start.assert_called_with(
-            timeout=self.mtcs.fast_timeout
-        )
+        self.mtcs.rem.mtptg.cmd_stopTracking.start.assert_not_awaited()
 
         self.mtcs.rem.mtmount.evt_elevationInPosition.flush.assert_called()
         self.mtcs.rem.mtmount.evt_azimuthInPosition.flush.assert_called()
