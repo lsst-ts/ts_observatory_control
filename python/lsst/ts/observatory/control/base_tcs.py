@@ -851,6 +851,52 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
             getattr(self.rem, self.ptg_name).cmd_planetTarget, slew_timeout=slew_timeout
         )
 
+    async def slew_ephem_target(
+        self,
+        ephem_file: str,
+        target_name: str,
+        rot_sky: float = 0.0,
+        validate_only: bool = False,
+        slew_timeout: float = 240.0,
+    ) -> None:
+        """
+        Slew the telescope to a target defined by ephemeris data defined
+        in a file.
+
+        Parameters
+        ----------
+        ephem_file : str
+            Name of the file containing ephemeris data.
+        target_name : str
+            Target name.
+        rot_sky : float
+            Desired instrument position angle (degree), Eastwards from North.
+            Default is 0.0.
+        validate_only : bool, optional
+            If True, validate the target without changing the current demand.
+            Default is False.
+        slew_timeout : float, optional
+            Timeout for the slew command in seconds, default is 1200
+            seconds (20 minutes).
+        """
+
+        # Access the ephemTarget command from the pointing component
+        ptg = getattr(self.rem, self.ptg_name)
+
+        # Setting parameters. Not dealing with validation now.
+        ptg.cmd_ephemTarget.set(
+            ephemFile=ephem_file,
+            targetName=target_name,
+            dRA=0.0,
+            dDec=0.0,
+            rotPA=Angle(rot_sky, unit=u.deg).deg,
+            validateOnly=validate_only,
+            timeout=slew_timeout,
+        )
+
+        await self._slew_to(ptg.cmd_ephemTarget, slew_timeout=slew_timeout)
+        self.log.info(f"Telescope slewed to target {target_name} using ephemeris data.")
+
     async def offset_radec(self, ra: float, dec: float) -> None:
         """Offset telescope in RA and Dec.
 
