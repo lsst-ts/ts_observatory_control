@@ -105,7 +105,7 @@ class ATCalsys(BaseCalsys, HardcodeCalsysThroughput):
             wavelength=wavelen,
         )
 
-        elect_fut = self._sal_cmd("electrometer", "performZeroCalib")
+        elect_fut = self._sal_cmd(self.Electrometer, "performZeroCalib")
         elect_fut2 = self._sal_cmd(
             self.Electrometer,
             "setDigitalFilter",
