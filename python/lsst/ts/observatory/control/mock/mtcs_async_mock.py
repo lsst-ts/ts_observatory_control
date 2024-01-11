@@ -186,6 +186,7 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
         """Augment MTMount."""
         mtmount_mocks = {
             "evt_target.next.side_effect": self.mtmount_evt_target_next,
+            "evt_target.aget.side_effect": self.mtmount_evt_target_next,
             "tel_azimuth.next.side_effect": self.mtmount_tel_azimuth_next,
             "tel_azimuth.DataType.return_value": self.get_sample(
                 "MTMount", "tel_azimuth"
