@@ -1892,8 +1892,8 @@ class TestMTCS(MTCSAsyncMock):
                 timeout=self.mtcs.fast_timeout
             )
             mtm1m3_evt_force_controller_state_next_calls = [
-                unittest.mock.call(flush=False, timeout=self.mtcs.long_timeout),
                 unittest.mock.call(flush=False, timeout=self.mtcs.long_long_timeout),
+                unittest.mock.call(flush=False, timeout=self.mtcs.long_timeout),
             ]
 
             self.mtcs.rem.mtm1m3.evt_forceControllerState.next.assert_has_awaits(
@@ -1943,8 +1943,8 @@ class TestMTCS(MTCSAsyncMock):
                 timeout=self.mtcs.fast_timeout
             )
             mtm1m3_evt_force_controller_state_next_calls = [
-                unittest.mock.call(flush=False, timeout=self.mtcs.long_timeout),
                 unittest.mock.call(flush=False, timeout=self.mtcs.long_long_timeout),
+                unittest.mock.call(flush=False, timeout=self.mtcs.long_timeout),
             ]
             self.mtcs.rem.mtm1m3.evt_forceControllerState.next.assert_has_awaits(
                 mtm1m3_evt_force_controller_state_next_calls

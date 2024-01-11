@@ -147,7 +147,7 @@ class MTCS(BaseTCS):
         # timeout to raise m1m3, in seconds.
         self.m1m3_raise_timeout = 600.0
         # time it takes for m1m3 to settle after a slew finishes.
-        self.m1m3_settle_time = 5.0
+        self.m1m3_settle_time = 2.0
 
         # Tolerance on the stability of the balance force magnitude
         self.m1m3_force_magnitude_stable_tolerance = 50.0
@@ -247,8 +247,8 @@ class MTCS(BaseTCS):
         track_id = next(self.track_id_gen)
 
         try:
-            current_target = await self.rem.mtmount.evt_target.next(
-                flush=True, timeout=self.fast_timeout
+            current_target = await self.rem.mtmount.evt_target.aget(
+                timeout=self.fast_timeout
             )
             if track_id <= current_target.trackId:
                 self.track_id_gen = utils.index_generator(current_target.trackId + 1)
@@ -469,13 +469,13 @@ class MTCS(BaseTCS):
             self._handle_in_position(
                 self.rem.mtmount.evt_elevationInPosition,
                 timeout=timeout,
-                settle_time=self.tel_settle_time,
+                settle_time=0.0,
                 component_name="MTMount elevation",
             ),
             self._handle_in_position(
                 self.rem.mtmount.evt_azimuthInPosition,
                 timeout=timeout,
-                settle_time=self.tel_settle_time,
+                settle_time=0.0,
                 component_name="MTMount azimuth",
             ),
         )
@@ -1026,7 +1026,7 @@ class MTCS(BaseTCS):
             await self._wait_force_balance_system_state(enable=enable)
         else:
             self.log.warning(
-                f"Hardpoint corrections already in desired state ({enable}). Nothing to do."
+                f"Hardpoint corrections already in desired state ({enable=}). Nothing to do."
             )
 
     async def _wait_force_balance_system_state(self, enable: bool) -> None:
@@ -1959,8 +1959,9 @@ class MTCS(BaseTCS):
     async def open_m1m3_booster_valve(self) -> None:
         """Open M1M3 booster valves."""
         if self.check.mtm1m3:
-            await self.enter_m1m3_engineering_mode()
-            await self.disable_m1m3_balance_system()
+            # await self.enter_m1m3_engineering_mode()
+            # await self.disable_m1m3_balance_system()
+            await self.enable_m1m3_balance_system()
             await self._handle_m1m3_booster_valve(open=True)
         else:
             self.log.info("M1M3 check disabled.")
@@ -1970,7 +1971,6 @@ class MTCS(BaseTCS):
         if self.check.mtm1m3:
             await self._handle_m1m3_booster_valve(open=False)
             await asyncio.sleep(self.fast_timeout)
-            await self.enable_m1m3_balance_system()
 
     async def _handle_m1m3_booster_valve(self, open: bool) -> None:
         """Handle opening the M1M3 booster valves"""
@@ -1989,7 +1989,6 @@ class MTCS(BaseTCS):
                 )
                 while force_actuator_state.slewFlag != open:
                     self.log.debug(f"Waiting for valve to {desired_state}.")
-                    print(self.long_timeout)
                     force_actuator_state = (
                         await self.rem.mtm1m3.evt_forceControllerState.next(
                             flush=False, timeout=self.long_timeout

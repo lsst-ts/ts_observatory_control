@@ -507,9 +507,7 @@ class ATCS(BaseTCS):
             self.rem.atmcs.cmd_stopTracking.start(timeout=self.fast_timeout),
         ]
 
-        stop_results = await asyncio.gather(*stop_tasks, return_exceptions=True)
-
-        return stop_results
+        await asyncio.gather(*stop_tasks, return_exceptions=True)
 
     async def stop_dome(self) -> None:
         """Stop all dome motion."""

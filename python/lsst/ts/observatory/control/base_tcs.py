@@ -1894,6 +1894,8 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
         in_position = await in_position_event.aget(timeout=self.fast_timeout)
         self.log.debug(f"{component_name} in position: {in_position.inPosition}.")
 
+        _settle_time = max([settle_time, self.fast_timeout])
+
         if in_position.inPosition:
             self.log.debug(
                 f"{component_name} already in position. Handling potential race condition."
@@ -1901,7 +1903,7 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
             try:
                 in_position = await in_position_event.next(
                     flush=True,
-                    timeout=settle_time,
+                    timeout=_settle_time,
                 )
                 self.log.info(
                     f"{component_name} in position: {in_position.inPosition}."
@@ -1909,7 +1911,7 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
             except asyncio.TimeoutError:
                 self.log.debug(
                     "No new in position event in the last "
-                    f"{settle_time}s. "
+                    f"{_settle_time}s. "
                     f"Assuming {component_name} in position."
                 )
             except Exception:
