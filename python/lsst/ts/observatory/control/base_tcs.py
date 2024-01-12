@@ -1656,9 +1656,13 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
 
         loop = asyncio.get_event_loop()
 
-        result_table = await loop.run_in_executor(
-            None, customSimbad.query_criteria, criteria
-        )
+        try:
+            result_table = await loop.run_in_executor(
+                None, customSimbad.query_criteria, criteria
+            )
+        except Exception as e:
+            self.log.exception("Querying Simbad failed. {criteria=}")
+            raise RuntimeError(f"Query {criteria=} failed: {e!r}")
 
         if result_table is None:
             raise RuntimeError(f"No result from query: {criteria}.")
