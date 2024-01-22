@@ -192,6 +192,7 @@ class TestMTCS(MTCSAsyncMock):
         )
 
         self.assert_m1m3_booster_valve()
+        self.assert_compensation_mode()
 
     async def test_slew_icrs_stop(self) -> None:
         await self.mtcs.enable()
@@ -1978,3 +1979,12 @@ class TestMTCS(MTCSAsyncMock):
             self.mtcs.rem.mtm1m3.evt_boosterValveStatus.next.assert_not_awaited()
             self.mtcs.rem.mtm1m3.cmd_boosterValveOpen.start.assert_not_awaited()
             self.mtcs.rem.mtm1m3.cmd_boosterValveClose.start.assert_not_awaited()
+
+    def assert_compensation_mode(self) -> None:
+        for component in self.mtcs.compensation_mode_components:
+            if getattr(self.mtcs.check, component):
+                assert getattr(self, f"_{component}_evt_compensation_mode").enabled
+                remote = getattr(self.mtcs.rem, component)
+                remote.cmd_setCompensationMode.set_start.assert_awaited_with(
+                    enable=1, timeout=self.mtcs.long_timeout
+                )
