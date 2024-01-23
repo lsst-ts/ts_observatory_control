@@ -1936,6 +1936,68 @@ class MTCS(BaseTCS):
             )
         )
 
+    def map_slew_setting_to_attribute(
+        self, setting_enum: MTM1M3.SetSlewControllerSettings
+    ) -> str:
+        """
+        Maps a SetSlewControllerSettings enum to the corresponding attribute
+        returned by the evt_slew_controller_settings.
+
+        Parameters
+        ----------
+        setting_enum : MTM1M3.SetSlewControllerSettings
+            The enum member to be mapped.
+
+        Returns
+        -------
+        str
+            The corresponding attribute name.
+        """
+        setting_to_attribute = {
+            "ACCELERATIONFORCES": "useAccelerationForces",
+            "BALANCEFORCES": "useBalanceForces",
+            "BOOSTERVALVES": "triggerBoosterValves",
+            "VELOCITYFORCES": "useVelocityForces",
+        }
+        return setting_to_attribute[setting_enum.name]
+
+    async def get_m1m3_slew_controller_settings(self) -> dict:
+        """
+        Retrieve the current M1M3 slew controller settings.
+
+        Returns
+        -------
+        dict
+            A dictionary containing the current settings, where the keys are
+            the names used in the SetSlewControllerSettings enumeration.
+
+        Raises
+        ------
+        RuntimeError
+            If the expected attribute is not found in the event.
+        """
+        settings_event = await self.rem.mtm1m3.evt_slewControllerSettings.aget(
+            timeout=self.fast_timeout
+        )
+
+        expected_attributes = {
+            "ACCELERATIONFORCES": "useAccelerationForces",
+            "BALANCEFORCES": "useBalanceForces",
+            "BOOSTERVALVES": "triggerBoosterValves",
+            "VELOCITYFORCES": "useVelocityForces",
+        }
+
+        settings = {}
+        for key, attr in expected_attributes.items():
+            # Convert string key to enum member
+            enum_member = MTM1M3.SetSlewControllerSettings[key]
+            mapped_attr = self.map_slew_setting_to_attribute(enum_member)
+            if not hasattr(settings_event, mapped_attr):
+                raise RuntimeError(f"Expected attribute '{mapped_attr}' not found.")
+            settings[key] = getattr(settings_event, mapped_attr)
+
+        return settings
+
     async def next_m1m3_applied_balance_forces(
         self, flush: bool
     ) -> salobj.type_hints.BaseMsgType:
@@ -2078,6 +2140,47 @@ class MTCS(BaseTCS):
         # forces have settle. See OBS-194.
         self.log.debug("Waiting for m1m3 to settle.")
         await asyncio.sleep(self.m1m3_settle_time)
+
+    async def set_m1m3_slew_controller_settings(
+        self, slew_setting: enum.IntEnum, enable_slew_management: bool
+    ) -> None:
+        """
+        Set a specific M1M3 slew controller setting based on the provided
+        enumeration.
+
+        Parameters
+        ----------
+        slew_setting : enum.IntEnum
+            The specific force component setting to be changed.
+        enable_slew_management : bool
+            True to enable, False to disable the specified force component
+            controlled by the slew controller.
+        """
+        if not isinstance(slew_setting, MTM1M3.SetSlewControllerSettings):
+            raise ValueError(f"Invalid slew setting: {slew_setting}")
+
+        setting_key = slew_setting.name
+
+        current_settings = await self.get_m1m3_slew_controller_settings()
+        if current_settings[setting_key] == enable_slew_management:
+            self.log.info(
+                f"M1M3 {setting_key} is already set to {enable_slew_management}."
+            )
+            return
+
+        # Ensure M1M3 is in engineering mode
+        if not await self.is_m1m3_in_engineering_mode():
+            self.log.info("Setting M1M3 to engineering mode.")
+            await self.enter_m1m3_engineering_mode()
+
+        self.log.info(f"Setting M1M3 {setting_key} to {enable_slew_management}.")
+        await self.rem.mtm1m3.cmd_setSlewControllerSettings.set_start(
+            slewSettings=slew_setting,
+            enableSlewManagement=enable_slew_management,
+            timeout=self.fast_timeout,
+        )
+
+        self.log.info(f"M1M3 {setting_key} setting updated successfully.")
 
     @property
     def m1m3_engineering_states(self) -> set[MTM1M3.DetailedState]:
