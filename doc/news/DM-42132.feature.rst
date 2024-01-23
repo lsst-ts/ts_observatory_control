@@ -1,0 +1,1 @@
+In `mtcs.py`, update `MTCS._slew_to` to enable compensation mode in the relevant components before a slew.

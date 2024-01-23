@@ -265,6 +265,14 @@ class MTCS(BaseTCS):
             self.flush_offset_events()
             self.rem.mtrotator.evt_inPosition.flush()
 
+        await asyncio.gather(
+            *[
+                self.enable_compensation_mode(component)
+                for component in self.compensation_mode_components
+                if getattr(_check, component)
+            ]
+        )
+
         async with self.m1m3_booster_valve():
             await slew_cmd.start(timeout=slew_timeout)
             self._dome_az_in_position.clear()
