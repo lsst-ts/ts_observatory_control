@@ -21,6 +21,7 @@
 import asyncio
 import copy
 import logging
+import typing
 import unittest.mock
 
 import astropy.units as units
@@ -28,6 +29,7 @@ import numpy as np
 import pytest
 from astropy.coordinates import Angle
 from lsst.ts import idl, utils
+from lsst.ts.idl.enums import MTM1M3
 from lsst.ts.observatory.control.mock.mtcs_async_mock import MTCSAsyncMock
 from lsst.ts.observatory.control.utils import RotType
 
@@ -1988,3 +1990,69 @@ class TestMTCS(MTCSAsyncMock):
                 remote.cmd_setCompensationMode.set_start.assert_awaited_with(
                     enable=1, timeout=self.mtcs.long_timeout
                 )
+
+    async def test_set_m1m3_slew_controller_settings_changes_setting(self) -> None:
+        # Test changing a setting
+        await self.run_set_m1m3_slew_controller_setting_test(
+            initial_setting_value=False,
+            desired_setting=MTM1M3.SetSlewControllerSettings.ACCELERATIONFORCES,
+            desired_value=True,
+        )
+
+    async def test_set_m1m3_slew_controller_settings_no_change_for_same_setting(
+        self,
+    ) -> None:
+        # Test no change for the same setting
+        await self.run_set_m1m3_slew_controller_setting_test(
+            initial_setting_value=True,
+            desired_setting=MTM1M3.SetSlewControllerSettings.ACCELERATIONFORCES,
+            desired_value=True,
+        )
+
+    async def run_set_m1m3_slew_controller_setting_test(
+        self,
+        initial_setting_value: bool,
+        desired_setting: MTM1M3.SetSlewControllerSettings,
+        desired_value: bool,
+    ) -> None:
+        # Set initial state directly in the mock
+        setting_key = desired_setting.name
+        setattr(
+            self.mtcs.rem.mtm1m3.evt_slewControllerSettings,
+            setting_key,
+            initial_setting_value,
+        )
+
+        # Call the method to set the new setting
+        await self.mtcs.set_m1m3_slew_controller_settings(
+            desired_setting, desired_value
+        )
+
+        # Prepare expected settings for assertion
+        expected_settings = {setting_key: desired_value}
+
+        # Assert that the settings have been correctly applied
+        await self.assert_m1m3_slew_settings_applied(expected_settings)
+
+    async def test_set_m1m3_slew_controller_settings_with_invalid_setting(self) -> None:
+        # Invalid enum
+        invalid_setting = 999
+
+        # Test that a ValueError is raised for the invalid setting
+        with self.assertRaises(ValueError):
+            await self.mtcs.set_m1m3_slew_controller_settings(invalid_setting, True)
+
+        # Test that the underlying command is not called
+        self.mtcs.rem.mtm1m3.cmd_setSlewControllerSettings.set_start.assert_not_called()
+
+    async def assert_m1m3_slew_settings_applied(
+        self, expected_settings: typing.Dict[str, bool]
+    ) -> None:
+        # Retrieve the actual settings
+        actual_settings = await self.mtcs.get_m1m3_slew_controller_settings()
+
+        # Compare actual and expected settings
+        for setting, expected_value in expected_settings.items():
+            assert (
+                actual_settings[setting] == expected_value
+            ), f"Setting {setting} expected to be {expected_value} but was {actual_settings[setting]}"
