@@ -757,15 +757,19 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
                 targetName=target_name,
                 frame=frame if frame is not None else self.CoordFrame.ICRS,
                 rotAngle=rotPA,
-                rotStartFrame=rot_frame
-                if rot_frame is not None
-                else self.RotFrame.TARGET,
-                rotTrackFrame=rot_track_frame
-                if rot_track_frame is not None
-                else self.RotFrame.TARGET,
-                azWrapStrategy=self.WrapStrategy.MAXTIMEONTARGET
-                if az_wrap_strategy is None
-                else az_wrap_strategy,
+                rotStartFrame=(
+                    rot_frame if rot_frame is not None else self.RotFrame.TARGET
+                ),
+                rotTrackFrame=(
+                    rot_track_frame
+                    if rot_track_frame is not None
+                    else self.RotFrame.TARGET
+                ),
+                azWrapStrategy=(
+                    self.WrapStrategy.MAXTIMEONTARGET
+                    if az_wrap_strategy is None
+                    else az_wrap_strategy
+                ),
                 timeOnTarget=time_on_target,
                 epoch=epoch,
                 equinox=equinox,
