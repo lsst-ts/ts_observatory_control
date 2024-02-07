@@ -2326,6 +2326,12 @@ class MTCS(BaseTCS):
                     "detailedState",
                     "forceControllerState",
                 ],
+                mthexapod_1=[
+                    "compensationMode",
+                ],
+                mthexapod_2=[
+                    "compensationMode",
+                ],
             )
 
             usages[self.valid_use_cases.StartUp] = UsagesResources(
