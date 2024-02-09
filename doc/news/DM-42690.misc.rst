@@ -1,0 +1,6 @@
+In ``auxtel/atcs.py``, update prepare_for_vent to fully open the dome if ``partially_open_dome`` is selected.
+
+Reformat with black 24.
+
+Update .gitignore with latest ts-pre-commit-config setup.
+
