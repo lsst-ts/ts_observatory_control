@@ -764,7 +764,7 @@ class TestATTCS(ATCSAsyncMock):
             rotPA=self.atcs.tel_park_rot,
         )
 
-    async def test_prepare_for_vent_keep_dome_closed(self) -> None:
+    async def test_prepare_for_vent_fully_open_dome(self) -> None:
         await self.atcs.enable()
         self.dome_slit_positioning_time = 120.0
         self.atcs.dome_vent_open_shutter_time = 0.5
@@ -775,7 +775,7 @@ class TestATTCS(ATCSAsyncMock):
 
         await self.atcs.prepare_for_vent()
 
-        assert self._atdome_evt_main_door_state.state == ATDome.ShutterDoorState.CLOSED
+        assert self._atdome_evt_main_door_state.state == ATDome.ShutterDoorState.OPENED
         assert (
             self._atpneumatics_evt_m1_cover_state.state
             == ATPneumatics.MirrorCoverState.CLOSED
