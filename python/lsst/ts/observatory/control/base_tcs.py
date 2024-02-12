@@ -757,15 +757,19 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
                 targetName=target_name,
                 frame=frame if frame is not None else self.CoordFrame.ICRS,
                 rotAngle=rotPA,
-                rotStartFrame=rot_frame
-                if rot_frame is not None
-                else self.RotFrame.TARGET,
-                rotTrackFrame=rot_track_frame
-                if rot_track_frame is not None
-                else self.RotFrame.TARGET,
-                azWrapStrategy=self.WrapStrategy.MAXTIMEONTARGET
-                if az_wrap_strategy is None
-                else az_wrap_strategy,
+                rotStartFrame=(
+                    rot_frame if rot_frame is not None else self.RotFrame.TARGET
+                ),
+                rotTrackFrame=(
+                    rot_track_frame
+                    if rot_track_frame is not None
+                    else self.RotFrame.TARGET
+                ),
+                azWrapStrategy=(
+                    self.WrapStrategy.MAXTIMEONTARGET
+                    if az_wrap_strategy is None
+                    else az_wrap_strategy
+                ),
                 timeOnTarget=time_on_target,
                 epoch=epoch,
                 equinox=equinox,
@@ -850,6 +854,52 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
         await self._slew_to(
             getattr(self.rem, self.ptg_name).cmd_planetTarget, slew_timeout=slew_timeout
         )
+
+    async def slew_ephem_target(
+        self,
+        ephem_file: str,
+        target_name: str,
+        rot_sky: float = 0.0,
+        validate_only: bool = False,
+        slew_timeout: float = 240.0,
+    ) -> None:
+        """
+        Slew the telescope to a target defined by ephemeris data defined
+        in a file.
+
+        Parameters
+        ----------
+        ephem_file : str
+            Name of the file containing ephemeris data.
+        target_name : str
+            Target name.
+        rot_sky : float
+            Desired instrument position angle (degree), Eastwards from North.
+            Default is 0.0.
+        validate_only : bool, optional
+            If True, validate the target without changing the current demand.
+            Default is False.
+        slew_timeout : float, optional
+            Timeout for the slew command in seconds, default is 1200
+            seconds (20 minutes).
+        """
+
+        # Access the ephemTarget command from the pointing component
+        ptg = getattr(self.rem, self.ptg_name)
+
+        # Setting parameters. Not dealing with validation now.
+        ptg.cmd_ephemTarget.set(
+            ephemFile=ephem_file,
+            targetName=target_name,
+            dRA=0.0,
+            dDec=0.0,
+            rotPA=Angle(rot_sky, unit=u.deg).deg,
+            validateOnly=validate_only,
+            timeout=slew_timeout,
+        )
+
+        await self._slew_to(ptg.cmd_ephemTarget, slew_timeout=slew_timeout)
+        self.log.info(f"Telescope slewed to target {target_name} using ephemeris data.")
 
     async def offset_radec(self, ra: float, dec: float) -> None:
         """Offset telescope in RA and Dec.
@@ -1610,9 +1660,13 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
 
         loop = asyncio.get_event_loop()
 
-        result_table = await loop.run_in_executor(
-            None, customSimbad.query_criteria, criteria
-        )
+        try:
+            result_table = await loop.run_in_executor(
+                None, customSimbad.query_criteria, criteria
+            )
+        except Exception as e:
+            self.log.exception("Querying Simbad failed. {criteria=}")
+            raise RuntimeError(f"Query {criteria=} failed: {e!r}")
 
         if result_table is None:
             raise RuntimeError(f"No result from query: {criteria}.")
@@ -1848,6 +1902,8 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
         in_position = await in_position_event.aget(timeout=self.fast_timeout)
         self.log.debug(f"{component_name} in position: {in_position.inPosition}.")
 
+        _settle_time = max([settle_time, self.fast_timeout])
+
         if in_position.inPosition:
             self.log.debug(
                 f"{component_name} already in position. Handling potential race condition."
@@ -1855,7 +1911,7 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
             try:
                 in_position = await in_position_event.next(
                     flush=True,
-                    timeout=settle_time,
+                    timeout=_settle_time,
                 )
                 self.log.info(
                     f"{component_name} in position: {in_position.inPosition}."
@@ -1863,7 +1919,7 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
             except asyncio.TimeoutError:
                 self.log.debug(
                     "No new in position event in the last "
-                    f"{settle_time}s. "
+                    f"{_settle_time}s. "
                     f"Assuming {component_name} in position."
                 )
             except Exception:

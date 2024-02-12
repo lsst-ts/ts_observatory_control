@@ -21,6 +21,7 @@
 import asyncio
 import copy
 import logging
+import typing
 import unittest.mock
 
 import astropy.units as units
@@ -28,6 +29,7 @@ import numpy as np
 import pytest
 from astropy.coordinates import Angle
 from lsst.ts import idl, utils
+from lsst.ts.idl.enums import MTM1M3
 from lsst.ts.observatory.control.mock.mtcs_async_mock import MTCSAsyncMock
 from lsst.ts.observatory.control.utils import RotType
 
@@ -75,6 +77,31 @@ class TestMTCS(MTCSAsyncMock):
 
         for comp in {"mtdome", "mtdometrajectory"}:
             assert not getattr(check, comp)
+
+    async def test_slew_ephem_target(self) -> None:
+        await self.mtcs.enable()
+        await self.mtcs.assert_all_enabled()
+        await self.mtcs.enable_dome_following()
+
+        ephem_file = "test_ephem.json"
+        target_name = "Chariklo"
+        rot_sky = 0.0
+
+        await self.mtcs.slew_ephem_target(
+            ephem_file=ephem_file, target_name=target_name, rot_sky=rot_sky
+        )
+
+        self.mtcs.rem.mtptg.cmd_ephemTarget.set.assert_called_with(
+            ephemFile=ephem_file,
+            targetName=target_name,
+            dRA=0.0,
+            dDec=0.0,
+            rotPA=Angle(rot_sky, unit=units.deg).deg,
+            validateOnly=False,
+            timeout=240.0,
+        )
+
+        self.mtcs.rem.mtptg.cmd_stopTracking.start.assert_not_awaited()
 
     async def test_slew_object(self) -> None:
         await self.mtcs.enable()
@@ -167,6 +194,7 @@ class TestMTCS(MTCSAsyncMock):
         )
 
         self.assert_m1m3_booster_valve()
+        self.assert_compensation_mode()
 
     async def test_slew_icrs_stop(self) -> None:
         await self.mtcs.enable()
@@ -490,9 +518,7 @@ class TestMTCS(MTCSAsyncMock):
 
         self.mtcs.rem.mtptg.cmd_poriginOffset.set.assert_not_called()
 
-        self.mtcs.rem.mtptg.cmd_stopTracking.start.assert_called_with(
-            timeout=self.mtcs.fast_timeout
-        )
+        self.mtcs.rem.mtptg.cmd_stopTracking.start.assert_not_awaited()
 
         self.mtcs.rem.mtmount.evt_elevationInPosition.flush.assert_called()
         self.mtcs.rem.mtmount.evt_azimuthInPosition.flush.assert_called()
@@ -1780,11 +1806,20 @@ class TestMTCS(MTCSAsyncMock):
 
         self.assert_m1m3_booster_valve()
 
+    async def test_move_p2p_azel_fail_cscs_not_enabled(self) -> None:
+        with pytest.raises(
+            RuntimeError,
+            match=".* state is <State.STANDBY: 5>, expected <State.ENABLED: 2>",
+        ):
+            await self.mtcs.move_p2p_azel(az=0.0, el=80.0, timeout=30.0)
+
     async def test_move_p2p_radec(self) -> None:
         az = 90.0
         el = 80.0
 
         radec = self.mtcs.radec_from_azel(az=az, el=el)
+
+        await self.mtcs.enable()
 
         self.log.info(f"{radec=}")
         await self.mtcs.move_p2p_radec(
@@ -1799,6 +1834,21 @@ class TestMTCS(MTCSAsyncMock):
         )
 
         self.assert_m1m3_booster_valve()
+
+    async def test_move_p2p_radec_fail_cscs_not_enabled(self) -> None:
+        az = 90.0
+        el = 80.0
+
+        radec = self.mtcs.radec_from_azel(az=az, el=el)
+
+        with pytest.raises(
+            RuntimeError,
+            match=".* state is <State.STANDBY: 5>, expected <State.ENABLED: 2>",
+        ):
+            await self.mtcs.move_p2p_radec(
+                ra=radec.ra.to(units.hourangle).value,
+                dec=radec.dec.value,
+            )
 
     async def test_m1m3_booster_valve(self) -> None:
         async with self.mtcs.m1m3_booster_valve():
@@ -1845,8 +1895,8 @@ class TestMTCS(MTCSAsyncMock):
                 timeout=self.mtcs.fast_timeout
             )
             mtm1m3_evt_force_controller_state_next_calls = [
-                unittest.mock.call(flush=False, timeout=self.mtcs.long_timeout),
                 unittest.mock.call(flush=False, timeout=self.mtcs.long_long_timeout),
+                unittest.mock.call(flush=False, timeout=self.mtcs.long_timeout),
             ]
 
             self.mtcs.rem.mtm1m3.evt_forceControllerState.next.assert_has_awaits(
@@ -1896,8 +1946,8 @@ class TestMTCS(MTCSAsyncMock):
                 timeout=self.mtcs.fast_timeout
             )
             mtm1m3_evt_force_controller_state_next_calls = [
-                unittest.mock.call(flush=False, timeout=self.mtcs.long_timeout),
                 unittest.mock.call(flush=False, timeout=self.mtcs.long_long_timeout),
+                unittest.mock.call(flush=False, timeout=self.mtcs.long_timeout),
             ]
             self.mtcs.rem.mtm1m3.evt_forceControllerState.next.assert_has_awaits(
                 mtm1m3_evt_force_controller_state_next_calls
@@ -1931,3 +1981,78 @@ class TestMTCS(MTCSAsyncMock):
             self.mtcs.rem.mtm1m3.evt_boosterValveStatus.next.assert_not_awaited()
             self.mtcs.rem.mtm1m3.cmd_boosterValveOpen.start.assert_not_awaited()
             self.mtcs.rem.mtm1m3.cmd_boosterValveClose.start.assert_not_awaited()
+
+    def assert_compensation_mode(self) -> None:
+        for component in self.mtcs.compensation_mode_components:
+            if getattr(self.mtcs.check, component):
+                assert getattr(self, f"_{component}_evt_compensation_mode").enabled
+                remote = getattr(self.mtcs.rem, component)
+                remote.cmd_setCompensationMode.set_start.assert_awaited_with(
+                    enable=1, timeout=self.mtcs.long_timeout
+                )
+
+    async def test_set_m1m3_slew_controller_settings_changes_setting(self) -> None:
+        # Test changing a setting
+        await self.run_set_m1m3_slew_controller_setting_test(
+            initial_setting_value=False,
+            desired_setting=MTM1M3.SetSlewControllerSettings.ACCELERATIONFORCES,
+            desired_value=True,
+        )
+
+    async def test_set_m1m3_slew_controller_settings_no_change_for_same_setting(
+        self,
+    ) -> None:
+        # Test no change for the same setting
+        await self.run_set_m1m3_slew_controller_setting_test(
+            initial_setting_value=True,
+            desired_setting=MTM1M3.SetSlewControllerSettings.ACCELERATIONFORCES,
+            desired_value=True,
+        )
+
+    async def run_set_m1m3_slew_controller_setting_test(
+        self,
+        initial_setting_value: bool,
+        desired_setting: MTM1M3.SetSlewControllerSettings,
+        desired_value: bool,
+    ) -> None:
+        # Set initial state directly in the mock
+        setting_key = desired_setting.name
+        setattr(
+            self.mtcs.rem.mtm1m3.evt_slewControllerSettings,
+            setting_key,
+            initial_setting_value,
+        )
+
+        # Call the method to set the new setting
+        await self.mtcs.set_m1m3_slew_controller_settings(
+            desired_setting, desired_value
+        )
+
+        # Prepare expected settings for assertion
+        expected_settings = {setting_key: desired_value}
+
+        # Assert that the settings have been correctly applied
+        await self.assert_m1m3_slew_settings_applied(expected_settings)
+
+    async def test_set_m1m3_slew_controller_settings_with_invalid_setting(self) -> None:
+        # Invalid enum
+        invalid_setting = 999
+
+        # Test that a ValueError is raised for the invalid setting
+        with self.assertRaises(ValueError):
+            await self.mtcs.set_m1m3_slew_controller_settings(invalid_setting, True)
+
+        # Test that the underlying command is not called
+        self.mtcs.rem.mtm1m3.cmd_setSlewControllerSettings.set_start.assert_not_called()
+
+    async def assert_m1m3_slew_settings_applied(
+        self, expected_settings: typing.Dict[str, bool]
+    ) -> None:
+        # Retrieve the actual settings
+        actual_settings = await self.mtcs.get_m1m3_slew_controller_settings()
+
+        # Compare actual and expected settings
+        for setting, expected_value in expected_settings.items():
+            assert (
+                actual_settings[setting] == expected_value
+            ), f"Setting {setting} expected to be {expected_value} but was {actual_settings[setting]}"

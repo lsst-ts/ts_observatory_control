@@ -147,7 +147,7 @@ class MTCS(BaseTCS):
         # timeout to raise m1m3, in seconds.
         self.m1m3_raise_timeout = 600.0
         # time it takes for m1m3 to settle after a slew finishes.
-        self.m1m3_settle_time = 5.0
+        self.m1m3_settle_time = 2.0
 
         # Tolerance on the stability of the balance force magnitude
         self.m1m3_force_magnitude_stable_tolerance = 50.0
@@ -200,7 +200,7 @@ class MTCS(BaseTCS):
         slew_cmd: typing.Any,
         slew_timeout: float,
         offset_cmd: typing.Any = None,
-        stop_before_slew: bool = True,
+        stop_before_slew: bool = False,
         wait_settle: bool = True,
         check: typing.Any = None,
     ) -> None:
@@ -247,8 +247,8 @@ class MTCS(BaseTCS):
         track_id = next(self.track_id_gen)
 
         try:
-            current_target = await self.rem.mtmount.evt_target.next(
-                flush=True, timeout=self.fast_timeout
+            current_target = await self.rem.mtmount.evt_target.aget(
+                timeout=self.fast_timeout
             )
             if track_id <= current_target.trackId:
                 self.track_id_gen = utils.index_generator(current_target.trackId + 1)
@@ -264,6 +264,14 @@ class MTCS(BaseTCS):
         if stop_before_slew:
             self.flush_offset_events()
             self.rem.mtrotator.evt_inPosition.flush()
+
+        await asyncio.gather(
+            *[
+                self.enable_compensation_mode(component)
+                for component in self.compensation_mode_components
+                if getattr(_check, component)
+            ]
+        )
 
         async with self.m1m3_booster_valve():
             await slew_cmd.start(timeout=slew_timeout)
@@ -469,13 +477,13 @@ class MTCS(BaseTCS):
             self._handle_in_position(
                 self.rem.mtmount.evt_elevationInPosition,
                 timeout=timeout,
-                settle_time=self.tel_settle_time,
+                settle_time=0.0,
                 component_name="MTMount elevation",
             ),
             self._handle_in_position(
                 self.rem.mtmount.evt_azimuthInPosition,
                 timeout=timeout,
-                settle_time=self.tel_settle_time,
+                settle_time=0.0,
                 component_name="MTMount azimuth",
             ),
         )
@@ -1026,7 +1034,7 @@ class MTCS(BaseTCS):
             await self._wait_force_balance_system_state(enable=enable)
         else:
             self.log.warning(
-                f"Hardpoint corrections already in desired state ({enable}). Nothing to do."
+                f"Hardpoint corrections already in desired state ({enable=}). Nothing to do."
             )
 
     async def _wait_force_balance_system_state(self, enable: bool) -> None:
@@ -1778,11 +1786,20 @@ class MTCS(BaseTCS):
         """
         async with self.m1m3_booster_valve():
             azel = self.azel_from_radec(ra=ra, dec=dec)
-            await self.rem.mtmount.cmd_moveToTarget.set_start(
-                azimuth=azel.az.value,
-                elevation=azel.alt.value,
-                timeout=timeout,
+            tasks = [
+                asyncio.create_task(self.check_component_state(component))
+                for component in self.components_to_check()
+            ]
+            tasks.append(
+                asyncio.create_task(
+                    self.rem.mtmount.cmd_moveToTarget.set_start(
+                        azimuth=azel.az.value,
+                        elevation=azel.alt.value,
+                        timeout=timeout,
+                    )
+                )
             )
+            await self.process_as_completed(tasks)
 
     async def offset_camera_hexapod(
         self,
@@ -1919,6 +1936,68 @@ class MTCS(BaseTCS):
             )
         )
 
+    def map_slew_setting_to_attribute(
+        self, setting_enum: MTM1M3.SetSlewControllerSettings
+    ) -> str:
+        """
+        Maps a SetSlewControllerSettings enum to the corresponding attribute
+        returned by the evt_slew_controller_settings.
+
+        Parameters
+        ----------
+        setting_enum : MTM1M3.SetSlewControllerSettings
+            The enum member to be mapped.
+
+        Returns
+        -------
+        str
+            The corresponding attribute name.
+        """
+        setting_to_attribute = {
+            "ACCELERATIONFORCES": "useAccelerationForces",
+            "BALANCEFORCES": "useBalanceForces",
+            "BOOSTERVALVES": "triggerBoosterValves",
+            "VELOCITYFORCES": "useVelocityForces",
+        }
+        return setting_to_attribute[setting_enum.name]
+
+    async def get_m1m3_slew_controller_settings(self) -> dict:
+        """
+        Retrieve the current M1M3 slew controller settings.
+
+        Returns
+        -------
+        dict
+            A dictionary containing the current settings, where the keys are
+            the names used in the SetSlewControllerSettings enumeration.
+
+        Raises
+        ------
+        RuntimeError
+            If the expected attribute is not found in the event.
+        """
+        settings_event = await self.rem.mtm1m3.evt_slewControllerSettings.aget(
+            timeout=self.fast_timeout
+        )
+
+        expected_attributes = {
+            "ACCELERATIONFORCES": "useAccelerationForces",
+            "BALANCEFORCES": "useBalanceForces",
+            "BOOSTERVALVES": "triggerBoosterValves",
+            "VELOCITYFORCES": "useVelocityForces",
+        }
+
+        settings = {}
+        for key, attr in expected_attributes.items():
+            # Convert string key to enum member
+            enum_member = MTM1M3.SetSlewControllerSettings[key]
+            mapped_attr = self.map_slew_setting_to_attribute(enum_member)
+            if not hasattr(settings_event, mapped_attr):
+                raise RuntimeError(f"Expected attribute '{mapped_attr}' not found.")
+            settings[key] = getattr(settings_event, mapped_attr)
+
+        return settings
+
     async def next_m1m3_applied_balance_forces(
         self, flush: bool
     ) -> salobj.type_hints.BaseMsgType:
@@ -1950,8 +2029,9 @@ class MTCS(BaseTCS):
     async def open_m1m3_booster_valve(self) -> None:
         """Open M1M3 booster valves."""
         if self.check.mtm1m3:
-            await self.enter_m1m3_engineering_mode()
-            await self.disable_m1m3_balance_system()
+            # await self.enter_m1m3_engineering_mode()
+            # await self.disable_m1m3_balance_system()
+            await self.enable_m1m3_balance_system()
             await self._handle_m1m3_booster_valve(open=True)
         else:
             self.log.info("M1M3 check disabled.")
@@ -1961,7 +2041,6 @@ class MTCS(BaseTCS):
         if self.check.mtm1m3:
             await self._handle_m1m3_booster_valve(open=False)
             await asyncio.sleep(self.fast_timeout)
-            await self.enable_m1m3_balance_system()
 
     async def _handle_m1m3_booster_valve(self, open: bool) -> None:
         """Handle opening the M1M3 booster valves"""
@@ -1980,7 +2059,6 @@ class MTCS(BaseTCS):
                 )
                 while force_actuator_state.slewFlag != open:
                     self.log.debug(f"Waiting for valve to {desired_state}.")
-                    print(self.long_timeout)
                     force_actuator_state = (
                         await self.rem.mtm1m3.evt_forceControllerState.next(
                             flush=False, timeout=self.long_timeout
@@ -2062,6 +2140,47 @@ class MTCS(BaseTCS):
         # forces have settle. See OBS-194.
         self.log.debug("Waiting for m1m3 to settle.")
         await asyncio.sleep(self.m1m3_settle_time)
+
+    async def set_m1m3_slew_controller_settings(
+        self, slew_setting: enum.IntEnum, enable_slew_management: bool
+    ) -> None:
+        """
+        Set a specific M1M3 slew controller setting based on the provided
+        enumeration.
+
+        Parameters
+        ----------
+        slew_setting : enum.IntEnum
+            The specific force component setting to be changed.
+        enable_slew_management : bool
+            True to enable, False to disable the specified force component
+            controlled by the slew controller.
+        """
+        if not isinstance(slew_setting, MTM1M3.SetSlewControllerSettings):
+            raise ValueError(f"Invalid slew setting: {slew_setting}")
+
+        setting_key = slew_setting.name
+
+        current_settings = await self.get_m1m3_slew_controller_settings()
+        if current_settings[setting_key] == enable_slew_management:
+            self.log.info(
+                f"M1M3 {setting_key} is already set to {enable_slew_management}."
+            )
+            return
+
+        # Ensure M1M3 is in engineering mode
+        if not await self.is_m1m3_in_engineering_mode():
+            self.log.info("Setting M1M3 to engineering mode.")
+            await self.enter_m1m3_engineering_mode()
+
+        self.log.info(f"Setting M1M3 {setting_key} to {enable_slew_management}.")
+        await self.rem.mtm1m3.cmd_setSlewControllerSettings.set_start(
+            slewSettings=slew_setting,
+            enableSlewManagement=enable_slew_management,
+            timeout=self.fast_timeout,
+        )
+
+        self.log.info(f"M1M3 {setting_key} setting updated successfully.")
 
     @property
     def m1m3_engineering_states(self) -> set[MTM1M3.DetailedState]:
@@ -2206,6 +2325,12 @@ class MTCS(BaseTCS):
                     "forceActuatorState",
                     "detailedState",
                     "forceControllerState",
+                ],
+                mthexapod_1=[
+                    "compensationMode",
+                ],
+                mthexapod_2=[
+                    "compensationMode",
                 ],
             )
 

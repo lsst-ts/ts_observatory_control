@@ -104,37 +104,29 @@ class BaseGroupMock:
                 getattr(self.controllers, comp).cmd_enable.callback = functools.partial(
                     self.get_enable_callback, comp=comp
                 )
-                getattr(
-                    self.controllers, comp
-                ).cmd_disable.callback = functools.partial(
-                    self.get_disable_callback, comp=comp
+                getattr(self.controllers, comp).cmd_disable.callback = (
+                    functools.partial(self.get_disable_callback, comp=comp)
                 )
-                getattr(
-                    self.controllers, comp
-                ).cmd_standby.callback = functools.partial(
-                    self.get_standby_callback, comp=comp
+                getattr(self.controllers, comp).cmd_standby.callback = (
+                    functools.partial(self.get_standby_callback, comp=comp)
                 )
-                getattr(
-                    self.controllers, comp
-                ).cmd_exitControl.callback = functools.partial(
-                    self.get_exitControl_callback, comp=comp
+                getattr(self.controllers, comp).cmd_exitControl.callback = (
+                    functools.partial(self.get_exitControl_callback, comp=comp)
                 )
                 if hasattr(getattr(self.controllers, comp), "cmd_enterControl"):
-                    getattr(
-                        self.controllers, comp
-                    ).cmd_enterControl.callback = functools.partial(
-                        self.get_enterControl_callback, comp=comp
+                    getattr(self.controllers, comp).cmd_enterControl.callback = (
+                        functools.partial(self.get_enterControl_callback, comp=comp)
                     )
 
         for comp in self.output_only:
             for cmd in getattr(self.controllers, comp).salinfo.command_names:
-                getattr(
-                    getattr(self.controllers, comp), f"cmd_{cmd}"
-                ).callback = self.generic_raise_callback
+                getattr(getattr(self.controllers, comp), f"cmd_{cmd}").callback = (
+                    self.generic_raise_callback
+                )
 
-        self.start_task: typing.Union[
-            asyncio.Task, asyncio.Future
-        ] = asyncio.create_task(self.start_task_publish())
+        self.start_task: typing.Union[asyncio.Task, asyncio.Future] = (
+            asyncio.create_task(self.start_task_publish())
+        )
 
         self.run_telemetry_loop = False
 

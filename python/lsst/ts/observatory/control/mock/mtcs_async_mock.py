@@ -26,6 +26,7 @@ import typing
 
 import numpy as np
 from lsst.ts import idl, utils
+from lsst.ts.idl.enums import MTM1M3
 from lsst.ts.observatory.control.maintel.mtcs import MTCS, MTCSUsages
 from lsst.ts.observatory.control.mock import RemoteGroupAsyncMock
 
@@ -173,6 +174,13 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
         self._mthexapod_2_evt_in_position = types.SimpleNamespace(inPosition=True)
         self._mthexapod_2_move_task = utils.make_done_future()
 
+        self._evt_slew_controller_settings = types.SimpleNamespace(
+            useAccelerationForces=False,
+            useBalanceForces=False,
+            triggerBoosterValves=False,
+            useVelocityForces=False,
+        )
+
     async def setup_mocks(self) -> None:
         await self.setup_mtmount()
         await self.setup_mtrotator()
@@ -186,6 +194,7 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
         """Augment MTMount."""
         mtmount_mocks = {
             "evt_target.next.side_effect": self.mtmount_evt_target_next,
+            "evt_target.aget.side_effect": self.mtmount_evt_target_next,
             "tel_azimuth.next.side_effect": self.mtmount_tel_azimuth_next,
             "tel_azimuth.DataType.return_value": self.get_sample(
                 "MTMount", "tel_azimuth"
@@ -244,63 +253,65 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
             "cmd_exitEngineering.start.side_effect": self.mtm1m3_cmd_exit_engineering,
             "cmd_testHardpoint.set_start.side_effect": self.mtm1m3_cmd_test_hardpoint,
             "cmd_forceActuatorBumpTest.set_start.side_effect": self.mtm1m3_cmd_force_actuator_bump_test,
+            "evt_slewControllerSettings.aget.side_effect": self.mtm1m3_evt_slew_controller_flags,
+            "cmd_setSlewControllerSettings.set_start.side_effect": self.mtm1m3_cmd_set_slew_controller_flags,
         }
 
         # Compatibility with xml>12
         if "evt_appliedBalanceForces" in self.components_metadata["MTM1M3"].topics:
-            m1m3_mocks[
-                "evt_appliedBalanceForces.next.side_effect"
-            ] = self.mtm1m3_evt_applied_balance_forces
-            m1m3_mocks[
-                "evt_appliedBalanceForces.aget.side_effect"
-            ] = self.mtm1m3_evt_applied_balance_forces
+            m1m3_mocks["evt_appliedBalanceForces.next.side_effect"] = (
+                self.mtm1m3_evt_applied_balance_forces
+            )
+            m1m3_mocks["evt_appliedBalanceForces.aget.side_effect"] = (
+                self.mtm1m3_evt_applied_balance_forces
+            )
         else:
-            m1m3_mocks[
-                "tel_appliedBalanceForces.next.side_effect"
-            ] = self.mtm1m3_evt_applied_balance_forces
-            m1m3_mocks[
-                "tel_appliedBalanceForces.aget.side_effect"
-            ] = self.mtm1m3_evt_applied_balance_forces
+            m1m3_mocks["tel_appliedBalanceForces.next.side_effect"] = (
+                self.mtm1m3_evt_applied_balance_forces
+            )
+            m1m3_mocks["tel_appliedBalanceForces.aget.side_effect"] = (
+                self.mtm1m3_evt_applied_balance_forces
+            )
 
         # Compatibility with xml>16
         if "evt_forceControllerState" in self.components_metadata["MTM1M3"].topics:
-            m1m3_mocks[
-                "evt_forceControllerState.aget.side_effect"
-            ] = self.mtm1m3_evt_force_actuator_state
-            m1m3_mocks[
-                "evt_forceControllerState.next.side_effect"
-            ] = self.mtm1m3_evt_force_actuator_state
+            m1m3_mocks["evt_forceControllerState.aget.side_effect"] = (
+                self.mtm1m3_evt_force_actuator_state
+            )
+            m1m3_mocks["evt_forceControllerState.next.side_effect"] = (
+                self.mtm1m3_evt_force_actuator_state
+            )
 
         if "evt_boosterValveStatus" in self.components_metadata["MTM1M3"].topics:
-            m1m3_mocks[
-                "evt_boosterValveStatus.aget.side_effect"
-            ] = self.mtm1m3_evt_force_actuator_state
-            m1m3_mocks[
-                "evt_boosterValveStatus.next.side_effect"
-            ] = self.mtm1m3_evt_force_actuator_state
+            m1m3_mocks["evt_boosterValveStatus.aget.side_effect"] = (
+                self.mtm1m3_evt_force_actuator_state
+            )
+            m1m3_mocks["evt_boosterValveStatus.next.side_effect"] = (
+                self.mtm1m3_evt_force_actuator_state
+            )
 
         if "cmd_setAirSlewFlag" in self.components_metadata["MTM1M3"].topics:
-            m1m3_mocks[
-                "cmd_setAirSlewFlag.set_start.side_effect"
-            ] = self.mtm1m3_cmd_set_air_slew_flag
+            m1m3_mocks["cmd_setAirSlewFlag.set_start.side_effect"] = (
+                self.mtm1m3_cmd_set_air_slew_flag
+            )
 
         if "cmd_setSlewFlag" in self.components_metadata["MTM1M3"].topics:
-            m1m3_mocks[
-                "cmd_setSlewFlag.set_start.side_effect"
-            ] = self.mtm1m3_cmd_set_slew_flag
+            m1m3_mocks["cmd_setSlewFlag.set_start.side_effect"] = (
+                self.mtm1m3_cmd_set_slew_flag
+            )
 
         if "cmd_clearSlewFlag" in self.components_metadata["MTM1M3"].topics:
-            m1m3_mocks[
-                "cmd_clearSlewFlag.set_start.side_effect"
-            ] = self.mtm1m3_cmd_clear_slew_flag
+            m1m3_mocks["cmd_clearSlewFlag.set_start.side_effect"] = (
+                self.mtm1m3_cmd_clear_slew_flag
+            )
 
         if "cmd_boosterValveOpen" in self.components_metadata["MTM1M3"].topics:
-            m1m3_mocks[
-                "cmd_boosterValveOpen.start.side_effect"
-            ] = self.mtm1m3_cmd_booster_valve_open
-            m1m3_mocks[
-                "cmd_boosterValveClose.start.side_effect"
-            ] = self.mtm1m3_cmd_booster_valve_close
+            m1m3_mocks["cmd_boosterValveOpen.start.side_effect"] = (
+                self.mtm1m3_cmd_booster_valve_open
+            )
+            m1m3_mocks["cmd_boosterValveClose.start.side_effect"] = (
+                self.mtm1m3_cmd_booster_valve_close
+            )
 
         self.mtcs.rem.mtm1m3.configure_mock(**m1m3_mocks)
 
@@ -744,6 +755,43 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
             self._mtm1m3_evt_force_actuator_bump_test_status.secondaryTestTimestamps[
                 actuator_sindex
             ] = utils.current_tai()
+
+    async def mtm1m3_cmd_set_slew_controller_flags(
+        self, *args: typing.Any, **kwargs: typing.Any
+    ) -> None:
+        # Extract parameters from kwargs
+        slew_setting_value = kwargs.get("slewSettings")
+        enable_slew_management = kwargs.get("enableSlewManagement")
+
+        if slew_setting_value is None or enable_slew_management is None:
+            raise ValueError(
+                "slewSettings and enableSlewManagement parameters are required."
+            )
+
+        # Convert the integer to the corresponding enumeration member name
+        setting_enum = MTM1M3.SetSlewControllerSettings(slew_setting_value)
+
+        # Mapping enum names to the expected attributes
+        setting_attr = self.mtcs.map_slew_setting_to_attribute(setting_enum)
+
+        if setting_attr is None:
+            raise RuntimeError(f"Invalid slew setting value: {slew_setting_value}")
+
+        # Update the internal state to reflect the change
+        if hasattr(self._evt_slew_controller_settings, setting_attr):
+            setattr(
+                self._evt_slew_controller_settings, setting_attr, enable_slew_management
+            )
+        else:
+            raise RuntimeError(
+                f"Unexpected error. Setting attribute '{setting_attr}' not found."
+            )
+
+    async def mtm1m3_evt_slew_controller_flags(
+        self, *args: typing.Any, **kwargs: typing.Any
+    ) -> types.SimpleNamespace:
+        await asyncio.sleep(self.heartbeat_time / 4.0)
+        return self._evt_slew_controller_settings
 
     async def _execute_enable_hardpoint_corrections(self) -> float:
         for force_magnitude in range(0, 2200, 200):

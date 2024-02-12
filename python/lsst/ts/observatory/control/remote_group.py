@@ -736,7 +736,7 @@ class RemoteGroup:
                 )
                 etype: typing.Type[BaseException] = type(ret_val[i])
                 value: BaseException = ret_val[i]
-                tb: types.TracebackType = ret_val[i].__traceback__
+                tb = ret_val[i].__traceback__
                 err_traceback = traceback.format_exception(
                     etype,
                     value,

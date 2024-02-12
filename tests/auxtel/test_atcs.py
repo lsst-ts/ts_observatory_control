@@ -764,7 +764,7 @@ class TestATTCS(ATCSAsyncMock):
             rotPA=self.atcs.tel_park_rot,
         )
 
-    async def test_prepare_for_vent_keep_dome_closed(self) -> None:
+    async def test_prepare_for_vent_fully_open_dome(self) -> None:
         await self.atcs.enable()
         self.dome_slit_positioning_time = 120.0
         self.atcs.dome_vent_open_shutter_time = 0.5
@@ -775,7 +775,7 @@ class TestATTCS(ATCSAsyncMock):
 
         await self.atcs.prepare_for_vent()
 
-        assert self._atdome_evt_main_door_state.state == ATDome.ShutterDoorState.CLOSED
+        assert self._atdome_evt_main_door_state.state == ATDome.ShutterDoorState.OPENED
         assert (
             self._atpneumatics_evt_m1_cover_state.state
             == ATPneumatics.MirrorCoverState.CLOSED
@@ -1020,6 +1020,31 @@ class TestATTCS(ATCSAsyncMock):
 
         self.atcs.rem.atdome.tel_position.next.assert_not_called()
         self.atcs.rem.atdome.evt_azimuthCommandedState.aget.assert_not_called()
+
+    async def test_slew_ephem_target(self) -> None:
+        await self.atcs.enable()
+        await self.atcs.assert_all_enabled()
+        await self.atcs.enable_dome_following()
+
+        ephem_file = "test_ephem.json"
+        target_name = "Chariklo"
+        rot_sky = 0.0
+
+        await self.atcs.slew_ephem_target(
+            ephem_file=ephem_file, target_name=target_name, rot_sky=rot_sky
+        )
+
+        self.atcs.rem.atptg.cmd_ephemTarget.set.assert_called_with(
+            ephemFile=ephem_file,
+            targetName=target_name,
+            dRA=0.0,
+            dDec=0.0,
+            rotPA=Angle(rot_sky, unit=u.deg).deg,
+            validateOnly=False,
+            timeout=240.0,
+        )
+
+        self.atcs.rem.atptg.cmd_stopTracking.start.assert_not_awaited()
 
     async def test_slew_icrs(self) -> None:
         await self.atcs.enable()

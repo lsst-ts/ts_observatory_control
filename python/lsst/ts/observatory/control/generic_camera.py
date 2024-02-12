@@ -72,9 +72,11 @@ class GenericCamera(BaseCamera):
 
         super().__init__(
             components=[f"GenericCamera:{index}"],
-            instrument_setup_attributes=[]
-            if instrument_setup_attributes is None
-            else instrument_setup_attributes,
+            instrument_setup_attributes=(
+                []
+                if instrument_setup_attributes is None
+                else instrument_setup_attributes
+            ),
             domain=domain,
             log=log,
             intended_usage=intended_usage,
