@@ -32,3 +32,4 @@ pytest_session.txt
 .mypy.ini
 .clang-format
 .ruff.toml
+towncrier.toml

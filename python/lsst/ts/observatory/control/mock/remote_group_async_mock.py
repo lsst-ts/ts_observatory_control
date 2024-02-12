@@ -241,20 +241,22 @@ class RemoteGroupAsyncMock(
             itertools.chain(
                 *[
                     (
-                        topic,
-                        f"{topic}.set",
-                        f"{topic}.start",
-                        f"{topic}.set_start",
-                        f"{topic}.DataType",
-                    )
-                    if topic.startswith("cmd_")
-                    else (
-                        topic,
-                        f"{topic}.next",
-                        f"{topic}.get",
-                        f"{topic}.aget",
-                        f"{topic}.flush",
-                        f"{topic}.DataType",
+                        (
+                            topic,
+                            f"{topic}.set",
+                            f"{topic}.start",
+                            f"{topic}.set_start",
+                            f"{topic}.DataType",
+                        )
+                        if topic.startswith("cmd_")
+                        else (
+                            topic,
+                            f"{topic}.next",
+                            f"{topic}.get",
+                            f"{topic}.aget",
+                            f"{topic}.flush",
+                            f"{topic}.DataType",
+                        )
                     )
                     for topic in topics
                 ]
@@ -284,14 +286,16 @@ class RemoteGroupAsyncMock(
         """
         side_effects: typing.Dict[str, typing.Any] = dict(
             [
-                (topic, unittest.mock.AsyncMock())
-                if all(
-                    [
-                        not topic.endswith(sync_methods)
-                        for sync_methods in [".get", ".set", ".flush", "DataType"]
-                    ]
+                (
+                    (topic, unittest.mock.AsyncMock())
+                    if all(
+                        [
+                            not topic.endswith(sync_methods)
+                            for sync_methods in [".get", ".set", ".flush", "DataType"]
+                        ]
+                    )
+                    else (topic, unittest.mock.Mock())
                 )
-                else (topic, unittest.mock.Mock())
                 for topic in spec
             ]
         )

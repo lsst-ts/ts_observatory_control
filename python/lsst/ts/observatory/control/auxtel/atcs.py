@@ -568,6 +568,10 @@ class ATCS(BaseTCS):
             await self.stop_dome()
 
             await self.cancel_not_done([open_dome_tasks])
+        else:
+            self.log.info("Fully opening the dome to vent.")
+
+            await self.open_dome_shutter()
 
     async def prepare_for_onsky(
         self, overrides: typing.Optional[typing.Dict[str, str]] = None

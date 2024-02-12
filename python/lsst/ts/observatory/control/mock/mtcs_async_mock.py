@@ -259,59 +259,59 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
 
         # Compatibility with xml>12
         if "evt_appliedBalanceForces" in self.components_metadata["MTM1M3"].topics:
-            m1m3_mocks[
-                "evt_appliedBalanceForces.next.side_effect"
-            ] = self.mtm1m3_evt_applied_balance_forces
-            m1m3_mocks[
-                "evt_appliedBalanceForces.aget.side_effect"
-            ] = self.mtm1m3_evt_applied_balance_forces
+            m1m3_mocks["evt_appliedBalanceForces.next.side_effect"] = (
+                self.mtm1m3_evt_applied_balance_forces
+            )
+            m1m3_mocks["evt_appliedBalanceForces.aget.side_effect"] = (
+                self.mtm1m3_evt_applied_balance_forces
+            )
         else:
-            m1m3_mocks[
-                "tel_appliedBalanceForces.next.side_effect"
-            ] = self.mtm1m3_evt_applied_balance_forces
-            m1m3_mocks[
-                "tel_appliedBalanceForces.aget.side_effect"
-            ] = self.mtm1m3_evt_applied_balance_forces
+            m1m3_mocks["tel_appliedBalanceForces.next.side_effect"] = (
+                self.mtm1m3_evt_applied_balance_forces
+            )
+            m1m3_mocks["tel_appliedBalanceForces.aget.side_effect"] = (
+                self.mtm1m3_evt_applied_balance_forces
+            )
 
         # Compatibility with xml>16
         if "evt_forceControllerState" in self.components_metadata["MTM1M3"].topics:
-            m1m3_mocks[
-                "evt_forceControllerState.aget.side_effect"
-            ] = self.mtm1m3_evt_force_actuator_state
-            m1m3_mocks[
-                "evt_forceControllerState.next.side_effect"
-            ] = self.mtm1m3_evt_force_actuator_state
+            m1m3_mocks["evt_forceControllerState.aget.side_effect"] = (
+                self.mtm1m3_evt_force_actuator_state
+            )
+            m1m3_mocks["evt_forceControllerState.next.side_effect"] = (
+                self.mtm1m3_evt_force_actuator_state
+            )
 
         if "evt_boosterValveStatus" in self.components_metadata["MTM1M3"].topics:
-            m1m3_mocks[
-                "evt_boosterValveStatus.aget.side_effect"
-            ] = self.mtm1m3_evt_force_actuator_state
-            m1m3_mocks[
-                "evt_boosterValveStatus.next.side_effect"
-            ] = self.mtm1m3_evt_force_actuator_state
+            m1m3_mocks["evt_boosterValveStatus.aget.side_effect"] = (
+                self.mtm1m3_evt_force_actuator_state
+            )
+            m1m3_mocks["evt_boosterValveStatus.next.side_effect"] = (
+                self.mtm1m3_evt_force_actuator_state
+            )
 
         if "cmd_setAirSlewFlag" in self.components_metadata["MTM1M3"].topics:
-            m1m3_mocks[
-                "cmd_setAirSlewFlag.set_start.side_effect"
-            ] = self.mtm1m3_cmd_set_air_slew_flag
+            m1m3_mocks["cmd_setAirSlewFlag.set_start.side_effect"] = (
+                self.mtm1m3_cmd_set_air_slew_flag
+            )
 
         if "cmd_setSlewFlag" in self.components_metadata["MTM1M3"].topics:
-            m1m3_mocks[
-                "cmd_setSlewFlag.set_start.side_effect"
-            ] = self.mtm1m3_cmd_set_slew_flag
+            m1m3_mocks["cmd_setSlewFlag.set_start.side_effect"] = (
+                self.mtm1m3_cmd_set_slew_flag
+            )
 
         if "cmd_clearSlewFlag" in self.components_metadata["MTM1M3"].topics:
-            m1m3_mocks[
-                "cmd_clearSlewFlag.set_start.side_effect"
-            ] = self.mtm1m3_cmd_clear_slew_flag
+            m1m3_mocks["cmd_clearSlewFlag.set_start.side_effect"] = (
+                self.mtm1m3_cmd_clear_slew_flag
+            )
 
         if "cmd_boosterValveOpen" in self.components_metadata["MTM1M3"].topics:
-            m1m3_mocks[
-                "cmd_boosterValveOpen.start.side_effect"
-            ] = self.mtm1m3_cmd_booster_valve_open
-            m1m3_mocks[
-                "cmd_boosterValveClose.start.side_effect"
-            ] = self.mtm1m3_cmd_booster_valve_close
+            m1m3_mocks["cmd_boosterValveOpen.start.side_effect"] = (
+                self.mtm1m3_cmd_booster_valve_open
+            )
+            m1m3_mocks["cmd_boosterValveClose.start.side_effect"] = (
+                self.mtm1m3_cmd_booster_valve_close
+            )
 
         self.mtcs.rem.mtm1m3.configure_mock(**m1m3_mocks)
 
