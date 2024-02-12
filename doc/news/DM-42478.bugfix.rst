@@ -1,2 +1,0 @@
-In ``base_tcs.py``, update ``find_target_simbad`` to capture any exception when executing the remote query and retrow them as a ``RuntimeError``.
-

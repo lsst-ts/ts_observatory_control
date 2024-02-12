@@ -1,2 +1,0 @@
-Update ``MTCS`` slew control sequence to improve handling setting/unsetting the m1m3 slew flag before/after a slew starts/ends.
-

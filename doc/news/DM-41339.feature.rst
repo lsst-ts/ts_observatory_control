@@ -1,1 +1,0 @@
-In ``base_tcs.py`` add a ``slew_ephem_target`` method that allow both telescopes to track a target based on an ephemeris file.
