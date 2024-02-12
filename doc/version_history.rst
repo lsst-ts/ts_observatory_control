@@ -8,6 +8,44 @@ Version History
 
 .. towncrier release notes start
 
+v0.33.0 (2024-02-12)
+====================
+
+New Features
+------------
+
+- In ``base_tcs.py`` add a ``slew_ephem_target`` method that allow both telescopes to track a target based on an ephemeris file. (`DM-41339 <https://jira.lsstcorp.org/browse/DM-41339>`_)
+- In ``maintel/mtcs.py``, update ``move_p2p_radec`` to check that the mtcs is in ENABLED state while moving. (`DM-41593 <https://jira.lsstcorp.org/browse/DM-41593>`_)
+- In `mtcs.py`, update `MTCS._slew_to` to enable compensation mode in the relevant components before a slew. (`DM-42132 <https://jira.lsstcorp.org/browse/DM-42132>`_)
+- In ``mtcs.py`` add a ``set_m1m3_controller_settings`` method that allows setting m1m3 slew controller settings. (`DM-42402 <https://jira.lsstcorp.org/browse/DM-42402>`_)
+
+
+Bug Fixes
+---------
+
+- Fix some type annotation issue in ``RemoteGroup``.
+
+  Update ``ATCS.stop_all`` to remove return. (`DM-42046 <https://jira.lsstcorp.org/browse/DM-42046>`_)
+- In ``base_tcs.py``, update ``find_target_simbad`` to capture any exception when executing the remote query and retrow them as a ``RuntimeError``. (`DM-42478 <https://jira.lsstcorp.org/browse/DM-42478>`_)
+- Update MTCS Slew usages to add the compensationMode event for both hexapods. (`DM-42690 <https://jira.lsstcorp.org/browse/DM-42690>`_)
+
+
+Performance Enhancement
+-----------------------
+
+- Update ``MTCS`` slew control sequence to improve handling setting/unsetting the m1m3 slew flag before/after a slew starts/ends. (`DM-42046 <https://jira.lsstcorp.org/browse/DM-42046>`_)
+
+
+Other Changes and Additions
+---------------------------
+
+- In ``auxtel/atcs.py``, update prepare_for_vent to fully open the dome if ``partially_open_dome`` is selected.
+
+  Reformat with black 24.
+
+  Update .gitignore with latest ts-pre-commit-config setup. (`DM-42690 <https://jira.lsstcorp.org/browse/DM-42690>`_)
+
+
 v0.32.0 (2023-11-28)
 ====================
 

@@ -1,4 +1,0 @@
-Fix some type annotation issue in ``RemoteGroup``.
-
-Update ``ATCS.stop_all`` to remove return.
-

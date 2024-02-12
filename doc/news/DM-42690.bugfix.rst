@@ -1,2 +1,0 @@
-Update MTCS Slew usages to add the compensationMode event for both hexapods.
-

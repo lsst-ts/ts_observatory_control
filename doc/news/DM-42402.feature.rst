@@ -1,1 +1,0 @@
-In ``mtcs.py`` add a ``set_m1m3_controller_settings`` method that allows setting m1m3 slew controller settings.
