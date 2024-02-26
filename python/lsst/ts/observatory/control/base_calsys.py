@@ -84,7 +84,9 @@ class CalsysThroughputCalculationMixin:
 
     @abstractmethod
     def detector_throughput(self, wavelen: float) -> float:
-        """the throughput value will return (in appropriate units TBD) the
+        """Return calculated detector throughput.
+
+        The hroughput value will return (in appropriate units TBD) the
         detector throughput of the particular calibration system specified in
         the class for which this mixin class is specified as a base.
 
