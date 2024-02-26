@@ -1,3 +1,5 @@
+__all__ = ["ATSpectrographSlits", "ATCalibrationSequenceStep", "ATCalsys"]
+
 import asyncio
 from collections.abc import Awaitable
 from dataclasses import dataclass
@@ -190,8 +192,8 @@ class ATCalsys(BaseCalsys, HardcodeCalsysThroughput):
         """Property that returns the estimated time for the script to run in units of seconds.
 
         For script time estimation purposes.
-        For now just returns a default long time"""
-
+        For now just returns a default long time
+        """
         match (self._intention):
             case CalsysScriptIntention.POWER_ON | CalsysScriptIntention.POWER_OFF:
                 # for now just use fixed values from previous script
@@ -207,6 +209,12 @@ class ATCalsys(BaseCalsys, HardcodeCalsysThroughput):
                 )
 
     async def power_sequence_run(self, scriptobj: salobj.BaseScript, **kwargs) -> None:
+        """Run a power sequence operation
+
+         A power sequence operation is, for example, turning on or off the calibration
+        system preparing for daily calibration runs. The sequence run depends
+        on the indicated intention of the current SAL script
+        """
         match (self._intention):
             case CalsysScriptIntention.POWER_ON:
                 await self._chiller_power(True)
@@ -285,13 +293,19 @@ class ATCalsys(BaseCalsys, HardcodeCalsysThroughput):
                     "don't know how to handle this script intention"
                 )
 
-    async def validate_hardware_status_for_acquisition(self) -> Awaitable:
+    async def validate_hardware_status_for_acquisition(self) -> Awaitable[bool]:
+        """Calibration system readiness check.
+
+        Check whether the calibration system hardware is nominally ready to perform
+        calibration data acquisition runs
+        """
         shutter_fut = self._sal_waitevent(self.ATWhiteLight, "shutterState")
         lamp_fut = self._sal_waitevent(self.ATWhiteLight, "lampState")
 
         shutter_state = await shutter_fut
         if shutter_state.commandedState != ATWhiteLight.ShutterState.OPEN:
-            errmsg = f"shutter has not been commanded to open, likely a programming error. Commanded state is {repr(shutter_state.commandedState)}"
+            errmsg = f"shutter has not been commanded to open, likely a programming error. \
+            Commanded state is {repr(shutter_state.commandedState)}"
             self.log.error(errmsg)
             raise RuntimeError(errmsg)
 
@@ -312,6 +326,7 @@ class ATCalsys(BaseCalsys, HardcodeCalsysThroughput):
             )
 
     def _chiller_temp_check(self, temps) -> bool:
+        """Validate the operating temperature of the calibration system chiller"""
         self.log.debug(
             f"Chiller supply temperature: {temps.supplyTemperature:0.1f} C "
             f"[set:{temps.setTemperature} deg]."
@@ -327,8 +342,9 @@ class ATCalsys(BaseCalsys, HardcodeCalsysThroughput):
             return True
         return False
 
-    async def _chiller_power(self, onoff: bool):
-        cmd_target = "startChiller" if onoff else "stopChiller"
+    async def _chiller_power(self, onoff: bool) -> None:
+        """Start or stop the power of the calibration system chiller"""
+        cmd_target = "startChiller" if onoff else "stopChiller"s
         if onoff:
             chiller_setpoint_temp: float = self.CHILLER_SETPOINT_TEMP.to(un.s).value
             await self._sal_cmd(
@@ -339,17 +355,19 @@ class ATCalsys(BaseCalsys, HardcodeCalsysThroughput):
         await self._sal_cmd(self.ATWhiteLight, cmd_target)
 
     async def _chiller_settle(self) -> Awaitable[tuple[datetime, datetime]]:
+        """Wait for the calibration system chiller temperature to settle"""
         chiller_wait_timeout: float = self.CHILLER_COOLDOWN_TIMEOUT.to(un.s).value
         chiller_temp_gen = self._sal_telem_gen(self.ATWhiteLight, "chillerTemperatures")
 
-        return  self._long_wait_err_handle(
+        return self._long_wait_err_handle(
             chiller_temp_gen,
             chiller_wait_timeout,
             self._chiller_temp_check,
             "chiller temperature range settle",
         )
 
-    async def _lamp_power(self, onoff: bool) -> Awaitable:
+    async def _lamp_power(self, onoff: bool) -> Awaitable[bool]:
+        """Control the shutter and the lamp power of the calibration system"""
         shutter_cmd_target = "openShutter" if onoff else "closeShutter"
         lamp_cmd_target = "turnLampOn" if onoff else "turnLampOff"
         # TODO: do we want asserts etc here to check the lamp state is correct first?
@@ -388,6 +406,7 @@ class ATCalsys(BaseCalsys, HardcodeCalsysThroughput):
         )
 
     async def _lamp_settle(self, onoff: bool) -> Awaitable:
+        """Wait for the lamp power to settle after a power on / off event"""
         lamp_evt_gen = self._sal_evt_gen(self.ATWhiteLight, "lampState")
         lamp_settle_timeout: float = self.WHITELIGHT_LAMP_WARMUP_TIMEOUT.to(un.s).value
         lamp_tgt_state = (
