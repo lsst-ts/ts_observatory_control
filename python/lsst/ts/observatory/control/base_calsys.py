@@ -84,28 +84,29 @@ class CalsysThroughputCalculationMixin:
 
     @abstractmethod
     def detector_throughput(self, wavelen: float) -> float:
-        """the throughput value will return (in appropriate units TBD) the detector throughput of the particular
-        calibration system specified in the class for which this mixin class is specified as a base.
+        """the throughput value will return (in appropriate units TBD) the
+        detector throughput of the particular calibration system specified in
+        the class for which this mixin class is specified as a base.
 
         Parameters
         ----------
-
         wavelen: float - wavelength of the calibration to be performed in nm
 
 
         Returns
         -------
-
-        A value (units TBD, likely electrons per pixel per second), which can be used to
-        either determine how long to integrate the sensor for to achieve a desired level of calibration
-        field in electrons, or determine how many electrons will be obtained for a specific integration time
+        A value (units TBD, likely electrons per pixel per second), which can
+        be used to either determine how long to integrate the sensor for to
+        achieve a desired level of calibration field in electrons, or
+        determine how many electrons will be obtained for a specific
+        integration time
 
         """
 
     @abstractmethod
     def spectrograph_throughput(self, wavelen: float, calsys_power: float) -> float:
-        """the throughput expected of the fiber spectrograph of the calibration system.
-        
+        """Obtain throughput expected of the fiber spectrograph of the calibration system.
+
         To aid calculations  of total throughput
         """
 
@@ -113,7 +114,7 @@ class CalsysThroughputCalculationMixin:
     def radiometer_responsivity(
         self, wavelen: Quantity[un.physical.length]
     ) -> Responsivity:
-        """return the responsivity of the radiometer"""
+        """Return the responsivity of the radiometer"""
 
     def end_to_end_throughput(self, wavelen: float, calsys_power: float) -> float:
         # intended to be SOMETHING LIKE
@@ -533,32 +534,40 @@ class BaseCalsys(RemoteGroup, metaclass=ABCMeta):
 
     @abstractmethod
     async def setup_for_wavelength(self, wavelen: float, **extra_params) -> None:
-        """awaitable which sets up the various remote components of a calibration system
-        to perform a calibration at a particular wavelength.
+        """awaitable which sets up the various remote components of a
+        calibration system to perform a calibration at a particular
+        wavelength.
 
-        Intended to be a 'high level' setup function, such that user doesn't have to worry about e.g. setting up integration times for spectrographs etc
+        Intended to be a 'high level' setup function, such that user doesn't
+        have to worry about e.g. setting up integration times for
+        spectrographs etc
 
         Parameters
         ----------
-
         wavelen: float - desired wavelength (in nm)
 
-        extra_params: to handle things which are specific to individual calibration systems
-        (e.g that the auxtel can also adjust spectral bandwidth)
+        extra_params: to handle things which are specific to individual
+        calibration systems (e.g that the auxtel can also adjust spectral
+        bandwidth)
 
         """
         pass
 
     @abstractmethod
     async def take_calibration_data(self):
-        """awaitable which starts the exposures for the calibration instruments (i.e the spectrographs, electrometers etc) according to the setup. It does not take images with the instrument under test, it is intended that script components which use this class do that themselves"""
+        """Awaitable which starts the exposures for the calibration.
+
+        instruments (i.e the spectrographs, electrometers etc) are chosen
+        according to the setup. It does not take images with the instrument
+        under test, it is intended that script components which use this class
+        do that themselves
+        """
         pass
 
     async def generate_data_flats(
         self, instrobj, scriptobj, exposure_time_s: float, n_iter: Optional[int] = None
     ):
-        """returns an async generator which yields sets of exposures from"""
-
+        """Return an async generator which yields sets of exposures from."""
         # Run forever if n_iter was not given, don't worry it's just a generator
         nrange = count() if n_iter is None else range(n_iter)
 
