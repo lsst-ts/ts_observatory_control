@@ -449,7 +449,7 @@ class MTCS(BaseTCS):
 
                 status += (
                     f"[Dome] Az = {dome_az.positionActual:+08.3f} "
-                    f"[{dome_az_diff:+08.3f}::self.dome_slew_tolerance]"
+                    f"[{dome_az_diff:+08.3f}::{self.dome_slew_tolerance}]"
                     # f"El = {dome_el.positionActual:+08.3f} "
                 )
 
