@@ -432,24 +432,24 @@ class MTCS(BaseTCS):
                 dome_az = await self.rem.mtdome.tel_azimuth.next(
                     flush=True, timeout=self.fast_timeout
                 )
-                dome_el = await self.rem.mtdome.tel_lightWindScreen.next(
-                    flush=True, timeout=self.fast_timeout
-                )
+                # dome_el = await self.rem.mtdome.tel_lightWindScreen.next(
+                #     flush=True, timeout=self.fast_timeout
+                # )
                 dome_az_diff = angle_diff(
                     dome_az.positionActual, dome_az.positionCommanded
                 )
-                dome_el_diff = angle_diff(
-                    dome_el.positionActual, dome_el.positionCommanded
-                )
+                # dome_el_diff = angle_diff(
+                #     dome_el.positionActual, dome_el.positionCommanded
+                # )
                 if np.abs(dome_az_diff) < self.dome_slew_tolerance:
                     self._dome_az_in_position.set()
 
-                if np.abs(dome_el_diff) < self.dome_slew_tolerance:
-                    self._dome_el_in_position.set()
+                # if np.abs(dome_el_diff) < self.dome_slew_tolerance:
+                self._dome_el_in_position.set()
 
                 status += (
                     f"[Dome] Az = {dome_az.positionActual:+08.3f}; "
-                    f"El = {dome_el.positionActual:+08.3f} "
+                    # f"El = {dome_el.positionActual:+08.3f} "
                 )
 
             if len(status) > 0:
