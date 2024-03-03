@@ -147,7 +147,7 @@ class ATCS(BaseTCS):
         self.tel_flat_el = 39.0
         self.tel_flat_az = 188.7
         self.tel_flat_rot = 0.0
-        self.tel_vent_el = 30.0
+        self.tel_vent_el = 17.0
         self.tel_vent_az = 90.0
         self.tel_el_operate_pneumatics = 70.0
 
