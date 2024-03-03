@@ -158,7 +158,7 @@ class ATCS(BaseTCS):
         self.dome_open_az = 90.0
         self.dome_park_az = 285.0
         self.dome_flat_az = 3.0
-        self.dome_vent_open_shutter_time = 90.0
+        self.dome_vent_open_shutter_time = 30.0
 
         self.dome_slew_tolerance = Angle(5.1 * u.deg)
 
