@@ -20,6 +20,7 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 from .base_camera import *
+from .base_calsys import *
 from .base_tcs import *
 from .remote_group import *
 from .utils import *
