@@ -1,5 +1,5 @@
-from typing import List
-
+from typing import List, Optional
+from lsst.ts import salobj
 from ..base_calsys import BaseCalsys
 
 

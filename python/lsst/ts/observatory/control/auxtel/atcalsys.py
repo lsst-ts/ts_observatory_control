@@ -164,7 +164,7 @@ class ATCalsys(BaseCalsys, HardcodeCalsysThroughput):
     async def _electrometer_expose(self) -> Awaitable[list[str]]:
         assert self._n_elec_exps is not None
         assert self._elecsposure_time is not None
-        return  self._cal_expose_helper(
+        return self._cal_expose_helper(
             self.Electrometer,
             self._n_elec_exps,
             "startScanDt",
@@ -344,7 +344,7 @@ class ATCalsys(BaseCalsys, HardcodeCalsysThroughput):
 
     async def _chiller_power(self, onoff: bool) -> None:
         """Start or stop the power of the calibration system chiller"""
-        cmd_target = "startChiller" if onoff else "stopChiller"s
+        cmd_target = "startChiller" if onoff else "stopChiller"
         if onoff:
             chiller_setpoint_temp: float = self.CHILLER_SETPOINT_TEMP.to(un.s).value
             await self._sal_cmd(
