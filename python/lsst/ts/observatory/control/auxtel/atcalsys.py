@@ -49,7 +49,8 @@ class ATCalsys(BaseCalsys, HardcodeCalsysThroughput):
     ]
     CHANGE_GRATING_TIME: Quantity[un.physical.time] = 60 << un.s
 
-    # these below numbers should be able to be loaded from a (fairly static) config!
+    # these below numbers should be able to be loaded from a
+    # (fairly static) config!
     GRATING_CHANGEOVER_WL: Quantity[un.physical.length] = 532.0 << un.nm
     GRATING_CHANGEOVER_BW: Quantity[un.physical.length] = (
         55.0 << un.nm
@@ -66,6 +67,15 @@ class ATCalsys(BaseCalsys, HardcodeCalsysThroughput):
     CAL_PROGRAM_NAME: str = "AT_flats"
 
     def __init__(self, intention: CalsysScriptIntention, **kwargs):
+        """ Initialise the ATCalsys System
+
+        Parameters
+        ----------
+        intention: CalsysScriptIntention
+            An instance of CalsysScriptIntention that tells us what the script will be doing
+            this allows us to customise the various manipulation routines of the calibration system
+
+        """ 
         super().__init__(intention, components=self._AT_SAL_COMPONENTS, **kwargs)
 
         # instance variables we'll set later
@@ -77,6 +87,21 @@ class ATCalsys(BaseCalsys, HardcodeCalsysThroughput):
     async def setup_for_wavelength(
         self, wavelen: float, nelec: float, spectral_res: float, **override_kwargs
     ) -> None:
+        """Set up the calibration system for running flats of a particular wavelength
+
+        Parameters
+        ----------
+        wavelen : float
+            the wavelength to setup for (in nm)
+        nelec : float
+            the tarket number of electrons for flat exposure (in kelec)
+        spectral_res : float
+            the target spectral resolution
+        **override_kwargs : FIXME: Add type.
+            keyword arguments passed in here will be forwarded to `_calss_get_parameter`
+
+        """
+
         grating = _calsys_get_parameter(
             override_kwargs,
             "grating",
@@ -142,10 +167,40 @@ class ATCalsys(BaseCalsys, HardcodeCalsysThroughput):
             override_kwargs, "n_elec_exps", self.pd_n_exps_for_nelectrons, nelec
         )
 
-    def calculate_slit_width(
-        self, wavelen: float, spectral_res: float, grating
-    ) -> Optional[ATSpectrographSlits]:
-        # NOTE: this will either need to be derived by doing calculations on the Grating equation, or by loading in calibration data (which I couldn't find yet!). For now we just return the
+    def calculate_slit_width(self, wavelen: float, spectral_res: float,
+                             grating: Optional[ATMonochromator.GRATING] = None
+                             ) -> Optional[ATSpectrographSlits]:
+        """Calculate the slit width needed to achieve given spectral resolution.
+        NOTE: DO NOT USE! No calibration data available here yet!
+
+        The fiber spectrograph output slit widths control the spectral bandwidth
+        of the flat fields. This function converts a targeted spectral resolution
+        into a slit width setting
+
+        Parameters
+        ----------
+        wavelen : float
+            the central wavelength of the spectrum (in units of nm)
+        spectral_res : float
+            the desired FWHM bandwidth of the spectrum (in units of nm)
+        grating : Optional[ATMonochromator.GRATING]
+            which grating to use - see ts enums. If not supplied, will be
+            calculated using `calculate_grating_type`
+
+        Returns
+        -------
+        Optional[ATSpectrographSlits]
+            FIXME: Add docs.
+
+        Raises
+        ------
+        NotImplementedError
+            FIXME: Add docs.
+
+        """
+
+        if grating is None:
+            grating = self.calculate_grating_type(wavelen, spectral_res)
         raise NotImplementedError(
             "calculation of slit widths not available yet, override in script parameters!"
         )
@@ -162,6 +217,18 @@ class ATCalsys(BaseCalsys, HardcodeCalsysThroughput):
         return ATMonochromator.Grating.RED
 
     async def _electrometer_expose(self) -> Awaitable[list[str]]:
+        """begin an exposure of the electrometer subsystem
+
+        the electrometer scan is immediately started on calling this function,
+        after coroutine suspension the caller may at a later point await
+        the result. See documentation for BaseCalsys._cal_expose_helper for
+        details.
+
+        Returns
+        -------
+        Awaitable[list[str]] deferred result of the electormeter exposure
+        """
+
         assert self._n_elec_exps is not None
         assert self._elecsposure_time is not None
         return self._cal_expose_helper(
