@@ -4,8 +4,6 @@ import logging
 import pytest
 from lsst.ts import salobj
 from lsst.ts.observatory.control.utils import RemoteGroupTestCase
-
-
 from lsst.ts.observatory.control.mock.latiss_mock import LATISSMock
 from lsst.ts.observatory.control.base_calsys import HardcodeCalsysThroughput
 
@@ -25,7 +23,20 @@ class TestBaseCalsysLogic(unittest.TestCase):
         throughput_low = obj.radiometer_throughput(875.0)
 
 
+class TestATCalsys(RemoteGroupTestCase, unittest.IsolatedAsyncioTestCase):
+    """Test cases for the ATCalsys concrete implementation """
 
-class TestATCalsys(unittest.TestCase): ...
-class TestMTCalsys(unittest.TestCase): ...
+    @classmethod
+    def setUpClass(cls) -> None:
+        """set up mocks and such that we need for all the tests"""
+        
+        
+    
+    async def basic_make_group(
+            self, usage: typing.Optional[int] = None) -> typing.Iterable[typing.Union[RemoteGroup, salobj.BaseCsc]]:
+        pass
+
+    
+
+    
 

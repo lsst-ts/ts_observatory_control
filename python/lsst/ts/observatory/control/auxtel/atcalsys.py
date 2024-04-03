@@ -490,6 +490,9 @@ class ATCalsys(BaseCalsys, HardcodeCalsysThroughput):
         )
 
     async def take_calibration_data(self) -> dict[str, list[str]]:
+        """Take the calibration data (i.e. the elecrometer and spectrometer data).
+        NOTE: explicitly does NOT take the LATISS flats, those should be handled separately
+        by the calling script """
         spec_fut = self._spectrograph_expose()
         elec_fut = self._electrometer_expose()
 
@@ -501,5 +504,5 @@ class ATCalsys(BaseCalsys, HardcodeCalsysThroughput):
         return "AT_flats"
 
     @property
-    def prgoram_note(self) -> str:
+    def program_note(self) -> str:
         return "TODO"
