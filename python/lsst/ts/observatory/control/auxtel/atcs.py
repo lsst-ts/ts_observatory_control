@@ -2622,7 +2622,12 @@ class ATCS(BaseTCS):
                     "stopTracking",
                     "focusNameSelected",
                 ],
-                atdome=["stopMotion", "homeAzimuth"],
+                atdome=[
+                    "stopMotion",
+                    "homeAzimuth",
+                    "mainDoorState",
+                    "scbLink",
+                ],
                 ataos=["correctionEnabled"],
                 atpneumatics=[
                     "openM1Cover",
