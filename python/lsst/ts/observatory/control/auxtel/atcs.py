@@ -140,6 +140,7 @@ class ATCS(BaseTCS):
         self.rotator_limits = [-270.0, +270.0]
 
         self.open_dome_shutter_time = 600.0
+        self.open_dropout_door_time = 300.0
 
         self.tel_park_el = 80.0
         self.tel_park_az = 0.0
@@ -960,6 +961,161 @@ class ATCS(BaseTCS):
                 f"expected either {ATDome.ShutterDoorState.OPENED} or "
                 f"{ATDome.ShutterDoorState.CLOSED}"
             )
+
+    async def open_dropout_door(self) -> None:
+        """Open ATdome dropout door."""
+
+        dropout_door_state = await self.rem.atdome.evt_dropoutDoorState.aget(
+            timeout=self.fast_timeout
+        )
+
+        if dropout_door_state.state in {
+            ATDome.ShutterDoorState.CLOSED,
+            ATDome.ShutterDoorState.PARTIALLYOPENED,
+        }:
+            self.log.debug("Opening dome dropout door...")
+
+            # flush state
+            self.rem.atdome.evt_dropoutDoorState.flush()
+
+            open_dropout_door_task = asyncio.create_task(
+                self.rem.atdome.cmd_moveShutterDropoutDoor.set_start(
+                    open=True, timeout=self.open_dropout_door_time
+                )
+            )
+
+            self.rem.atdome.evt_summaryState.flush()
+            task_list = [
+                asyncio.create_task(self.check_component_state("atdome")),
+                asyncio.create_task(
+                    self._wait_for_dropout_door_state(
+                        state=ATDome.ShutterDoorState.OPENED,
+                        cmd_task=open_dropout_door_task,
+                        timeout=self.open_dropout_door_time,
+                    )
+                ),
+            ]
+
+            await self.process_as_completed(task_list)
+
+        elif dropout_door_state.state == ATDome.ShutterDoorState.OPENED:
+            self.log.info("ATDome Dropout Door is already opened. Ignoring.")
+        else:
+            raise RuntimeError(
+                f"Dropout Door state is "
+                f"{ATDome.ShutterDoorState(dropout_door_state.state)!r}. "
+                f"Expected either {ATDome.ShutterDoorState.CLOSED!r}, "
+                f"{ATDome.ShutterDoorState.PARTIALLYOPENED!r} or"
+                f"{ATDome.ShutterDoorState.OPENED}"
+            )
+
+    async def close_dropout_door(self) -> None:
+        """Close ATDome dropout door"""
+
+        dropout_door_state = await self.rem.atdome.evt_dropoutDoorState.aget(
+            timeout=self.fast_timeout
+        )
+        if dropout_door_state.state in {
+            ATDome.ShutterDoorState.OPENED,
+            ATDome.ShutterDoorState.PARTIALLYOPENED,
+        }:
+            self.log.debug("Closing dome dropout door...")
+
+            close_dropout_door_task = asyncio.create_task(
+                self.rem.atdome.cmd_moveShutterDropoutDoor.set_start(
+                    open=False, timeout=self.open_dropout_door_time
+                )
+            )
+
+            self.rem.atdome.evt_summaryState.flush()
+
+            task_list = [
+                asyncio.create_task(self.check_component_state("atdome")),
+                asyncio.create_task(
+                    self._wait_for_dropout_door_state(
+                        state=ATDome.ShutterDoorState.CLOSED,
+                        cmd_task=close_dropout_door_task,
+                        timeout=self.open_dropout_door_time,
+                    )
+                ),
+            ]
+
+            await self.process_as_completed(task_list)
+
+        elif dropout_door_state.state == ATDome.ShutterDoorState.CLOSED:
+            self.log.info("ATDome Dropout Door is already closed. Ignoring.")
+        else:
+            raise RuntimeError(
+                f"Dropout Door state is "
+                f"{ATDome.ShutterDoorState(dropout_door_state.state)!r}. "
+                f"Expected either {ATDome.ShutterDoorState.OPENED!r} or "
+                f"{ATDome.ShutterDoorState.CLOSED!r}"
+            )
+
+    async def _wait_for_dropout_door_state(
+        self,
+        state: enum.IntEnum,
+        cmd_task: typing.Optional[asyncio.Task] = None,
+        timeout: typing.Optional[float] = None,
+    ) -> None:
+        """Wait for `ATDome.ShutterDoorState.state` to match a required value.
+
+        Parameters:
+        -----------
+        state : `ATDome.ShutterDoorState`
+            The expected shutter door state enumeration value.
+        cmd_task : `asyncio.Task` or `None`
+            Task with the command to open or close the dome.
+        timeout : `float` or `None`
+            How long to wait for state (seconds). If `None`, wait for ever.
+
+        Raises:
+        -------
+        asyncio.TimeoutError
+            If `evt_dropoutDoorState` does not reach the expected state in the
+            expected time.
+        """
+
+        dropout_door_state = ATDome.ShutterDoorState(
+            (await self.rem.atdome.evt_dropoutDoorState.aget(timeout=timeout)).state
+        )
+
+        self.log.debug(
+            f"Waiting for ATDome dropoutDoorState to reach state: "
+            f" {state!r}. Current state: {dropout_door_state!r}."
+        )
+
+        try:
+            while dropout_door_state != state:
+                dropout_door_state = ATDome.ShutterDoorState(
+                    (
+                        await self.rem.atdome.evt_dropoutDoorState.next(
+                            flush=False, timeout=timeout
+                        )
+                    ).state
+                )
+
+                self.log.info(f"dropoutDoorState: {dropout_door_state!r}")
+        finally:
+            if cmd_task is None:
+                self.log.debug(
+                    f"No dropout door command task. Finished with "
+                    f"dropoutDoorState: {dropout_door_state!r}."
+                )
+            else:
+                self.log.debug("Finishing ATDome dropout door command task.")
+                if not cmd_task.done():
+                    self.log.debug(
+                        "ATDome dropout door command task not done. Cancelling."
+                    )
+                    cmd_task.cancel()
+
+                try:
+                    await cmd_task
+                except asyncio.CancelledError:
+                    self.log.warning("ATDome dropout door command task cancelled.")
+                except asyncio.TimeoutError:
+                    self.log.warning("ATDome dropout door command task timedout.")
 
     async def _wait_for_shutter_door_state(
         self,

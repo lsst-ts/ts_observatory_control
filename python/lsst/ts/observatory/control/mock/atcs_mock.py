@@ -66,6 +66,9 @@ class ATCSMock(BaseGroupMock):
 
         self.atdome.cmd_moveShutterMainDoor.callback = self.move_shutter_callback
         self.atdome.cmd_closeShutter.callback = self.close_shutter_callback
+        self.atdome.cmd_moveShutterDropoutDoor.callback = (
+            self.move_shutter_dropout_door_callback
+        )
         self.atdome.cmd_homeAzimuth.callback = self.dome_home_callback
 
         self.atpneumatics.cmd_openM1Cover.callback = self.open_m1_cover_callback
@@ -85,6 +88,7 @@ class ATCSMock(BaseGroupMock):
         self.ataos.cmd_disableCorrection.callback = self.ataos_disable_corrections
 
         self.dome_shutter_pos = 0.0
+        self.dropout_door_pos = 0.0
 
         self.slew_time = 5.0
 
@@ -419,6 +423,75 @@ class ATCSMock(BaseGroupMock):
 
         await self.atmcs.evt_atMountState.set_write(
             state=ATMCS.AtMountState.TRACKINGENABLED
+        )
+
+    async def move_shutter_dropout_door_callback(
+        self, data: salobj.type_hints.BaseMsgType
+    ) -> None:
+        if data.open and self.dropout_door_pos == 0.0:
+            await self.open_dropout_door()
+        elif not data.open and self.dropout_door_pos == 1.0:
+            await self.close_dropout_door()
+        else:
+            raise RuntimeError(
+                f"Cannot execute operation: {data.open} with dome "
+                f"at {self.dropout_door_pos}."
+            )
+
+    async def open_dropout_door(self) -> None:
+        if (
+            self.atdome.evt_dropoutDoorState.data.state
+            != ATDome.ShutterDoorState.CLOSED
+        ):
+            raise RuntimeError(
+                f"Dropout door state is {self.atdome.evt_dropoutDoorState.data.state}. "
+                f"It should be {ATDome.ShutterDoorState.CLOSED!r}."
+            )
+
+        await self.atdome.evt_shutterInPosition.set_write(
+            inPosition=False, force_output=True
+        )
+        await self.atdome.evt_dropoutDoorState.set_write(
+            state=ATDome.ShutterDoorState.OPENING
+        )
+        for self.dropout_door_pos in np.linspace(0.0, 1.0, 10):
+            await self.atdome.tel_position.set_write(
+                dropoutDoorOpeningPercentage=self.dropout_door_pos
+            )
+            await asyncio.sleep(self.slew_time / 10.0)
+        await self.atdome.evt_shutterInPosition.set_write(
+            inPosition=True, force_output=True
+        )
+        await self.atdome.evt_dropoutDoorState.set_write(
+            state=ATDome.ShutterDoorState.OPENED
+        )
+
+    async def close_dropout_door(self) -> None:
+        if (
+            self.atdome.evt_dropoutDoorState.data.state
+            != ATDome.ShutterDoorState.OPENED
+        ):
+            raise RuntimeError(
+                f"Dropout door state is {self.atdome.evt_dropoutDoorState.data.state}. "
+                f"It should be {ATDome.ShutterDoorState.OPENED!r}."
+            )
+
+        await self.atdome.evt_shutterInPosition.set_write(
+            inPosition=False, force_output=True
+        )
+        await self.atdome.evt_dropoutDoorState.set_write(
+            state=ATDome.ShutterDoorState.CLOSING
+        )
+        for self.dropout_door_pos in np.linspace(1.0, 0.0, 10):
+            await self.atdome.tel_position.set_write(
+                dropoutDoorOpeningPercentage=self.dropout_door_pos
+            )
+            await asyncio.sleep(self.slew_time / 10.0)
+        await self.atdome.evt_shutterInPosition.set_write(
+            inPosition=True, force_output=True
+        )
+        await self.atdome.evt_dropoutDoorState.set_write(
+            state=ATDome.ShutterDoorState.CLOSED
         )
 
     async def move_shutter_callback(self, data: salobj.type_hints.BaseMsgType) -> None:

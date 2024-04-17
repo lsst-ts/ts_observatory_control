@@ -17,7 +17,7 @@ jobs:
 
       - name: Install
         run: |
-          $CONDA/bin/conda install -c lsstts ts-pre-commit-config -y
+          $CONDA/bin/conda install -c lsstts -c conda-forge pre-commit ts-pre-commit-config python=3.11 -y
           $CONDA/bin/conda install -c conda-forge pre-commit -y
           $CONDA/bin/generate_pre_commit_conf --skip-pre-commit-install
 
