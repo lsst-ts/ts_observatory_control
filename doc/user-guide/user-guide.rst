@@ -325,3 +325,30 @@ Generic Camera Operations
 =========================
 
 TBD
+
+Generic Calsys Operations
+=========================
+
+Each telescope will have a calibration system (Calsys) that includes all components necessary to perform flats. 
+This is accomplished by projecting light onto the calibration screen. 
+Each system has the ability to perform two types of calibrations (`calib_type`): "white light" flats, which have a broadband illumination, and "monochromatic, which have a much narrower bandwidth of illumination. 
+In the case of the the `maintel`, there is a separate broadband illumination source per filter band.  
+
+For both telescopes, the Calsys must be setup for calibration. 
+This includes a warmpup period for the illumination source(s) and the configuration of optical elements depending on which `calib_type` you will be performing. 
+This can be done at any time before the calibrations are performed, and often take some time to complete. 
+When ready to start taking flats, the system must be configured and the illumination sources turned on. 
+For successful flats, the telescope and dome must be configured in such a way that the telescope is aligned with the white spot. 
+
+When performing a flat, not only does the camera take an image, but exposures will be taken with a photodiode, using an Electrometer, and Fiber Spectrographs. 
+
+SalScripts written to perform calibration flats will resemble this flow:
+
+.. code:: python
+
+    at_calsys = AuxTelCalSys(BaseCalsys)
+    at_calsys.setup_calsys(calib_type='mono')
+    at_calsys.configure_flat(filter='u', wavelength=350)
+    at_calsys.perform_flat()
+
+Note: The maintel will also include a Collimated Beam Projector (CBP). Description of this system will come at a later time.
