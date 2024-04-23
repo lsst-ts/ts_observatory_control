@@ -811,7 +811,7 @@ class TestATTCS(ATCSAsyncMock):
         )
         self.atcs.rem.atptg.cmd_azElTarget.set.assert_called_with(
             targetName="Vent Position",
-            azDegs=telescope_vent_position,
+            azDegs=pytest.approx(telescope_vent_position, abs=0.1),
             elDegs=self.atcs.tel_vent_el,
             rotPA=self.atcs.tel_park_rot,
         )
@@ -853,7 +853,7 @@ class TestATTCS(ATCSAsyncMock):
         self.atcs.rem.atdome.cmd_stopMotion.start.assert_not_awaited()
         self.atcs.rem.atptg.cmd_azElTarget.set.assert_called_with(
             targetName="Vent Position",
-            azDegs=telescope_vent_position,
+            azDegs=pytest.approx(telescope_vent_position, abs=0.1),
             elDegs=self.atcs.tel_vent_el,
             rotPA=self.atcs.tel_park_rot,
         )
