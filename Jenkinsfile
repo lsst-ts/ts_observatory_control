@@ -82,7 +82,7 @@ pipeline {
         stage('Build documentation') {
             steps {
                 withEnv(["WHOME=${env.WORKSPACE}"]) {
-                    catchError(buildResult: 'UNSTABLE', stageResult: 'UNSTABLE') {
+                    catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
                       sh """
                           set +x
                           source /home/saluser/.setup_dev.sh || echo "Loading env failed; continuing..."
@@ -96,7 +96,7 @@ pipeline {
         stage('Try to upload documentation') {
             steps {
                 withEnv(["WHOME=${env.WORKSPACE}"]) {
-                    catchError(buildResult: 'UNSTABLE', stageResult: 'UNSTABLE') {
+                    catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
                         sh '''
                             set +x
                             source /home/saluser/.setup_dev.sh || echo "Loading env failed; continuing..."
