@@ -1996,8 +1996,10 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
 
         sun_az, _ = self.get_sun_azel()
 
-        telescope_vent_azimuth = 180.0
-        dome_vent_azimuth = sun_az - 180.0
+        dome_vent_azimuth = Angle(sun_az - 180.0, unit=u.deg).wrap_at("360d").deg
+        telescope_vent_azimuth = (
+            Angle(dome_vent_azimuth - 90.0, unit=u.deg).wrap_at("180d").deg
+        )
 
         return telescope_vent_azimuth, dome_vent_azimuth
 

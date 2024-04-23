@@ -148,7 +148,7 @@ class ATCS(BaseTCS):
         self.tel_flat_el = 39.0
         self.tel_flat_az = 188.7
         self.tel_flat_rot = 0.0
-        self.tel_vent_el = 30.0
+        self.tel_vent_el = 17.0
         self.tel_vent_az = 90.0
         self.tel_el_operate_pneumatics = 70.0
 
@@ -159,7 +159,7 @@ class ATCS(BaseTCS):
         self.dome_open_az = 90.0
         self.dome_park_az = 285.0
         self.dome_flat_az = 3.0
-        self.dome_vent_open_shutter_time = 90.0
+        self.dome_vent_open_shutter_time = 30.0
 
         self.dome_slew_tolerance = Angle(5.1 * u.deg)
 
@@ -404,9 +404,10 @@ class ATCS(BaseTCS):
         The method will,
 
             1 - disable ATDomeTrajectory
-            2 - send telescope to flat field position
-            3 - send dome to flat field position
-            4 - re-enable ATDomeTrajectory
+            2 - close the dome shutter (if open)
+            3 - send telescope to flat field position
+            4 - send dome to flat field position
+            5 - re-enable ATDomeTrajectory
 
         Parameters
         ----------
@@ -426,6 +427,7 @@ class ATCS(BaseTCS):
         await self.disable_dome_following(check_ops)
 
         await self.home_dome()
+        await self.close_dome()
 
         await self.disable_ataos_corrections()
         await self.open_m1_cover()
@@ -2620,7 +2622,12 @@ class ATCS(BaseTCS):
                     "stopTracking",
                     "focusNameSelected",
                 ],
-                atdome=["stopMotion", "homeAzimuth"],
+                atdome=[
+                    "stopMotion",
+                    "homeAzimuth",
+                    "mainDoorState",
+                    "scbLink",
+                ],
                 ataos=["correctionEnabled"],
                 atpneumatics=[
                     "openM1Cover",
