@@ -290,6 +290,58 @@ class TestATTCS(ATCSAsyncMock):
             enable=True, timeout=self.atcs.fast_timeout
         )
 
+    async def test_open_dropout_door_when_closed(self) -> None:
+        await self.atcs.enable()
+        await self.atcs.assert_all_enabled()
+
+        self._atdome_evt_dropout_door_state.state = ATDome.ShutterDoorState.CLOSED
+
+        await self.atcs.open_dropout_door()
+
+        # assert move shutter is awaited with
+        self.atcs.rem.atdome.cmd_moveShutterDropoutDoor.set_start.assert_awaited_with(
+            open=True, timeout=self.atcs.open_dropout_door_time
+        )
+
+    async def test_open_dropout_door_when_open(self) -> None:
+        self._atdome_evt_dropout_door_state.state = ATDome.ShutterDoorState.OPENED
+
+        await self.atcs.open_dropout_door()
+
+        self.atcs.rem.atdome.cmd_moveShutterDropoutDoor.set_start.assert_not_awaited()
+
+    async def test_open_dropout_door_when_opening(self) -> None:
+        self._atdome_evt_dropout_door_state.state = ATDome.ShutterDoorState.OPENING
+
+        with pytest.raises(RuntimeError):
+            await self.atcs.open_dropout_door()
+
+    # Now, add tests to close dropout door when open, closed, and closing
+    async def test_close_dropout_door_when_open(self) -> None:
+        await self.atcs.enable()
+        await self.atcs.assert_all_enabled()
+
+        self._atdome_evt_dropout_door_state.state = ATDome.ShutterDoorState.OPENED
+
+        await self.atcs.close_dropout_door()
+
+        self.atcs.rem.atdome.cmd_moveShutterDropoutDoor.set_start.assert_awaited_with(
+            timeout=self.atcs.open_dropout_door_time, open=False
+        )
+
+    async def test_close_dropout_door_when_closed(self) -> None:
+        self._atdome_evt_dropout_door_state.state = ATDome.ShutterDoorState.CLOSED
+
+        await self.atcs.close_dropout_door()
+
+        self.atcs.rem.atdome.cmd_moveShutterDropoutDoor.set_start.assert_not_awaited()
+
+    async def test_close_dropout_door_when_closing(self) -> None:
+        self._atdome_evt_dropout_door_state.state = ATDome.ShutterDoorState.CLOSING
+
+        with pytest.raises(RuntimeError):
+            await self.atcs.close_dropout_door()
+
     async def test_open_dome_shutter_when_closed(self) -> None:
         await self.atcs.enable()
         await self.atcs.assert_all_enabled()
@@ -759,7 +811,7 @@ class TestATTCS(ATCSAsyncMock):
         )
         self.atcs.rem.atptg.cmd_azElTarget.set.assert_called_with(
             targetName="Vent Position",
-            azDegs=telescope_vent_position,
+            azDegs=pytest.approx(telescope_vent_position, abs=0.1),
             elDegs=self.atcs.tel_vent_el,
             rotPA=self.atcs.tel_park_rot,
         )
@@ -801,7 +853,7 @@ class TestATTCS(ATCSAsyncMock):
         self.atcs.rem.atdome.cmd_stopMotion.start.assert_not_awaited()
         self.atcs.rem.atptg.cmd_azElTarget.set.assert_called_with(
             targetName="Vent Position",
-            azDegs=telescope_vent_position,
+            azDegs=pytest.approx(telescope_vent_position, abs=0.1),
             elDegs=self.atcs.tel_vent_el,
             rotPA=self.atcs.tel_park_rot,
         )

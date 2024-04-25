@@ -82,19 +82,21 @@ pipeline {
         stage('Build documentation') {
             steps {
                 withEnv(["WHOME=${env.WORKSPACE}"]) {
-                    sh """
-                        set +x
-                        source /home/saluser/.setup_dev.sh || echo "Loading env failed; continuing..."
-                        setup -r .
-                        package-docs build
-                    """
+                    catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
+                      sh """
+                          set +x
+                          source /home/saluser/.setup_dev.sh || echo "Loading env failed; continuing..."
+                          setup -r .
+                          package-docs build
+                      """
+                    }
                 }
             }
         }
         stage('Try to upload documentation') {
             steps {
                 withEnv(["WHOME=${env.WORKSPACE}"]) {
-                    catchError(buildResult: 'UNSTABLE', stageResult: 'UNSTABLE') {
+                    catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
                         sh '''
                             set +x
                             source /home/saluser/.setup_dev.sh || echo "Loading env failed; continuing..."

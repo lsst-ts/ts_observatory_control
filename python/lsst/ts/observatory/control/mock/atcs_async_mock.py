@@ -132,6 +132,10 @@ class ATCSAsyncMock(RemoteGroupAsyncMock):
             state=ATDome.ShutterDoorState.CLOSED
         )
 
+        self._atdome_evt_dropout_door_state = types.SimpleNamespace(
+            state=ATDome.ShutterDoorState.CLOSED
+        )
+
         # Setup rquired ATDomeTrajectory data
         self._atdometrajectory_dome_following = types.SimpleNamespace(enabled=False)
 
@@ -219,8 +223,11 @@ class ATCSAsyncMock(RemoteGroupAsyncMock):
                 "evt_scbLink.aget.side_effect": self.atdome_evt_scb_link,
                 "evt_mainDoorState.aget.side_effect": self.atdome_evt_main_door_state,
                 "evt_mainDoorState.next.side_effect": self.atdome_evt_main_door_state,
+                "evt_dropoutDoorState.aget.side_effect": self.atdome_evt_dropout_door_state,
+                "evt_dropoutDoorState.next.side_effect": self.atdome_evt_dropout_door_state,
                 "cmd_homeAzimuth.start.side_effect": self.atdome_cmd_home_azimuth,
                 "cmd_moveShutterMainDoor.set_start.side_effect": self.atdome_cmd_move_shutter_main_door,
+                "cmd_moveShutterDropoutDoor.set_start.side_effect": self.atdome_cmd_move_shutter_dropout_door,
                 "cmd_moveAzimuth.set_start.side_effect": self.atdome_cmd_move_azimuth,
                 "cmd_closeShutter.set_start.side_effect": self.atdome_cmd_close_shutter,
                 "cmd_stopMotion.start.side_effect": self.atdome_cmd_stop_motion,
@@ -328,6 +335,12 @@ class ATCSAsyncMock(RemoteGroupAsyncMock):
         await asyncio.sleep(0.2)
         return self._atdome_evt_main_door_state
 
+    async def atdome_evt_dropout_door_state(
+        self, *args: typing.Any, **kwargs: typing.Any
+    ) -> types.SimpleNamespace:
+        await asyncio.sleep(0.2)
+        return self._atdome_evt_dropout_door_state
+
     async def atdome_cmd_home_azimuth(
         self, *args: typing.Any, **kwargs: typing.Any
     ) -> None:
@@ -343,6 +356,13 @@ class ATCSAsyncMock(RemoteGroupAsyncMock):
     ) -> None:
         asyncio.create_task(
             self._atdome_cmd_move_shutter_main_door(open=kwargs["open"])
+        )
+
+    async def atdome_cmd_move_shutter_dropout_door(
+        self, *args: typing.Any, **kwargs: typing.Any
+    ) -> None:
+        asyncio.create_task(
+            self._atdome_cmd_move_shutter_dropout_door(open=kwargs["open"])
         )
 
     async def atdome_cmd_move_azimuth(
@@ -367,6 +387,16 @@ class ATCSAsyncMock(RemoteGroupAsyncMock):
         self, *args: typing.Any, **kwargs: typing.Any
     ) -> None:
         asyncio.create_task(self._atdome_cmd_move_shutter_main_door(open=False))
+
+    async def atdome_cmd_close_dropout_door(
+        self, *args: typing.Any, **kwargs: typing.Any
+    ) -> None:
+        asyncio.create_task(self._atdome_cmd_move_shutter_dropout_door(open=False))
+
+    async def atdome_cmd_open_dropout_door(
+        self, *args: typing.Any, **kwargs: typing.Any
+    ) -> None:
+        asyncio.create_task(self._atdome_cmd_move_shutter_dropout_door(open=True))
 
     async def atdome_cmd_stop_motion(
         self, *args: typing.Any, **kwargs: typing.Any
@@ -417,6 +447,24 @@ class ATCSAsyncMock(RemoteGroupAsyncMock):
             self._atdome_evt_main_door_state.state = ATDome.ShutterDoorState.CLOSING
             await asyncio.sleep(self.dome_slit_positioning_time)
             self._atdome_evt_main_door_state.state = ATDome.ShutterDoorState.CLOSED
+
+    async def _atdome_cmd_move_shutter_dropout_door(self, open: bool) -> None:
+        if (
+            open
+            and self._atdome_evt_dropout_door_state.state
+            != ATDome.ShutterDoorState.OPENED
+        ):
+            self._atdome_evt_dropout_door_state.state = ATDome.ShutterDoorState.OPENING
+            await asyncio.sleep(self.dome_slit_positioning_time)
+            self._atdome_evt_dropout_door_state.state = ATDome.ShutterDoorState.OPENED
+        elif (
+            not open
+            and self._atdome_evt_dropout_door_state.state
+            != ATDome.ShutterDoorState.CLOSED
+        ):
+            self._atdome_evt_dropout_door_state.state = ATDome.ShutterDoorState.CLOSING
+            await asyncio.sleep(self.dome_slit_positioning_time)
+            self._atdome_evt_dropout_door_state.state = ATDome.ShutterDoorState.CLOSED
 
     async def atmcs_all_axes_in_position(
         self, *args: typing.Any, **kwargs: typing.Any

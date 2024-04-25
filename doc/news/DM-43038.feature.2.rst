@@ -1,0 +1,2 @@
+In ``auxtel/atcs``, update dome_vent_open_shutter_time to 30s so we can run vent anytime during the day.
+
