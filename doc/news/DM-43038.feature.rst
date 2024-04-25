@@ -1,2 +1,0 @@
-In ``base_tcs.py``, update vent azimuth to keep 90 degrees away from the dome azimuth.
-

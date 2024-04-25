@@ -8,6 +8,21 @@ Version History
 
 .. towncrier release notes start
 
+v0.34.0 (2024-04-24)
+====================
+
+New Features
+------------
+
+- In `atcs.py` add methods to open/close the AuxTel dome dropout door. (`DM-41805 <https://jira.lsstcorp.org/browse/DM-41805>`_)
+- Added base_calsys and corresponding documentation. (`DM-42865 <https://jira.lsstcorp.org/browse/DM-42865>`_)
+- In ``auxtel/atcs``, update vent elevation to 17 degrees. (`DM-43038 <https://jira.lsstcorp.org/browse/DM-43038>`_)
+- In ``auxtel/atcs``, update dome_vent_open_shutter_time to 30s so we can run vent anytime during the day. (`DM-43038 <https://jira.lsstcorp.org/browse/DM-43038>`_)
+- In ``maintel/mtcs.py``, ignore dome elevation in the monitoring loop.
+  The current version of the MTDome is not handling the wind screen/elevation axis so we will ignore it for the time being. (`DM-43038 <https://jira.lsstcorp.org/browse/DM-43038>`_)
+- In ``base_tcs.py``, update vent azimuth to keep 90 degrees away from the dome azimuth. (`DM-43038 <https://jira.lsstcorp.org/browse/DM-43038>`_)
+
+
 v0.33.0 (2024-02-12)
 ====================
 
