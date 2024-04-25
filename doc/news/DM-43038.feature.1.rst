@@ -1,2 +1,0 @@
-In ``auxtel/atcs``, update vent elevation to 17 degrees.
-

@@ -1,3 +1,0 @@
-In ``maintel/mtcs.py``, ignore dome elevation in the monitoring loop.
-The current version of the MTDome is not handling the wind screen/elevation axis so we will ignore it for the time being.
-
