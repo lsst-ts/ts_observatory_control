@@ -1,0 +1,14 @@
+# Configuration for calibration hardware setup
+# Created 2024-05-15
+
+calibration_config:
+  - name: 'AT_WhiteLight_Latiss_r'
+    calib_type: 'WhiteLight'
+    use_camera: True
+    atspec_filter: 'r'
+    atspec_grating: ''
+    atspec_linear_stage: ''
+    wavelength: 500.0
+    monochromator_grating: 'r'
+    exit_slit: 5.0
+    entrance_slit: 5.0
