@@ -12,7 +12,7 @@ build:
 
 test:
   requires:
-    - ts-conda-build =0.3
+    - ts-conda-build =0.4
     - astroquery
     - pandas
     - scipy
@@ -39,7 +39,7 @@ requirements:
     - numpy {{ numpy }}
     - setuptools
     - setuptools_scm
-    - ts-conda-build =0.3
+    - ts-conda-build =0.4
   run:
     - python {{ python }}
     - numpy {{ numpy }}
@@ -49,3 +49,4 @@ requirements:
     - ts-idl
     - ts-salobj
     - ts-criopy
+
