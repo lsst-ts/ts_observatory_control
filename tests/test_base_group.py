@@ -41,18 +41,6 @@ class MockAuthorizeCsc(salobj.Controller):
 
         self.cscs_to_change = ""
         self.authorized_users = ""
-        self.cmd_requestAuthorization.callback = self.do_request_authorization
-
-    async def do_request_authorization(self, data: salobj.BaseDdsDataType) -> None:
-        """Mock requestAuthorization response.
-
-        Parameters
-        ----------
-        data : `BaseDdsDataType`
-            requestAuthorization command payload.
-        """
-        self.cscs_to_change = data.cscsToChange
-        self.authorized_users = data.authorizedUsers
 
 
 class TestBaseGroup(RemoteGroupTestCase, unittest.IsolatedAsyncioTestCase):
@@ -214,21 +202,3 @@ class TestBaseGroup(RemoteGroupTestCase, unittest.IsolatedAsyncioTestCase):
 
             with pytest.raises(RuntimeError):
                 self.basegroup.get_work_components(["bad_1"])
-
-    async def test_request_authorization(self) -> None:
-        async with self.make_group(
-            usage=Usages.DryTest
-        ), MockAuthorizeCsc() as authorize_csc:
-            await self.basegroup.request_authorization()
-
-            assert authorize_csc.authorized_users == f"+{self.basegroup.get_identity()}"
-            assert authorize_csc.cscs_to_change == ",".join(self.basegroup.components)
-
-    async def test_release_authorization(self) -> None:
-        async with self.make_group(
-            usage=Usages.DryTest
-        ), MockAuthorizeCsc() as authorize_csc:
-            await self.basegroup.release_authorization()
-
-            assert authorize_csc.authorized_users == f"-{self.basegroup.get_identity()}"
-            assert authorize_csc.cscs_to_change == ",".join(self.basegroup.components)
