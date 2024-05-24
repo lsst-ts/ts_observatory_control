@@ -1,0 +1,69 @@
+# Configuration for calibration hardware setup
+# Created 2024-05-23
+
+scan_g:
+  calib_type: Mono
+  use_camera: true
+  atspec_filter: SDSSg_65mm
+  atspec_grating: empty_1
+  wavelength: 475.0
+  wavelength_width: 250
+  wavelength_resolution: 5.0
+  monochromator_grating: RED
+  exit_slit: 5.0
+  entrance_slit: 5.0
+  fiber_spectrum_exposure_time: 0.5
+  electrometer_exposure_time: 1.0
+  exposure_times:
+    - 15.0
+
+scan_r:
+  calib_type: Mono
+  use_camera: true
+  atspec_filter: SDSSr_65mm
+  atspec_grating: empty_1
+  wavelength: 625.0
+  wavelength_width: 150
+  wavelength_resolution: 5.0
+  monochromator_grating: RED
+  exit_slit: 5.0
+  entrance_slit: 5.0
+  fiber_spectrum_exposure_time: 0.5
+  electrometer_exposure_time: 1.0
+  exposure_times:
+    - 15.0
+
+at_whitelight_r:
+  calib_type: WhiteLight
+  use_camera: true
+  atspec_filter: SDSSr_65mm
+  atspec_grating: empty_1  
+  wavelength: 500.0
+  monochromator_grating: RED 
+  exit_slit: 5.0
+  entrance_slit: 5.0
+  fiber_spectrum_exposure_time: 3.0
+  electrometer_exposure_time: 1.0
+  exposure_times:
+    - 6.0
+    - 6.0
+    - 6.0
+    - 6.0
+    - 6.0
+    - 6.0
+    - 6.0
+    - 6.0
+    - 6.0
+    - 6.0
+    - 6.0
+    - 6.0
+    - 6.0
+    - 6.0
+    - 6.0
+    - 6.0
+    - 6.0
+    - 6.0
+    - 6.0
+    - 6.0
+    - 6.0
+
