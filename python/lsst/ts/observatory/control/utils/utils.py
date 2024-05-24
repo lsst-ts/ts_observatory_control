@@ -22,6 +22,7 @@ __all__ = [
     "calculate_parallactic_angle",
     "handle_exception_in_dict_items",
     "get_catalogs_path",
+    "get_data_path",
     "cast_int_or_str",
 ]
 
@@ -32,7 +33,7 @@ import astropy.units as u
 import numpy as np
 from astropy.coordinates import ICRS, Angle, EarthLocation
 
-from .. import catalogs
+from .. import catalogs, data
 
 
 def calculate_parallactic_angle(
@@ -106,6 +107,17 @@ def get_catalogs_path() -> pathlib.Path:
         Path to catalogs directory.
     """
     return pathlib.Path(catalogs.__file__).resolve().parent
+
+
+def get_data_path() -> pathlib.Path:
+    """Return the path to the internal data directory.
+
+    Returns
+    -------
+    data_path : `pathlib.Path`
+        Path to catalogs directory.
+    """
+    return pathlib.Path(data.__file__).resolve().parent
 
 
 def cast_int_or_str(value: typing.Any) -> typing.Union[int, str]:
