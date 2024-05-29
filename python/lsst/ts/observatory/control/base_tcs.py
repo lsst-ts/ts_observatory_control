@@ -924,7 +924,7 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
 
         await self._offset(
             offset_cmd=getattr(self.rem, self.ptg_name).cmd_offsetRADec.set_start(
-                type=0, off1=ra, off2=dec, num=0
+                type=1, off1=ra, off2=dec, num=0
             )
         )
 
