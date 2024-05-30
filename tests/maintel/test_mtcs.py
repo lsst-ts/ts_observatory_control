@@ -524,6 +524,14 @@ class TestMTCS(MTCSAsyncMock):
         self.mtcs.rem.mtmount.evt_azimuthInPosition.flush.assert_called()
         self.mtcs.rem.mtrotator.evt_inPosition.flush.assert_called()
 
+    async def test_track_target(self) -> None:
+        await self.mtcs.enable()
+        await self.mtcs.assert_all_enabled()
+
+        await self.mtcs.start_tracking()
+
+        self.mtcs.rem.mtptg.cmd_startTracking.start.assert_awaited()
+
     async def test_enable_ccw_following(self) -> None:
         await self.mtcs.enable_ccw_following()
 
