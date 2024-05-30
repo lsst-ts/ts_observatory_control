@@ -375,10 +375,19 @@ class ATCalsys(BaseCalsys):
                 self.log.exception("Timed out waiting for the command ack. Continuing.")
 
             # Make sure that a new lfo was created
-            lfo = await self.electrometer.evt_largeFileObjectAvailable.next(
-                timeout=self.long_timeout, flush=False
-            )
-            electrometer_exposures.append(lfo.url)
+            try:
+                lfo = await self.electrometer.evt_largeFileObjectAvailable.next(
+                    timeout=self.long_timeout, flush=False
+                )
+                electrometer_exposures.append(lfo.url)
+            except asyncio.TimeoutError:
+                # TODO (DM-44634): Remove this work around to electrometer
+                # going to FAULT when issue is resolved.
+                self.log.warning(
+                    "Time out waiting for electrometer data. Making sure electrometer "
+                    "is in enabled state and continuing."
+                )
+                await salobj.set_summary_state(self.electrometer, salobj.State.ENABLED)
         return electrometer_exposures
 
     async def take_fiber_spectrum(
