@@ -366,12 +366,20 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
             )
             raise ack_err
 
-    async def start_tracking(self) -> None:
+    async def start_tracking(
+        self,
+        slew_timeout: float = 1200.0,
+    ) -> None:
         """Start tracking the current position of the telescope.
 
         Method returns once telescope and dome are in sync.
         """
-        raise NotImplementedError("Start tracking not implemented yet.")
+        check = self.set_azel_slew_checks(wait_dome=True)
+        await self._slew_to(
+            getattr(self.rem, self.ptg_name).cmd_startTracking,
+            slew_timeout=slew_timeout,
+            check=check,
+        )
 
     async def slew_object(
         self,
