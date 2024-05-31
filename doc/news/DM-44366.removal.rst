@@ -1,3 +1,0 @@
-Remove support for handling authorization.
-This feature was removed from the system with ts-xml 21.
-

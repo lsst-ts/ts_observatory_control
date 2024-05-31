@@ -1,2 +1,0 @@
-* Started atcalsys.py, which builds on top of basecalsys.py
-* Includes all functions needed to build SalScript for creating flat field calibrations on the AuxTel
