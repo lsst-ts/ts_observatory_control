@@ -1,0 +1,1 @@
+Update towncrier configuration to use jira cloud path for tickets.
