@@ -18,7 +18,7 @@
 #
 # You should have received a copy of the GNU General Public License
 
-__all__ = ["RotType", "InstrumentFocus", "ClosedLoopMode", "DOFName"]
+__all__ = ["RotType", "InstrumentFocus", "ClosedLoopMode", "DOFName", "CalibrationType"]
 
 import enum
 
@@ -138,3 +138,16 @@ class DOFName(enum.IntEnum):
     M2_B18 = 47
     M2_B19 = 48
     M2_B20 = 49
+
+
+class CalibrationType(enum.IntEnum):
+    """Defines the different types of flat field calibrations
+
+    Whitelight: Broad spectrum light.
+
+    Mono: Monochromatic.
+
+    """
+
+    WhiteLight = 1
+    Mono = 2

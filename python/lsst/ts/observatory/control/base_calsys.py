@@ -24,9 +24,11 @@ import abc
 import logging
 import typing
 
+import yaml
 from lsst.ts import salobj
 
 from .remote_group import RemoteGroup
+from .utils import CalibrationType
 
 
 class BaseCalsys(RemoteGroup, metaclass=abc.ABCMeta):
@@ -55,7 +57,6 @@ class BaseCalsys(RemoteGroup, metaclass=abc.ABCMeta):
     def __init__(
         self,
         components: typing.List[str],
-        instrument_setup_attributes: typing.List[str],
         domain: typing.Optional[salobj.Domain] = None,
         log: typing.Optional[logging.Logger] = None,
         intended_usage: typing.Optional[int] = None,
@@ -67,17 +68,20 @@ class BaseCalsys(RemoteGroup, metaclass=abc.ABCMeta):
             intended_usage=intended_usage,
         )
 
-        self.instrument_setup_attributes = set(instrument_setup_attributes)
+        self.calibration_config_file = "data/calibration_config.yaml"
 
-    async def setup_calsys(self, calib_type: str) -> None:
+    @abc.abstractmethod
+    async def setup_calsys(self, calib_type: typing.Optional[CalibrationType]) -> None:
         """Calibration instrument is prepared so that illumination source
         can be turned ON. Initial instrument settings are configured
         based on calib_type.
 
         Parameters
         ----------
-        calib_type : `str`
-            White Light or Monochromatic illumination system: ['White','Mono']
+        calib_type : CalibrationType (enum)
+            Identifies if WhiteLight or Mono. This is only relevant for the
+            MainTelescope, so it is optional. If not identified, all light
+            sources will be setup.
 
         Raises
         -------
@@ -91,11 +95,8 @@ class BaseCalsys(RemoteGroup, metaclass=abc.ABCMeta):
         """
         raise NotImplementedError()
 
-    async def configure_flat(
-        self,
-        filter: str,
-        wavelength: float,
-    ) -> None:
+    @abc.abstractmethod
+    async def configure_flat(self, config_name: str) -> None:
         """Configure calibration system to be ready to take a flat
 
         Parameters
@@ -118,7 +119,8 @@ class BaseCalsys(RemoteGroup, metaclass=abc.ABCMeta):
         """
         raise NotImplementedError()
 
-    async def perform_flat(self, exptime_dict: dict) -> None:
+    @abc.abstractmethod
+    async def perform_flat(self, exptime_dict: dict[str, float]) -> None:
         """Perform flat, by taking image of calibration screen
 
         Parameters
@@ -136,31 +138,46 @@ class BaseCalsys(RemoteGroup, metaclass=abc.ABCMeta):
         """
         raise NotImplementedError()
 
-    def check_kwargs(self, **kwargs: typing.Union[int, float, str, None]) -> None:
-        """Utility method to verify that kwargs are in
-        `self.instrument_setup_attributes`.
+    def read_config_file(self, filename: str) -> dict:
+        """Read in a yaml file for a specific configuration"""
 
-        Parameters
-        ----------
-        **kwargs
-            Optional keyword,value pair.
+        with open(filename, "r") as f:
+            full_data = yaml.safe_load(f)
 
-        Raises
-        ------
-        RuntimeError:
-            If keyword in kwargs is not in `self.instrument_setup_attributes.`
+        return full_data["calibration_config"]
+
+    def get_config(self, config_name: str) -> dict:
+        """Returns the configuration attributes given a configuration
+        name
         """
 
-        for key in kwargs:
-            if key not in self.instrument_setup_attributes:
-                raise RuntimeError(
-                    f"Invalid argument {key}."
-                    f" Must be one of {self.instrument_setup_attributes}."
-                )
+        full_data = self.read_config_file(self.calibration_config_file)
+        data = next((d for d in full_data if d["name"] == config_name), None)
+
+        if data is None:
+            options = self.configuration_options()
+            raise RuntimeError(
+                f"That configuration is not available."
+                f" Must be in following options"
+                f"{options}"
+            )
+        else:
+            return data
+
+    def configuration_options(self) -> typing.List:
+        """Will read the yaml file and detail configurations available"""
+
+        full_data = self.read_config_file(self.calibration_config_file)
+
+        options = [d["name"] for d in full_data]
+
+        return options
 
     @abc.abstractmethod
     async def get_optimized_exposure_times(
-        self, calib_type: str, filter: str, wavelength: float
+        self,
+        calib_name: str,
+        wavelength: typing.Union[float, None],
     ) -> dict[str, float]:
         """Determines the best exposure time for the camera, electrometer,
         and fiber spectrographs based on the calsys setup
@@ -171,7 +188,7 @@ class BaseCalsys(RemoteGroup, metaclass=abc.ABCMeta):
             White Light or Monochromatic illumination system: ['White','Mono']
         filter : `str`
             Rubin Filter: ['u','g','r','i','z','y']
-        wavelenght : `float`
+        wavelength : `float`
             (units = nm)
             If monochromatic flats, wavelength range [350, 1200] nm
 
