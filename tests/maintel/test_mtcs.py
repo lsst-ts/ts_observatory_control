@@ -546,7 +546,7 @@ class TestMTCS(MTCSAsyncMock):
         await self.mtcs.offset_radec(ra=ra_offset, dec=dec_offset)
 
         self.mtcs.rem.mtptg.cmd_offsetRADec.set_start.assert_called_with(
-            type=0, off1=ra_offset, off2=dec_offset, num=0
+            type=1, off1=ra_offset, off2=dec_offset, num=0
         )
 
     async def test_offset_azel(self) -> None:
