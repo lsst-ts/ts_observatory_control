@@ -8,6 +8,29 @@ Version History
 
 .. towncrier release notes start
 
+v0.35.0 (2024-05-31)
+====================
+
+New Features
+------------
+
+- Started atcalsys.py, which builds on top of basecalsys.py
+  Includes all functions needed to build SalScript for creating flat field calibrations on the AuxTel (`DM-43627 <https://jira.lsstcorp.org/browse/DM-43627>`_)
+
+
+API Removal or Deprecation
+--------------------------
+
+- Remove support for handling authorization.
+  This feature was removed from the system with ts-xml 21. (`DM-44366 <https://jira.lsstcorp.org/browse/DM-44366>`_)
+
+
+Other Changes and Additions
+---------------------------
+
+- Update conda recipe to use ts-conda-build=0.4. (`DM-44028 <https://jira.lsstcorp.org/browse/DM-44028>`_)
+
+
 v0.34.0 (2024-04-24)
 ====================
 
