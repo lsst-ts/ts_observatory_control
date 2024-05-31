@@ -1,0 +1,1 @@
+In auxtel/atcs, disable azimuth overslew feature.
