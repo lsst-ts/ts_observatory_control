@@ -1,0 +1,4 @@
+In ``auxtel/atcalsys``, implement changes to match refactoring of the BaseCalsys class.
+
+This is a major rework of the class, implementing some of the high level functionality that allows one to take a set of calibrations.
+

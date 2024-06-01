@@ -524,6 +524,14 @@ class TestMTCS(MTCSAsyncMock):
         self.mtcs.rem.mtmount.evt_azimuthInPosition.flush.assert_called()
         self.mtcs.rem.mtrotator.evt_inPosition.flush.assert_called()
 
+    async def test_track_target(self) -> None:
+        await self.mtcs.enable()
+        await self.mtcs.assert_all_enabled()
+
+        await self.mtcs.start_tracking()
+
+        self.mtcs.rem.mtptg.cmd_startTracking.start.assert_awaited()
+
     async def test_enable_ccw_following(self) -> None:
         await self.mtcs.enable_ccw_following()
 
@@ -546,7 +554,7 @@ class TestMTCS(MTCSAsyncMock):
         await self.mtcs.offset_radec(ra=ra_offset, dec=dec_offset)
 
         self.mtcs.rem.mtptg.cmd_offsetRADec.set_start.assert_called_with(
-            type=0, off1=ra_offset, off2=dec_offset, num=0
+            type=1, off1=ra_offset, off2=dec_offset, num=0
         )
 
     async def test_offset_azel(self) -> None:

@@ -1,0 +1,1 @@
+Add new get_data_path utility method to retrieve path to the data directory.
