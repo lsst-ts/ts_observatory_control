@@ -8,6 +8,34 @@ Version History
 
 .. towncrier release notes start
 
+v0.36.0 (2024-06-01)
+====================
+
+New Features
+------------
+
+- Move calibration_config.yaml data file to atcalsys.yaml and add information required by the ATCalsys class now. (`DM-44454 <https://rubinobs.atlassian.net/browse/DM-44454>`_)
+- Add __init__ file to data directory to make it a discoverable module. (`DM-44454 <https://rubinobs.atlassian.net/browse/DM-44454>`_)
+- Add new get_data_path utility method to retrieve path to the data directory. (`DM-44454 <https://rubinobs.atlassian.net/browse/DM-44454>`_)
+- In ``auxtel/atcalsys``, implement changes to match refactoring of the BaseCalsys class.
+
+  This is a major rework of the class, implementing some of the high level functionality that allows one to take a set of calibrations. (`DM-44454 <https://rubinobs.atlassian.net/browse/DM-44454>`_)
+- In ``base_calsys``, refactor of the base class to capture some of the lessons learned while writting the calibration script. (`DM-44454 <https://rubinobs.atlassian.net/browse/DM-44454>`_)
+- Implement base_tcs start_tracking method. (`DM-44611 <https://rubinobs.atlassian.net/browse/DM-44611>`_)
+
+
+Bug Fixes
+---------
+
+- In BaseTCS class, fix call to offsetRADEC. (`DM-44454 <https://rubinobs.atlassian.net/browse/DM-44454>`_)
+
+
+Documentation
+-------------
+
+- Update towncrier configuration to use jira cloud path for tickets. (`DM-44454 <https://rubinobs.atlassian.net/browse/DM-44454>`_)
+
+
 v0.35.0 (2024-05-31)
 ====================
 
