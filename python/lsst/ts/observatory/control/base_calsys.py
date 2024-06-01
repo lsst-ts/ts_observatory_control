@@ -18,7 +18,9 @@
 #
 # You should have received a copy of the GNU General Public License
 
-__all__ = ["BaseCalsys"]
+__all__ = [
+    "BaseCalsys",
+]
 
 import abc
 import logging
@@ -28,7 +30,7 @@ import yaml
 from lsst.ts import salobj
 
 from .remote_group import RemoteGroup
-from .utils import CalibrationType
+from .utils import get_data_path
 
 
 class BaseCalsys(RemoteGroup, metaclass=abc.ABCMeta):
@@ -68,134 +70,146 @@ class BaseCalsys(RemoteGroup, metaclass=abc.ABCMeta):
             intended_usage=intended_usage,
         )
 
-        self.calibration_config_file = "data/calibration_config.yaml"
+        self.calibration_config: dict[str, dict[str, typing.Any]] = dict()
+
+    async def setup_electrometers(self) -> None:
+        """Setup all electrometers."""
+        for electrometer in [
+            getattr(self.rem, component_name)
+            for component_name in self.components_attr
+            if "electrometer" in component_name
+        ]:
+            await electrometer.cmd_performZeroCalib.start(timeout=self.long_timeout)
+            await electrometer.cmd_setDigitalFilter.set_start(
+                activateFilter=False,
+                activateAvgFilter=False,
+                activateMedFilter=False,
+                timeout=self.long_timeout,
+            )
 
     @abc.abstractmethod
-    async def setup_calsys(self, calib_type: typing.Optional[CalibrationType]) -> None:
+    async def setup_calsys(self, sequence_name: str) -> None:
         """Calibration instrument is prepared so that illumination source
         can be turned ON. Initial instrument settings are configured
         based on calib_type.
 
         Parameters
         ----------
-        calib_type : CalibrationType (enum)
-            Identifies if WhiteLight or Mono. This is only relevant for the
-            MainTelescope, so it is optional. If not identified, all light
-            sources will be setup.
-
-        Raises
-        -------
-        RuntimeError:
-            If setup is unable to complete.
-
-        Notes
-        -----
-        The dome and telescope can be moving into place concurrently.
-
+        sequence_name : `str`
+            Name of the calibration sequence to prepare for.
         """
         raise NotImplementedError()
 
     @abc.abstractmethod
-    async def configure_flat(self, config_name: str) -> None:
+    async def prepare_for_flat(self, config_name: str) -> None:
         """Configure calibration system to be ready to take a flat
 
         Parameters
         ----------
-        filter : `str`
-            Rubin Filter: ['u','g','r','i','z','y']
-        wavelength : `float`
-            (units = nm)
-            If monochromatic flats, wavelength range [350, 1200] nm
-
-        Raises
-        -------
-        RuntimeError:
-            If error in configuration
-
-        Notes
-        -----
-        This will include the check the configuration of the telescope, dome,
-        and camera in addition to calsys.
+        sequence_name : `str`
+            Name of the calibration sequence to prepare for.
         """
         raise NotImplementedError()
 
     @abc.abstractmethod
-    async def perform_flat(self, exptime_dict: dict[str, float]) -> None:
-        """Perform flat, by taking image of calibration screen
+    async def run_calibration_sequence(
+        self, sequence_name: str, exposure_metadata: dict
+    ) -> dict:
+        """Perform full calibration sequence, taking flats with the
+        camera and all ancillary instruments.
 
         Parameters
         ----------
-        exptime_dict : `dict`
-            This will contain exposure times for the camera, electrometer,
-            and fiber spectrographs based on the light source, filter and
-            wavelength.
-
-        Raises
-        -------
-        RuntimeError:
-            If there is some error in the data taking of the camera,
-            electrometer or fiber spectrographs
-        """
-        raise NotImplementedError()
-
-    def read_config_file(self, filename: str) -> dict:
-        """Read in a yaml file for a specific configuration"""
-
-        with open(filename, "r") as f:
-            full_data = yaml.safe_load(f)
-
-        return full_data["calibration_config"]
-
-    def get_config(self, config_name: str) -> dict:
-        """Returns the configuration attributes given a configuration
-        name
-        """
-
-        full_data = self.read_config_file(self.calibration_config_file)
-        data = next((d for d in full_data if d["name"] == config_name), None)
-
-        if data is None:
-            options = self.configuration_options()
-            raise RuntimeError(
-                f"That configuration is not available."
-                f" Must be in following options"
-                f"{options}"
-            )
-        else:
-            return data
-
-    def configuration_options(self) -> typing.List:
-        """Will read the yaml file and detail configurations available"""
-
-        full_data = self.read_config_file(self.calibration_config_file)
-
-        options = [d["name"] for d in full_data]
-
-        return options
-
-    @abc.abstractmethod
-    async def get_optimized_exposure_times(
-        self,
-        calib_name: str,
-        wavelength: typing.Union[float, None],
-    ) -> dict[str, float]:
-        """Determines the best exposure time for the camera, electrometer,
-        and fiber spectrographs based on the calsys setup
-
-        Parameters
-        ----------
-        calib_type : `str`
-            White Light or Monochromatic illumination system: ['White','Mono']
-        filter : `str`
-            Rubin Filter: ['u','g','r','i','z','y']
-        wavelength : `float`
-            (units = nm)
-            If monochromatic flats, wavelength range [350, 1200] nm
+        sequence_name : `str`
+            Name of the calibration sequence to execute.
+        exposure_metadata : `dict`
+            Metadata to be passed to the LATISS.take_flats method.
 
         Returns
         -------
-        `dict`
-            Exposure times for all components
-
+        calibration_summary : `dict`
+            Dictionary with summary information about the sequence.
         """
         raise NotImplementedError()
+
+    def load_calibration_config_file(self, filename: str | None = None) -> None:
+        """Load the calibration configuration file.
+
+        By default it will determine the filename based on
+        the class name. However, it is possible to provide
+        an override with the full file name.
+
+        Parameters
+        ----------
+        filename : `str`, optional
+            Alternative file name with the calibration
+            configuration file.
+        """
+
+        data_path = (
+            (get_data_path() / f"{type(self).__name__.lower()}.yaml").as_posix()
+            if filename is None
+            else filename
+        )
+
+        if len(self.calibration_config) > 0:
+            self.log.warning(
+                "Calibration configuration already loaded."
+                f"Overriding with data from {data_path}."
+            )
+
+        with open(data_path, "r") as f:
+            self.calibration_config = yaml.safe_load(f)
+
+    def get_calibration_configuration(self, name: str) -> dict[str, typing.Any]:
+        """Returns the configuration attributes given a configuration
+        name.
+
+        Before running this method, you might want to call
+        `load_calibration_config_file`. If the calibration configuration
+        is not loaded, load it.
+
+        Parameters
+        ----------
+        name : `str`
+            Name of the configuration to return.
+
+        Returns
+        -------
+        calibration_configuration : `dict`[`str`, `str` | `float` | `int`]
+            The calibration configuration.
+
+        Raises
+        ------
+        RuntimeError
+            If the requested name is not in the available configuration.
+        """
+
+        if len(self.calibration_config) == 0:
+            self.log.warning("Calibration configuration not loaded, loading.")
+            self.load_calibration_config_file()
+
+        if (
+            calibration_configuration := self.calibration_config.get(name, None)
+        ) is None:
+            raise RuntimeError(
+                f"Calibration {name} is not in the list of available calibrations. "
+                f"Must be one of {', '.join(self.calibration_config.keys())}"
+            )
+        return calibration_configuration
+
+    def get_configuration_options(self) -> list[str]:
+        """Will read the yaml file and detail configurations available"""
+
+        return list(self.calibration_config.keys())
+
+    def assert_valid_configuration_option(self, name: str) -> None:
+        """Assert that the configuration name is valid.
+
+        Raises
+        ------
+        AssertionError:
+            If input name in not in the list of calibration
+            configuration options.
+        """
+        assert name in self.get_configuration_options()

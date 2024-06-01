@@ -1,0 +1,2 @@
+In ``base_calsys``, refactor of the base class to capture some of the lessons learned while writting the calibration script.
+

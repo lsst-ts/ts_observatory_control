@@ -25,11 +25,13 @@ import logging
 import time
 import typing
 
-from lsst.ts import salobj
+import numpy as np
+from lsst.ts import salobj, utils
+from lsst.ts.xml.enums.ATMonochromator import Grating
 
 from ..base_calsys import BaseCalsys
 from ..remote_group import Usages
-from ..util import CalibrationType
+from ..utils import CalibrationType
 from . import LATISS
 
 
@@ -97,8 +99,8 @@ class ATCalsys(BaseCalsys):
         latiss: typing.Optional[LATISS] = None,
     ) -> None:
 
-        self.electrometer_index = 1
-        self.fiberspectrograph_index = 1
+        self.electrometer_index = 201
+        self.fiberspectrograph_index = 3
 
         super().__init__(
             components=[
@@ -139,7 +141,7 @@ class ATCalsys(BaseCalsys):
         # system is ready for flats.
         return True
 
-    async def setup_calsys(self, calib_type: typing.Optional[CalibrationType]) -> None:
+    async def setup_calsys(self, sequence_name: str) -> None:
         """Turn on the Chiller and the ATWhiteLight and wait for the
         warmup to complete. This is independent of Calibration Type.
         """
@@ -148,7 +150,7 @@ class ATCalsys(BaseCalsys):
         await self.switch_lamp_on()
         await self.wait_for_lamp_to_warm_up()
 
-    async def configure_flat(self, config_name: str) -> None:
+    async def prepare_for_flat(self, config_name: str) -> None:
         """Configure the ATMonochromator according to the flat parameters
 
         Parameters
@@ -162,118 +164,275 @@ class ATCalsys(BaseCalsys):
         RuntimeError:
 
         """
-        config_data = self.get_config(config_name)
+        config_data = self.get_calibration_configuration(config_name)
 
-        await self.setup_latiss(config_data)
-
-        await self.rem.atmonochromator.cmd_updateMonochromatorSetup.set_start(
-            wavelength=config_data["wavelength"],
-            gratingType=config_data["monochromator_grating"],
-            fontExitSlitWidth=config_data["exit_slit"],
-            fontEntranceSlitWidth=config_data["entrance_slit"],
-            timeout=self.long_timeout,
+        wavelength = (
+            float(config_data["wavelength"])
+            - float(config_data.get("wavelength_width", 0.0)) / 2.0
         )
 
-    async def setup_latiss(self, config_data: dict) -> None:
-        """Seteup Latiss"""
+        grating_type = getattr(Grating, config_data["monochromator_grating"])
+        task_setup_monochromator = (
+            self.rem.atmonochromator.cmd_updateMonochromatorSetup.set_start(
+                wavelength=wavelength,
+                gratingType=grating_type.value,
+                fontExitSlitWidth=config_data["exit_slit"],
+                fontEntranceSlitWidth=config_data["entrance_slit"],
+                timeout=self.long_long_timeout,
+            )
+        )
 
-        assert config_data["use_camera"]
+        if self.latiss is None and config_data["use_camera"]:
+            raise RuntimeError(
+                f"LATISS is not defined but {config_name} requires it. "
+                "Make sure you are instantiating LATISS and passing it to ATCalsys."
+            )
+        task_setup_latiss = (
+            self.latiss.setup_instrument(
+                filter=config_data["atspec_filter"],
+                grating=config_data["atspec_grating"],
+            )
+            if self.latiss is not None and config_data["use_camera"]
+            else utils.make_done_future()
+        )
+
+        await asyncio.gather(
+            task_setup_monochromator,
+            task_setup_latiss,
+        )
+
+    async def run_calibration_sequence(
+        self, sequence_name: str, exposure_metadata: dict
+    ) -> dict:
+        """Perform full calibration sequence, taking flats with the
+        camera and all ancillary instruments.
+
+        Parameters
+        ----------
+        sequence_name : `str`
+            Name of the calibration sequence to execute.
+
+        Returns
+        -------
+        calibration_summary : `dict`
+            Dictionary with summary information about the sequence.
+        """
+        calibration_summary: dict = dict(
+            steps=[],
+            sequence_name=sequence_name,
+        )
+
+        config_data = self.get_calibration_configuration(sequence_name)
+
+        calibration_type = getattr(CalibrationType, str(config_data["calib_type"]))
+        if calibration_type == CalibrationType.WhiteLight:
+            calibration_wavelenghts = np.array([float(config_data["wavelength"])])
+        else:
+            wavelength = float(config_data["wavelength"])
+            wavelength_width = float(config_data["wavelength_width"])
+            wavelength_resolution = float(config_data["wavelength_resolution"])
+            wavelength_start = wavelength - wavelength_width / 2.0
+            wavelength_end = wavelength + wavelength_width / 2.0
+
+            calibration_wavelenghts = np.arange(
+                wavelength_start, wavelength_end, wavelength_resolution
+            )
+
+        for wavelength in calibration_wavelenghts:
+            self.log.debug(
+                f"Performing {calibration_type.name} calibration with {wavelength=}."
+            )
+            await self.change_wavelength(wavelength=wavelength)
+            latiss_exposure_info: dict = dict()
+
+            for exptime in config_data["exposure_times"]:
+                self.log.debug("Taking data sequence.")
+                exposure_info = await self._take_data(
+                    latiss_exptime=float(exptime),
+                    latiss_filter=str(config_data["atspec_filter"]),
+                    latiss_grating=str(config_data["atspec_grating"]),
+                    exposure_metadata=exposure_metadata,
+                    fiber_spectrum_exposure_time=float(
+                        config_data["fiber_spectrum_exposure_time"]
+                    ),
+                    electrometer_exposure_time=float(
+                        config_data["electrometer_exposure_time"]
+                    ),
+                )
+                latiss_exposure_info.update(exposure_info)
+
+                if calibration_type == CalibrationType.Mono:
+                    self.log.debug(
+                        "Taking data sequence without filter for monochromatic set."
+                    )
+                    exposure_info = await self._take_data(
+                        latiss_exptime=float(exptime),
+                        latiss_filter="empty_1",
+                        latiss_grating=str(config_data["atspec_grating"]),
+                        exposure_metadata=exposure_metadata,
+                        fiber_spectrum_exposure_time=float(
+                            config_data["fiber_spectrum_exposure_time"]
+                        ),
+                        electrometer_exposure_time=float(
+                            config_data["electrometer_exposure_time"]
+                        ),
+                    )
+                    latiss_exposure_info.update(exposure_info)
+
+            step = dict(
+                wavelength=wavelength,
+                latiss_exposure_info=latiss_exposure_info,
+            )
+
+            calibration_summary["steps"].append(step)
+        return calibration_summary
+
+    async def _take_data(
+        self,
+        latiss_exptime: float,
+        latiss_filter: str,
+        latiss_grating: str,
+        exposure_metadata: dict,
+        fiber_spectrum_exposure_time: float,
+        electrometer_exposure_time: float,
+    ) -> dict:
+
         assert self.latiss is not None
-        await self.latiss.setup_instrument()
 
-    async def electrometer_scan(self, duration: float) -> salobj.type_hints.BaseMsgType:
+        latiss_exposure_task = self.latiss.take_flats(
+            latiss_exptime,
+            nflats=1,
+            filter=latiss_filter,
+            grating=latiss_grating,
+            **exposure_metadata,
+        )
+        exposures_done: asyncio.Future = asyncio.Future()
+
+        fiber_spectrum_exposure_coroutine = self.take_fiber_spectrum(
+            exposure_time=fiber_spectrum_exposure_time,
+            exposures_done=exposures_done,
+        )
+        electrometer_exposure_coroutine = self.take_electrometer_scan(
+            exposure_time=electrometer_exposure_time,
+            exposures_done=exposures_done,
+        )
+        try:
+            fiber_spectrum_exposure_task = asyncio.create_task(
+                fiber_spectrum_exposure_coroutine
+            )
+            electrometer_exposure_task = asyncio.create_task(
+                electrometer_exposure_coroutine
+            )
+
+            latiss_exposure_id = await latiss_exposure_task
+        finally:
+            exposures_done.set_result(True)
+            fiber_spectrum_exposure_result, electrometer_exposure_result = (
+                await asyncio.gather(
+                    fiber_spectrum_exposure_task, electrometer_exposure_task
+                )
+            )
+
+        return {
+            latiss_exposure_id[0]: dict(
+                fiber_spectrum_exposure_result=fiber_spectrum_exposure_result,
+                electrometer_exposure_result=electrometer_exposure_result,
+            )
+        }
+
+    async def take_electrometer_scan(
+        self,
+        exposure_time: float,
+        exposures_done: asyncio.Future,
+    ) -> list[str]:
         """Perform an electrometer scan for the specified duration.
 
         Parameters
         ----------
-        duration : `float`
-            Total duration of scan.
+        exposure_time : `float`
+            Exposure time for the fiber spectrum (seconds).
+        exposures_done : `asyncio.Future`
+            A future indicating when the camera exposures where complete.
 
         Returns
         -------
-        RunTimeError
-
+        electrometer_exposures : `list`[`str`]
+            List of large file urls.
         """
 
-        self.rem.electrometer_1.evt_largeFileObjectAvailable.flush()
+        self.electrometer.evt_largeFileObjectAvailable.flush()
 
-        try:
-            await self.electrometer.cmd_startScanDt.set_start(
-                scanDuration=duration, timeout=duration + self.long_timeout
-            )
-        except salobj.AckTimeoutError:
-            self.log.exception("Timed out waiting for the command ack. Continuing.")
+        electrometer_exposures = list()
 
-        # Make sure that a new lfo was created
-        lfo = await self.electrometer.evt_largeFileObjectAvailable.next(
-            timeout=self.long_timeout, flush=False
-        )
-        return lfo
+        while not exposures_done.done():
+
+            try:
+                await self.electrometer.cmd_startScanDt.set_start(
+                    scanDuration=exposure_time,
+                    timeout=exposure_time + self.long_timeout,
+                )
+            except salobj.AckTimeoutError:
+                self.log.exception("Timed out waiting for the command ack. Continuing.")
+
+            # Make sure that a new lfo was created
+            try:
+                lfo = await self.electrometer.evt_largeFileObjectAvailable.next(
+                    timeout=self.long_timeout, flush=False
+                )
+                electrometer_exposures.append(lfo.url)
+            except asyncio.TimeoutError:
+                # TODO (DM-44634): Remove this work around to electrometer
+                # going to FAULT when issue is resolved.
+                self.log.warning(
+                    "Time out waiting for electrometer data. Making sure electrometer "
+                    "is in enabled state and continuing."
+                )
+                await salobj.set_summary_state(self.electrometer, salobj.State.ENABLED)
+        return electrometer_exposures
 
     async def take_fiber_spectrum(
         self,
-        delay: float,
-        integration_time: float,
-    ) -> salobj.type_hints.BaseMsgType:
-        """Wait, then start an acquisition with the fiber spectrograph.
+        exposure_time: float,
+        exposures_done: asyncio.Future,
+    ) -> list[str]:
+        """Take exposures with the fiber spectrograph until
+        the exposures with the camera are complete.
 
-        By default, this method will wait for `delay` seconds then start
-        an acquisition with the fiber spectrograph. Optionally the user may
-        provide a coroutine that will be awaited before the delay starts.
+        This method will continue to take data with the fiber
+        spectrograph until the exposures_done future is done.
 
         Parameters
         ----------
-        delay : `float`
-            Seconds to wait before starting fiber spectrograph acquisition.
-        integration_time : `float`
-            Integration time for the fiber spectrum (seconds).
+        exposure_time : `float`
+            Exposure time for the fiber spectrum (seconds).
+        exposures_done : `asyncio.Future`
+            A future indicating when the camera exposures where complete.
 
         Returns
         -------
-        RuntimeError : If exposure or return of lfo doesn't occur.
+        fiber_spectrum_exposures : `list`[`str`]
+            List of large file urls.
         """
         self.fiberspectrograph.evt_largeFileObjectAvailable.flush()
 
-        try:
-            await self.fiberspectrograph.cmd_expose.set_start(
-                integrationTime=integration_time,
-                timeout=integration_time + self.long_timeout,
+        fiber_spectrum_exposures = []
+
+        while not exposures_done.done():
+
+            try:
+                await self.fiberspectrograph.cmd_expose.set_start(
+                    duration=exposure_time,
+                    numExposures=1,
+                    timeout=exposure_time + self.long_timeout,
+                )
+            except salobj.AckTimeoutError:
+                self.log.exception("Timed out waiting for the command ack. Continuing.")
+
+            lfo = await self.fiberspectrograph.evt_largeFileObjectAvailable.next(
+                timeout=self.long_timeout, flush=False
             )
-        except salobj.AckTimeoutError:
-            self.log.exception("Timed out waiting for the command ack. Continuing.")
-
-        lfo = await self.fiberspectrograph.evt_largeFileObjectAvailable.next(
-            timeout=self.long_timeout, flush=False
-        )
-        return lfo
-
-    async def perform_flat(self, exptime_dict: dict[str, float]) -> None:
-        # check dictionary
-        # Get the image number
-        # Somehow need to make sure camera is setup
-        assert self.latiss is not None
-        asyncio.gather(
-            self.electrometer_scan(duration=exptime_dict["electrometer"]),
-            self.take_fiber_spectrum(
-                delay=self.delay, integration_time=exptime_dict["fiberspectrograph"]
-            ),
-            self.latiss.take_flats(exptime=exptime_dict["camera"], nflats=1),
-        )
-
-    async def get_optimized_exposure_times(
-        self,
-        config_name: str,
-        wavelength: typing.Union[float, None],
-    ) -> dict[str, float]:
-        """Need exposure time for camera, electrometer and fiberspectrograph
-
-        TO-DO (DM-44361): implement this correctly
-        """
-        return dict(
-            camera=10.0,
-            electrometer=10.0,
-            fiberspectrograph=10.0,
-        )
+            fiber_spectrum_exposures.append(lfo.url)
+        return fiber_spectrum_exposures
 
     async def start_chiller(self) -> None:
         """Starts chiller to run at self.chiller_temperature"""

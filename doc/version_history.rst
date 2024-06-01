@@ -15,20 +15,20 @@ New Features
 ------------
 
 - Started atcalsys.py, which builds on top of basecalsys.py
-  Includes all functions needed to build SalScript for creating flat field calibrations on the AuxTel (`DM-43627 <https://jira.lsstcorp.org/browse/DM-43627>`_)
+  Includes all functions needed to build SalScript for creating flat field calibrations on the AuxTel (`DM-43627 <https://rubinobs.atlassian.net/browse/DM-43627>`_)
 
 
 API Removal or Deprecation
 --------------------------
 
 - Remove support for handling authorization.
-  This feature was removed from the system with ts-xml 21. (`DM-44366 <https://jira.lsstcorp.org/browse/DM-44366>`_)
+  This feature was removed from the system with ts-xml 21. (`DM-44366 <https://rubinobs.atlassian.net/browse/DM-44366>`_)
 
 
 Other Changes and Additions
 ---------------------------
 
-- Update conda recipe to use ts-conda-build=0.4. (`DM-44028 <https://jira.lsstcorp.org/browse/DM-44028>`_)
+- Update conda recipe to use ts-conda-build=0.4. (`DM-44028 <https://rubinobs.atlassian.net/browse/DM-44028>`_)
 
 
 v0.34.0 (2024-04-24)
@@ -37,13 +37,13 @@ v0.34.0 (2024-04-24)
 New Features
 ------------
 
-- In `atcs.py` add methods to open/close the AuxTel dome dropout door. (`DM-41805 <https://jira.lsstcorp.org/browse/DM-41805>`_)
-- Added base_calsys and corresponding documentation. (`DM-42865 <https://jira.lsstcorp.org/browse/DM-42865>`_)
-- In ``auxtel/atcs``, update vent elevation to 17 degrees. (`DM-43038 <https://jira.lsstcorp.org/browse/DM-43038>`_)
-- In ``auxtel/atcs``, update dome_vent_open_shutter_time to 30s so we can run vent anytime during the day. (`DM-43038 <https://jira.lsstcorp.org/browse/DM-43038>`_)
+- In `atcs.py` add methods to open/close the AuxTel dome dropout door. (`DM-41805 <https://rubinobs.atlassian.net/browse/DM-41805>`_)
+- Added base_calsys and corresponding documentation. (`DM-42865 <https://rubinobs.atlassian.net/browse/DM-42865>`_)
+- In ``auxtel/atcs``, update vent elevation to 17 degrees. (`DM-43038 <https://rubinobs.atlassian.net/browse/DM-43038>`_)
+- In ``auxtel/atcs``, update dome_vent_open_shutter_time to 30s so we can run vent anytime during the day. (`DM-43038 <https://rubinobs.atlassian.net/browse/DM-43038>`_)
 - In ``maintel/mtcs.py``, ignore dome elevation in the monitoring loop.
-  The current version of the MTDome is not handling the wind screen/elevation axis so we will ignore it for the time being. (`DM-43038 <https://jira.lsstcorp.org/browse/DM-43038>`_)
-- In ``base_tcs.py``, update vent azimuth to keep 90 degrees away from the dome azimuth. (`DM-43038 <https://jira.lsstcorp.org/browse/DM-43038>`_)
+  The current version of the MTDome is not handling the wind screen/elevation axis so we will ignore it for the time being. (`DM-43038 <https://rubinobs.atlassian.net/browse/DM-43038>`_)
+- In ``base_tcs.py``, update vent azimuth to keep 90 degrees away from the dome azimuth. (`DM-43038 <https://rubinobs.atlassian.net/browse/DM-43038>`_)
 
 
 v0.33.0 (2024-02-12)
@@ -52,10 +52,10 @@ v0.33.0 (2024-02-12)
 New Features
 ------------
 
-- In ``base_tcs.py`` add a ``slew_ephem_target`` method that allow both telescopes to track a target based on an ephemeris file. (`DM-41339 <https://jira.lsstcorp.org/browse/DM-41339>`_)
-- In ``maintel/mtcs.py``, update ``move_p2p_radec`` to check that the mtcs is in ENABLED state while moving. (`DM-41593 <https://jira.lsstcorp.org/browse/DM-41593>`_)
-- In `mtcs.py`, update `MTCS._slew_to` to enable compensation mode in the relevant components before a slew. (`DM-42132 <https://jira.lsstcorp.org/browse/DM-42132>`_)
-- In ``mtcs.py`` add a ``set_m1m3_controller_settings`` method that allows setting m1m3 slew controller settings. (`DM-42402 <https://jira.lsstcorp.org/browse/DM-42402>`_)
+- In ``base_tcs.py`` add a ``slew_ephem_target`` method that allow both telescopes to track a target based on an ephemeris file. (`DM-41339 <https://rubinobs.atlassian.net/browse/DM-41339>`_)
+- In ``maintel/mtcs.py``, update ``move_p2p_radec`` to check that the mtcs is in ENABLED state while moving. (`DM-41593 <https://rubinobs.atlassian.net/browse/DM-41593>`_)
+- In `mtcs.py`, update `MTCS._slew_to` to enable compensation mode in the relevant components before a slew. (`DM-42132 <https://rubinobs.atlassian.net/browse/DM-42132>`_)
+- In ``mtcs.py`` add a ``set_m1m3_controller_settings`` method that allows setting m1m3 slew controller settings. (`DM-42402 <https://rubinobs.atlassian.net/browse/DM-42402>`_)
 
 
 Bug Fixes
@@ -63,15 +63,15 @@ Bug Fixes
 
 - Fix some type annotation issue in ``RemoteGroup``.
 
-  Update ``ATCS.stop_all`` to remove return. (`DM-42046 <https://jira.lsstcorp.org/browse/DM-42046>`_)
-- In ``base_tcs.py``, update ``find_target_simbad`` to capture any exception when executing the remote query and retrow them as a ``RuntimeError``. (`DM-42478 <https://jira.lsstcorp.org/browse/DM-42478>`_)
-- Update MTCS Slew usages to add the compensationMode event for both hexapods. (`DM-42690 <https://jira.lsstcorp.org/browse/DM-42690>`_)
+  Update ``ATCS.stop_all`` to remove return. (`DM-42046 <https://rubinobs.atlassian.net/browse/DM-42046>`_)
+- In ``base_tcs.py``, update ``find_target_simbad`` to capture any exception when executing the remote query and retrow them as a ``RuntimeError``. (`DM-42478 <https://rubinobs.atlassian.net/browse/DM-42478>`_)
+- Update MTCS Slew usages to add the compensationMode event for both hexapods. (`DM-42690 <https://rubinobs.atlassian.net/browse/DM-42690>`_)
 
 
 Performance Enhancement
 -----------------------
 
-- Update ``MTCS`` slew control sequence to improve handling setting/unsetting the m1m3 slew flag before/after a slew starts/ends. (`DM-42046 <https://jira.lsstcorp.org/browse/DM-42046>`_)
+- Update ``MTCS`` slew control sequence to improve handling setting/unsetting the m1m3 slew flag before/after a slew starts/ends. (`DM-42046 <https://rubinobs.atlassian.net/browse/DM-42046>`_)
 
 
 Other Changes and Additions
@@ -81,7 +81,7 @@ Other Changes and Additions
 
   Reformat with black 24.
 
-  Update .gitignore with latest ts-pre-commit-config setup. (`DM-42690 <https://jira.lsstcorp.org/browse/DM-42690>`_)
+  Update .gitignore with latest ts-pre-commit-config setup. (`DM-42690 <https://rubinobs.atlassian.net/browse/DM-42690>`_)
 
 
 v0.32.0 (2023-11-28)
@@ -90,10 +90,10 @@ v0.32.0 (2023-11-28)
 New Features
 ------------
 
-- Add _overslew_azimuth feature to base_tcs class to slew past the target position and return. Set default to FALSE in base_tcs class and TRUE for atcs. (`DM-40913 <https://jira.lsstcorp.org/browse/DM-40913>`_)
-- Update ``MTCS`` class to support running M2 bump tests. (`DM-41111 <https://jira.lsstcorp.org/browse/DM-41111>`_)
+- Add _overslew_azimuth feature to base_tcs class to slew past the target position and return. Set default to FALSE in base_tcs class and TRUE for atcs. (`DM-40913 <https://rubinobs.atlassian.net/browse/DM-40913>`_)
+- Update ``MTCS`` class to support running M2 bump tests. (`DM-41111 <https://rubinobs.atlassian.net/browse/DM-41111>`_)
 - Update overslew feature and add log messages.
-  In ``mtcs``, add a check in move_p2p that the components are enabled while moving. (`DM-41538 <https://jira.lsstcorp.org/browse/DM-41538>`_)
+  In ``mtcs``, add a check in move_p2p that the components are enabled while moving. (`DM-41538 <https://rubinobs.atlassian.net/browse/DM-41538>`_)
 
 
 v0.31.1 (2023-10-25)
@@ -102,7 +102,7 @@ v0.31.1 (2023-10-25)
 Documentation
 -------------
 
-- Integrate towncrier for release notes and change log management. (`DM-41258 <https://jira.lsstcorp.org/browse/DM-41258>`_)
+- Integrate towncrier for release notes and change log management. (`DM-41258 <https://rubinobs.atlassian.net/browse/DM-41258>`_)
 
 
 Other Changes and Additions
@@ -110,7 +110,7 @@ Other Changes and Additions
 
 - Updates to make the package compatible with salobj 8.
   Changes involves mostly updating how the async mock objects are created.
-  Instead of relying in ts-idl and ts-salobj to generate specs for the remote's, use the newly introduced method in ts-xml. (`DM-40580 <https://jira.lsstcorp.org/browse/DM-40580>`_)
+  Instead of relying in ts-idl and ts-salobj to generate specs for the remote's, use the newly introduced method in ts-xml. (`DM-40580 <https://rubinobs.atlassian.net/browse/DM-40580>`_)
 
 
 v0.31.0
