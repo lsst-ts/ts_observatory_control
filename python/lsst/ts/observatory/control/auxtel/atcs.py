@@ -183,7 +183,7 @@ class ATCS(BaseTCS):
 
         self._monitor_position = True
 
-        self._overslew_az = True
+        self._overslew_az = False
 
         try:
             self._create_asyncio_events()
