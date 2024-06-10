@@ -1,2 +1,0 @@
-In BaseTCS class, fix call to offsetRADEC.
-
