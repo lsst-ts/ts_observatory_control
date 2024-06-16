@@ -25,6 +25,7 @@ import logging
 import typing
 
 import numpy as np
+import yaml
 from lsst.ts import salobj, utils
 from lsst.ts.xml.enums import TunableLaser
 
@@ -42,9 +43,10 @@ class MTCalsysUsages(Usages):
 
     Additional usages definition:
 
-    * Setup: Enable ATWhitelight and perform warmup. Enable
-             ATMonochromator, Electrometer, and FiberSpectrographs.
-    * Configure: Adjust ATWhitelight and ATMonochromator for type of flat.
+    * Setup: Turn on TunableLaser and adjust the projector output with
+            linear stage select. Enable other CSCs: LEDProjector, Linear
+            Stages, Electrometers and FiberSpectrographs.
+    * Configure: Adjust LEDProjector or TunableLaser depending on filter.
     * TakeFlat: Take flatfield image with MTCamera (ComCam or LSSTCam),
                 Electrometer and FiberSpec
     * DryTest: Disable CSCs and unit tests
@@ -128,46 +130,51 @@ class MTCalsys(BaseCalsys):
         self.ls_select_led_location = 0.0  # um
         self.ls_select_laser_location = 20.0  # um
 
-        self.laser_enclosure_temp = 20.0  # C
+        self.led_projector_config_filename = "../data/mtledprojector.yaml"
 
-        # ALl this needs to go in a config yaml file somewhere.
-        self.led_per_filter = {
-            "u": ["M385L3"],
-            "g": ["M455L4", "M505L4"],
-            "r": ["M565L3", "M660L4"],
-            "i": ["M730L5", "M780LP1"],
-            "z": ["M850L3", "M940L3"],
-            "y": ["M970L4"],
-        }
-        self.ls_led_locations = {
-            "u": 0.0,
-            "g": 1.0,
-            "r": 2.0,
-            "i": 3.0,
-            "z": 4.0,
-            "y": 5.0,
-        }
-        self.ls_led_focus = {"u": 0.0, "g": 1.0, "r": 2.0, "i": 3.0, "z": 4.0, "y": 5.0}
+        with open(self.led_projector_config_filename, "r") as f:
+            self.led_projector_config = yaml.safe_load(f)
+
+        self.laser_enclosure_temp = 20.0  # C
 
         self.exptime_dict: dict[str, float] = dict(
             camera=0.0,
             electrometer=0.0,
             fiberspectrograph=0.0,
         )
-        self.delay = 1
 
-    def ls_laser_focus(self, wavelength: float) -> float:
-        """Function for evaluating the distance of the focus linear stage"""
+    def calculate_laser_focus_location(self, wavelength: float) -> float:
+        """Calculates the location of the linear stage that provides the focus
+        for the laser projector. This location is dependent on the
+        wavelength of the laser.
+
+        Parameters
+        ----------
+        wavelength : `float`
+            wavelength of the laser projector in nm
+
+        Returns
+        ------
+        location of the linear stage for the laser projector focus in mm
+
+        """
+        # TODO (DM-44772): implement the actual function
         return 10.0
 
-    async def change_wavelength(self, wavelength: float) -> None:
-        """Change the TunableLaser wavelength setting"""
+    async def change_laser_wavelength(self, wavelength: float) -> None:
+        """Change the TunableLaser wavelength setting
+
+        Parameters
+        ----------
+        wavelength : `float`
+            wavelength of the laser in nm
+        """
 
         task_wavelength = self.rem.tunablelaser.cmd_changeWavelength.set_start(
             wavelength=wavelength, timeout=self.long_long_timeout
         )
         task_focus = self.linearstage_laser_focus.cmd_moveAbsolute.set_start(
-            distance=self.ls_laser_focus(wavelength)
+            distance=self.calculate_laser_focus_location(wavelength)
         )
 
         await asyncio.gather(task_wavelength, task_focus)
@@ -179,10 +186,19 @@ class MTCalsys(BaseCalsys):
         return True
 
     async def setup_calsys(self, sequence_name: str) -> None:
-        """If monochromatic flats, check that laser can be enabled,
-        check temperature, turn on laser to warm up.
-        move linearstage_select to correct location for
+        """Setup the calibration system.
+
+        If monochromatic flats, check that laser can be enabled,
+        check temperature, and turn on laser to warm up.
+        Move linearstage_select to correct location for
         Mono or Whitelight flats
+
+        Parameters
+        ----------
+        sequence_name : `str`
+            name of the type of configuration you will run, which is saved
+            in the configuration.yaml files
+
         """
         config_data = self.get_calibration_configuration(sequence_name)
 
@@ -190,26 +206,47 @@ class MTCalsys(BaseCalsys):
 
         if calibration_type == CalibrationType.WhiteLight:
             await self.linearstage_projector_select.cmd_moveAbsolute.set_start(
-                distance=self.ls_select_led_location
+                distance=self.ls_select_led_location, timeout=self.long_timeout
             )
         else:
             await self.linearstage_projector_select.cmd_moveAbsolute.set_start(
-                distance=self.ls_select_laser_location
+                distance=self.ls_select_laser_location, timeout=self.long_timeout
             )
             await self.laser_setup(config_data["laser_mode"])
-            await self.rem.tunablelaser.cmd_startPropagating.set_start()
+            await self.rem.tunablelaser.cmd_startPropagating.start(
+                timeout=self.long_long_timeout
+            )
 
     async def laser_setup(self, mode: str) -> None:
-        """Is the laser on? what is the temp like? thermal control on?"""
+        """Perform all steps for preparing the laser for monchromatic flats.
+        This includes confirming that the thermal system is
+        turned on and set at the right temperature. It also checks
+        the interlockState to confirm it's ready to propagate.
+
+        Parameters
+        ----------
+        mode : `str`
+            Mode of the TunableLaser
+            Options: CONTINUOUS, BURST, TRIGGER
+
+        """
         # check the thermal system is running
         # check set temp
         # check actual temp and determine if good enough
         # check the interlockState
 
         if mode == TunableLaser.Mode.CONTINUOUS:
-            await self.rem.tunablelaser.cmd_setContinuousMode.set_start()
-        elif (mode == TunableLaser.Mode.BURST) | (mode == TunableLaser.Mode.TRIGGER):
-            await self.rem.tunablelaser.cmd_setBurstMode.set_start()
+            await self.rem.tunablelaser.cmd_setContinuousMode.start(
+                timeout=self.long_timeout
+            )
+        elif mode in {TunableLaser.Mode.BURST, TunableLaser.Mode.TRIGGER}:
+            await self.rem.tunablelaser.cmd_setBurstMode.start(
+                timeout=self.long_timeout
+            )
+        else:
+            raise RuntimeError(
+                f"{mode} not an acceptable TunableLaser Mode [CONTINOUS, BURST, TRIGGER]"
+            )
 
     async def prepare_for_flat(self, config_name: str) -> None:
         """Configure the ATMonochromator according to the flat parameters
@@ -231,11 +268,11 @@ class MTCalsys(BaseCalsys):
         filter_name = config_data[
             "filter"
         ]  # not sure if this is an enumeration somewhere?
+        led_info = self.led_projector_config.get(filter_name)
 
         task_setup_camera = (
             self.mtcamera.setup_instrument(
-                filter=config_data["atspec_filter"],
-                grating=config_data["atspec_grating"],
+                filter=config_data["lsst_filter"],
             )
             if self.mtcamera is not None and config_data["use_camera"]
             else utils.make_done_future()
@@ -247,29 +284,31 @@ class MTCalsys(BaseCalsys):
             )
 
         if calibration_type == CalibrationType.WhiteLight:
-            leds_ = self.led_per_filter[filter_name]
-            task_select_wavelength = (
-                self.linearstage_led_select.cmd_moveAbsolute.set_start(
-                    distance=self.ls_led_locations[filter_name]
+            leds_ = led_info.get("led_name")
+            task_select_led = self.linearstage_led_select.cmd_moveAbsolute.set_start(
+                distance=led_info.get("led_location"), timeout=self.long_timeout
+            )
+            task_adjust_led_focus = (
+                self.linearstage_led_focus.cmd_moveAbsolute.set_start(
+                    distance=led_info.get("led_focus"), timeout=self.long_timeout
                 )
             )
-            task_adjust_focus = self.linearstage_led_focus.cmd_moveAbsolute.set_start(
-                distance=self.ls_led_focus[filter_name]
-            )
-            task_turn_on = self.rem.ledprojector.cmd_switchOn.set_start(
-                serialNumbers=leds_
+            task_turn_led_on = self.rem.ledprojector.cmd_switchOn.set_start(
+                serialNumbers=leds_, timeout=self.long_timeout
             )
 
             await asyncio.gather(
-                task_select_wavelength,
-                task_adjust_focus,
-                task_turn_on,
+                task_select_led,
+                task_adjust_led_focus,
+                task_turn_led_on,
                 task_setup_camera,
             )
 
         elif calibration_type == CalibrationType.Mono:
             wavelengths = [400.0]  # function of filter_name
-            task_select_wavelength = self.change_wavelength(wavelength=wavelengths[0])
+            task_select_wavelength = self.change_laser_wavelength(
+                wavelength=wavelengths[0]
+            )
 
             await asyncio.gather(task_select_wavelength, task_setup_camera)
 
@@ -316,7 +355,7 @@ class MTCalsys(BaseCalsys):
             self.log.debug(
                 f"Performing {calibration_type.name} calibration with {wavelength=}."
             )
-            await self.change_wavelength(wavelength=wavelength)
+            await self.change_laser_wavelength(wavelength=wavelength)
             mtcamera_exposure_info: dict = dict()
 
             for exptime in config_data["exposure_times"]:
