@@ -2307,6 +2307,42 @@ class ATCS(BaseTCS):
                 persistent=True,
             )
 
+    async def slew_to_pneumatics_operational_range(self) -> None:
+        """Slew the telescope to safe range for pneumatics operation.
+
+        This method  will slew the telescope to a safe elevation to perform
+        atpneumatics operations. It should be used in combination with the
+        in_pneumatics_operational_range method. Telescope will be left in
+        pneumatics position with tracking disabled.
+
+        """
+
+        tel_pos = await self.next_telescope_position(timeout=self.fast_timeout)
+
+        nasmyth_angle = await self.get_selected_nasmyth_angle()
+
+        await self.point_azel(
+            az=tel_pos.azimuthCalculatedAngle[-1],
+            el=self.tel_el_operate_pneumatics,
+            rot_tel=nasmyth_angle,
+            wait_dome=False,
+        )
+
+    async def in_pneumatics_operational_range(self) -> bool:
+        """Check if ATMCS is in operational range for pneumatics operation.
+
+        Returns
+        -------
+        elevation_in_range: `bool`
+            Returns `True` when telecsope elevation is in safe range for
+            pneumatics operation.
+
+        """
+
+        tel_pos = await self.next_telescope_position(timeout=self.fast_timeout)
+
+        return tel_pos.elevationCalculatedAngle[-1] > self.tel_el_operate_pneumatics
+
     @property
     def plate_scale(self) -> float:
         """Plate scale in mm/arcsec."""
