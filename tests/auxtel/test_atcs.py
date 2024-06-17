@@ -434,7 +434,7 @@ class TestATTCS(ATCSAsyncMock):
 
         self.atcs.rem.atptg.cmd_azElTarget.set.assert_not_called()
 
-    async def test_open_m1_cover_when_cover_closed_bellow_el_limit(self) -> None:
+    async def test_open_m1_cover_when_cover_closed_below_el_limit(self) -> None:
         await self.atcs.enable()
         await self.atcs.assert_all_enabled()
 
