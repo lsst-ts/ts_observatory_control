@@ -29,7 +29,7 @@ import numpy as np
 import pytest
 from astropy.coordinates import Angle
 from lsst.ts import idl, utils
-from lsst.ts.idl.enums import MTM1M3
+from lsst.ts.idl.enums import MTM1M3, MTM2
 from lsst.ts.observatory.control.mock.mtcs_async_mock import MTCSAsyncMock
 from lsst.ts.observatory.control.utils import RotType
 
@@ -1524,11 +1524,65 @@ class TestMTCS(MTCSAsyncMock):
         period = 60
         force = 10
 
+        # Set up mock for evt_actuatorBumpTestStatus
+        self.mtcs.rem.mtm2.evt_actuatorBumpTestStatus.next = unittest.mock.AsyncMock(
+            return_value=unittest.mock.Mock(actuator=55, status=MTM2.BumpTest.PASSED)
+        )
+
         await self.mtcs.run_m2_actuator_bump_test(
             actuator=actuator,
             period=period,
             force=force,
         )
+
+        self.mtcs.rem.mtm2.cmd_actuatorBumpTest.set_start.assert_awaited_with(
+            actuator=actuator,
+            period=period,
+            force=force,
+        )
+
+    async def test_run_m2_actuator_bump_test_failure(self) -> None:
+        actuator = 55
+        period = 60
+        force = 10
+
+        # Set up mock for evt_actuatorBumpTestStatus
+        self.mtcs.rem.mtm2.evt_actuatorBumpTestStatus.next = unittest.mock.AsyncMock(
+            side_effect=[
+                unittest.mock.Mock(actuator=55, status=MTM2.BumpTest.TESTINGPOSITIVE),
+                unittest.mock.Mock(actuator=55, status=MTM2.BumpTest.FAILED),
+            ]
+        )
+
+        with pytest.raises(RuntimeError):
+            await self.mtcs.run_m2_actuator_bump_test(
+                actuator=actuator,
+                period=period,
+                force=force,
+            )
+
+        self.mtcs.rem.mtm2.cmd_actuatorBumpTest.set_start.assert_awaited_with(
+            actuator=actuator,
+            period=period,
+            force=force,
+        )
+
+    async def test_run_m2_actuator_bump_test_no_status(self) -> None:
+        actuator = 55
+        period = 60
+        force = 10
+
+        # Set up mock for evt_actuatorBumpTestStatus
+        self.mtcs.rem.mtm2.evt_actuatorBumpTestStatus.next = unittest.mock.AsyncMock(
+            return_value=unittest.mock.Mock(actuator=99, status=MTM2.BumpTest.FAILED)
+        )
+
+        with pytest.raises(RuntimeError):
+            await self.mtcs.run_m2_actuator_bump_test(
+                actuator=actuator,
+                period=period,
+                force=force,
+            )
 
         self.mtcs.rem.mtm2.cmd_actuatorBumpTest.set_start.assert_awaited_with(
             actuator=actuator,
