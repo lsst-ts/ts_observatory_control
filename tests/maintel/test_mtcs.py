@@ -1484,6 +1484,22 @@ class TestMTCS(MTCSAsyncMock):
             flush=False, timeout=self.mtcs.long_timeout
         )
 
+    async def test_disable_m2_balance_system(self) -> None:
+        self._mtm2_evt_force_balance_system_status.status = True
+
+        await self.mtcs.disable_m2_balance_system()
+
+        self.mtcs.rem.mtm2.evt_forceBalanceSystemStatus.aget.assert_awaited_once_with(
+            timeout=self.mtcs.fast_timeout
+        )
+        self.mtcs.rem.mtm2.evt_forceBalanceSystemStatus.flush.assert_called()
+        self.mtcs.rem.mtm2.cmd_switchForceBalanceSystem.set_start.assert_awaited_with(
+            status=False, timeout=self.mtcs.long_timeout
+        )
+        self.mtcs.rem.mtm2.evt_forceBalanceSystemStatus.next.assert_awaited_with(
+            flush=False, timeout=self.mtcs.long_timeout
+        )
+
     async def test_enable_m2_balance_system_when_on(self) -> None:
         self._mtm2_evt_force_balance_system_status.status = True
 

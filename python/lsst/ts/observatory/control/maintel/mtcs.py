@@ -1506,6 +1506,28 @@ class MTCS(BaseTCS):
         else:
             self.log.info("M2 force balance system already enabled. Nothing to do.")
 
+    async def disable_m2_balance_system(self) -> None:
+        """Disable m2 balance system."""
+
+        m2_force_balance_system_status = (
+            await self.rem.mtm2.evt_forceBalanceSystemStatus.aget(
+                timeout=self.fast_timeout
+            )
+        )
+
+        self.rem.mtm2.evt_forceBalanceSystemStatus.flush()
+
+        if m2_force_balance_system_status.status:
+            self.log.debug("Disabling M2 force balance system.")
+            await self.rem.mtm2.cmd_switchForceBalanceSystem.set_start(
+                status=False, timeout=self.long_timeout
+            )
+            await self.rem.mtm2.evt_forceBalanceSystemStatus.next(
+                flush=False, timeout=self.long_timeout
+            )
+        else:
+            self.log.info("M2 force balance system already disabled. Nothing to do.")
+
     async def reset_m2_forces(self) -> None:
         """Reset M2 forces."""
         await self.rem.mtm2.cmd_resetForceOffsets.start(timeout=self.long_timeout)
