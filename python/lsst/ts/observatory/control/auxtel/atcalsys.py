@@ -196,9 +196,16 @@ class ATCalsys(BaseCalsys):
             else utils.make_done_future()
         )
 
+        task_setup_electrometer = self.setup_electrometers(
+            mode=str(config_data["electrometer_mode"]),
+            range=float(config_data["electrometer_range"]),
+            integration_time=float(config_data["electrometer_integration_time"]),
+        )
+
         await asyncio.gather(
             task_setup_monochromator,
             task_setup_latiss,
+            task_setup_electrometer,
         )
 
     async def run_calibration_sequence(
