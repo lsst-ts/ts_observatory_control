@@ -255,7 +255,7 @@ class TestATCalsys(RemoteGroupAsyncMock):
         assert "sequence_name" in calibration_summary
         assert calibration_summary["sequence_name"] == "scan_r"
         assert "steps" in calibration_summary
-        assert len(calibration_summary["steps"]) == 30
+        assert len(calibration_summary["steps"]) == 51
         assert (
             len(calibration_summary["steps"][0]["latiss_exposure_info"])
             == len(config_data["exposure_times"]) * 2
