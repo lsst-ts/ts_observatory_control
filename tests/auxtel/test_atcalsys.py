@@ -87,7 +87,13 @@ class TestATCalsys(RemoteGroupAsyncMock):
 
     async def test_setup_electrometers(self) -> None:
 
-        await self.atcalsys.setup_electrometers()
+        config_data = self.atcalsys.get_calibration_configuration("at_whitelight_r")
+
+        await self.atcalsys.setup_electrometers(
+            mode=str(config_data["electrometer_mode"]),
+            range=float(config_data["electrometer_range"]),
+            integration_time=float(config_data["electrometer_integration_time"]),
+        )
 
         self.atcalsys.electrometer.cmd_performZeroCalib.start.assert_awaited_with(
             timeout=self.atcalsys.long_timeout
