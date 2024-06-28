@@ -26,7 +26,7 @@ scan_r:
   atspec_filter: SDSSr_65mm
   atspec_grating: empty_1
   wavelength: 625.0
-  wavelength_width: 150
+  wavelength_width: 250
   wavelength_resolution: 5.0
   monochromator_grating: RED
   exit_slit: 5.0
