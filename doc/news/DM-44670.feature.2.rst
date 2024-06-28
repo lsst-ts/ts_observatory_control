@@ -1,0 +1,1 @@
+Update atcalsys configuration such that the electrometer exposure time is similar to the camera exposure time and to include the additional electrometer configuration.

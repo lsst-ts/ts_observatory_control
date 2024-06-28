@@ -28,6 +28,7 @@ import typing
 
 import yaml
 from lsst.ts import salobj
+from lsst.ts.xml.enums.Electrometer import UnitToRead
 
 from .remote_group import RemoteGroup
 from .utils import get_data_path
@@ -72,13 +73,39 @@ class BaseCalsys(RemoteGroup, metaclass=abc.ABCMeta):
 
         self.calibration_config: dict[str, dict[str, typing.Any]] = dict()
 
-    async def setup_electrometers(self) -> None:
-        """Setup all electrometers."""
+    async def setup_electrometers(
+        self, mode: str, range: float, integration_time: float
+    ) -> None:
+        """Setup all electrometers.
+
+        Parameters
+        ----------
+        mode : `str`
+            Electrometer measurement mode.
+        range : `float`
+            Electrometer measurement range. -1 for autorange.
+        integration_time : `float`
+            Electrometer measurement range.
+        """
+        electrometer_mode = getattr(UnitToRead, mode).value
+
         for electrometer in [
             getattr(self.rem, component_name)
             for component_name in self.components_attr
             if "electrometer" in component_name
         ]:
+            await electrometer.cmd_setMode.set_start(
+                mode=electrometer_mode,
+                timeout=self.long_timeout,
+            )
+            await electrometer.cmd_setRange.set_start(
+                setRange=range,
+                timeout=self.long_timeout,
+            )
+            await electrometer.cmd_setIntegrationTime.set_start(
+                intTime=integration_time,
+                timeout=self.long_timeout,
+            )
             await electrometer.cmd_performZeroCalib.start(timeout=self.long_timeout)
             await electrometer.cmd_setDigitalFilter.set_start(
                 activateFilter=False,

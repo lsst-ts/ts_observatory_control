@@ -1,0 +1,1 @@
+Update BaseCalSys.setup_electrometers to setup electrometer mode, range, and integration time from input parameters.
