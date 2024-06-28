@@ -233,7 +233,7 @@ class ATCalsys(BaseCalsys):
 
         calibration_type = getattr(CalibrationType, str(config_data["calib_type"]))
         if calibration_type == CalibrationType.WhiteLight:
-            calibration_wavelenghts = np.array([float(config_data["wavelength"])])
+            calibration_wavelengths = np.array([float(config_data["wavelength"])])
         else:
             wavelength = float(config_data["wavelength"])
             wavelength_width = float(config_data["wavelength_width"])
@@ -241,11 +241,13 @@ class ATCalsys(BaseCalsys):
             wavelength_start = wavelength - wavelength_width / 2.0
             wavelength_end = wavelength + wavelength_width / 2.0
 
-            calibration_wavelenghts = np.arange(
-                wavelength_start, wavelength_end, wavelength_resolution
+            calibration_wavelengths = np.arange(
+                wavelength_start,
+                wavelength_end + wavelength_resolution,
+                wavelength_resolution,
             )
 
-        for wavelength in calibration_wavelenghts:
+        for wavelength in calibration_wavelengths:
             self.log.debug(
                 f"Performing {calibration_type.name} calibration with {wavelength=}."
             )
