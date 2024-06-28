@@ -242,14 +242,14 @@ class TestATCalsys(RemoteGroupAsyncMock):
         wavelength_start = wavelength - wavelength_width / 2.0
         wavelength_end = wavelength + wavelength_width / 2.0
 
-        calibration_wavelenghts = np.arange(
+        calibration_wavelengths = np.arange(
             wavelength_start, wavelength_end, wavelength_resolution
         )
         expected_change_wavelegths_calls = [
             unittest.mock.call(
                 wavelength=wavelength, timeout=self.atcalsys.long_long_timeout
             )
-            for wavelength in calibration_wavelenghts
+            for wavelength in calibration_wavelengths
         ]
 
         assert "sequence_name" in calibration_summary
