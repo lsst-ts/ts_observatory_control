@@ -13,7 +13,10 @@ scan_g:
   exit_slit: 5.0
   entrance_slit: 5.0
   fiber_spectrum_exposure_time: 0.5
-  electrometer_exposure_time: 1.0
+  electrometer_exposure_time: 15.0
+  electrometer_integration_time: 0.1
+  electrometer_mode: CURRENT
+  electrometer_range: -1
   exposure_times:
     - 15.0
 
@@ -29,7 +32,10 @@ scan_r:
   exit_slit: 5.0
   entrance_slit: 5.0
   fiber_spectrum_exposure_time: 0.5
-  electrometer_exposure_time: 1.0
+  electrometer_exposure_time: 15.0
+  electrometer_integration_time: 0.1
+  electrometer_mode: CURRENT
+  electrometer_range: -1
   exposure_times:
     - 15.0
 
@@ -43,7 +49,10 @@ at_whitelight_r:
   exit_slit: 5.0
   entrance_slit: 5.0
   fiber_spectrum_exposure_time: 3.0
-  electrometer_exposure_time: 1.0
+  electrometer_exposure_time: 6.0
+  electrometer_integration_time: 0.1
+  electrometer_mode: CURRENT
+  electrometer_range: -1
   exposure_times:
     - 6.0
     - 6.0
