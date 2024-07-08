@@ -1,0 +1,1 @@
+Update MTCS run_m2_actuator_bump_test to wait until the bump test finishes before returning.

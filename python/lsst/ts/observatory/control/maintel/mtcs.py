@@ -31,7 +31,7 @@ import astropy.units as u
 import numpy as np
 from astropy.coordinates import Angle
 from lsst.ts import salobj, utils
-from lsst.ts.idl.enums import MTM1M3, MTPtg, MTRotator
+from lsst.ts.idl.enums import MTM1M3, MTM2, MTPtg, MTRotator
 from lsst.ts.utils import angle_diff
 
 try:
@@ -994,6 +994,38 @@ class MTCS(BaseTCS):
                     f"{primary_status!r}[{primary}], {secondary_status!r}[{secondary}]"
                 )
 
+    async def _wait_m2_bump_test_ok(self, actuator: int) -> None:
+        """Wait until the bump test for the specified M2 actuator finishes.
+
+        Parameters
+        ----------
+        actuator : `int`
+            Actuator index.
+
+        Raises
+        ------
+        RuntimeError
+            If the bump test failed.
+        """
+
+        while True:
+            bump_test_status = await self.rem.mtm2.evt_actuatorBumpTestStatus.next(
+                flush=False, timeout=self.long_timeout
+            )
+
+            if bump_test_status.actuator != actuator:
+                raise RuntimeError(f"No status found for actuator {actuator}")
+
+            if bump_test_status.status == MTM2.BumpTest.PASSED:
+                self.log.info(f"Bump test for actuator {actuator} passed.")
+                return
+            elif bump_test_status.status == MTM2.BumpTest.FAILED:
+                raise RuntimeError(f"Bump test for actuator {actuator} failed.")
+            else:
+                self.log.info(
+                    f"Actuator {actuator} bump test status: {bump_test_status.status}"
+                )
+
     async def enable_m1m3_balance_system(self) -> None:
         """Enable m1m3 balance system."""
 
@@ -1449,11 +1481,18 @@ class MTCS(BaseTCS):
                 f"Cannot bump test one of the M2 hardpoints: actuator = {actuator}."
             )
 
-        # bump test single actuator
+        self.rem.mtm2.evt_actuatorBumpTestStatus.flush()
         await self.rem.mtm2.cmd_actuatorBumpTest.set_start(
             actuator=actuator,
             period=period,
             force=force,
+        )
+
+        await asyncio.wait_for(
+            self._wait_m2_bump_test_ok(
+                actuator=actuator,
+            ),
+            timeout=self.long_long_timeout,
         )
 
     async def get_m2_hardpoints(
@@ -1505,6 +1544,28 @@ class MTCS(BaseTCS):
             )
         else:
             self.log.info("M2 force balance system already enabled. Nothing to do.")
+
+    async def disable_m2_balance_system(self) -> None:
+        """Disable m2 balance system."""
+
+        m2_force_balance_system_status = (
+            await self.rem.mtm2.evt_forceBalanceSystemStatus.aget(
+                timeout=self.fast_timeout
+            )
+        )
+
+        self.rem.mtm2.evt_forceBalanceSystemStatus.flush()
+
+        if m2_force_balance_system_status.status:
+            self.log.debug("Disabling M2 force balance system.")
+            await self.rem.mtm2.cmd_switchForceBalanceSystem.set_start(
+                status=False, timeout=self.long_timeout
+            )
+            await self.rem.mtm2.evt_forceBalanceSystemStatus.next(
+                flush=False, timeout=self.long_timeout
+            )
+        else:
+            self.log.info("M2 force balance system already disabled. Nothing to do.")
 
     async def reset_m2_forces(self) -> None:
         """Reset M2 forces."""
