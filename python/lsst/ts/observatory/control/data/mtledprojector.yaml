@@ -4,39 +4,39 @@
 u:
   led_name: 
     - M385L3
-  led_location: 0.0
-  led_focus: 0.0
+  led_location: 210.21
+  led_focus: 50.68
 
 g: 
   led_name:
     - M455L4
     - M505L4
-  led_location: 1.0
-  led_focus: 1.0
+  led_location: 9.15
+  led_focus: 17.029
 
 r:
   led_name:
     - M565L3
     - M660L4
-  led_location: 2.0
-  led_focus: 2.0
+  led_location: 70.40
+  led_focus: 16.279
 
 i:
   led_name:
     - M730L5
     - M780LP1
-  led_location: 3.0
-  led_focus: 3.0
+  led_location: 237.36
+  led_focus: 15.829
 
 z: 
   led_name:
     - M850L3
     - M940L3
-  led_location: 4.0
-  led_focus: 4.0
+  led_location: 299.034
+  led_focus: 15.505
 
 y:
   led_name:
     - M970L4
-  led_location: 5.0
-  led_focus: 5.0
+  led_location: 174.91
+  led_focus: 15.380
