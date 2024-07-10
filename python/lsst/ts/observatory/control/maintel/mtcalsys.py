@@ -127,8 +127,8 @@ class MTCalsys(BaseCalsys):
         )
 
         self.mtcamera = mtcamera
-        self.ls_select_led_location = 0.0  # um
-        self.ls_select_laser_location = 20.0  # um
+        self.ls_select_led_location = 50995  # um
+        self.ls_select_laser_location = 409395  # um
 
         self.led_projector_config_filename = "../data/mtledprojector.yaml"
 
