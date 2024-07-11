@@ -127,8 +127,9 @@ class MTCalsys(BaseCalsys):
         )
 
         self.mtcamera = mtcamera
-        self.ls_select_led_location = 50995  # um
-        self.ls_select_laser_location = 409395  # um
+        self.ls_select_led_location = 9.96  # mm
+        self.ls_select_laser_location = 79.96  # mm
+        self.led_rest_position = 120.0  # mm
 
         self.led_projector_config_filename = "../data/mtledprojector.yaml"
 
@@ -191,7 +192,8 @@ class MTCalsys(BaseCalsys):
         If monochromatic flats, check that laser can be enabled,
         check temperature, and turn on laser to warm up.
         Move linearstage_select to correct location for
-        Mono or Whitelight flats
+        Mono or Whitelight flats. If Monochromatic flats
+        make sure that LED stage is in the correct place.
 
         Parameters
         ----------
@@ -204,20 +206,25 @@ class MTCalsys(BaseCalsys):
 
         calibration_type = getattr(CalibrationType, str(config_data["calib_type"]))
 
+        self.exptime_dict = await self.calculate_optimized_exposure_times(sequence_name)
+
         if calibration_type == CalibrationType.WhiteLight:
             await self.linearstage_projector_select.cmd_moveAbsolute.set_start(
                 distance=self.ls_select_led_location, timeout=self.long_timeout
             )
         else:
+            await self.linearstage_led_select.cmd_moveAbsolute.set_start(
+                distance=self.led_rest_position, timeout=self.long_timeout
+            )
             await self.linearstage_projector_select.cmd_moveAbsolute.set_start(
                 distance=self.ls_select_laser_location, timeout=self.long_timeout
             )
-            await self.laser_setup(config_data["laser_mode"])
+            await self.setup_laser(config_data["laser_mode"])
             await self.rem.tunablelaser.cmd_startPropagating.start(
                 timeout=self.long_long_timeout
             )
 
-    async def laser_setup(self, mode: str) -> None:
+    async def setup_laser(self, mode: str) -> None:
         """Perform all steps for preparing the laser for monchromatic flats.
         This includes confirming that the thermal system is
         turned on and set at the right temperature. It also checks
@@ -248,12 +255,12 @@ class MTCalsys(BaseCalsys):
                 f"{mode} not an acceptable TunableLaser Mode [CONTINOUS, BURST, TRIGGER]"
             )
 
-    async def prepare_for_flat(self, config_name: str) -> None:
+    async def prepare_for_flat(self, sequence_name: str) -> None:
         """Configure the ATMonochromator according to the flat parameters
 
         Parameters
         ----------
-        config_name : `str`
+        sequence_name : `str`
             name of the type of configuration you will run, which is saved
             in the configuration.yaml files
 
@@ -262,7 +269,7 @@ class MTCalsys(BaseCalsys):
         RuntimeError:
 
         """
-        config_data = self.get_calibration_configuration(config_name)
+        config_data = self.get_calibration_configuration(sequence_name)
 
         calibration_type = getattr(CalibrationType, str(config_data["calib_type"]))
         filter_name = config_data[
@@ -279,7 +286,7 @@ class MTCalsys(BaseCalsys):
         )
         if self.mtcamera is None and config_data["use_camera"]:
             raise RuntimeError(
-                f"MTCamera is not defined but {config_name} requires it. "
+                f"MTCamera is not defined but {sequence_name} requires it. "
                 "Make sure you are instantiating ComCam and passing it to MTCalsys."
             )
 
@@ -340,9 +347,7 @@ class MTCalsys(BaseCalsys):
             calibration_wavelengths = np.array([float(config_data["wavelength"])])
         else:
             wavelength = float(config_data["wavelength"])
-            wavelength_width = float(
-                config_data["wavelength_width"]
-            )  # This doesn't make any sense
+            wavelength_width = float(config_data["wavelength_width"])
             wavelength_resolution = float(config_data["wavelength_resolution"])
             wavelength_start = wavelength - wavelength_width / 2.0
             wavelength_end = wavelength + wavelength_width / 2.0
@@ -368,11 +373,9 @@ class MTCalsys(BaseCalsys):
                     use_red_fiberspec=config_data["use_red_fiberspectrograph"],
                     use_blue_fiberspec=config_data["use_blue_fiberspectrograph"],
                     fiber_spectrum_exposure_time=float(
-                        config_data["fiber_spectrum_exposure_time"]
+                        self.exptime_dict["fiberspectrograph"]
                     ),
-                    electrometer_exposure_time=float(
-                        config_data["electrometer_exposure_time"]
-                    ),
+                    electrometer_exposure_time=float(self.exptime_dict["electrometer"]),
                 )
                 mtcamera_exposure_info.update(exposure_info)
 
@@ -388,10 +391,10 @@ class MTCalsys(BaseCalsys):
                         use_red_fiberspec=config_data["use_red_fiberspectrograph"],
                         use_blue_fiberspec=config_data["use_blue_fiberspectrograph"],
                         fiber_spectrum_exposure_time=float(
-                            config_data["fiber_spectrum_exposure_time"]
+                            self.exptime_dict["fiberspectrograph"]
                         ),
                         electrometer_exposure_time=float(
-                            config_data["electrometer_exposure_time"]
+                            self.exptime_dict["electrometer"]
                         ),
                     )
                     mtcamera_exposure_info.update(exposure_info)
@@ -403,6 +406,31 @@ class MTCalsys(BaseCalsys):
 
             calibration_summary["steps"].append(step)
         return calibration_summary
+
+    async def calculate_optimized_exposure_times(
+        self, sequence_name: str
+    ) -> dict[str, float]:
+        """Calculates the exposure times for the electrometer and
+        fiber spectrograph given the type and wavelength of the exposure
+        and the length of the camera exposure time
+
+        Parameters
+        ----------
+        sequence_name : `str`
+
+        Returns
+        -------
+        dictionary of exposure times for the camera, electrometer, and fiber
+        spectrograph
+        dict(
+            camera=0.0,
+            electrometer=0.0,
+            fiberspectrograph=0.0,
+        )
+
+        TO-DO: DM-44361
+        """
+        raise NotImplementedError()
 
     async def _take_data(
         self,
@@ -591,16 +619,26 @@ class MTCalsys(BaseCalsys):
 
     @property
     def linearstage_led_focus(self) -> salobj.Remote:
+        """Horizontal linear stage that moves the mirror, extending
+        the distance between the 3rd and 4th lenses.
+        """
         return getattr(self.rem, f"linearstage_{self.linearstage_led_focus_index}")
 
     @property
     def linearstage_laser_focus(self) -> salobj.Remote:
+        """Horizontal linear stage that moves a lens to focus the
+        laser light from the fiber
+        """
         return getattr(self.rem, f"linearstage_{self.linearstage_laser_focus_index}")
 
     @property
     def linearstage_led_select(self) -> salobj.Remote:
+        """Horizontal linear stage that moves between LED modules"""
         return getattr(self.rem, f"linearstage_{self.linearstage_led_select_index}")
 
     @property
     def linearstage_projector_select(self) -> salobj.Remote:
+        """Vertical linear stage that selects between the LED
+        or laser projectors
+        """
         return getattr(self.rem, f"linearstage_{self.linearstage_select_index}")
