@@ -22,7 +22,6 @@ __all__ = ["ATCalsys", "ATCalsysUsages"]
 
 import asyncio
 import logging
-import math
 import time
 import typing
 
@@ -122,15 +121,6 @@ class ATCalsys(BaseCalsys):
         self.chiller_temp_tolerance_relative = 0.2
         self.chiller_temperature = 20
 
-        self.exposure_table = np.array(
-            [500.0, 0.0, 0.0, 0.0],
-            dtype=[
-                ("wavelength", float),
-                ("camera", float),
-                ("fiberspectrograph", float),
-                ("electrometer", float),
-            ],
-        )
         self.delay = 1
 
     async def change_wavelength(self, wavelength: float) -> None:
@@ -238,47 +228,37 @@ class ATCalsys(BaseCalsys):
             fiberspectrograph and electrometer exposure times.
 
         """
+
         exposures = []
         for wavelength in wavelengths:
-            for exptime in config_data["exposure_times"]:
-                if config_data["use_electrometer"]:
-                    time_sep = (
-                        config_data["electrometer_integration_time"] * 3.07
-                    ) + 0.00254
-                    max_exp_time = 16667 * time_sep  # buffer size
-                    if exptime > max_exp_time:
-                        electrometer_exptime = max_exp_time
-                        self.log.info(
-                            f"Electrometer exposure time reduced to {max_exp_time}"
-                        )
-                    else:
-                        electrometer_exptime = exptime
-                else:
-                    electrometer_exptime = np.nan
+            electrometer_exptimes = await self._calculate_electrometer_exposure_times(
+                exptimes=config_data["exposure_times"],
+                electrometer_integration_time=config_data[
+                    "electrometer_integration_time"
+                ],
+                use_electrometer=config_data["use_electrometer"],
+            )
+            fiberspectrograph_exptimes = (
+                await self._calculate_fiberspectrograph_exposure_times(
+                    exptimes=config_data["exposure_times"],
+                    entrance_slit=config_data["entrance_slit"],
+                    exit_slit=config_data["exit_slit"],
+                    use_fiberspectrograph=config_data["use_fiberspectrograph"],
+                )
+            )
 
-                if config_data["use_fiberspectrograph"]:
-                    base_exptime = 1  # sec
-                    entry_slit_multiplier = 6 / (config_data["entrance_slit"] + 1)
-                    exit_slit_multiplier = 6 / (config_data["exit_slit"] + 1)
-                    # TODO (DM-45235): Improve these multipliers with testing
-                    # Also, include some wavelength dependence based on testing
-                    fiberspectrograph_exptime = (
-                        base_exptime * entry_slit_multiplier * exit_slit_multiplier
-                    )
-                else:
-                    fiberspectrograph_exptime = np.nan
-
+            for i, exptime in enumerate(config_data["exposure_times"]):
                 exposures.append(
-                    [
+                    (
                         wavelength,
                         exptime,
-                        electrometer_exptime,
-                        fiberspectrograph_exptime,
-                    ]
+                        electrometer_exptimes[i],
+                        fiberspectrograph_exptimes[i],
+                    )
                 )
 
         exposure_list = np.array(
-            [np.vstack(exposures)],
+            exposures,
             dtype=[
                 ("wavelength", float),
                 ("camera", float),
@@ -287,6 +267,88 @@ class ATCalsys(BaseCalsys):
             ],
         )
         return exposure_list
+
+    async def _calculate_electrometer_exposure_times(
+        self,
+        exptimes: list,
+        electrometer_integration_time: float,
+        use_electrometer: bool,
+    ) -> list:
+        """Calculates the optimal exposure time for the electrometer
+
+        Parameters
+        ----------
+        exptime : `list`
+            List of Camera exposure times
+        use_electrometer : `bool`
+            Identifies if the electrometer will be used in the exposure
+
+        Returns
+        -------
+        `list`
+            Exposure times for the electrometer
+        """
+        electrometer_buffer_size = 16667
+        electrometer_integration_overhead = 0.00254
+        electrometer_time_separation_vs_integration = 3.07
+
+        electrometer_exptimes = []
+        for exptime in exptimes:
+            if use_electrometer:
+                time_sep = (
+                    electrometer_integration_time
+                    * electrometer_time_separation_vs_integration
+                ) + electrometer_integration_overhead
+                max_exp_time = electrometer_buffer_size * time_sep
+                if exptime > max_exp_time:
+                    electrometer_exptimes.append(max_exp_time)
+                    self.log.info(
+                        f"Electrometer exposure time reduced to {max_exp_time}"
+                    )
+                else:
+                    electrometer_exptimes.append(exptime)
+            else:
+                electrometer_exptimes.append(np.nan)
+        return electrometer_exptimes
+
+    async def _calculate_fiberspectrograph_exposure_times(
+        self,
+        exptimes: list,
+        entrance_slit: float,
+        exit_slit: float,
+        use_fiberspectrograph: bool,
+    ) -> list:
+        """Calculates the optimal exposure time for the electrometer
+
+        Parameters
+        ----------
+        exptime : `list`
+            List of Camera exposure times
+        entrance_slit : `float`
+        exit_slit : `float`
+        use_fiberspectrograph : `bool`
+            Identifies if the fiberspectrograph will be used in the exposure
+
+        Returns
+        -------
+        `list`
+            Exposure times for the fiberspectrograph
+        """
+        fiberspectrograph_exptimes = []
+        for exptime in exptimes:
+            if use_fiberspectrograph:
+                base_exptime = 1  # sec
+                entry_slit_multiplier = 6 / (entrance_slit + 1)
+                exit_slit_multiplier = 6 / (exit_slit + 1)
+                # TODO (DM-45235): Improve these multipliers with testing
+                # Also, include some wavelength dependence based on testing
+                fiberspectrograph_exptime = (
+                    base_exptime * entry_slit_multiplier * exit_slit_multiplier
+                )
+                fiberspectrograph_exptimes.append(fiberspectrograph_exptime)
+            else:
+                fiberspectrograph_exptimes.append(np.nan)
+        return fiberspectrograph_exptimes
 
     async def run_calibration_sequence(
         self, sequence_name: str, exposure_metadata: dict
@@ -327,11 +389,11 @@ class ATCalsys(BaseCalsys):
                 wavelength_resolution,
             )
 
-        self.exposure_table = await self.calculate_optimized_exposure_times(
+        exposure_table = await self.calculate_optimized_exposure_times(
             wavelengths=calibration_wavelengths, config_data=config_data
         )
 
-        for exposure in self.exposure_table:
+        for exposure in exposure_table:
             self.log.debug(
                 f"Performing {calibration_type.name} calibration with {exposure['wavelength']=}."
             )
@@ -448,7 +510,7 @@ class ATCalsys(BaseCalsys):
 
         electrometer_exposures = list()
 
-        if not math.isnan(exposure_time):
+        if not np.isnan(exposure_time):
             try:
                 await self.electrometer.cmd_startScanDt.set_start(
                     scanDuration=exposure_time,
@@ -500,7 +562,7 @@ class ATCalsys(BaseCalsys):
 
         fiber_spectrum_exposures = []
 
-        if not math.isnan(exposure_time):
+        if not np.isnan(exposure_time):
             try:
                 await self.fiberspectrograph.cmd_expose.set_start(
                     duration=exposure_time,
