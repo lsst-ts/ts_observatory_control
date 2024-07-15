@@ -134,7 +134,7 @@ class BaseCalsys(RemoteGroup, metaclass=abc.ABCMeta):
         Parameters
         ----------
         sequence_name : `str`
-            Name of the type of configuration you will run
+            Name of the calibration sequence to prepare for.
         """
         raise NotImplementedError()
 
@@ -170,19 +170,15 @@ class BaseCalsys(RemoteGroup, metaclass=abc.ABCMeta):
         Parameters
         ----------
         sequence_name : `str`
+            Name of the calibration sequence to prepare for.
 
         Returns
         -------
-        dictionary of exposure times for the camera, electrometer, and fiber
-        spectrograph
-        dict(
-            camera=0.0,
-            electrometer=0.0,
-            fiberspectrograph=0.0,
-        )
-
-        TO-DO: DM-44777
+        `dict`[`str`,`loat`]
+            Dictionary with the exposure times for the camera and different
+            calibration instruments.
         """
+        # TO-DO: DM-44777
         raise NotImplementedError()
 
     def load_calibration_config_file(self, filename: str | None = None) -> None:

@@ -25,7 +25,6 @@ import logging
 import typing
 
 import numpy as np
-import yaml
 from lsst.ts import salobj, utils
 from lsst.ts.xml.enums import TunableLaser
 
@@ -131,11 +130,6 @@ class MTCalsys(BaseCalsys):
         self.ls_select_laser_location = 79.96  # mm
         self.led_rest_position = 120.0  # mm
 
-        self.led_projector_config_filename = "../data/mtledprojector.yaml"
-
-        with open(self.led_projector_config_filename, "r") as f:
-            self.led_projector_config = yaml.safe_load(f)
-
         self.laser_enclosure_temp = 20.0  # C
 
         self.exptime_dict: dict[str, float] = dict(
@@ -181,7 +175,9 @@ class MTCalsys(BaseCalsys):
         await asyncio.gather(task_wavelength, task_focus)
 
     async def is_ready_for_flats(self) -> bool:
-        """Add doctring"""
+        """Designates if the calibraiton hardware is in a state
+        to take flats.
+        """
         # TODO (DM-44310): Implement method to check that the
         # system is ready for flats.
         return True
@@ -225,7 +221,7 @@ class MTCalsys(BaseCalsys):
             )
 
     async def setup_laser(self, mode: str) -> None:
-        """Perform all steps for preparing the laser for monchromatic flats.
+        """Perform all steps for preparing the laser for monochromatic flats.
         This includes confirming that the thermal system is
         turned on and set at the right temperature. It also checks
         the interlockState to confirm it's ready to propagate.
@@ -272,10 +268,6 @@ class MTCalsys(BaseCalsys):
         config_data = self.get_calibration_configuration(sequence_name)
 
         calibration_type = getattr(CalibrationType, str(config_data["calib_type"]))
-        filter_name = config_data[
-            "filter"
-        ]  # not sure if this is an enumeration somewhere?
-        led_info = self.led_projector_config.get(filter_name)
 
         task_setup_camera = (
             self.mtcamera.setup_instrument(
@@ -291,17 +283,17 @@ class MTCalsys(BaseCalsys):
             )
 
         if calibration_type == CalibrationType.WhiteLight:
-            leds_ = led_info.get("led_name")
             task_select_led = self.linearstage_led_select.cmd_moveAbsolute.set_start(
-                distance=led_info.get("led_location"), timeout=self.long_timeout
+                distance=config_data.get("led_location"), timeout=self.long_timeout
             )
             task_adjust_led_focus = (
                 self.linearstage_led_focus.cmd_moveAbsolute.set_start(
-                    distance=led_info.get("led_focus"), timeout=self.long_timeout
+                    distance=config_data.get("led_focus"), timeout=self.long_timeout
                 )
             )
             task_turn_led_on = self.rem.ledprojector.cmd_switchOn.set_start(
-                serialNumbers=leds_, timeout=self.long_timeout
+                serialNumbers=config_data.get("led_name"),
+                timeout=self.long_timeout,
             )
 
             await asyncio.gather(
@@ -420,16 +412,11 @@ class MTCalsys(BaseCalsys):
 
         Returns
         -------
-        dictionary of exposure times for the camera, electrometer, and fiber
-        spectrograph
-        dict(
-            camera=0.0,
-            electrometer=0.0,
-            fiberspectrograph=0.0,
-        )
-
-        TO-DO: DM-44777
+        `dict`[`str`,`loat`]
+            Dictionary with the exposure times for the camera and different
+            calibration instruments.
         """
+        # TO-DO: DM-44777
         raise NotImplementedError()
 
     async def _take_data(

@@ -1,0 +1,116 @@
+# Configuration for calibration hardware setup
+# Created 2024-07-15
+
+whitelight_u:
+  calib_type: Mono
+  use_camera: true
+  lsst_filter: SDSSg_65mm
+  led_name: 
+    - M385L3
+  led_location: 210.21
+  led_focus: 50.68
+  use_electrometer: true
+  use_fiberspectrograph_red: true
+  use_fiberspectrograph_blue: true
+  electrometer_integration_time: 0.1
+  electrometer_mode: CURRENT
+  electrometer_range: -1
+  exposure_times:
+    - 15.0
+
+whitelight_g:
+  calib_type: Mono
+  use_camera: true
+  atspec_filter: SDSSg_65mm
+  atspec_grating: empty_1
+  wavelength: 475.0
+  wavelength_width: 250
+  wavelength_resolution: 5.0
+  led_name:
+    - M455L4
+    - M505L4
+  led_location: 9.15
+  led_focus: 17.029
+  use_electrometer: true
+  use_fiberspectrograph_red: true
+  use_fiberspectrograph_blue: true
+  electrometer_integration_time: 0.1
+  electrometer_mode: CURRENT
+  electrometer_range: -1
+  exposure_times:
+    - 15.0
+
+whitelight_r:
+  calib_type: Mono
+  use_camera: true
+  atspec_filter: SDSSg_65mm
+  atspec_grating: empty_1
+  wavelength: 475.0
+  wavelength_width: 250
+  wavelength_resolution: 5.0
+  led_name:
+    - M565L3
+    - M660L4
+  led_location: 70.40
+  led_focus: 16.279
+  use_electrometer: true
+  use_fiberspectrograph_red: true
+  use_fiberspectrograph_blue: true
+  electrometer_integration_time: 0.1
+  electrometer_mode: CURRENT
+  electrometer_range: -1
+  exposure_times:
+    - 15.0
+
+whitelight_i:
+  calib_type: Mono
+  use_camera: true
+  lsst_filter: SDSSg_65mm
+  led_name:
+    - M730L5
+    - M780LP1
+  led_location: 237.36
+  led_focus: 15.829
+  use_electrometer: true
+  use_fiberspectrograph_red: true
+  use_fiberspectrograph_blue: true
+  electrometer_integration_time: 0.1
+  electrometer_mode: CURRENT
+  electrometer_range: -1
+  exposure_times:
+    - 15.0
+
+whitelight_z:
+  calib_type: Mono
+  use_camera: true
+  lsst_filter: SDSSg_65mm
+  led_name:
+    - M850L3
+    - M940L3
+  led_location: 299.034
+  led_focus: 15.505
+  use_electrometer: true
+  use_fiberspectrograph_red: true
+  use_fiberspectrograph_blue: true
+  electrometer_integration_time: 0.1
+  electrometer_mode: CURRENT
+  electrometer_range: -1
+  exposure_times:
+    - 15.0
+
+whitelight_y:
+  calib_type: Mono
+  use_camera: true
+  lsst_filter: SDSSg_65mm
+  led_name:
+    - M970L4
+  led_location: 174.91
+  led_focus: 15.380
+  use_electrometer: true
+  use_fiberspectrograph_red: true
+  use_fiberspectrograph_blue: true
+  electrometer_integration_time: 0.1
+  electrometer_mode: CURRENT
+  electrometer_range: -1
+  exposure_times:
+    - 15.0
