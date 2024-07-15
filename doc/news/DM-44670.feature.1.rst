@@ -1,1 +1,0 @@
-Update ATCalSys.prepare_for_flat to call setup_electrometer.
