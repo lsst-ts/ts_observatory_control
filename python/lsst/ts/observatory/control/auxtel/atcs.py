@@ -679,6 +679,9 @@ class ATCS(BaseTCS):
     async def enable_ataos_corrections(self) -> None:
         """Enable ATAOS corrections."""
 
+        if not await self.in_pneumatics_operational_range():
+            await self.slew_to_pneumatics_operational_range()
+
         self.log.info("Enabling ATAOS corrections.")
 
         await self.rem.ataos.cmd_enableCorrection.set_start(
@@ -687,6 +690,9 @@ class ATCS(BaseTCS):
 
     async def disable_ataos_corrections(self, ignore_fail: bool = True) -> None:
         """Disable ATAOS corrections."""
+
+        if not await self.in_pneumatics_operational_range():
+            await self.slew_to_pneumatics_operational_range()
 
         self.log.debug("Disabling ATAOS corrections.")
 
@@ -1189,7 +1195,7 @@ class ATCS(BaseTCS):
         Warnings
         --------
         The Mirror cover can only be opened if the telescope is pointing
-        above `self.tel_el_operate_pneumatics` (=75 degrees). The method will
+        above `self.tel_el_operate_pneumatics` (=70 degrees). The method will
         check if the telescope is in an operational range and, if not, will
         move the telescope to an operational elevation, maintaining the same
         azimuth before opening the mirror cover. The telescope will be left
@@ -1216,20 +1222,8 @@ class ATCS(BaseTCS):
         if cover_state.state == ATPneumatics.MirrorCoverState.CLOSED:
             self.log.debug("Opening M1 cover.")
 
-            # Check that telescope is in a good elevation to open cover.
-            # If not, point to current azimuth and elevation 75 degrees
-            # before opening the mirror cover.
-            tel_pos = await self.next_telescope_position(timeout=self.fast_timeout)
-
-            if tel_pos.elevationCalculatedAngle[-1] < self.tel_el_operate_pneumatics:
-                nasmyth_angle = await self.get_selected_nasmyth_angle()
-
-                await self.point_azel(
-                    az=tel_pos.azimuthCalculatedAngle[-1],
-                    el=self.tel_el_operate_pneumatics,
-                    rot_tel=nasmyth_angle,
-                    wait_dome=False,
-                )
+            if not await self.in_pneumatics_operational_range():
+                await self.slew_to_pneumatics_operational_range()
 
             await self.rem.atpneumatics.cmd_openM1Cover.start(timeout=self.long_timeout)
 
@@ -1260,7 +1254,7 @@ class ATCS(BaseTCS):
         Warnings
         --------
         The Mirror cover can only be closed if the telescope is pointing
-        above `self.tel_el_operate_pneumatics` (=75 degrees). The method will
+        above `self.tel_el_operate_pneumatics` (=70 degrees). The method will
         check if the telescope is in an operational range and, if not, will
         move the telescope to an operational elevation, maintaining the same
         azimuth before closing the mirror cover. The telescope will be left
@@ -1281,20 +1275,9 @@ class ATCS(BaseTCS):
 
         if cover_state.state == ATPneumatics.MirrorCoverState.OPENED:
             self.log.debug("Closing M1 cover.")
-            # Check that telescope is in a good elevation to close cover.
-            # If not, point to current azimuth and elevation 75 degrees
-            # before opening the mirror cover.
-            tel_pos = await self.next_telescope_position(timeout=self.fast_timeout)
 
-            nasmyth_angle = await self.get_selected_nasmyth_angle()
-
-            if tel_pos.elevationCalculatedAngle[-1] < self.tel_el_operate_pneumatics:
-                await self.point_azel(
-                    az=tel_pos.azimuthCalculatedAngle[-1],
-                    el=self.tel_el_operate_pneumatics,
-                    rot_tel=nasmyth_angle,
-                    wait_dome=False,
-                )
+            if not await self.in_pneumatics_operational_range():
+                await self.slew_to_pneumatics_operational_range()
 
             self.rem.atpneumatics.evt_m1CoverState.flush()
 
@@ -2306,6 +2289,42 @@ class ATCS(BaseTCS):
                 relative=True,
                 persistent=True,
             )
+
+    async def slew_to_pneumatics_operational_range(self) -> None:
+        """Slew the telescope to safe range for pneumatics operation.
+
+        This method  will slew the telescope to a safe elevation to perform
+        atpneumatics operations. It should be used in combination with the
+        in_pneumatics_operational_range method. Telescope will be left in
+        pneumatics position with tracking disabled.
+
+        """
+
+        tel_pos = await self.next_telescope_position(timeout=self.fast_timeout)
+
+        nasmyth_angle = await self.get_selected_nasmyth_angle()
+
+        await self.point_azel(
+            az=tel_pos.azimuthCalculatedAngle[-1],
+            el=self.tel_el_operate_pneumatics,
+            rot_tel=nasmyth_angle,
+            wait_dome=False,
+        )
+
+    async def in_pneumatics_operational_range(self) -> bool:
+        """Check if ATMCS is in operational range for pneumatics operation.
+
+        Returns
+        -------
+        elevation_in_range: `bool`
+            Returns `True` when telecsope elevation is in safe range for
+            pneumatics operation.
+
+        """
+
+        tel_pos = await self.next_telescope_position(timeout=self.fast_timeout)
+
+        return tel_pos.elevationCalculatedAngle[-1] > self.tel_el_operate_pneumatics
 
     @property
     def plate_scale(self) -> float:

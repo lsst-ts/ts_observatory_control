@@ -13,7 +13,10 @@ scan_g:
   exit_slit: 5.0
   entrance_slit: 5.0
   fiber_spectrum_exposure_time: 0.5
-  electrometer_exposure_time: 1.0
+  electrometer_exposure_time: 15.0
+  electrometer_integration_time: 0.1
+  electrometer_mode: CURRENT
+  electrometer_range: -1
   exposure_times:
     - 15.0
 
@@ -23,13 +26,16 @@ scan_r:
   atspec_filter: SDSSr_65mm
   atspec_grating: empty_1
   wavelength: 625.0
-  wavelength_width: 150
+  wavelength_width: 250
   wavelength_resolution: 5.0
   monochromator_grating: RED
   exit_slit: 5.0
   entrance_slit: 5.0
   fiber_spectrum_exposure_time: 0.5
-  electrometer_exposure_time: 1.0
+  electrometer_exposure_time: 15.0
+  electrometer_integration_time: 0.1
+  electrometer_mode: CURRENT
+  electrometer_range: -1
   exposure_times:
     - 15.0
 
@@ -43,7 +49,10 @@ at_whitelight_r:
   exit_slit: 5.0
   entrance_slit: 5.0
   fiber_spectrum_exposure_time: 3.0
-  electrometer_exposure_time: 1.0
+  electrometer_exposure_time: 6.0
+  electrometer_integration_time: 0.1
+  electrometer_mode: CURRENT
+  electrometer_range: -1
   exposure_times:
     - 6.0
     - 6.0
@@ -67,3 +76,251 @@ at_whitelight_r:
     - 6.0
     - 6.0
 
+ptc_1:
+  calib_type: WhiteLight
+  use_camera: true
+  atspec_filter: SDSSr_65mm
+  atspec_grating: empty_1
+  wavelength: 500.0
+  monochromator_grating: RED
+  exit_slit: 5.0
+  entrance_slit: 5.0
+  electrometer_integration_time: 0.1
+  fiber_spectrum_exposure_time: 0.5
+  electrometer_exposure_time: 2.0
+  electrometer_mode: CURRENT
+  electrometer_range: -1
+  exposure_times:
+    - 14.40
+    - 14.40
+    - 111.03
+    - 111.03
+    - 12.67
+    - 12.67
+    - 18.59
+    - 18.59
+    - 1.87
+    - 1.87
+    - 0.31
+    - 0.31
+    - 13.51
+    - 13.51
+    - 1.64
+    - 1.64
+    - 1.54
+    - 1.54
+    - 21.12
+    - 21.12
+    - 0.43
+    - 0.43
+    - 75.71
+    - 75.71
+    - 0.38
+    - 0.38
+    - 4.87
+    - 4.87
+    - 80.70
+    - 80.70
+    - 0.87
+    - 0.87
+    - 104.17
+    - 104.17
+    - 0.49
+    - 0.49
+    - 27.26
+    - 27.26
+    - 0.76
+    - 0.76
+    - 3.54
+    - 3.54
+    - 0.67
+    - 0.67
+    - 0.46
+    - 0.46
+    - 7.61
+    - 7.61
+    - 0.36
+    - 0.36
+    - 0.21
+    - 0.21
+    - 62.51
+    - 62.51
+    - 8.11
+    - 8.11
+    - 1.12
+    - 1.12
+    - 2.74
+    - 2.74
+    - 24.00
+    - 24.00
+    - 33.02
+    - 33.02
+    - 0.20
+    - 0.20
+    - 0.93
+    - 0.93
+
+ptc_2:
+  calib_type: WhiteLight
+  use_camera: true
+  atspec_filter: SDSSr_65mm
+  atspec_grating: empty_1
+  wavelength: 500.0
+  monochromator_grating: RED
+  exit_slit: 5.0
+  entrance_slit: 5.0
+  fiber_spectrum_exposure_time: 0.5
+  electrometer_exposure_time: 2.0
+  electrometer_integration_time: 0.1
+  electrometer_mode: CURRENT
+  electrometer_range: -1
+  exposure_times:
+    - 15.35
+    - 15.35
+    - 97.73
+    - 97.73
+    - 1.75
+    - 1.75
+    - 8.64
+    - 8.64
+    - 37.51
+    - 37.51
+    - 0.63
+    - 0.63
+    - 19.81
+    - 19.81
+    - 7.14
+    - 7.14
+    - 5.19
+    - 5.19
+    - 0.24
+    - 0.24
+    - 17.44
+    - 17.44
+    - 1.45
+    - 1.45
+    - 9.82
+    - 9.82
+    - 5.89
+    - 5.89
+    - 9.21
+    - 9.21
+    - 11.16
+    - 11.16
+    - 16.36
+    - 16.36
+    - 0.28
+    - 0.28
+    - 1.99
+    - 1.99
+    - 48.43
+    - 48.43
+    - 58.65
+    - 58.65
+    - 91.68
+    - 91.68
+    - 5.53
+    - 5.53
+    - 0.72
+    - 0.72
+    - 0.81
+    - 0.81
+    - 0.40
+    - 0.40
+    - 66.63
+    - 66.63
+    - 1.19
+    - 1.19
+    - 0.56
+    - 0.56
+    - 4.56
+    - 4.56
+    - 1.36
+    - 1.36
+    - 2.41
+    - 2.41
+    - 2.26
+    - 2.26
+
+
+ptc_3:
+  calib_type: WhiteLight
+  use_camera: true
+  atspec_filter: SDSSr_65mm
+  atspec_grating: empty_1
+  wavelength: 500.0
+  monochromator_grating: RED
+  exit_slit: 5.0
+  entrance_slit: 5.0
+  fiber_spectrum_exposure_time: 0.5
+  electrometer_exposure_time: 2.0
+  electrometer_integration_time: 0.1
+  electrometer_mode: CURRENT
+  electrometer_range: -1
+  exposure_times:
+    - 0.52
+    - 9.52
+    - 22.51
+    - 22.51
+    - 2.57
+    - 2.57
+    - 4.02
+    - 4.02
+    - 4.28
+    - 4.28
+    - 71.02
+    - 71.02
+    - 3.32
+    - 3.32
+    - 6.28
+    - 6.28
+    - 0.26
+    - 0.26
+    - 0.99
+    - 0.99
+    - 86.01
+    - 86.01
+    - 42.62
+    - 42.62
+    - 6.69
+    - 6.69
+    - 25.58
+    - 25.58
+    - 0.23
+    - 0.23
+    - 1.05
+    - 1.05
+    - 0.59
+    - 0.59
+    - 51.62
+    - 51.62
+    - 3.11
+    - 3.11
+    - 0.29
+    - 0.29
+    - 39.99
+    - 39.99
+    - 45.43
+    - 45.43
+    - 2.12
+    - 2.12
+    - 11.89
+    - 11.89
+    - 29.06
+    - 29.06
+    - 10.47
+    - 10.47
+    - 0.33
+    - 0.33
+    - 3.77
+    - 3.77
+    - 1.27
+    - 1.27
+    - 2.92
+    - 2.92
+    - 55.02
+    - 55.02
+    - 35.19
+    - 35.19
+    - 30.98
+    - 30.98

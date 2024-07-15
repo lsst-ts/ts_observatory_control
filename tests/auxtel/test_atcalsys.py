@@ -87,7 +87,13 @@ class TestATCalsys(RemoteGroupAsyncMock):
 
     async def test_setup_electrometers(self) -> None:
 
-        await self.atcalsys.setup_electrometers()
+        config_data = self.atcalsys.get_calibration_configuration("at_whitelight_r")
+
+        await self.atcalsys.setup_electrometers(
+            mode=str(config_data["electrometer_mode"]),
+            range=float(config_data["electrometer_range"]),
+            integration_time=float(config_data["electrometer_integration_time"]),
+        )
 
         self.atcalsys.electrometer.cmd_performZeroCalib.start.assert_awaited_with(
             timeout=self.atcalsys.long_timeout
@@ -236,20 +242,20 @@ class TestATCalsys(RemoteGroupAsyncMock):
         wavelength_start = wavelength - wavelength_width / 2.0
         wavelength_end = wavelength + wavelength_width / 2.0
 
-        calibration_wavelenghts = np.arange(
+        calibration_wavelengths = np.arange(
             wavelength_start, wavelength_end, wavelength_resolution
         )
         expected_change_wavelegths_calls = [
             unittest.mock.call(
                 wavelength=wavelength, timeout=self.atcalsys.long_long_timeout
             )
-            for wavelength in calibration_wavelenghts
+            for wavelength in calibration_wavelengths
         ]
 
         assert "sequence_name" in calibration_summary
         assert calibration_summary["sequence_name"] == "scan_r"
         assert "steps" in calibration_summary
-        assert len(calibration_summary["steps"]) == 30
+        assert len(calibration_summary["steps"]) == 51
         assert (
             len(calibration_summary["steps"][0]["latiss_exposure_info"])
             == len(config_data["exposure_times"]) * 2

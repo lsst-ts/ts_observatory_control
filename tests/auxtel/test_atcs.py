@@ -434,7 +434,7 @@ class TestATTCS(ATCSAsyncMock):
 
         self.atcs.rem.atptg.cmd_azElTarget.set.assert_not_called()
 
-    async def test_open_m1_cover_when_cover_closed_bellow_el_limit(self) -> None:
+    async def test_open_m1_cover_when_cover_closed_below_el_limit(self) -> None:
         await self.atcs.enable()
         await self.atcs.assert_all_enabled()
 
@@ -1985,6 +1985,42 @@ class TestATTCS(ATCSAsyncMock):
         self.atcs.rem.ataos.cmd_offset.set_start.assert_not_awaited()
 
         assert "Invalied user-supplied m1 offset:" in str(excinfo.value)
+
+    async def test_slew_to_pneumatics_operational_range(self) -> None:
+        await self.atcs.enable()
+        await self.atcs.assert_all_enabled()
+        await self.atcs.slew_to_pneumatics_operational_range()
+
+        self.atcs.rem.atptg.cmd_azElTarget.set.assert_called_with(
+            targetName="azel_target",
+            azDegs=self._telescope_position.azimuthCalculatedAngle[-1],
+            elDegs=self.atcs.tel_el_operate_pneumatics,
+            rotPA=np.mean(
+                self._atmcs_tel_mount_nasmyth_encoders.nasmyth2CalculatedAngle
+            ),
+        )
+
+    async def test_in_pneumatics_operational_range(self) -> None:
+        self._telescope_position.elevationCalculatedAngle = (
+            np.zeros_like(self._telescope_position.elevationCalculatedAngle)
+            + self.atcs.tel_el_operate_pneumatics
+            + 1.0
+        )
+
+        elevation_in_range = await self.atcs.in_pneumatics_operational_range()
+
+        assert elevation_in_range
+
+    async def test_not_in_pneumatics_operational_range(self) -> None:
+        self._telescope_position.elevationCalculatedAngle = (
+            np.zeros_like(self._telescope_position.elevationCalculatedAngle)
+            + self.atcs.tel_el_operate_pneumatics
+            - 1.0
+        )
+
+        elevation_in_range = await self.atcs.in_pneumatics_operational_range()
+
+        assert not elevation_in_range
 
     def _handle_fail_angle_out_of_range(
         self, *args: typing.Any, **kwargs: typing.Any

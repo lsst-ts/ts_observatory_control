@@ -1,0 +1,1 @@
+In ``auxtel/atcs.py``, add new routine to check that ATCS is in the ATPneumatics operational range and update methods to use routine.
