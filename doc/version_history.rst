@@ -8,6 +8,27 @@ Version History
 
 .. towncrier release notes start
 
+v0.37.0 (2024-07-15)
+====================
+
+New Features
+------------
+
+- In ``auxtel/atcs.py``, add new routine to check that ATCS is in the ATPneumatics operational range and update methods to use routine. (`DM-44628 <https://rubinobs.atlassian.net/browse/DM-44628>`_)
+- Update BaseCalSys.setup_electrometers to setup electrometer mode, range, and integration time from input parameters. (`DM-44670 <https://rubinobs.atlassian.net/browse/DM-44670>`_)
+- Update ATCalSys.prepare_for_flat to call setup_electrometer. (`DM-44670 <https://rubinobs.atlassian.net/browse/DM-44670>`_)
+- Update atcalsys configuration such that the electrometer exposure time is similar to the camera exposure time and to include the additional electrometer configuration. (`DM-44670 <https://rubinobs.atlassian.net/browse/DM-44670>`_)
+- Update MTCS to add a new disable_m2_balance_system method. (`DM-44824 <https://rubinobs.atlassian.net/browse/DM-44824>`_)
+- Update MTCS run_m2_actuator_bump_test to wait until the bump test finishes before returning. (`DM-44824 <https://rubinobs.atlassian.net/browse/DM-44824>`_)
+- Added PTC curve configurations to ATCalSys.yaml. (`DM-45219 <https://rubinobs.atlassian.net/browse/DM-45219>`_)
+
+
+Bug Fixes
+---------
+
+- Update ATCalSys so that the filter scans have the correct wavelength range. (`DM-44670 <https://rubinobs.atlassian.net/browse/DM-44670>`_)
+
+
 v0.36.0 (2024-06-01)
 ====================
 
