@@ -206,6 +206,7 @@ class TestATCalsys(RemoteGroupAsyncMock):
         assert "sequence_name" in calibration_summary
         assert calibration_summary["sequence_name"] == "at_whitelight_r"
         assert "steps" in calibration_summary
+        self.log.debug("number of steps:", len(calibration_summary["steps"]))
         assert len(calibration_summary["steps"]) == 1
         assert len(calibration_summary["steps"][0]["latiss_exposure_info"]) == len(
             config_data["exposure_times"]
