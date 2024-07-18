@@ -72,6 +72,22 @@ class ATCalsysUsages(Usages):
 
 @dataclass
 class ATCalsysExposure:
+    """Store Exposure information for ATCalsys.
+
+    Attributes
+    ----------
+    wavelength : float
+        Wavelength of the calibration exposure, in nm.
+    camera : float
+        Camera exposure time, in sec.
+    fiberspectrograph : float | None
+        Fiber spectrograph exposure time, in sec.
+        If None, skip fiber spectrograph acquisition.
+    electrometer : float | None
+        Electrometer exposure time, in sec.
+        If None, skip electrometer acquisition.
+    """
+
     wavelength: float
     camera: float
     fiberspectrograph: float | None
@@ -232,13 +248,14 @@ class ATCalsys(BaseCalsys):
 
         Returns
         -------
-        exposure_list : `array`
-            List of exposure information, including wavelength and camera,
-            fiberspectrograph and electrometer exposure times.
+        exposure_list : `list`[ATCalsysExposure]
+            List of exposure information saved in the dataclass
+            ATCalsysExposure. Each exposure includes wavelength
+            and camera, fiberspectrograph and electrometer exposure times.
 
         """
 
-        exposures = []
+        exposures: list[ATCalsysExposure] = []
         for wavelength in wavelengths:
             electrometer_exptimes = await self._calculate_electrometer_exposure_times(
                 exptimes=config_data["exposure_times"],
