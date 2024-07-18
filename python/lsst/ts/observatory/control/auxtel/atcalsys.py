@@ -24,6 +24,7 @@ import asyncio
 import logging
 import time
 import typing
+from dataclasses import dataclass
 
 import numpy as np
 from lsst.ts import salobj, utils
@@ -67,6 +68,30 @@ class ATCalsysUsages(Usages):
                 self.DryTest,
             ]
         )
+
+
+@dataclass
+class ATCalsysExposure:
+    """Store Exposure information for ATCalsys.
+
+    Attributes
+    ----------
+    wavelength : float
+        Wavelength of the calibration exposure, in nm.
+    camera : float
+        Camera exposure time, in sec.
+    fiberspectrograph : float | None
+        Fiber spectrograph exposure time, in sec.
+        If None, skip fiber spectrograph acquisition.
+    electrometer : float | None
+        Electrometer exposure time, in sec.
+        If None, skip electrometer acquisition.
+    """
+
+    wavelength: float
+    camera: float
+    fiberspectrograph: float | None
+    electrometer: float | None
 
 
 class ATCalsys(BaseCalsys):
@@ -121,11 +146,6 @@ class ATCalsys(BaseCalsys):
         self.chiller_temp_tolerance_relative = 0.2
         self.chiller_temperature = 20
 
-        self.exptime_dict: dict[str, float] = dict(
-            camera=0.0,
-            electrometer=0.0,
-            fiberspectrograph=0.0,
-        )
         self.delay = 1
 
     async def change_wavelength(self, wavelength: float) -> None:
@@ -208,6 +228,145 @@ class ATCalsys(BaseCalsys):
             task_setup_electrometer,
         )
 
+    async def calculate_optimized_exposure_times(
+        self, wavelengths: list, config_data: dict
+    ) -> list[ATCalsysExposure]:
+        """Calculates the exposure times for the fiber spectrograph and
+        the electrometer given camera exposure times and other
+        relevant configuration paramaters.
+
+        This includes wavelength dependent information for the fiber
+        spectrograph and also includes the logic for the size of
+        the electrometer buffer.
+
+        Parameters
+        ----------
+        wavelengths : `list`
+            List of all wavelengths for this exposure list
+        config_data : `dict`
+            All information from configuration file
+
+        Returns
+        -------
+        exposure_list : `list`[ATCalsysExposure]
+            List of exposure information saved in the dataclass
+            ATCalsysExposure. Each exposure includes wavelength
+            and camera, fiberspectrograph and electrometer exposure times.
+
+        """
+
+        exposures: list[ATCalsysExposure] = []
+        for wavelength in wavelengths:
+            electrometer_exptimes = await self._calculate_electrometer_exposure_times(
+                exptimes=config_data["exposure_times"],
+                electrometer_integration_time=config_data[
+                    "electrometer_integration_time"
+                ],
+                use_electrometer=config_data["use_electrometer"],
+            )
+            fiberspectrograph_exptimes = (
+                await self._calculate_fiberspectrograph_exposure_times(
+                    exptimes=config_data["exposure_times"],
+                    entrance_slit=config_data["entrance_slit"],
+                    exit_slit=config_data["exit_slit"],
+                    use_fiberspectrograph=config_data["use_fiberspectrograph"],
+                )
+            )
+
+            for i, exptime in enumerate(config_data["exposure_times"]):
+                exposures.append(
+                    ATCalsysExposure(
+                        wavelength,
+                        exptime,
+                        electrometer_exptimes[i],
+                        fiberspectrograph_exptimes[i],
+                    )
+                )
+
+        return exposures
+
+    async def _calculate_electrometer_exposure_times(
+        self,
+        exptimes: list,
+        electrometer_integration_time: float,
+        use_electrometer: bool,
+    ) -> list[float | None]:
+        """Calculates the optimal exposure time for the electrometer
+
+        Parameters
+        ----------
+        exptime : `list`
+            List of Camera exposure times
+        use_electrometer : `bool`
+            Identifies if the electrometer will be used in the exposure
+
+        Returns
+        -------
+        `list`[`float` | `None`]
+            Exposure times for the electrometer
+        """
+        electrometer_buffer_size = 16667
+        electrometer_integration_overhead = 0.00254
+        electrometer_time_separation_vs_integration = 3.07
+
+        electrometer_exptimes: list[float | None] = []
+        for exptime in exptimes:
+            if use_electrometer:
+                time_sep = (
+                    electrometer_integration_time
+                    * electrometer_time_separation_vs_integration
+                ) + electrometer_integration_overhead
+                max_exp_time = electrometer_buffer_size * time_sep
+                if exptime > max_exp_time:
+                    electrometer_exptimes.append(max_exp_time)
+                    self.log.info(
+                        f"Electrometer exposure time reduced to {max_exp_time}"
+                    )
+                else:
+                    electrometer_exptimes.append(exptime)
+            else:
+                electrometer_exptimes.append(None)
+        return electrometer_exptimes
+
+    async def _calculate_fiberspectrograph_exposure_times(
+        self,
+        exptimes: list,
+        entrance_slit: float,
+        exit_slit: float,
+        use_fiberspectrograph: bool,
+    ) -> list[float | None]:
+        """Calculates the optimal exposure time for the electrometer
+
+        Parameters
+        ----------
+        exptime : `list`
+            List of Camera exposure times
+        entrance_slit : `float`
+        exit_slit : `float`
+        use_fiberspectrograph : `bool`
+            Identifies if the fiberspectrograph will be used in the exposure
+
+        Returns
+        -------
+        `list`[`float` | `None`]
+            Exposure times for the fiberspectrograph
+        """
+        fiberspectrograph_exptimes: list[float | None] = []
+        for exptime in exptimes:
+            if use_fiberspectrograph:
+                base_exptime = 1  # sec
+                entry_slit_multiplier = 6 / (entrance_slit + 1)
+                exit_slit_multiplier = 6 / (exit_slit + 1)
+                # TODO (DM-45235): Improve these multipliers with testing
+                # Also, include some wavelength dependence based on testing
+                fiberspectrograph_exptime = (
+                    base_exptime * entry_slit_multiplier * exit_slit_multiplier
+                )
+                fiberspectrograph_exptimes.append(fiberspectrograph_exptime)
+            else:
+                fiberspectrograph_exptimes.append(None)
+        return fiberspectrograph_exptimes
+
     async def run_calibration_sequence(
         self, sequence_name: str, exposure_metadata: dict
     ) -> dict:
@@ -247,49 +406,44 @@ class ATCalsys(BaseCalsys):
                 wavelength_resolution,
             )
 
-        for wavelength in calibration_wavelengths:
-            self.log.debug(
-                f"Performing {calibration_type.name} calibration with {wavelength=}."
-            )
-            await self.change_wavelength(wavelength=wavelength)
-            latiss_exposure_info: dict = dict()
+        exposure_table = await self.calculate_optimized_exposure_times(
+            wavelengths=calibration_wavelengths, config_data=config_data
+        )
 
-            for exptime in config_data["exposure_times"]:
-                self.log.debug("Taking data sequence.")
+        for exposure in exposure_table:
+            self.log.debug(
+                f"Performing {calibration_type.name} calibration with {exposure.wavelength=}."
+            )
+            await self.change_wavelength(wavelength=exposure.wavelength)
+
+            latiss_exposure_info: dict = dict()
+            self.log.debug("Taking data sequence.")
+            exposure_info = await self._take_data(
+                latiss_exptime=exposure.camera,
+                latiss_filter=str(config_data["atspec_filter"]),
+                latiss_grating=str(config_data["atspec_grating"]),
+                exposure_metadata=exposure_metadata,
+                fiber_spectrum_exposure_time=exposure.fiberspectrograph,
+                electrometer_exposure_time=exposure.electrometer,
+            )
+            latiss_exposure_info.update(exposure_info)
+
+            if calibration_type == CalibrationType.Mono:
+                self.log.debug(
+                    "Taking data sequence without filter for monochromatic set."
+                )
                 exposure_info = await self._take_data(
-                    latiss_exptime=float(exptime),
-                    latiss_filter=str(config_data["atspec_filter"]),
+                    latiss_exptime=exposure.camera,
+                    latiss_filter="empty_1",
                     latiss_grating=str(config_data["atspec_grating"]),
                     exposure_metadata=exposure_metadata,
-                    fiber_spectrum_exposure_time=float(
-                        config_data["fiber_spectrum_exposure_time"]
-                    ),
-                    electrometer_exposure_time=float(
-                        config_data["electrometer_exposure_time"]
-                    ),
+                    fiber_spectrum_exposure_time=exposure.fiberspectrograph,
+                    electrometer_exposure_time=exposure.electrometer,
                 )
                 latiss_exposure_info.update(exposure_info)
 
-                if calibration_type == CalibrationType.Mono:
-                    self.log.debug(
-                        "Taking data sequence without filter for monochromatic set."
-                    )
-                    exposure_info = await self._take_data(
-                        latiss_exptime=float(exptime),
-                        latiss_filter="empty_1",
-                        latiss_grating=str(config_data["atspec_grating"]),
-                        exposure_metadata=exposure_metadata,
-                        fiber_spectrum_exposure_time=float(
-                            config_data["fiber_spectrum_exposure_time"]
-                        ),
-                        electrometer_exposure_time=float(
-                            config_data["electrometer_exposure_time"]
-                        ),
-                    )
-                    latiss_exposure_info.update(exposure_info)
-
             step = dict(
-                wavelength=wavelength,
+                wavelength=exposure.wavelength,
                 latiss_exposure_info=latiss_exposure_info,
             )
 
@@ -302,8 +456,8 @@ class ATCalsys(BaseCalsys):
         latiss_filter: str,
         latiss_grating: str,
         exposure_metadata: dict,
-        fiber_spectrum_exposure_time: float,
-        electrometer_exposure_time: float,
+        fiber_spectrum_exposure_time: float | None,
+        electrometer_exposure_time: float | None,
     ) -> dict:
 
         assert self.latiss is not None
@@ -351,14 +505,14 @@ class ATCalsys(BaseCalsys):
 
     async def take_electrometer_scan(
         self,
-        exposure_time: float,
+        exposure_time: float | None,
         exposures_done: asyncio.Future,
     ) -> list[str]:
         """Perform an electrometer scan for the specified duration.
 
         Parameters
         ----------
-        exposure_time : `float`
+        exposure_time : `float` | None
             Exposure time for the fiber spectrum (seconds).
         exposures_done : `asyncio.Future`
             A future indicating when the camera exposures where complete.
@@ -373,8 +527,7 @@ class ATCalsys(BaseCalsys):
 
         electrometer_exposures = list()
 
-        while not exposures_done.done():
-
+        if exposure_time is not None:
             try:
                 await self.electrometer.cmd_startScanDt.set_start(
                     scanDuration=exposure_time,
@@ -401,7 +554,7 @@ class ATCalsys(BaseCalsys):
 
     async def take_fiber_spectrum(
         self,
-        exposure_time: float,
+        exposure_time: float | None,
         exposures_done: asyncio.Future,
     ) -> list[str]:
         """Take exposures with the fiber spectrograph until
@@ -412,7 +565,7 @@ class ATCalsys(BaseCalsys):
 
         Parameters
         ----------
-        exposure_time : `float`
+        exposure_time : `float` | None
             Exposure time for the fiber spectrum (seconds).
         exposures_done : `asyncio.Future`
             A future indicating when the camera exposures where complete.
@@ -426,8 +579,7 @@ class ATCalsys(BaseCalsys):
 
         fiber_spectrum_exposures = []
 
-        while not exposures_done.done():
-
+        if exposure_time is not None:
             try:
                 await self.fiberspectrograph.cmd_expose.set_start(
                     duration=exposure_time,
