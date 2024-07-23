@@ -548,7 +548,7 @@ class ATCalsys(BaseCalsys):
             # Make sure that a new lfo was created
             try:
                 lfo = await self.electrometer.evt_largeFileObjectAvailable.next(
-                    timeout=self.long_timeout, flush=False
+                    timeout=exposure_time + self.long_timeout, flush=False
                 )
                 electrometer_exposures.append(lfo.url)
             except asyncio.TimeoutError:
