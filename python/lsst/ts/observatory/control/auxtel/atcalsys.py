@@ -425,6 +425,7 @@ class ATCalsys(BaseCalsys):
                 exposure_metadata=exposure_metadata,
                 fiber_spectrum_exposure_time=exposure.fiberspectrograph,
                 electrometer_exposure_time=exposure.electrometer,
+                sequence_name=sequence_name,
             )
             latiss_exposure_info.update(exposure_info)
 
@@ -439,6 +440,7 @@ class ATCalsys(BaseCalsys):
                     exposure_metadata=exposure_metadata,
                     fiber_spectrum_exposure_time=exposure.fiberspectrograph,
                     electrometer_exposure_time=exposure.electrometer,
+                    sequence_name=sequence_name,
                 )
                 latiss_exposure_info.update(exposure_info)
 
@@ -458,6 +460,7 @@ class ATCalsys(BaseCalsys):
         exposure_metadata: dict,
         fiber_spectrum_exposure_time: float | None,
         electrometer_exposure_time: float | None,
+        sequence_name: str,
     ) -> dict:
 
         assert self.latiss is not None
@@ -478,6 +481,7 @@ class ATCalsys(BaseCalsys):
         electrometer_exposure_coroutine = self.take_electrometer_scan(
             exposure_time=electrometer_exposure_time,
             exposures_done=exposures_done,
+            sequence_name=sequence_name,
         )
         try:
             fiber_spectrum_exposure_task = asyncio.create_task(
@@ -507,6 +511,7 @@ class ATCalsys(BaseCalsys):
         self,
         exposure_time: float | None,
         exposures_done: asyncio.Future,
+        sequence_name: str,
     ) -> list[str]:
         """Perform an electrometer scan for the specified duration.
 
@@ -516,7 +521,11 @@ class ATCalsys(BaseCalsys):
             Exposure time for the fiber spectrum (seconds).
         exposures_done : `asyncio.Future`
             A future indicating when the camera exposures where complete.
-
+        sequence_name : `str`
+            The name of the sequence this electrometer scan is part of.
+            This is used to reconfigure the electrometer in case it goes
+            to fault during the sequence.
+            DM-44634: Remove this work around.
         Returns
         -------
         electrometer_exposures : `list`[`str`]
@@ -547,9 +556,17 @@ class ATCalsys(BaseCalsys):
                 # going to FAULT when issue is resolved.
                 self.log.warning(
                     "Time out waiting for electrometer data. Making sure electrometer "
-                    "is in enabled state and continuing."
+                    "is in enabled state, reconfiguring it and continuing."
                 )
                 await salobj.set_summary_state(self.electrometer, salobj.State.ENABLED)
+                config_data = self.get_calibration_configuration(sequence_name)
+                await self.setup_electrometers(
+                    mode=str(config_data["electrometer_mode"]),
+                    range=float(config_data["electrometer_range"]),
+                    integration_time=float(
+                        config_data["electrometer_integration_time"]
+                    ),
+                )
         return electrometer_exposures
 
     async def take_fiber_spectrum(
