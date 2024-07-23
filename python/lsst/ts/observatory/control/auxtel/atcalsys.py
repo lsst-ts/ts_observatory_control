@@ -276,10 +276,10 @@ class ATCalsys(BaseCalsys):
             for i, exptime in enumerate(config_data["exposure_times"]):
                 exposures.append(
                     ATCalsysExposure(
-                        wavelength,
-                        exptime,
-                        electrometer_exptimes[i],
-                        fiberspectrograph_exptimes[i],
+                        wavelength=wavelength,
+                        camera=exptime,
+                        electrometer=electrometer_exptimes[i],
+                        fiberspectrograph=fiberspectrograph_exptimes[i],
                     )
                 )
 
