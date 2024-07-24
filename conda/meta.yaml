@@ -15,10 +15,11 @@ test:
     - ts-conda-build =0.4
     - astroquery
     - pandas
+    - pydantic
     - scipy
+    - ts-criopy
     - ts-idl {{ idl_version }}
     - ts-salobj {{ salobj_version }}
-    - ts-criopy
   source_files:
     - python
     - tests
@@ -29,24 +30,25 @@ test:
 
 requirements:
   host:
-    - python {{ python }}
     - numpy {{ numpy }}
     - pip
-    - setuptools_scm
-    - setuptools
-  build:
     - python {{ python }}
+    - setuptools
+    - setuptools_scm
+  build:
     - numpy {{ numpy }}
+    - python {{ python }}
     - setuptools
     - setuptools_scm
     - ts-conda-build =0.4
   run:
-    - python {{ python }}
-    - numpy {{ numpy }}
     - astroquery
+    - numpy {{ numpy }}
     - pandas
+    - pydantic
+    - python {{ python }}
     - scipy
+    - ts-criopy
     - ts-idl
     - ts-salobj
-    - ts-criopy
 
