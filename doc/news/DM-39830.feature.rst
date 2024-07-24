@@ -1,0 +1,2 @@
+Add support for initializing guiders to BaseCamera.
+
