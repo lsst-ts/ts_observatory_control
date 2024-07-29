@@ -1,0 +1,4 @@
+In atcalsys, fix how ATCalsysExposure is created in calculate_optimized_exposure_times.
+
+Make sure it explicitly passes the parameters by name to make sure they have the correct values.
+
