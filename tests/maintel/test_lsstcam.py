@@ -24,6 +24,7 @@ import typing
 import pytest
 from lsst.ts.observatory.control.maintel.lsstcam import LSSTCam, LSSTCamUsages
 from lsst.ts.observatory.control.mock.base_camera_async_mock import BaseCameraAsyncMock
+from lsst.ts.observatory.control.utils.roi_spec import ROI, ROICommon, ROISpec
 
 
 class TestLSSTCam(BaseCameraAsyncMock):
@@ -320,6 +321,32 @@ class TestLSSTCam(BaseCameraAsyncMock):
             exptime=0.1,
             n_shift=4,
             row_shift=100,
+        )
+
+    async def test_init_guider(self) -> None:
+        roi = ROI(
+            segment=3,
+            start_row=260,
+            start_col=162,
+        )
+
+        roi_common = ROICommon(
+            rows=100,
+            cols=100,
+            integration_time_millis=200,
+        )
+
+        roi_spec = ROISpec(
+            common=roi_common,
+            roi=dict(R40_SG0=roi),
+        )
+
+        # initialize guiders
+        await self.lsstcam.init_guider(roi_spec=roi_spec)
+
+        self.lsstcam.rem.mtcamera.cmd_initGuiders.set_start.assert_awaited_with(
+            roiSpec=roi_spec.json(),
+            timeout=self.lsstcam.long_timeout,
         )
 
     def assert_setup_instrument(

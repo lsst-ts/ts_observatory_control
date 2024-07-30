@@ -12,11 +12,11 @@ scan_g:
   monochromator_grating: RED
   exit_slit: 5.0
   entrance_slit: 5.0
-  fiber_spectrum_exposure_time: 0.5
-  electrometer_exposure_time: 15.0
   electrometer_integration_time: 0.1
   electrometer_mode: CURRENT
   electrometer_range: -1
+  use_fiberspectrograph: true
+  use_electrometer: true
   exposure_times:
     - 15.0
 
@@ -31,11 +31,11 @@ scan_r:
   monochromator_grating: RED
   exit_slit: 5.0
   entrance_slit: 5.0
-  fiber_spectrum_exposure_time: 0.5
-  electrometer_exposure_time: 15.0
   electrometer_integration_time: 0.1
   electrometer_mode: CURRENT
   electrometer_range: -1
+  use_fiberspectrograph: true
+  use_electrometer: true
   exposure_times:
     - 15.0
 
@@ -48,11 +48,11 @@ at_whitelight_r:
   monochromator_grating: RED 
   exit_slit: 5.0
   entrance_slit: 5.0
-  fiber_spectrum_exposure_time: 3.0
-  electrometer_exposure_time: 6.0
   electrometer_integration_time: 0.1
   electrometer_mode: CURRENT
   electrometer_range: -1
+  use_fiberspectrograph: true
+  use_electrometer: true
   exposure_times:
     - 6.0
     - 6.0
@@ -79,6 +79,8 @@ at_whitelight_r:
 ptc_1:
   calib_type: WhiteLight
   use_camera: true
+  use_fiberspectrograph: false 
+  use_electrometer: true
   atspec_filter: SDSSr_65mm
   atspec_grating: empty_1
   wavelength: 500.0
@@ -163,6 +165,8 @@ ptc_1:
 ptc_2:
   calib_type: WhiteLight
   use_camera: true
+  use_fiberspectrograph: false 
+  use_electrometer: true
   atspec_filter: SDSSr_65mm
   atspec_grating: empty_1
   wavelength: 500.0
@@ -246,6 +250,8 @@ ptc_2:
 ptc_3:
   calib_type: WhiteLight
   use_camera: true
+  use_fiberspectrograph: false 
+  use_electrometer: true
   atspec_filter: SDSSr_65mm
   atspec_grating: empty_1
   wavelength: 500.0
