@@ -87,7 +87,7 @@ ptc_1:
   monochromator_grating: BLUE
   exit_slit: 7.0
   entrance_slit: 7.0
-  electrometer_exposure_time: 2.0
+  electrometer_integration_time: 0.1
   electrometer_mode: CURRENT
   electrometer_range: -1
   exposure_times:
