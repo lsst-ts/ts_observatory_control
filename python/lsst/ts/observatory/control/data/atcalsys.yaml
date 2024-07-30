@@ -84,11 +84,9 @@ ptc_1:
   atspec_filter: SDSSr_65mm
   atspec_grating: empty_1
   wavelength: 500.0
-  monochromator_grating: RED
-  exit_slit: 5.0
-  entrance_slit: 5.0
-  electrometer_integration_time: 0.1
-  fiber_spectrum_exposure_time: 0.5
+  monochromator_grating: BLUE
+  exit_slit: 7.0
+  entrance_slit: 7.0
   electrometer_exposure_time: 2.0
   electrometer_mode: CURRENT
   electrometer_range: -1
@@ -170,11 +168,9 @@ ptc_2:
   atspec_filter: SDSSr_65mm
   atspec_grating: empty_1
   wavelength: 500.0
-  monochromator_grating: RED
-  exit_slit: 5.0
-  entrance_slit: 5.0
-  fiber_spectrum_exposure_time: 0.5
-  electrometer_exposure_time: 2.0
+  monochromator_grating: BLUE
+  exit_slit: 7.0
+  entrance_slit: 7.0
   electrometer_integration_time: 0.1
   electrometer_mode: CURRENT
   electrometer_range: -1
@@ -255,11 +251,9 @@ ptc_3:
   atspec_filter: SDSSr_65mm
   atspec_grating: empty_1
   wavelength: 500.0
-  monochromator_grating: RED
-  exit_slit: 5.0
-  entrance_slit: 5.0
-  fiber_spectrum_exposure_time: 0.5
-  electrometer_exposure_time: 2.0
+  monochromator_grating: BLUE
+  exit_slit: 7.0
+  entrance_slit: 7.0
   electrometer_integration_time: 0.1
   electrometer_mode: CURRENT
   electrometer_range: -1
