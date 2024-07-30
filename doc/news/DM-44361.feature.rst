@@ -1,1 +1,0 @@
-Added in optimized exposure times calculations for the electrometer and fiberspectrograph. This required some changes to the configuration file.

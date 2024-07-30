@@ -1,2 +1,0 @@
-Add use_electrometer and use_fiberspectrograph to the ptc atcalsys configurations.
-

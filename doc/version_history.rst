@@ -8,6 +8,25 @@ Version History
 
 .. towncrier release notes start
 
+v0.38.0 (2024-07-30)
+====================
+
+New Features
+------------
+
+- Add support for initializing guiders to BaseCamera. (`DM-39830 <https://rubinobs.atlassian.net/browse/DM-39830>`_)
+- Added in optimized exposure times calculations for the electrometer and fiberspectrograph. This required some changes to the configuration file. (`DM-44361 <https://rubinobs.atlassian.net/browse/DM-44361>`_)
+
+
+Bug Fixes
+---------
+
+- Add use_electrometer and use_fiberspectrograph to the ptc atcalsys configurations. (`DM-45232 <https://rubinobs.atlassian.net/browse/DM-45232>`_)
+- In atcalsys, fix how ATCalsysExposure is created in calculate_optimized_exposure_times.
+
+  Make sure it explicitly passes the parameters by name to make sure they have the correct values. (`DM-45232 <https://rubinobs.atlassian.net/browse/DM-45232>`_)
+
+
 v0.37.0 (2024-07-15)
 ====================
 
