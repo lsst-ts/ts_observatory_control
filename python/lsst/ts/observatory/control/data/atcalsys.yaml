@@ -79,6 +79,8 @@ at_whitelight_r:
 ptc_1:
   calib_type: WhiteLight
   use_camera: true
+  use_fiberspectrograph: false 
+  use_electrometer: true
   atspec_filter: SDSSr_65mm
   atspec_grating: empty_1
   wavelength: 500.0
@@ -163,6 +165,8 @@ ptc_1:
 ptc_2:
   calib_type: WhiteLight
   use_camera: true
+  use_fiberspectrograph: false 
+  use_electrometer: true
   atspec_filter: SDSSr_65mm
   atspec_grating: empty_1
   wavelength: 500.0
@@ -246,6 +250,8 @@ ptc_2:
 ptc_3:
   calib_type: WhiteLight
   use_camera: true
+  use_fiberspectrograph: false 
+  use_electrometer: true
   atspec_filter: SDSSr_65mm
   atspec_grating: empty_1
   wavelength: 500.0
