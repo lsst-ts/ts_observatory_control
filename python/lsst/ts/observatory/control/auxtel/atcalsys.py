@@ -156,7 +156,9 @@ class ATCalsys(BaseCalsys):
         )
 
     async def is_ready_for_flats(self) -> bool:
-        """Add doctring"""
+        """Designates if the calibraiton hardware is in a state
+        to take flats.
+        """
         # TODO (DM-44310): Implement method to check that the
         # system is ready for flats.
         return True
@@ -170,12 +172,12 @@ class ATCalsys(BaseCalsys):
         await self.switch_lamp_on()
         await self.wait_for_lamp_to_warm_up()
 
-    async def prepare_for_flat(self, config_name: str) -> None:
+    async def prepare_for_flat(self, sequence_name: str) -> None:
         """Configure the ATMonochromator according to the flat parameters
 
         Parameters
         ----------
-        config_name : `str`
+        sequence_name : `str`
             name of the type of configuration you will run, which is saved
             in the configuration.yaml files
 
@@ -184,7 +186,7 @@ class ATCalsys(BaseCalsys):
         RuntimeError:
 
         """
-        config_data = self.get_calibration_configuration(config_name)
+        config_data = self.get_calibration_configuration(sequence_name)
 
         wavelength = (
             float(config_data["wavelength"])
@@ -204,7 +206,7 @@ class ATCalsys(BaseCalsys):
 
         if self.latiss is None and config_data["use_camera"]:
             raise RuntimeError(
-                f"LATISS is not defined but {config_name} requires it. "
+                f"LATISS is not defined but {sequence_name} requires it. "
                 "Make sure you are instantiating LATISS and passing it to ATCalsys."
             )
         task_setup_latiss = (
