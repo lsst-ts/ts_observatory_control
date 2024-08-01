@@ -1142,8 +1142,10 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
             Region of interest specification.
         """
 
+        self.log.info(f"{roi_spec=}")
+        self.log.info(f"{roi_spec.model_dump_json()=}")
         await self.camera.cmd_initGuiders.set_start(
-            roiSpec=roi_spec.json(),
+            roiSpec=str(roi_spec.model_dump_json()),
             timeout=self.long_timeout,
         )
 
