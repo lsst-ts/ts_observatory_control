@@ -22,8 +22,10 @@ __all__ = ["BaseCamera"]
 
 import abc
 import asyncio
+import json
 import logging
 import typing
+from math import ceil
 
 import astropy
 from lsst.ts import salobj
@@ -101,6 +103,8 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
         self.ready_to_take_data = tcs_ready_to_take_data
 
         self.max_n_snaps_warning = 2
+
+        self.init_guider_roi_spec_max_size = 254
 
     async def take_bias(
         self,
@@ -1142,12 +1146,39 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
             Region of interest specification.
         """
 
-        self.log.info(f"{roi_spec=}")
-        self.log.info(f"{roi_spec.model_dump_json()=}")
-        await self.camera.cmd_initGuiders.set_start(
-            roiSpec=str(roi_spec.model_dump_json()),
-            timeout=self.long_timeout,
-        )
+        roi_spec_dict = roi_spec.model_dump()
+        roi = roi_spec_dict.pop("roi")
+        roi_spec_dict.update(roi)
+        roi_spec_json = json.dumps(roi_spec_dict, separators=(",", ":"))
+        # the roiSpec attribute on the initGuiders command has a limit of
+        # 256 characters. Tony implemented a mechanism to allow us to
+        # split it by appending a - at the end of the string.
+        cmd_max_size = self.init_guider_roi_spec_max_size
+        n_commands = int(ceil(len(roi_spec_json) / cmd_max_size))
+        if n_commands > 1:
+            self.log.info(
+                f"Splitting ROISpec(len:{len(roi_spec_json)}) in {n_commands}."
+            )
+            roi_spec_split = [
+                roi_spec_json[i * cmd_max_size : (i + 1) * cmd_max_size]
+                for i in range(n_commands)
+            ]
+            for rs in roi_spec_split[:-1]:
+                await self.camera.cmd_initGuiders.set_start(
+                    roiSpec=f"{rs}-",
+                    timeout=self.long_timeout,
+                )
+            await self.camera.cmd_initGuiders.set_start(
+                roiSpec=roi_spec_split[-1],
+                timeout=self.long_timeout,
+            )
+
+        else:
+            self.log.info(f"ROISpec(len:{len(roi_spec_json)}) fits in one command.")
+            await self.camera.cmd_initGuiders.set_start(
+                roiSpec=roi_spec_json,
+                timeout=self.long_timeout,
+            )
 
     async def _handle_take_images(
         self, camera_exposure: CameraExposure
