@@ -17,7 +17,7 @@
 # GNU General Public License for more details.
 #
 # You should have received a copy of the GNU General Public License
-
+import json
 import logging
 import typing
 
@@ -344,8 +344,11 @@ class TestLSSTCam(BaseCameraAsyncMock):
         # initialize guiders
         await self.lsstcam.init_guider(roi_spec=roi_spec)
 
+        roi_spec_dict = roi_spec.model_dump()
+        roi = roi_spec_dict.pop("roi")
+        roi_spec_dict.update(roi)
         self.lsstcam.rem.mtcamera.cmd_initGuiders.set_start.assert_awaited_with(
-            roiSpec=roi_spec.json(),
+            roiSpec=json.dumps(roi_spec_dict, separators=(",", ":")),
             timeout=self.lsstcam.long_timeout,
         )
 
