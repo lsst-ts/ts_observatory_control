@@ -22,6 +22,7 @@ __all__ = ["BaseCamera"]
 
 import abc
 import asyncio
+import json
 import logging
 import typing
 
@@ -1142,10 +1143,11 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
             Region of interest specification.
         """
 
-        self.log.info(f"{roi_spec=}")
-        self.log.info(f"{roi_spec.model_dump_json()=}")
+        roi_spec_dict = roi_spec.model_dump()
+        roi = roi_spec_dict.pop("roi")
+        roi_spec_dict.update(roi)
         await self.camera.cmd_initGuiders.set_start(
-            roiSpec=str(roi_spec.model_dump_json()),
+            roiSpec=json.dumps(roi_spec_dict, separators=(",", ":")),
             timeout=self.long_timeout,
         )
 
