@@ -653,6 +653,11 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
                         "Target out of rotator limit. Trying different angle."
                     )
                     continue
+                elif "out of slew limit margin" in ack_error.ackcmd.result:
+                    self.log.warning(
+                        "Target out of rotator slew limit margin. Trying different angle."
+                    )
+                    continue
                 else:
                     raise ack_error
             except Exception as e:
@@ -666,11 +671,19 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
                         f"{(overslew_az/3600.):.1f} degrees and waiting for settle."
                     )
                     await asyncio.sleep(self.tel_settle_time)
-                    await self.offset_azel(az=overslew_az, el=0, relative=False)
+                    try:
+                        await self.offset_azel(az=overslew_az, el=0, relative=False)
+                    except salobj.AckError as ack_error:
+                        if "limit" in ack_error.ackcmd.result:
+                            self.log.warning(
+                                "Overslew is out of operational limits. Skipping overslew."
+                            )
+                            continue
+                        else:
+                            raise ack_error
                     await asyncio.sleep(self.tel_settle_time)
                     self.log.info("Slewing back to target position.")
                     await self.offset_azel(az=0, el=0, relative=False)
-                break
 
         if slew_exception is not None:
             raise slew_exception
