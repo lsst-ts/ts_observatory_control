@@ -161,22 +161,24 @@ class BaseCalsys(RemoteGroup, metaclass=abc.ABCMeta):
 
     @abc.abstractmethod
     async def calculate_optimized_exposure_times(
-        self, sequence_name: str
-    ) -> dict[str, float]:
+        self, wavelengths: list, config_data: dict
+    ) -> list:
         """Calculates the exposure times for the electrometer and
         fiber spectrograph given the type and wavelength of the exposure
         and the length of the camera exposure time
 
         Parameters
         ----------
-        sequence_name : `str`
-            Name of the calibration sequence to prepare for.
+        wavelengths : `list`
+            List of all wavelengths for this exposure list
+        config_data : `dict`
+            All information from configuration file
 
         Returns
         -------
-        `dict`[`str`,`loat`]
-            Dictionary with the exposure times for the camera and different
-            calibration instruments.
+        exposure_list : `list`[ATCalsysExposure|MTCalsysExposure]
+            List of exposure information, includes wavelength
+            and camera, fiberspectrograph and electrometer exposure times.
         """
         # TO-DO: DM-44777
         raise NotImplementedError()
