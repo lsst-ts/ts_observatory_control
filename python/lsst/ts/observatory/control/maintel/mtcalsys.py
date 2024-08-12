@@ -100,7 +100,7 @@ class MTCalsys(BaseCalsys):
         mtcamera: typing.Optional[ComCam] = None,
     ) -> None:
 
-        self.electrometer_projector_index = 201
+        self.electrometer_projector_index = 103
         self.fiberspectrograph_blue_index = 1
         self.fiberspectrograph_red_index = 2
         self.linearstage_led_select_index = 1
@@ -233,10 +233,7 @@ class MTCalsys(BaseCalsys):
             Options: CONTINUOUS, BURST, TRIGGER
 
         """
-        # check the thermal system is running
-        # check set temp
-        # check actual temp and determine if good enough
-        # check the interlockState
+        # TO-DO: DM-45693 implement thermal system checks
 
         if mode == TunableLaser.Mode.CONTINUOUS:
             await self.rem.tunablelaser.cmd_setContinuousMode.start(
@@ -271,7 +268,7 @@ class MTCalsys(BaseCalsys):
 
         task_setup_camera = (
             self.mtcamera.setup_instrument(
-                filter=config_data["lsst_filter"],
+                filter=config_data["mtcamera_filter"],
             )
             if self.mtcamera is not None and config_data["use_camera"]
             else utils.make_done_future()
@@ -359,8 +356,7 @@ class MTCalsys(BaseCalsys):
                 self.log.debug("Taking data sequence.")
                 exposure_info = await self._take_data(
                     mtcamera_exptime=float(exptime),
-                    mtcamera_filter=str(config_data["atspec_filter"]),
-                    mtcamera_grating=str(config_data["atspec_grating"]),
+                    mtcamera_filter=str(config_data["mtcamera_filter"]),
                     exposure_metadata=exposure_metadata,
                     use_red_fiberspec=config_data["use_red_fiberspectrograph"],
                     use_blue_fiberspec=config_data["use_blue_fiberspectrograph"],
@@ -378,7 +374,6 @@ class MTCalsys(BaseCalsys):
                     exposure_info = await self._take_data(
                         mtcamera_exptime=float(exptime),
                         mtcamera_filter="empty_1",
-                        mtcamera_grating=str(config_data["atspec_grating"]),
                         exposure_metadata=exposure_metadata,
                         use_red_fiberspec=config_data["use_red_fiberspectrograph"],
                         use_blue_fiberspec=config_data["use_blue_fiberspectrograph"],
@@ -423,7 +418,6 @@ class MTCalsys(BaseCalsys):
         self,
         mtcamera_exptime: float,
         mtcamera_filter: str,
-        mtcamera_grating: str,
         exposure_metadata: dict,
         use_red_fiberspec: bool,
         use_blue_fiberspec: bool,
@@ -437,7 +431,6 @@ class MTCalsys(BaseCalsys):
             mtcamera_exptime,
             nflats=1,
             filter=mtcamera_filter,
-            grating=mtcamera_grating,
             **exposure_metadata,
         )
         exposures_done: asyncio.Future = asyncio.Future()

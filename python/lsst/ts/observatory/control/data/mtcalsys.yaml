@@ -2,9 +2,9 @@
 # Created 2024-07-15
 
 whitelight_u:
-  calib_type: Mono
+  calib_type: WhiteLight
   use_camera: true
-  lsst_filter: SDSSg_65mm
+  mtcamera_filter: u
   led_name: 
     - M385L3
   led_location: 210.21
@@ -19,10 +19,9 @@ whitelight_u:
     - 15.0
 
 whitelight_g:
-  calib_type: Mono
+  calib_type: WhiteLight
   use_camera: true
-  atspec_filter: SDSSg_65mm
-  atspec_grating: empty_1
+  mtcamera_filter: g
   wavelength: 475.0
   wavelength_width: 250
   wavelength_resolution: 5.0
@@ -41,10 +40,9 @@ whitelight_g:
     - 15.0
 
 whitelight_r:
-  calib_type: Mono
+  calib_type: WhiteLight
   use_camera: true
-  atspec_filter: SDSSg_65mm
-  atspec_grating: empty_1
+  mtcamera_filter: r
   wavelength: 475.0
   wavelength_width: 250
   wavelength_resolution: 5.0
@@ -63,9 +61,9 @@ whitelight_r:
     - 15.0
 
 whitelight_i:
-  calib_type: Mono
+  calib_type: WhiteLight
   use_camera: true
-  lsst_filter: SDSSg_65mm
+  mtcamera_filter: i
   led_name:
     - M730L5
     - M780LP1
@@ -81,9 +79,9 @@ whitelight_i:
     - 15.0
 
 whitelight_z:
-  calib_type: Mono
+  calib_type: WhiteLight
   use_camera: true
-  lsst_filter: SDSSg_65mm
+  mtcamera_filter: z
   led_name:
     - M850L3
     - M940L3
@@ -99,9 +97,9 @@ whitelight_z:
     - 15.0
 
 whitelight_y:
-  calib_type: Mono
+  calib_type: WhiteLight
   use_camera: true
-  lsst_filter: SDSSg_65mm
+  mtcamera_filter: y
   led_name:
     - M970L4
   led_location: 174.91

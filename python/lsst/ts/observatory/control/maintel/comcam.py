@@ -46,6 +46,7 @@ class ComCamUsages(Usages):
 
     TakeImage = 1 << 3
     TakeImageFull = 1 << 4
+    DryTest = 1 << 6
 
     def __iter__(self) -> typing.Iterator[int]:
         return iter(
@@ -56,6 +57,7 @@ class ComCamUsages(Usages):
                 self.MonitorHeartBeat,
                 self.TakeImage,
                 self.TakeImageFull,
+                self.DryTest,
             ]
         )
 
