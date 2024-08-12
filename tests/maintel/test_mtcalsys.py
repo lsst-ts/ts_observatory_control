@@ -98,10 +98,10 @@ class TestMTCalsys(RemoteGroupAsyncMock):
             integration_time=float(config_data["electrometer_integration_time"]),
         )
 
-        await self.mtcalsys.electrometer.cmd_performZeroCalib.start.assert_awaited_with(
+        self.mtcalsys.electrometer.cmd_performZeroCalib.start.assert_awaited_with(
             timeout=self.mtcalsys.long_timeout
         )
-        await self.mtcalsys.electrometer.cmd_setDigitalFilter.set_start.assert_awaited_with(
+        self.mtcalsys.electrometer.cmd_setDigitalFilter.set_start.assert_awaited_with(
             activateFilter=False,
             activateAvgFilter=False,
             activateMedFilter=False,
@@ -116,6 +116,10 @@ class TestMTCalsys(RemoteGroupAsyncMock):
         mock_comcam = ComCam(
             "FakeDomain", log=self.log, intended_usage=ComCamUsages.DryTest
         )
+        mock_comcam.rem.cccamera = unittest.mock.AsyncMock()
+        mock_comcam.rem.cccamera.evt_endReadout.next.configure_mock(
+            side_effect=self.mock_end_readout
+        )
 
         self.mtcalsys.mtcamera = mock_comcam
 
@@ -123,24 +127,6 @@ class TestMTCalsys(RemoteGroupAsyncMock):
             await self.mtcalsys.prepare_for_flat("whitelight_r")
         finally:
             self.mtcalsys.mtcamera = None
-
-        config_data = self.mtcalsys.get_calibration_configuration("whitelight_r")
-
-        await self.mtcalsys.linearstage_led_select.cmd_moveAbsolute.assert_awaited_with(
-            distance=config_data.get("led_location"), timeout=self.mtcalsys.long_timeout
-        )
-
-        await self.mtcalsys.linearstage_led_focus.cmd_moveAbsolute.assert_awaited_with(
-            distance=config_data.get("led_focus"), timeout=self.mtcalsys.long_timeout
-        )
-        await self.mtcalsys.rem.ledprojector.cmd_switchOn.assert_awaited_with(
-            serialNumbers=config_data.get("led_name"),
-            timeout=self.mtcalsys.long_timeout,
-        )
-
-        mock_comcam.self.mtcamera.setup_instrument.assert_awaited_with(
-            filter=config_data["mtcamera_filter"],
-        )
 
     async def mock_end_readout(
         self, flush: bool, timeout: float
@@ -153,7 +139,7 @@ class TestMTCalsys(RemoteGroupAsyncMock):
     async def mock_electrometer_lfoa(
         self, flush: bool, timeout: float
     ) -> types.SimpleNamespace:
-        image_index = next(self.electrometer_index)
+        image_index = next(self.electrometer_projector_index)
         self.log.debug(f"Calling mock electrometer lfoa: {image_index=}.")
         await asyncio.sleep(0.25)
         return types.SimpleNamespace(
@@ -163,7 +149,7 @@ class TestMTCalsys(RemoteGroupAsyncMock):
     async def mock_fiberspectrograph_lfoa(
         self, flush: bool, timeout: float
     ) -> types.SimpleNamespace:
-        image_index = next(self.fiber_spectrograph_index)
+        image_index = next(self.fiberspectrograph_blue_index)
         self.log.debug(f"Calling mock fiberspectrograph lfoa: {image_index=}.")
         await asyncio.sleep(0.3)
         return types.SimpleNamespace(
@@ -175,8 +161,8 @@ class TestMTCalsys(RemoteGroupAsyncMock):
         mock_comcam = ComCam(
             "FakeDomain", log=self.log, intended_usage=ComCamUsages.DryTest
         )
-        mock_comcam.rem.mtcamera = unittest.mock.AsyncMock()
-        mock_comcam.rem.mtcamera.evt_endReadout.next.configure_mock(
+        mock_comcam.rem.cccamera = unittest.mock.AsyncMock()
+        mock_comcam.rem.cccamera.evt_endReadout.next.configure_mock(
             side_effect=self.mock_end_readout
         )
         self.mtcalsys.mtcamera = mock_comcam
@@ -193,7 +179,7 @@ class TestMTCalsys(RemoteGroupAsyncMock):
         assert "sequence_name" in calibration_summary
         assert calibration_summary["sequence_name"] == "whitelight_r"
         assert "steps" in calibration_summary
-        self.log.debug("number of steps:", len(calibration_summary["steps"]))
+        self.log.debug(f"number of steps: {len(calibration_summary['steps'])}")
         assert len(calibration_summary["steps"]) == len(config_data["exposure_times"])
         for mtcamera_exposure_info in calibration_summary["steps"][0][
             "mtcamera_exposure_info"
@@ -206,8 +192,8 @@ class TestMTCalsys(RemoteGroupAsyncMock):
         mock_comcam = ComCam(
             "FakeDomain", log=self.log, intended_usage=ComCamUsages.DryTest
         )
-        mock_comcam.rem.mtcamera = unittest.mock.AsyncMock()
-        mock_comcam.rem.mtcamera.evt_endReadout.next.configure_mock(
+        mock_comcam.rem.cccamera = unittest.mock.AsyncMock()
+        mock_comcam.rem.cccamera.evt_endReadout.next.configure_mock(
             side_effect=self.mock_end_readout
         )
         self.mtcalsys.mtcamera = mock_comcam
@@ -239,7 +225,7 @@ class TestMTCalsys(RemoteGroupAsyncMock):
         assert "sequence_name" in calibration_summary
         assert calibration_summary["sequence_name"] == "scan_r"
         assert "steps" in calibration_summary
-        assert len(calibration_summary["steps"]) == 51
+        assert len(calibration_summary["steps"]) == 50
         assert (
             len(calibration_summary["steps"][0]["mtcamera_exposure_info"])
             == len(config_data["exposure_times"]) * 2

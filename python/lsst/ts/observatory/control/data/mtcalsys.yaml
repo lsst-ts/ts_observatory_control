@@ -112,3 +112,21 @@ whitelight_y:
   electrometer_range: -1
   exposure_times:
     - 15.0
+
+scan_r:
+  calib_type: Mono
+  use_camera: true
+  mtcamera_filter: r
+  led_location: 174.91
+  led_focus: 15.380
+  wavelength: 625.0
+  wavelength_width: 250
+  wavelength_resolution: 5.0
+  use_electrometer: true
+  use_fiberspectrograph_red: true
+  use_fiberspectrograph_blue: true
+  electrometer_integration_time: 0.1
+  electrometer_mode: CURRENT
+  electrometer_range: -1
+  exposure_times:
+    - 15.0

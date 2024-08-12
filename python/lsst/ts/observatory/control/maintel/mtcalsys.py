@@ -358,8 +358,8 @@ class MTCalsys(BaseCalsys):
                     mtcamera_exptime=float(exptime),
                     mtcamera_filter=str(config_data["mtcamera_filter"]),
                     exposure_metadata=exposure_metadata,
-                    use_red_fiberspec=config_data["use_red_fiberspectrograph"],
-                    use_blue_fiberspec=config_data["use_blue_fiberspectrograph"],
+                    use_red_fiberspec=config_data["use_fiberspectrograph_red"],
+                    use_blue_fiberspec=config_data["use_fiberspectrograph_blue"],
                     fiber_spectrum_exposure_time=float(
                         self.exptime_dict["fiberspectrograph"]
                     ),
@@ -375,8 +375,8 @@ class MTCalsys(BaseCalsys):
                         mtcamera_exptime=float(exptime),
                         mtcamera_filter="empty_1",
                         exposure_metadata=exposure_metadata,
-                        use_red_fiberspec=config_data["use_red_fiberspectrograph"],
-                        use_blue_fiberspec=config_data["use_blue_fiberspectrograph"],
+                        use_red_fiberspec=config_data["use_fiberspectrograph_red"],
+                        use_blue_fiberspec=config_data["use_fiberspectrograph_blue"],
                         fiber_spectrum_exposure_time=float(
                             self.exptime_dict["fiberspectrograph"]
                         ),
@@ -560,7 +560,7 @@ class MTCalsys(BaseCalsys):
             try:
                 tasks = []
                 for fiberspec in spectrographs:
-                    task = await fiberspec.cmd_expose.set_start(
+                    task = fiberspec.cmd_expose.set_start(
                         duration=exposure_time,
                         numExposures=1,
                         timeout=exposure_time + self.long_timeout,
