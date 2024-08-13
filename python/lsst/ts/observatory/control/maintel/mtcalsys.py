@@ -91,7 +91,8 @@ class MTCalsysExposure:
 
     wavelength: float
     camera: float
-    fiberspectrograph: float | None
+    fiberspectrograph_red: float | None
+    fiberspectrograph_blue: float | None
     electrometer: float | None
 
 
@@ -385,9 +386,8 @@ class MTCalsys(BaseCalsys):
                     mtcamera_exptime=exposure.camera,
                     mtcamera_filter=str(config_data["mtcamera_filter"]),
                     exposure_metadata=exposure_metadata,
-                    use_red_fiberspec=config_data["use_fiberspectrograph_red"],
-                    use_blue_fiberspec=config_data["use_fiberspectrograph_blue"],
-                    fiber_spectrum_exposure_time=exposure.fiberspectrograph,
+                    fiber_spectrum_red_exposure_time=exposure.fiberspectrograph_red,
+                    fiber_spectrum_blue_exposure_time=exposure.fiberspectrograph_blue,
                     electrometer_exposure_time=exposure.electrometer,
                 )
                 mtcamera_exposure_info.update(exposure_info)
@@ -400,15 +400,14 @@ class MTCalsys(BaseCalsys):
                         mtcamera_exptime=exposure.camera,
                         mtcamera_filter="empty_1",
                         exposure_metadata=exposure_metadata,
-                        use_red_fiberspec=config_data["use_fiberspectrograph_red"],
-                        use_blue_fiberspec=config_data["use_fiberspectrograph_blue"],
-                        fiber_spectrum_exposure_time=exposure.fiberspectrograph,
+                        fiber_spectrum_red_exposure_time=exposure.fiberspectrograph_red,
+                        fiber_spectrum_blue_exposure_time=exposure.fiberspectrograph_blue,
                         electrometer_exposure_time=exposure.electrometer,
                     )
                     mtcamera_exposure_info.update(exposure_info)
 
             step = dict(
-                wavelength=wavelength,
+                wavelength=exposure.wavelength,
                 mtcamera_exposure_info=mtcamera_exposure_info,
             )
 
@@ -444,10 +443,16 @@ class MTCalsys(BaseCalsys):
                 ],
                 use_electrometer=config_data["use_electrometer"],
             )
-            fiberspectrograph_exptimes = (
+            fiberspectrograph_exptimes_red = (
                 await self._calculate_fiberspectrograph_exposure_times(
                     exptimes=config_data["exposure_times"],
-                    use_fiberspectrograph=config_data["use_fiberspectrograph"],
+                    use_fiberspectrograph=config_data["use_fiberspectrograph_red"],
+                )
+            )
+            fiberspectrograph_exptimes_blue = (
+                await self._calculate_fiberspectrograph_exposure_times(
+                    exptimes=config_data["exposure_times"],
+                    use_fiberspectrograph=config_data["use_fiberspectrograph_blue"],
                 )
             )
 
@@ -457,7 +462,8 @@ class MTCalsys(BaseCalsys):
                         wavelength=wavelength,
                         camera=exptime,
                         electrometer=electrometer_exptimes[i],
-                        fiberspectrograph=fiberspectrograph_exptimes[i],
+                        fiberspectrograph_red=fiberspectrograph_exptimes_red[i],
+                        fiberspectrograph_blue=fiberspectrograph_exptimes_blue[i],
                     )
                 )
 
@@ -543,9 +549,8 @@ class MTCalsys(BaseCalsys):
         mtcamera_exptime: float,
         mtcamera_filter: str,
         exposure_metadata: dict,
-        use_red_fiberspec: bool,
-        use_blue_fiberspec: bool,
-        fiber_spectrum_exposure_time: float | None,
+        fiber_spectrum_red_exposure_time: float | None,
+        fiber_spectrum_blue_exposure_time: float | None,
         electrometer_exposure_time: float | None,
     ) -> dict:
 
@@ -559,10 +564,14 @@ class MTCalsys(BaseCalsys):
         )
         exposures_done: asyncio.Future = asyncio.Future()
 
-        fiber_spectrum_exposure_coroutine = self.take_fiber_spectrum(
-            use_red=use_red_fiberspec,
-            use_blue=use_blue_fiberspec,
-            exposure_time=fiber_spectrum_exposure_time,
+        fiber_spectrum_red_exposure_coroutine = self.take_fiber_spectrum(
+            fiberspectrograph_color="red",
+            exposure_time=fiber_spectrum_red_exposure_time,
+            exposures_done=exposures_done,
+        )
+        fiber_spectrum_blue_exposure_coroutine = self.take_fiber_spectrum(
+            fiberspectrograph_color="blue",
+            exposure_time=fiber_spectrum_blue_exposure_time,
             exposures_done=exposures_done,
         )
         electrometer_exposure_coroutine = self.take_electrometer_scan(
@@ -570,8 +579,11 @@ class MTCalsys(BaseCalsys):
             exposures_done=exposures_done,
         )
         try:
-            fiber_spectrum_exposure_task = asyncio.create_task(
-                fiber_spectrum_exposure_coroutine
+            fiber_spectrum_red_exposure_task = asyncio.create_task(
+                fiber_spectrum_red_exposure_coroutine
+            )
+            fiber_spectrum_blue_exposure_task = asyncio.create_task(
+                fiber_spectrum_blue_exposure_coroutine
             )
             electrometer_exposure_task = asyncio.create_task(
                 electrometer_exposure_coroutine
@@ -580,15 +592,20 @@ class MTCalsys(BaseCalsys):
             mtcamera_exposure_id = await mtcamera_exposure_task
         finally:
             exposures_done.set_result(True)
-            fiber_spectrum_exposure_result, electrometer_exposure_result = (
-                await asyncio.gather(
-                    fiber_spectrum_exposure_task, electrometer_exposure_task
-                )
+            (
+                fiber_spectrum_red_exposure_result,
+                fiber_spectrum_blue_exposure_result,
+                electrometer_exposure_result,
+            ) = await asyncio.gather(
+                fiber_spectrum_red_exposure_task,
+                fiber_spectrum_blue_exposure_task,
+                electrometer_exposure_task,
             )
 
         return {
             mtcamera_exposure_id[0]: dict(
-                fiber_spectrum_exposure_result=fiber_spectrum_exposure_result,
+                fiber_spectrum_red_exposure_result=fiber_spectrum_red_exposure_result,
+                fiber_spectrum_blue_exposure_result=fiber_spectrum_blue_exposure_result,
                 electrometer_exposure_result=electrometer_exposure_result,
             )
         }
@@ -645,8 +662,7 @@ class MTCalsys(BaseCalsys):
 
     async def take_fiber_spectrum(
         self,
-        use_blue: bool,
-        use_red: bool,
+        fiberspectrograph_color: str,
         exposure_time: float | None,
         exposures_done: asyncio.Future,
     ) -> list[str]:
@@ -668,40 +684,32 @@ class MTCalsys(BaseCalsys):
         fiber_spectrum_exposures : `list`[`str`]
             List of large file urls.
         """
-        spectrographs = []
-        if use_blue:
-            spectrographs.append(self.fiberspectrograph_blue)
-        if use_red:
-            spectrographs.append(self.fiberspectrograph_red)
+        if fiberspectrograph_color == "blue":
+            fiberspec = self.fiberspectrograph_blue
+        elif fiberspectrograph_color == "red":
+            fiberspec = self.fiberspectrograph_red
 
-        for fiberspec in spectrographs:
-            fiberspec.evt_largeFileObjectAvailable.flush()
+        fiberspec.evt_largeFileObjectAvailable.flush()
 
         fiber_spectrum_exposures = []
 
         if exposure_time is not None:
 
             try:
-                tasks = []
-                for fiberspec in spectrographs:
-                    task = fiberspec.cmd_expose.set_start(
-                        duration=exposure_time,
-                        numExposures=1,
-                        timeout=exposure_time + self.long_timeout,
-                    )
-                    tasks.append(task)
-
-                await asyncio.gather(*tasks)
+                await fiberspec.cmd_expose.set_start(
+                    duration=exposure_time,
+                    numExposures=1,
+                    timeout=exposure_time + self.long_timeout,
+                )
 
             except salobj.AckTimeoutError:
                 self.log.exception("Timed out waiting for the command ack. Continuing.")
 
-            for fiberspec in spectrographs:
-                lfo = await fiberspec.evt_largeFileObjectAvailable.next(
-                    timeout=self.long_timeout, flush=False
-                )
+            lfo = await fiberspec.evt_largeFileObjectAvailable.next(
+                timeout=self.long_timeout, flush=False
+            )
 
-                fiber_spectrum_exposures.append(lfo.url)
+            fiber_spectrum_exposures.append(lfo.url)
 
         return fiber_spectrum_exposures
 

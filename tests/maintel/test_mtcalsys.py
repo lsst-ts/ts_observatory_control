@@ -185,7 +185,12 @@ class TestMTCalsys(RemoteGroupAsyncMock):
             "mtcamera_exposure_info"
         ].values():
             assert len(mtcamera_exposure_info["electrometer_exposure_result"]) >= 1
-            assert len(mtcamera_exposure_info["fiber_spectrum_exposure_result"]) >= 1
+            assert (
+                len(mtcamera_exposure_info["fiber_spectrum_red_exposure_result"]) >= 1
+            )
+            assert (
+                len(mtcamera_exposure_info["fiber_spectrum_blue_exposure_result"]) >= 1
+            )
 
     async def test_run_calibration_sequence_mono(self) -> None:
 
@@ -234,7 +239,12 @@ class TestMTCalsys(RemoteGroupAsyncMock):
             "mtcamera_exposure_info"
         ].values():
             assert len(mtcamera_exposure_info["electrometer_exposure_result"]) >= 1
-            assert len(mtcamera_exposure_info["fiber_spectrum_exposure_result"]) >= 1
+            assert (
+                len(mtcamera_exposure_info["fiber_spectrum_red_exposure_result"]) >= 1
+            )
+            assert (
+                len(mtcamera_exposure_info["fiber_spectrum_blue_exposure_result"]) >= 1
+            )
         self.mtcalsys.change_laser_wavelength(
             wavelength=expected_change_wavelegths_calls
         )

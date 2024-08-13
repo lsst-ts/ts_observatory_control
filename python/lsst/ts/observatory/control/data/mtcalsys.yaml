@@ -7,6 +7,7 @@ whitelight_u:
   mtcamera_filter: u
   led_name: 
     - M385L3
+  wavelength: 385.0
   led_location: 210.21
   led_focus: 50.68
   use_electrometer: true
@@ -22,12 +23,10 @@ whitelight_g:
   calib_type: WhiteLight
   use_camera: true
   mtcamera_filter: g
-  wavelength: 475.0
-  wavelength_width: 250
-  wavelength_resolution: 5.0
   led_name:
     - M455L4
     - M505L4
+  wavelength: 480.0
   led_location: 9.15
   led_focus: 17.029
   use_electrometer: true
@@ -43,12 +42,10 @@ whitelight_r:
   calib_type: WhiteLight
   use_camera: true
   mtcamera_filter: r
-  wavelength: 475.0
-  wavelength_width: 250
-  wavelength_resolution: 5.0
   led_name:
     - M565L3
     - M660L4
+  wavelength: 612.5
   led_location: 70.40
   led_focus: 16.279
   use_electrometer: true
@@ -67,6 +64,7 @@ whitelight_i:
   led_name:
     - M730L5
     - M780LP1
+  wavelength: 755.0
   led_location: 237.36
   led_focus: 15.829
   use_electrometer: true
@@ -85,6 +83,7 @@ whitelight_z:
   led_name:
     - M850L3
     - M940L3
+  wavelength: 895.0
   led_location: 299.034
   led_focus: 15.505
   use_electrometer: true
@@ -102,6 +101,7 @@ whitelight_y:
   mtcamera_filter: y
   led_name:
     - M970L4
+  wavelength: 970.0
   led_location: 174.91
   led_focus: 15.380
   use_electrometer: true
