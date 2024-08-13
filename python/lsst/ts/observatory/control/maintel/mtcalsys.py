@@ -447,8 +447,6 @@ class MTCalsys(BaseCalsys):
             fiberspectrograph_exptimes = (
                 await self._calculate_fiberspectrograph_exposure_times(
                     exptimes=config_data["exposure_times"],
-                    entrance_slit=config_data["entrance_slit"],
-                    exit_slit=config_data["exit_slit"],
                     use_fiberspectrograph=config_data["use_fiberspectrograph"],
                 )
             )
@@ -485,6 +483,7 @@ class MTCalsys(BaseCalsys):
         `list`[`float` | `None`]
             Exposure times for the electrometer
         """
+        # TODO (DM-44777): Update optimized exposure times
         electrometer_buffer_size = 16667
         electrometer_integration_overhead = 0.00254
         electrometer_time_separation_vs_integration = 3.07
@@ -511,8 +510,6 @@ class MTCalsys(BaseCalsys):
     async def _calculate_fiberspectrograph_exposure_times(
         self,
         exptimes: list,
-        entrance_slit: float,
-        exit_slit: float,
         use_fiberspectrograph: bool,
     ) -> list[float | None]:
         """Calculates the optimal exposure time for the electrometer
@@ -531,18 +528,12 @@ class MTCalsys(BaseCalsys):
         `list`[`float` | `None`]
             Exposure times for the fiberspectrograph
         """
+        # TODO (DM-44777): Update optimized exposure times
         fiberspectrograph_exptimes: list[float | None] = []
         for exptime in exptimes:
             if use_fiberspectrograph:
                 base_exptime = 1  # sec
-                entry_slit_multiplier = 6 / (entrance_slit + 1)
-                exit_slit_multiplier = 6 / (exit_slit + 1)
-                # TODO (DM-45235): Improve these multipliers with testing
-                # Also, include some wavelength dependence based on testing
-                fiberspectrograph_exptime = (
-                    base_exptime * entry_slit_multiplier * exit_slit_multiplier
-                )
-                fiberspectrograph_exptimes.append(fiberspectrograph_exptime)
+                fiberspectrograph_exptimes.append(base_exptime)
             else:
                 fiberspectrograph_exptimes.append(None)
         return fiberspectrograph_exptimes
