@@ -1477,7 +1477,7 @@ class MTCS(BaseTCS):
 
         # csc actuator id is 0 based and hardpoint id is 1 based
         if actuator + 1 in hardpoint_ids:
-            raise Exception(
+            raise RuntimeError(
                 f"Cannot bump test one of the M2 hardpoints: actuator = {actuator}."
             )
 

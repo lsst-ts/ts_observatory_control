@@ -1595,7 +1595,7 @@ class TestMTCS(MTCSAsyncMock):
         period = 60
         force = 10
 
-        with pytest.raises(Exception):
+        with pytest.raises(RuntimeError):
             await self.mtcs.run_m2_actuator_bump_test(
                 actuator=actuator,
                 period=period,
