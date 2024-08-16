@@ -17,9 +17,11 @@
 # GNU General Public License for more details.
 #
 # You should have received a copy of the GNU General Public License
-
+import json
 import logging
 import typing
+import unittest.mock
+from math import ceil
 
 import pytest
 from lsst.ts.observatory.control.maintel.lsstcam import LSSTCam, LSSTCamUsages
@@ -323,6 +325,62 @@ class TestLSSTCam(BaseCameraAsyncMock):
             row_shift=100,
         )
 
+    async def test_init_guider_long(self) -> None:
+        roi = ROI(
+            segment=3,
+            start_row=260,
+            start_col=162,
+        )
+
+        roi_common = ROICommon(
+            rows=100,
+            cols=100,
+            integration_time_millis=200,
+        )
+
+        roi_spec = ROISpec(
+            common=roi_common,
+            roi=dict(
+                R40_SG0=roi,
+                R01_SG0=roi,
+                R02_SG0=roi,
+                R03_SG0=roi,
+            ),
+        )
+
+        # initialize guiders
+        await self.lsstcam.init_guider(roi_spec=roi_spec)
+
+        roi_spec_dict = roi_spec.model_dump()
+        roi = roi_spec_dict.pop("roi")
+        roi_spec_dict.update(roi)
+        roi_spec_json = json.dumps(roi_spec_dict, separators=(",", ":"))
+        cmd_max_size = self.lsstcam.init_guider_roi_spec_max_size
+        n_commands = int(ceil(len(roi_spec_json) / cmd_max_size))
+
+        roi_spec_split = [
+            roi_spec_json[i * cmd_max_size : (i + 1) * cmd_max_size]
+            for i in range(n_commands)
+        ]
+        expected_calls = []
+        for rs in roi_spec_split[:-1]:
+            expected_calls.append(
+                unittest.mock.call(
+                    roiSpec=f"{rs}-",
+                    timeout=self.lsstcam.long_timeout,
+                )
+            )
+        expected_calls.append(
+            unittest.mock.call(
+                roiSpec=roi_spec_split[-1],
+                timeout=self.lsstcam.long_timeout,
+            )
+        )
+
+        self.lsstcam.rem.mtcamera.cmd_initGuiders.set_start.assert_has_awaits(
+            expected_calls
+        )
+
     async def test_init_guider(self) -> None:
         roi = ROI(
             segment=3,
@@ -344,8 +402,11 @@ class TestLSSTCam(BaseCameraAsyncMock):
         # initialize guiders
         await self.lsstcam.init_guider(roi_spec=roi_spec)
 
+        roi_spec_dict = roi_spec.model_dump()
+        roi = roi_spec_dict.pop("roi")
+        roi_spec_dict.update(roi)
         self.lsstcam.rem.mtcamera.cmd_initGuiders.set_start.assert_awaited_with(
-            roiSpec=roi_spec.json(),
+            roiSpec=json.dumps(roi_spec_dict, separators=(",", ":")),
             timeout=self.lsstcam.long_timeout,
         )
 
