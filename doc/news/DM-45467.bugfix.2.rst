@@ -1,1 +1,0 @@
-In base_camera, fix how roiSpec is constructed in init_guider and fix unit test.
