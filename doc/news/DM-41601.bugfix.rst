@@ -1,1 +1,0 @@
-Change the exception raised by ``MTCS.run_m2_actuator_bump_test`` to ``RuntimeError`` and update the corresponding unit test.

@@ -8,6 +8,23 @@ Version History
 
 .. towncrier release notes start
 
+v0.38.1 (2024-08-16)
+====================
+
+New Features
+------------
+
+- Add logging to init_guider. (`DM-45467 <https://rubinobs.atlassian.net/browse/DM-45467>`_)
+
+
+Bug Fixes
+---------
+
+- Change the exception raised by ``MTCS.run_m2_actuator_bump_test`` to ``RuntimeError`` and update the corresponding unit test. (`DM-41601 <https://rubinobs.atlassian.net/browse/DM-41601>`_)
+- In base_camera, fix how roiSpec is constructed in init_guider and fix unit test. (`DM-45467 <https://rubinobs.atlassian.net/browse/DM-45467>`_)
+- In ATCalySys, swap RED to BLUE filter for atmonochromator (for white light) and update configuration for ptc-1. (`DM-45467 <https://rubinobs.atlassian.net/browse/DM-45467>`_)
+
+
 v0.38.0 (2024-07-30)
 ====================
 
