@@ -28,7 +28,6 @@ import typing
 
 import yaml
 from lsst.ts import salobj
-from lsst.ts.xml.enums.Electrometer import UnitToRead
 
 from .remote_group import RemoteGroup
 from .utils import get_data_path
@@ -87,15 +86,13 @@ class BaseCalsys(RemoteGroup, metaclass=abc.ABCMeta):
         integration_time : `float`
             Electrometer measurement range.
         """
-        electrometer_mode = getattr(UnitToRead, mode).value
-
         for electrometer in [
             getattr(self.rem, component_name)
             for component_name in self.components_attr
             if "electrometer" in component_name
         ]:
             await electrometer.cmd_setMode.set_start(
-                mode=electrometer_mode,
+                mode=mode,
                 timeout=self.long_timeout,
             )
             await electrometer.cmd_setRange.set_start(
