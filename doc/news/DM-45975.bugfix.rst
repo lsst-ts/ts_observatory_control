@@ -1,0 +1,1 @@
+Changed grating from Blue to Mirror for PTC curves to align with updated hardware configuration and xml
