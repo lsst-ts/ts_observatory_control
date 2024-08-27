@@ -1,0 +1,1 @@
+In base_tcs.py, expand captured rotator limit exceptions during slew cmd.
