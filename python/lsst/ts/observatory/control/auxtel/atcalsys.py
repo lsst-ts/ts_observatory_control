@@ -474,10 +474,12 @@ class ATCalsys(BaseCalsys):
         fiber_spectrum_exposure_coroutine = self.take_fiber_spectrum(
             exposure_time=fiber_spectrum_exposure_time,
             exposures_done=exposures_done,
+            group_id=exposure_metadata.get("group_id", ""),
         )
         electrometer_exposure_coroutine = self.take_electrometer_scan(
             exposure_time=electrometer_exposure_time,
             exposures_done=exposures_done,
+            group_id=exposure_metadata.get("group_id", ""),
         )
         try:
             fiber_spectrum_exposure_task = asyncio.create_task(
@@ -507,6 +509,7 @@ class ATCalsys(BaseCalsys):
         self,
         exposure_time: float | None,
         exposures_done: asyncio.Future,
+        group_id: str,
     ) -> list[str]:
         """Perform an electrometer scan for the specified duration.
 
@@ -516,6 +519,8 @@ class ATCalsys(BaseCalsys):
             Exposure time for the fiber spectrum (seconds).
         exposures_done : `asyncio.Future`
             A future indicating when the camera exposures where complete.
+        group_id : `str`
+            Group ID for this data.
 
         Returns
         -------
@@ -531,6 +536,7 @@ class ATCalsys(BaseCalsys):
             try:
                 await self.electrometer.cmd_startScanDt.set_start(
                     scanDuration=exposure_time,
+                    groupId=group_id,
                     timeout=exposure_time + self.long_timeout,
                 )
             except salobj.AckTimeoutError:
@@ -556,6 +562,7 @@ class ATCalsys(BaseCalsys):
         self,
         exposure_time: float | None,
         exposures_done: asyncio.Future,
+        group_id: str,
     ) -> list[str]:
         """Take exposures with the fiber spectrograph until
         the exposures with the camera are complete.
@@ -569,6 +576,8 @@ class ATCalsys(BaseCalsys):
             Exposure time for the fiber spectrum (seconds).
         exposures_done : `asyncio.Future`
             A future indicating when the camera exposures where complete.
+        group_id : str
+            Group id for the data.
 
         Returns
         -------
@@ -584,6 +593,7 @@ class ATCalsys(BaseCalsys):
                 await self.fiberspectrograph.cmd_expose.set_start(
                     duration=exposure_time,
                     numExposures=1,
+                    groupId=group_id,
                     timeout=exposure_time + self.long_timeout,
                 )
             except salobj.AckTimeoutError:
