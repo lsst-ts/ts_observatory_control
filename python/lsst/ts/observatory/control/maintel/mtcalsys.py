@@ -27,7 +27,7 @@ from dataclasses import dataclass
 
 import numpy as np
 from lsst.ts import salobj, utils
-from lsst.ts.xml.enums import TunableLaser
+from lsst.ts.xml.enums.TunableLaser import LaserDetailedState
 
 from ..base_calsys import BaseCalsys
 from ..remote_group import Usages
@@ -195,7 +195,8 @@ class MTCalsys(BaseCalsys):
             wavelength=wavelength, timeout=self.long_long_timeout
         )
         task_focus = self.linearstage_laser_focus.cmd_moveAbsolute.set_start(
-            distance=self.calculate_laser_focus_location(wavelength)
+            distance=self.calculate_laser_focus_location(wavelength),
+            timeout=self.long_long_timeout,
         )
 
         await asyncio.gather(task_wavelength, task_focus)
@@ -244,7 +245,7 @@ class MTCalsys(BaseCalsys):
                 timeout=self.long_long_timeout
             )
 
-    async def setup_laser(self, mode: str) -> None:
+    async def setup_laser(self, mode: LaserDetailedState) -> None:
         """Perform all steps for preparing the laser for monochromatic flats.
         This includes confirming that the thermal system is
         turned on and set at the right temperature. It also checks
@@ -252,24 +253,30 @@ class MTCalsys(BaseCalsys):
 
         Parameters
         ----------
-        mode : `str`
+        mode : LaserDetailedState
             Mode of the TunableLaser
             Options: CONTINUOUS, BURST, TRIGGER
 
         """
         # TO-DO: DM-45693 implement thermal system checks
 
-        if mode == TunableLaser.Mode.CONTINUOUS:
+        if mode in {
+            LaserDetailedState.NONPROPAGATING_CONTINUOUS_MODE,
+            LaserDetailedState.PROPAGATING_CONTINUOUS_MODE,
+        }:
             await self.rem.tunablelaser.cmd_setContinuousMode.start(
                 timeout=self.long_timeout
             )
-        elif mode in {TunableLaser.Mode.BURST, TunableLaser.Mode.TRIGGER}:
+        elif mode in {
+            LaserDetailedState.NONPROPAGATING_BURST_MODE,
+            LaserDetailedState.PROPAGATING_BURST_MODE,
+        }:
             await self.rem.tunablelaser.cmd_setBurstMode.start(
                 timeout=self.long_timeout
             )
         else:
             raise RuntimeError(
-                f"{mode} not an acceptable TunableLaser Mode [CONTINOUS, BURST, TRIGGER]"
+                f"{mode} not an acceptable LaserDetailedState [CONTINOUS, BURST, TRIGGER]"
             )
 
     async def prepare_for_flat(self, sequence_name: str) -> None:
