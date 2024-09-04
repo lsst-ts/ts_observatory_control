@@ -419,11 +419,14 @@ class ATCalsys(BaseCalsys):
             wavelengths=calibration_wavelengths, config_data=config_data
         )
 
-        for exposure in exposure_table:
+        for i, exposure in enumerate(exposure_table):
             self.log.debug(
                 f"Performing {calibration_type.name} calibration with {exposure.wavelength=}."
             )
             await self.change_wavelength(wavelength=exposure.wavelength)
+            _exposure_metadata = exposure_metadata.copy()
+            if "group_id" in _exposure_metadata:
+                _exposure_metadata["group_id"] += f" # {i+1}"
 
             latiss_exposure_info: dict = dict()
             self.log.debug("Taking data sequence.")
@@ -431,7 +434,7 @@ class ATCalsys(BaseCalsys):
                 latiss_exptime=exposure.camera,
                 latiss_filter=str(config_data["atspec_filter"]),
                 latiss_grating=str(config_data["atspec_grating"]),
-                exposure_metadata=exposure_metadata,
+                exposure_metadata=_exposure_metadata,
                 fiber_spectrum_exposure_time=exposure.fiberspectrograph,
                 electrometer_exposure_time=exposure.electrometer,
             )
