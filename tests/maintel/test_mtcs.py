@@ -32,6 +32,7 @@ from lsst.ts import idl, utils
 from lsst.ts.idl.enums import MTM1M3, MTM2
 from lsst.ts.observatory.control.mock.mtcs_async_mock import MTCSAsyncMock
 from lsst.ts.observatory.control.utils import RotType
+from lsst.ts.xml.enums import MTDome
 
 
 class TestMTCS(MTCSAsyncMock):
@@ -763,6 +764,23 @@ class TestMTCS(MTCSAsyncMock):
             dy=y_offset * self.mtcs.plate_scale,
             num=0,
         )
+
+    async def test_park_dome(self) -> None:
+        await self.mtcs.enable()
+        await self.mtcs.assert_all_enabled()
+
+        # Call the park_dome method
+        await self.mtcs.park_dome()
+
+        az_motion = await self.mtcs.rem.mtdome.evt_azMotion.aget(
+            timeout=self.mtcs.park_dome_timeout
+        )
+
+        # Check the state of the azMotion event
+        assert (
+            az_motion.state == MTDome.MotionState.PARKED
+        ), "Dome did not reach the PARKED state."
+        assert az_motion.inPosition, "Dome is not in position."
 
     async def test_slew_dome_to(self) -> None:
         az = 90.0
