@@ -310,6 +310,7 @@ class ATCalsys(BaseCalsys):
         electrometer_buffer_size = 16667
         electrometer_integration_overhead = 0.00254
         electrometer_time_separation_vs_integration = 3.07
+        keithley_min_exptime = 1.0
 
         electrometer_exptimes: list[float | None] = []
         for exptime in exptimes:
@@ -319,13 +320,19 @@ class ATCalsys(BaseCalsys):
                     * electrometer_time_separation_vs_integration
                 ) + electrometer_integration_overhead
                 max_exp_time = electrometer_buffer_size * time_sep
-                if exptime > max_exp_time:
-                    electrometer_exptimes.append(max_exp_time)
+                if exptime < keithley_min_exptime:
+                    elec_exptime = keithley_min_exptime
+                    self.log.info(
+                        f"Electrometer exposure time increased from {exptime} to {keithley_min_exptime} sec."
+                    )
+                elif exptime > max_exp_time:
+                    elec_exptime = max_exp_time
                     self.log.info(
                         f"Electrometer exposure time reduced to {max_exp_time}"
                     )
                 else:
-                    electrometer_exptimes.append(exptime)
+                    elec_exptime = exptime
+                electrometer_exptimes.append(elec_exptime)
             else:
                 electrometer_exptimes.append(None)
         return electrometer_exptimes
