@@ -782,6 +782,21 @@ class TestMTCS(MTCSAsyncMock):
         ), "Dome did not reach the PARKED state."
         assert az_motion.inPosition, "Dome is not in position."
 
+    async def test_unpark_dome(self) -> None:
+        await self.mtcs.enable()
+        await self.mtcs.assert_all_enabled()
+
+        # set initial PARKED state
+        await self.mtcs.park_dome()
+
+        await self.mtcs.unpark_dome()
+
+        az_motion = await self.mtcs.rem.mtdome.evt_azMotion.aget()
+
+        assert (
+            az_motion.state != MTDome.MotionState.PARKED
+        ), "Dome still in PARKED state."
+
     async def test_slew_dome_to(self) -> None:
         az = 90.0
 
