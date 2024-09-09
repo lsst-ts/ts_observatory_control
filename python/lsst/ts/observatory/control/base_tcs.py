@@ -648,9 +648,19 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
                     offset_y=offset_y,
                 )
             except salobj.AckError as ack_error:
-                if "Target out of rotator limit" in ack_error.ackcmd.result:
+                if "rotator position angle out of range" in ack_error.ackcmd.result:
                     self.log.warning(
                         "Target out of rotator limit. Trying different angle."
+                    )
+                    continue
+                elif "Target out of rotator limit" in ack_error.ackcmd.result:
+                    self.log.warning(
+                        "Target out of rotator limit. Trying different angle."
+                    )
+                    continue
+                elif "out of slew limit margin" in ack_error.ackcmd.result:
+                    self.log.warning(
+                        "Target out of rotator slew limit margin. Trying different angle."
                     )
                     continue
                 else:
@@ -660,18 +670,29 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
                 break
             else:
                 if self._overslew_az:
-                    overslew_az = 2.0 * 3600.0 * np.cos(alt_az.alt.rad)
-                    self.log.info(
-                        "Overslew Azimuth feature is enabled. Slewing past target position by"
-                        f"{(overslew_az/3600.):.1f} degrees and waiting for settle."
-                    )
-                    await asyncio.sleep(self.tel_settle_time)
-                    await self.offset_azel(az=overslew_az, el=0, relative=False)
-                    await asyncio.sleep(self.tel_settle_time)
-                    self.log.info("Slewing back to target position.")
-                    await self.offset_azel(az=0, el=0, relative=False)
+                    try:
+                        overslew_az = 2.0 * 3600.0 * np.cos(alt_az.alt.rad)
+                        self.log.info(
+                            "Overslew Azimuth feature is enabled. Slewing past target position by"
+                            f"{(overslew_az/3600.):.1f} degrees and waiting for settle."
+                        )
+                        await asyncio.sleep(self.tel_settle_time)
+                        await self.offset_azel(az=overslew_az, el=0, relative=False)
+                        await asyncio.sleep(self.tel_settle_time)
+                        self.log.info("Slewing back to target position.")
+                        await self.offset_azel(az=0, el=0, relative=False)
+                    except salobj.AckError as ack_error:
+                        if (
+                            "out of range"
+                            or "out of slew limit" in ack_error.ackcmd.result
+                        ):
+                            self.log.warning(
+                                "Overslew is out of operational limits. Skipping overslew."
+                            )
+                            continue
+                        else:
+                            raise ack_error
                 break
-
         if slew_exception is not None:
             raise slew_exception
 

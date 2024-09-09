@@ -128,7 +128,7 @@ class BaseCalsys(RemoteGroup, metaclass=abc.ABCMeta):
         raise NotImplementedError()
 
     @abc.abstractmethod
-    async def prepare_for_flat(self, config_name: str) -> None:
+    async def prepare_for_flat(self, sequence_name: str) -> None:
         """Configure calibration system to be ready to take a flat
 
         Parameters
@@ -157,6 +157,30 @@ class BaseCalsys(RemoteGroup, metaclass=abc.ABCMeta):
         calibration_summary : `dict`
             Dictionary with summary information about the sequence.
         """
+        raise NotImplementedError()
+
+    @abc.abstractmethod
+    async def calculate_optimized_exposure_times(
+        self, wavelengths: list, config_data: dict
+    ) -> list:
+        """Calculates the exposure times for the electrometer and
+        fiber spectrograph given the type and wavelength of the exposure
+        and the length of the camera exposure time
+
+        Parameters
+        ----------
+        wavelengths : `list`
+            List of all wavelengths for this exposure list
+        config_data : `dict`
+            All information from configuration file
+
+        Returns
+        -------
+        exposure_list : `list`[ATCalsysExposure|MTCalsysExposure]
+            List of exposure information, includes wavelength
+            and camera, fiberspectrograph and electrometer exposure times.
+        """
+        # TO-DO: DM-44777
         raise NotImplementedError()
 
     def load_calibration_config_file(self, filename: str | None = None) -> None:

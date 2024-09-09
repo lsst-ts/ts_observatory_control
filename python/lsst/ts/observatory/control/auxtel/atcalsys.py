@@ -156,7 +156,9 @@ class ATCalsys(BaseCalsys):
         )
 
     async def is_ready_for_flats(self) -> bool:
-        """Add doctring"""
+        """Designates if the calibraiton hardware is in a state
+        to take flats.
+        """
         # TODO (DM-44310): Implement method to check that the
         # system is ready for flats.
         return True
@@ -170,12 +172,12 @@ class ATCalsys(BaseCalsys):
         await self.switch_lamp_on()
         await self.wait_for_lamp_to_warm_up()
 
-    async def prepare_for_flat(self, config_name: str) -> None:
+    async def prepare_for_flat(self, sequence_name: str) -> None:
         """Configure the ATMonochromator according to the flat parameters
 
         Parameters
         ----------
-        config_name : `str`
+        sequence_name : `str`
             name of the type of configuration you will run, which is saved
             in the configuration.yaml files
 
@@ -184,7 +186,7 @@ class ATCalsys(BaseCalsys):
         RuntimeError:
 
         """
-        config_data = self.get_calibration_configuration(config_name)
+        config_data = self.get_calibration_configuration(sequence_name)
 
         wavelength = (
             float(config_data["wavelength"])
@@ -204,7 +206,7 @@ class ATCalsys(BaseCalsys):
 
         if self.latiss is None and config_data["use_camera"]:
             raise RuntimeError(
-                f"LATISS is not defined but {config_name} requires it. "
+                f"LATISS is not defined but {sequence_name} requires it. "
                 "Make sure you are instantiating LATISS and passing it to ATCalsys."
             )
         task_setup_latiss = (
@@ -308,6 +310,7 @@ class ATCalsys(BaseCalsys):
         electrometer_buffer_size = 16667
         electrometer_integration_overhead = 0.00254
         electrometer_time_separation_vs_integration = 3.07
+        keithley_min_exptime = 1.0
 
         electrometer_exptimes: list[float | None] = []
         for exptime in exptimes:
@@ -317,13 +320,19 @@ class ATCalsys(BaseCalsys):
                     * electrometer_time_separation_vs_integration
                 ) + electrometer_integration_overhead
                 max_exp_time = electrometer_buffer_size * time_sep
-                if exptime > max_exp_time:
-                    electrometer_exptimes.append(max_exp_time)
+                if exptime < keithley_min_exptime:
+                    elec_exptime = keithley_min_exptime
+                    self.log.info(
+                        f"Electrometer exposure time increased from {exptime} to {keithley_min_exptime} sec."
+                    )
+                elif exptime > max_exp_time:
+                    elec_exptime = max_exp_time
                     self.log.info(
                         f"Electrometer exposure time reduced to {max_exp_time}"
                     )
                 else:
-                    electrometer_exptimes.append(exptime)
+                    elec_exptime = exptime
+                electrometer_exptimes.append(elec_exptime)
             else:
                 electrometer_exptimes.append(None)
         return electrometer_exptimes
@@ -410,11 +419,14 @@ class ATCalsys(BaseCalsys):
             wavelengths=calibration_wavelengths, config_data=config_data
         )
 
-        for exposure in exposure_table:
+        for i, exposure in enumerate(exposure_table):
             self.log.debug(
                 f"Performing {calibration_type.name} calibration with {exposure.wavelength=}."
             )
             await self.change_wavelength(wavelength=exposure.wavelength)
+            _exposure_metadata = exposure_metadata.copy()
+            if "group_id" in _exposure_metadata:
+                _exposure_metadata["group_id"] += f" # {i+1}"
 
             latiss_exposure_info: dict = dict()
             self.log.debug("Taking data sequence.")
@@ -422,7 +434,7 @@ class ATCalsys(BaseCalsys):
                 latiss_exptime=exposure.camera,
                 latiss_filter=str(config_data["atspec_filter"]),
                 latiss_grating=str(config_data["atspec_grating"]),
-                exposure_metadata=exposure_metadata,
+                exposure_metadata=_exposure_metadata,
                 fiber_spectrum_exposure_time=exposure.fiberspectrograph,
                 electrometer_exposure_time=exposure.electrometer,
             )
@@ -474,10 +486,12 @@ class ATCalsys(BaseCalsys):
         fiber_spectrum_exposure_coroutine = self.take_fiber_spectrum(
             exposure_time=fiber_spectrum_exposure_time,
             exposures_done=exposures_done,
+            group_id=exposure_metadata.get("group_id", ""),
         )
         electrometer_exposure_coroutine = self.take_electrometer_scan(
             exposure_time=electrometer_exposure_time,
             exposures_done=exposures_done,
+            group_id=exposure_metadata.get("group_id", ""),
         )
         try:
             fiber_spectrum_exposure_task = asyncio.create_task(
@@ -507,6 +521,7 @@ class ATCalsys(BaseCalsys):
         self,
         exposure_time: float | None,
         exposures_done: asyncio.Future,
+        group_id: str,
     ) -> list[str]:
         """Perform an electrometer scan for the specified duration.
 
@@ -516,6 +531,8 @@ class ATCalsys(BaseCalsys):
             Exposure time for the fiber spectrum (seconds).
         exposures_done : `asyncio.Future`
             A future indicating when the camera exposures where complete.
+        group_id : `str`
+            Group ID for this data.
 
         Returns
         -------
@@ -531,31 +548,24 @@ class ATCalsys(BaseCalsys):
             try:
                 await self.electrometer.cmd_startScanDt.set_start(
                     scanDuration=exposure_time,
+                    groupId=group_id,
                     timeout=exposure_time + self.long_timeout,
                 )
             except salobj.AckTimeoutError:
                 self.log.exception("Timed out waiting for the command ack. Continuing.")
 
             # Make sure that a new lfo was created
-            try:
-                lfo = await self.electrometer.evt_largeFileObjectAvailable.next(
-                    timeout=self.long_timeout, flush=False
-                )
-                electrometer_exposures.append(lfo.url)
-            except asyncio.TimeoutError:
-                # TODO (DM-44634): Remove this work around to electrometer
-                # going to FAULT when issue is resolved.
-                self.log.warning(
-                    "Time out waiting for electrometer data. Making sure electrometer "
-                    "is in enabled state and continuing."
-                )
-                await salobj.set_summary_state(self.electrometer, salobj.State.ENABLED)
+            lfo = await self.electrometer.evt_largeFileObjectAvailable.next(
+                timeout=self.long_timeout, flush=False
+            )
+            electrometer_exposures.append(lfo.url)
         return electrometer_exposures
 
     async def take_fiber_spectrum(
         self,
         exposure_time: float | None,
         exposures_done: asyncio.Future,
+        group_id: str,
     ) -> list[str]:
         """Take exposures with the fiber spectrograph until
         the exposures with the camera are complete.
@@ -569,6 +579,8 @@ class ATCalsys(BaseCalsys):
             Exposure time for the fiber spectrum (seconds).
         exposures_done : `asyncio.Future`
             A future indicating when the camera exposures where complete.
+        group_id : str
+            Group id for the data.
 
         Returns
         -------
@@ -584,6 +596,7 @@ class ATCalsys(BaseCalsys):
                 await self.fiberspectrograph.cmd_expose.set_start(
                     duration=exposure_time,
                     numExposures=1,
+                    groupId=group_id,
                     timeout=exposure_time + self.long_timeout,
                 )
             except salobj.AckTimeoutError:

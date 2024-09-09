@@ -1,0 +1,1 @@
+Increase minimum electrometer exposure time to 1 second for Keithley electrometer
