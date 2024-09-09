@@ -419,11 +419,14 @@ class ATCalsys(BaseCalsys):
             wavelengths=calibration_wavelengths, config_data=config_data
         )
 
-        for exposure in exposure_table:
+        for i, exposure in enumerate(exposure_table):
             self.log.debug(
                 f"Performing {calibration_type.name} calibration with {exposure.wavelength=}."
             )
             await self.change_wavelength(wavelength=exposure.wavelength)
+            _exposure_metadata = exposure_metadata.copy()
+            if "group_id" in _exposure_metadata:
+                _exposure_metadata["group_id"] += f" # {i+1}"
 
             latiss_exposure_info: dict = dict()
             self.log.debug("Taking data sequence.")
@@ -431,7 +434,7 @@ class ATCalsys(BaseCalsys):
                 latiss_exptime=exposure.camera,
                 latiss_filter=str(config_data["atspec_filter"]),
                 latiss_grating=str(config_data["atspec_grating"]),
-                exposure_metadata=exposure_metadata,
+                exposure_metadata=_exposure_metadata,
                 fiber_spectrum_exposure_time=exposure.fiberspectrograph,
                 electrometer_exposure_time=exposure.electrometer,
             )
@@ -552,19 +555,10 @@ class ATCalsys(BaseCalsys):
                 self.log.exception("Timed out waiting for the command ack. Continuing.")
 
             # Make sure that a new lfo was created
-            try:
-                lfo = await self.electrometer.evt_largeFileObjectAvailable.next(
-                    timeout=self.long_timeout, flush=False
-                )
-                electrometer_exposures.append(lfo.url)
-            except asyncio.TimeoutError:
-                # TODO (DM-44634): Remove this work around to electrometer
-                # going to FAULT when issue is resolved.
-                self.log.warning(
-                    "Time out waiting for electrometer data. Making sure electrometer "
-                    "is in enabled state and continuing."
-                )
-                await salobj.set_summary_state(self.electrometer, salobj.State.ENABLED)
+            lfo = await self.electrometer.evt_largeFileObjectAvailable.next(
+                timeout=self.long_timeout, flush=False
+            )
+            electrometer_exposures.append(lfo.url)
         return electrometer_exposures
 
     async def take_fiber_spectrum(
