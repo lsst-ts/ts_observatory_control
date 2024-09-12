@@ -426,7 +426,7 @@ class ATCalsys(BaseCalsys):
             await self.change_wavelength(wavelength=exposure.wavelength)
             _exposure_metadata = exposure_metadata.copy()
             if "group_id" in _exposure_metadata:
-                _exposure_metadata["group_id"] += f" # {i+1}"
+                _exposure_metadata["group_id"] += f"#{i+1}"
 
             latiss_exposure_info: dict = dict()
             self.log.debug("Taking data sequence.")
