@@ -164,43 +164,6 @@ class MTCalsys(BaseCalsys):
             fiberspectrograph=0.0,
         )
 
-    def calculate_laser_focus_location(self, wavelength: float) -> float:
-        """Calculates the location of the linear stage that provides the focus
-        for the laser projector. This location is dependent on the
-        wavelength of the laser.
-
-        Parameters
-        ----------
-        wavelength : `float`
-            wavelength of the laser projector in nm
-
-        Returns
-        ------
-        location of the linear stage for the laser projector focus in mm
-
-        """
-        # TODO (DM-44772): implement the actual function
-        return 10.0
-
-    async def change_laser_wavelength(self, wavelength: float) -> None:
-        """Change the TunableLaser wavelength setting
-
-        Parameters
-        ----------
-        wavelength : `float`
-            wavelength of the laser in nm
-        """
-
-        task_wavelength = self.rem.tunablelaser.cmd_changeWavelength.set_start(
-            wavelength=wavelength, timeout=self.long_long_timeout
-        )
-        task_focus = self.linearstage_laser_focus.cmd_moveAbsolute.set_start(
-            distance=self.calculate_laser_focus_location(wavelength),
-            timeout=self.long_long_timeout,
-        )
-
-        await asyncio.gather(task_wavelength, task_focus)
-
     async def is_ready_for_flats(self) -> bool:
         """Designates if the calibraiton hardware is in a state
         to take flats.
@@ -240,12 +203,63 @@ class MTCalsys(BaseCalsys):
             await self.linearstage_projector_select.cmd_moveAbsolute.set_start(
                 distance=self.ls_select_laser_location, timeout=self.long_timeout
             )
-            await self.setup_laser(config_data["laser_mode"])
+            await self.setup_laser(config_data["laser_mode"], config_data["wavelength"])
             await self.rem.tunablelaser.cmd_startPropagating.start(
                 timeout=self.long_long_timeout
             )
 
-    async def setup_laser(self, mode: LaserDetailedState) -> None:
+    def calculate_laser_focus_location(self, wavelength: float) -> float:
+        """Calculates the location of the linear stage that provides the focus
+        for the laser projector. This location is dependent on the
+        wavelength of the laser.
+
+        Parameters
+        ----------
+        wavelength : `float`
+            wavelength of the laser projector in nm
+
+        Returns
+        ------
+        location of the linear stage for the laser projector focus in mm
+
+        """
+        # TODO (DM-44772): implement the actual function
+        return 10.0
+
+    async def change_laser_wavelength(
+        self, wavelength: float, use_projector: typing.Optional[bool] = True
+    ) -> None:
+        """Change the TunableLaser wavelength setting
+
+        Parameters
+        ----------
+        wavelength : `float`
+            wavelength of the laser in nm
+        use_projector : `bool`
+            identifies if you are using the projector while
+            changing the wavelength
+        """
+
+        task_wavelength = self.rem.tunablelaser.cmd_changeWavelength.set_start(
+            wavelength=wavelength, timeout=self.long_long_timeout
+        )
+
+        if use_projector:
+            task_focus = self.linearstage_laser_focus.cmd_moveAbsolute.set_start(
+                distance=self.calculate_laser_focus_location(wavelength),
+                timeout=self.long_long_timeout,
+            )
+            await asyncio.gather(task_wavelength, task_focus)
+
+        else:
+            await task_wavelength
+
+    async def setup_laser(
+        self,
+        mode: LaserDetailedState,
+        wavelength: float,
+        use_projector: typing.Optional[bool] = True,
+    ) -> None:
         """Perform all steps for preparing the laser for monochromatic flats.
         This includes confirming that the thermal system is
         turned on and set at the right temperature. It also checks
@@ -256,7 +270,11 @@ class MTCalsys(BaseCalsys):
         mode : LaserDetailedState
             Mode of the TunableLaser
             Options: CONTINUOUS, BURST, TRIGGER
-
+        wavelength : `float`
+            Wavelength fo the laser in nm
+        use_projector : `bool`
+            identifies if you are using the projector while
+            changing the wavelength
         """
         # TO-DO: DM-45693 implement thermal system checks
 
@@ -278,6 +296,8 @@ class MTCalsys(BaseCalsys):
             raise RuntimeError(
                 f"{mode} not an acceptable LaserDetailedState [CONTINOUS, BURST, TRIGGER]"
             )
+
+        await self.change_laser_wavelength(wavelength, use_projector)
 
     async def prepare_for_flat(self, sequence_name: str) -> None:
         """Configure the ATMonochromator according to the flat parameters
@@ -345,6 +365,7 @@ class MTCalsys(BaseCalsys):
         """Perform full calibration sequence, taking flats with the
         camera and all ancillary instruments.
 
+
         Parameters
         ----------
         sequence_name : `str`
@@ -384,7 +405,7 @@ class MTCalsys(BaseCalsys):
             self.log.debug(
                 f"Performing {calibration_type.name} calibration with {exposure.wavelength=}."
             )
-            await self.change_laser_wavelength(wavelength=exposure.wavelength)
+
             mtcamera_exposure_info: dict = dict()
 
             for exptime in config_data["exposure_times"]:
@@ -400,6 +421,7 @@ class MTCalsys(BaseCalsys):
                 mtcamera_exposure_info.update(exposure_info)
 
                 if calibration_type == CalibrationType.Mono:
+                    await self.change_laser_wavelength(wavelength=exposure.wavelength)
                     self.log.debug(
                         "Taking data sequence without filter for monochromatic set."
                     )
