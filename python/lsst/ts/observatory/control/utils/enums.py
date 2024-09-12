@@ -18,7 +18,14 @@
 #
 # You should have received a copy of the GNU General Public License
 
-__all__ = ["RotType", "InstrumentFocus", "ClosedLoopMode", "DOFName", "CalibrationType"]
+__all__ = [
+    "RotType",
+    "InstrumentFocus",
+    "ClosedLoopMode",
+    "DOFName",
+    "CalibrationType",
+    "LaserOpticalConfiguration",
+]
 
 import enum
 
@@ -151,3 +158,33 @@ class CalibrationType(enum.IntEnum):
 
     WhiteLight = 1
     Mono = 2
+
+
+# TODO: (DM-46168) Revert workaround for TunableLaser XML changes
+class LaserOpticalConfiguration(enum.StrEnum):
+    """Configuration of the optical output
+
+    Attributes
+    ----------
+
+    SCU: `str`
+        Pass the beam straight-through the SCU.
+    F1_SCU: `str`
+        Direct the beam through the F1 after passing through the SCU.
+    F2_SCU: `str`
+        Direct the beam through the F2 after passing through the SCU.
+    NO_SCU: `str`
+        Pass the beam straight-through.
+    F1_NO_SCU: `str`
+        Pass the beam to F1 output.
+    F2_NO_SCU: `str`
+        Pass the beam to F2 output.
+
+    """
+
+    SCU = "SCU"
+    F1_SCU = "F1 SCU"
+    F2_SCU = "F2 SCU"
+    NO_SCU = "No SCU"
+    F1_NO_SCU = "F1 No SCU"
+    F2_NO_SCU = "F2 No SCU"
