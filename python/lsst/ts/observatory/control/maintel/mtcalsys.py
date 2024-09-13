@@ -27,7 +27,10 @@ from dataclasses import dataclass
 
 import numpy as np
 from lsst.ts import salobj, utils
-from lsst.ts.xml.enums.TunableLaser import LaserDetailedState, LaserOpticalConfiguration
+
+# TODO: (DM-46168) Revert workaround for TunableLaser XML changes
+from lsst.ts.observatory.control.utils.enums import LaserOpticalConfiguration
+from lsst.ts.xml.enums.TunableLaser import LaserDetailedState
 
 from ..base_calsys import BaseCalsys
 from ..remote_group import Usages
