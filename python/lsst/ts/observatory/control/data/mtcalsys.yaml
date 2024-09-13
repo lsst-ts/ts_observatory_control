@@ -115,6 +115,8 @@ whitelight_y:
 
 scan_r:
   calib_type: Mono
+  laser_mode: 1
+  optical_configuration: F1_SCU
   use_camera: true
   mtcamera_filter: r
   led_location: 174.91
@@ -130,3 +132,10 @@ scan_r:
   electrometer_range: -1
   exposure_times:
     - 15.0
+
+laser_functional:
+  calib_type: Mono
+  laser_mode: 1
+  use_camera: false
+  optical_configuration: SCU
+  wavelength: 500.0
