@@ -235,7 +235,7 @@ class MTCalsys(BaseCalsys):
 
     async def change_laser_wavelength(
         self,
-        wavelength: float = 500.0,
+        wavelength: float,
         use_projector: bool = True,
     ) -> None:
         """Change the TunableLaser wavelength setting
@@ -244,7 +244,6 @@ class MTCalsys(BaseCalsys):
         ----------
         wavelength : `float`
             wavelength of the laser in nm
-            Default 500.0
         use_projector : `bool`
             identifies if you are using the projector while
             changing the wavelength.
@@ -293,7 +292,7 @@ class MTCalsys(BaseCalsys):
     async def setup_laser(
         self,
         mode: LaserDetailedState,
-        wavelength: float = 500.0,
+        wavelength: float,
         optical_configuration: LaserOpticalConfiguration = LaserOpticalConfiguration.SCU,
         use_projector: bool = True,
     ) -> None:
@@ -309,7 +308,6 @@ class MTCalsys(BaseCalsys):
             Options: CONTINUOUS, BURST
         wavelength : `float`
             Wavelength fo the laser in nm
-            Default 500.0
         optical_configuration : LaserOpticalConfiguration
             Output of laser
             Default LaserOpticalConfiguration.SCU
@@ -342,6 +340,25 @@ class MTCalsys(BaseCalsys):
         await self.change_laser_optical_configuration(optical_configuration)
         await self.change_laser_wavelength(wavelength, use_projector)
 
+    async def get_laser_parameters(self) -> tuple:
+        """Get laser configuration
+
+        Returns
+        -------
+            list : configuration details
+
+        """
+
+        return await asyncio.gather(
+            self.rem.tunablelaser.evt_opticalConfiguration.aget(
+                timeout=self.long_timeout
+            ),
+            self.rem.tunableevt_wavelengthChanged.aget(timeout=self.long_timeout),
+            self.rem.tunableevt_interlockState.aget(timeout=self.long_timeout),
+            self.rem.tunablelaser.evt_burstModeSet.aget(timeout=self.long_timeout),
+            self.rem.tunablelaser.evt_continuousModeSet.aget(timeout=self.long_timeout),
+        )
+
     async def laser_start_propagate(self) -> None:
         """Start the propagation of the Tunable Laser"""
 
@@ -350,10 +367,11 @@ class MTCalsys(BaseCalsys):
         )
 
         laser_state = self.rem.tunablelaser.evt_detailedState.next(flush=True)
-        assert laser_state in {
+        if laser_state not in {
             LaserDetailedState.PROPAGATING_CONTINUOUS_MODE,
             LaserDetailedState.PROPAGATING_BURST_MODE,
-        }
+        }:
+            raise RuntimeError("Tunable Laser did not start propagating when commanded")
 
     async def laser_stop_propagate(self) -> None:
         """Stop the propagation of the Tunable Laser"""
@@ -363,10 +381,11 @@ class MTCalsys(BaseCalsys):
         )
 
         laser_state = self.rem.tunablelaser.evt_detailedState.next(flush=True)
-        assert laser_state in {
+        if laser_state not in {
             LaserDetailedState.NONPROPAGATING_CONTINUOUS_MODE,
             LaserDetailedState.NONPROPAGATING_BURST_MODE,
-        }
+        }:
+            raise RuntimeError("Tunable Laser did not stop propagating when commanded")
 
     async def prepare_for_flat(self, sequence_name: str) -> None:
         """Configure the ATMonochromator according to the flat parameters
