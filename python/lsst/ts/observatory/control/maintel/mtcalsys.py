@@ -249,10 +249,9 @@ class MTCalsys(BaseCalsys):
             changing the wavelength.
             Default True
         """
-        if wavelength is not None:
-            task_wavelength = self.rem.tunablelaser.cmd_changeWavelength.set_start(
-                wavelength=wavelength, timeout=self.long_long_timeout
-            )
+        task_wavelength = self.rem.tunablelaser.cmd_changeWavelength.set_start(
+            wavelength=wavelength, timeout=self.long_long_timeout
+        )
 
         if use_projector:
             task_focus = self.linearstage_laser_focus.cmd_moveAbsolute.set_start(
