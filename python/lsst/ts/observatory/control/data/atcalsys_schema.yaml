@@ -1,0 +1,67 @@
+$schema: http://json-schema.org/draft-07/schema#
+$id: https://github.com/lsst-ts/ts_observatory_control/blob/develop/python/lsst/ts/observatory/control/data/atcalsys_schema.yaml
+title: Configuration file validation schema of Auxiliary Telescope Calibration System
+type: object
+properties:
+  calib_type:
+    type: string
+    enum:
+      - Mono
+      - WhiteLight
+  use_camera:
+    type: boolean
+  atspec_filter:
+    type: string
+  atspec_grating:
+    type: string
+  wavelength:
+    type: number
+  wavelength_width:
+    type: number
+  wavelength_resolution:
+    type: number
+  monochromator_grating:
+    type: string
+    enum:
+      - MIRROR
+      - RED
+      - BLUE
+  exit_slit:
+    type: number
+  entrance_slit:
+    type: number
+  electrometer_integration_time:
+    type: number
+  electrometer_mode:
+    type: string
+    enum:
+      - CURRENT
+      - CHARGE
+      - VOLTAGE
+      - RESISTANCE
+  electrometer_range:
+    type: number
+  use_fiberspectrograph:
+    type: boolean
+  use_electrometer:
+    type: boolean
+  exposure_times:
+    type: array
+    items:
+      type: number
+required:
+- calib_type
+- use_camera
+- atspec_filter
+- atspec_grating
+- wavelength
+- monochromator_grating
+- exit_slit
+- entrance_slit
+- electrometer_integration_time
+- electrometer_mode
+- electrometer_range
+- use_fiberspectrograph
+- use_electrometer
+- exposure_times
+additionalProperties: false
