@@ -1,0 +1,1 @@
+Add configuration schema validation support to ``BaseCalsys`` and schema validation files for ``ATCalsys`` and ``MTCalsys`` classes.
