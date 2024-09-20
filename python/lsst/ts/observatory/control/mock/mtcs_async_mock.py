@@ -29,6 +29,7 @@ from lsst.ts import idl, utils
 from lsst.ts.idl.enums import MTM1M3
 from lsst.ts.observatory.control.maintel.mtcs import MTCS, MTCSUsages
 from lsst.ts.observatory.control.mock import RemoteGroupAsyncMock
+from lsst.ts.xml.enums import MTDome
 
 
 class MTCSAsyncMock(RemoteGroupAsyncMock):
@@ -117,6 +118,11 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
         self._mtdome_tel_light_wind_screen = types.SimpleNamespace(
             positionActual=0.0,
             positionCommanded=0.0,
+        )
+
+        # MTDome Motion PARKED state. State is set by the mocked park cmd.
+        self._mtdome_evt_azMotion_state = types.SimpleNamespace(
+            state=MTDome.MotionState.UNDETERMINED, inPosition=False
         )
 
         # MTM1M3 data
@@ -229,6 +235,9 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
         mtdome_mocks = {
             "tel_azimuth.next.side_effect": self.mtdome_tel_azimuth_next,
             "tel_lightWindScreen.next.side_effect": self.mtdome_tel_light_wind_screen_next,
+            "cmd_park.start.side_effect": self.mtdome_cmd_park,
+            "evt_azMotion.aget.side_effect": self.mtdome_evt_az_motion_state_next,
+            "evt_azMotion.next.side_effect": self.mtdome_evt_az_motion_state_next,
         }
 
         self.mtcs.rem.mtdome.configure_mock(**mtdome_mocks)
@@ -460,6 +469,23 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
         self, *args: typing.Any, **kwargs: typing.Any
     ) -> types.SimpleNamespace:
         return self._mtdome_tel_light_wind_screen
+
+    async def mtdome_cmd_park(self, timeout: float) -> None:
+        asyncio.create_task(self._mtdome_park())
+
+    async def _mtdome_park(self) -> None:
+        # Mock implementation of cmd_park
+        await asyncio.sleep(self.heartbeat_time)
+        self.log.info("Dome park command executed")
+        self._mtdome_evt_azMotion_state = types.SimpleNamespace(
+            state=MTDome.MotionState.PARKED, inPosition=True
+        )
+
+    async def mtdome_evt_az_motion_state_next(
+        self, *args: typing.Any, **kwargs: typing.Any
+    ) -> types.SimpleNamespace:
+        await asyncio.sleep(self.heartbeat_time * 3)
+        return self._mtdome_evt_azMotion_state
 
     async def mtm1m3_evt_detailed_state(
         self, *args: typing.Any, **kwargs: typing.Any

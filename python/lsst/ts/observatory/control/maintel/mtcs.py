@@ -31,8 +31,8 @@ import astropy.units as u
 import numpy as np
 from astropy.coordinates import Angle
 from lsst.ts import salobj, utils
-from lsst.ts.idl.enums import MTM1M3, MTM2, MTPtg, MTRotator
 from lsst.ts.utils import angle_diff
+from lsst.ts.xml.enums import MTM1M3, MTM2, MTDome, MTPtg, MTRotator
 
 try:
     from lsst.ts.xml.tables.m1m3 import FATable
@@ -140,6 +140,10 @@ class MTCS(BaseTCS):
         self.dome_flat_az = 20.0
         self.dome_flat_el = self.dome_park_el
         self.dome_slew_tolerance = Angle(1.5 * u.deg)
+
+        # TODO (DM-45609): This is an initial guess for the time it takes the
+        #  dome to park. It might need updating.
+        self.park_dome_timeout = 600
 
         self._dome_az_in_position: typing.Union[None, asyncio.Event] = None
         self._dome_el_in_positio: typing.Union[None, asyncio.Event] = None
@@ -508,9 +512,9 @@ class MTCS(BaseTCS):
         Parameters
         ----------
         timeout: `float`
-            How to to wait for mount to be in position (in seconds).
+            How to wait for mount to be in position (in seconds).
         wait_settle: `bool`
-            After receiving the in position command add an addional settle
+            After receiving the in position command, add an additional settle
             wait? (default: True)
 
         Returns
@@ -578,6 +582,91 @@ class MTCS(BaseTCS):
         """
         await self._dome_el_in_position.wait()
         return "Dome elevation in position."
+
+    async def wait_for_dome_state(
+        self,
+        expected_states: set[MTDome.MotionState],
+        bad_states: set[MTDome.MotionState],
+        timeout: float,
+        check_in_position: bool = False,
+    ) -> None:
+        """Wait for a specific dome state.
+
+        Parameters
+        ----------
+        expected_states : set[MTDome.MotionState]
+            Valid states to transition into while un-parking.
+        bad_states : set[MTDome.MotionState]
+            States that are not allowed while un-parking and should raise an
+            error.
+        timeout : float
+            Maximum time to wait for the correct state.
+
+        Raises
+        ------
+        RuntimeError
+            If a bad state is encountered or the expected state is not reached
+             in time.
+        """
+
+        def dome_ready(az_motion: salobj.type_hints.BaseMsgType) -> bool:
+            return (
+                az_motion.state in expected_states and az_motion.inPosition
+                if check_in_position
+                else az_motion.state in expected_states
+            )
+
+        az_motion = await self.rem.mtdome.evt_azMotion.aget(timeout=timeout)
+
+        while not dome_ready(az_motion):
+            az_motion = await self.rem.mtdome.evt_azMotion.next(
+                Flush=False, timeout=timeout
+            )
+
+            if az_motion.state in bad_states:
+                raise RuntimeError(
+                    f"Dome transitioned to an invalid state: {MTDome.MotionState(az_motion.state).name}"
+                )
+
+            self.log.debug(
+                f"Dome state: {MTDome.MotionState(az_motion.state).name}, inPosition: {az_motion.inPosition}"
+            )
+
+    async def park_dome(self) -> None:
+        """Park the dome by moving it to the park azimuth."""
+        self.log.info("Parking dome")
+
+        await self.assert_all_enabled(
+            message="All components need to be enabled for parking the Dome."
+        )
+
+        # check first if Dome is already in PARKED state
+        az_motion = await self.rem.mtdome.evt_azMotion.aget(timeout=self.fast_timeout)
+
+        if az_motion.state == MTDome.MotionState.PARKED:
+            self.log.info("Dome is already in PARKED state.")
+        else:
+            self.rem.mtdome.evt_azMotion.flush()
+
+            await self.rem.mtdome.cmd_park.start(timeout=self.long_timeout)
+
+            # Define expected and bad states for parking
+            expected_states = {MTDome.MotionState.PARKED}
+            bad_states = {
+                MTDome.MotionState.ERROR,
+                MTDome.MotionState.UNDETERMINED,
+                MTDome.MotionState.DISABLED,
+                MTDome.MotionState.DISABLING,
+            }
+
+            self.log.info("Waiting for dome to reach the PARKED state.")
+
+            await self.wait_for_dome_state(
+                expected_states,
+                bad_states,
+                timeout=self.park_dome_timeout,
+                check_in_position=True,
+            )
 
     def set_azel_slew_checks(self, wait_dome: bool) -> typing.Any:
         """Handle azEl slew to wait or not for the dome.
