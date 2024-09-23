@@ -785,8 +785,23 @@ class TestMTCS(MTCSAsyncMock):
     async def test_slew_dome_to(self) -> None:
         az = 90.0
 
-        with pytest.raises(NotImplementedError):
-            await self.mtcs.slew_dome_to(az)
+        await self.mtcs.enable()
+        await self.mtcs.assert_all_enabled()
+        check = self.get_all_checks()
+
+        await self.mtcs.slew_dome_to(az=az, check=check)
+
+        self.mtcs.rem.mtdome.evt_azMotion.flush.assert_called()
+
+        self.mtcs.rem.mtdometrajectory.cmd_setFollowingMode.set_start.assert_awaited_with(
+            enable=False, timeout=self.mtcs.fast_timeout
+        )
+
+        self.mtcs.rem.mtdome.cmd_moveAz.set_start.assert_awaited_with(
+            position=az, velocity=0.0, timeout=self.mtcs.long_long_timeout
+        )
+
+        assert self.mtcs.rem.mtdome.evt_azMotion.inPosition
 
     async def test_close_dome(self) -> None:
         with pytest.raises(NotImplementedError):

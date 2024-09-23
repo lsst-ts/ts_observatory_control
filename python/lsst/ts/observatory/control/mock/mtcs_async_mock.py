@@ -238,6 +238,7 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
             "cmd_park.start.side_effect": self.mtdome_cmd_park,
             "evt_azMotion.aget.side_effect": self.mtdome_evt_az_motion_state_next,
             "evt_azMotion.next.side_effect": self.mtdome_evt_az_motion_state_next,
+            "cmd_moveAz.set_start.side_effect": self.mtdome_cmd_move_az,
         }
 
         self.mtcs.rem.mtdome.configure_mock(**mtdome_mocks)
@@ -492,6 +493,19 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
     ) -> types.SimpleNamespace:
         await asyncio.sleep(self.heartbeat_time / 4.0)
         return self._mtm1m3_evt_detailed_state
+
+    async def mtdome_cmd_move_az(
+        self, position: float, velocity: float, timeout: float
+    ) -> None:
+        asyncio.create_task(self._mtdome_move_az())
+
+    async def _mtdome_move_az(self) -> None:
+        # Mock implementation of cmd_moveAz
+        await asyncio.sleep(self.heartbeat_time * 3)
+        self.log.info("Slew dome to azimuth command executed")
+        self._mtdome_evt_azMotion_state = types.SimpleNamespace(
+            state=MTDome.MotionState.ENABLED, inPosition=True
+        )
 
     async def mtm1m3_evt_hp_test_status(
         self, *args: typing.Any, **kwargs: typing.Any

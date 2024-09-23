@@ -697,8 +697,25 @@ class MTCS(BaseTCS):
             Override `self.check` for defining which resources are used.
 
         """
-        # TODO: Implement (DM-21336).
-        raise NotImplementedError("# TODO: Implement (DM-21336).")
+        self.log.info(f"Slewing MT dome to position az = {az}.")
+        await self.assert_all_enabled()
+
+        await self.disable_dome_following(check)
+
+        self.rem.mtdome.evt_azMotion.flush()
+
+        target_az = Angle(az, unit=u.deg).deg
+        await self.rem.mtdome.cmd_moveAz.set_start(
+            position=target_az, velocity=0.0, timeout=self.long_long_timeout
+        )
+
+        # Wait for MT Dome to reach final position
+        await self._handle_in_position(
+            self.rem.mtdome.evt_azMotion,
+            timeout=self.fast_timeout,
+            settle_time=self.tel_settle_time,
+            component_name="MTDome",
+        )
 
     async def close_dome(self) -> None:
         # TODO: Implement (DM-21336).
