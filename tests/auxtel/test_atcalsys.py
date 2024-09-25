@@ -114,7 +114,6 @@ class TestATCalsys(RemoteGroupAsyncMock):
         )
 
     async def test_prepare_for_flat_no_latiss(self) -> None:
-
         with pytest.raises(
             RuntimeError,
             match="LATISS is not defined but at_whitelight_r requires it. "
