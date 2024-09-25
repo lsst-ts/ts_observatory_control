@@ -1,0 +1,1 @@
+Improve error reporting in ``ATCalsys.prepare_for_flat``.
