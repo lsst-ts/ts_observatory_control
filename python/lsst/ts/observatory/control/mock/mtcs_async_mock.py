@@ -121,7 +121,7 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
         )
 
         # MTDome Motion PARKED state. State is set by the mocked park cmd.
-        self._mtdome_evt_azMotion_state = types.SimpleNamespace(
+        self._mtdome_evt_az_motion = types.SimpleNamespace(
             state=MTDome.MotionState.UNDETERMINED, inPosition=False
         )
 
@@ -234,11 +234,12 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
         """Augment MTDome."""
         mtdome_mocks = {
             "tel_azimuth.next.side_effect": self.mtdome_tel_azimuth_next,
+            "tel_azimuth.aget.side_effect": self.mtdome_tel_azimuth_next,
             "tel_lightWindScreen.next.side_effect": self.mtdome_tel_light_wind_screen_next,
             "cmd_park.start.side_effect": self.mtdome_cmd_park,
-            "evt_azMotion.aget.side_effect": self.mtdome_evt_az_motion_state_next,
-            "evt_azMotion.next.side_effect": self.mtdome_evt_az_motion_state_next,
             "cmd_moveAz.set_start.side_effect": self.mtdome_cmd_move_az,
+            "evt_azMotion.aget.side_effect": self.mtdome_evt_az_motion_next,
+            "evt_azMotion.next.side_effect": self.mtdome_evt_az_motion_next,
         }
 
         self.mtcs.rem.mtdome.configure_mock(**mtdome_mocks)
@@ -478,34 +479,50 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
         # Mock implementation of cmd_park
         await asyncio.sleep(self.heartbeat_time)
         self.log.info("Dome park command executed")
-        self._mtdome_evt_azMotion_state = types.SimpleNamespace(
+        self._mtdome_evt_az_motion = types.SimpleNamespace(
             state=MTDome.MotionState.PARKED, inPosition=True
         )
 
-    async def mtdome_evt_az_motion_state_next(
+        self._mtdome_tel_azimuth = types.SimpleNamespace(
+            positionActual=360.0 - 32.0,  # as per current logic in MTDome
+            # do_park: 360.0 - DOME_AZIMUTH_OFFSET
+            positionCommanded=0.0,
+        )
+
+    async def mtdome_cmd_move_az(self, *args: typing.Any, **kwargs: typing.Any) -> None:
+        asyncio.create_task(self._mtdome_move_az())
+
+    async def _mtdome_move_az(self, *args: typing.Any, **kwargs: typing.Any) -> None:
+        # Mock implementation of dome park , unpark and slew_dome_to
+        self.log.info("Dome moveAz command executed")
+        await asyncio.sleep(self.heartbeat_time * 2)
+        # This wait time and Dome MotionSate MOVING is to mock the
+        # test_unpark_dome
+        self._mtdome_evt_az_motion = types.SimpleNamespace(
+            state=MTDome.MotionState.MOVING, inPosition=False
+        )
+
+        # The following delay is timed so that the MOVING state above
+        # remains long enough for the test_unpark_dome to pick it
+        # up and complete successfully. Same wise the test_slew_dome_to
+        # expects at some point an ENABLED and inPosition.
+        await asyncio.sleep(self.heartbeat_time * 3)
+        self.log.info("Slew dome to azimuth command executed")
+        self._mtdome_evt_az_motion = types.SimpleNamespace(
+            state=MTDome.MotionState.ENABLED, inPosition=True
+        )
+
+    async def mtdome_evt_az_motion_next(
         self, *args: typing.Any, **kwargs: typing.Any
     ) -> types.SimpleNamespace:
         await asyncio.sleep(self.heartbeat_time * 3)
-        return self._mtdome_evt_azMotion_state
+        return self._mtdome_evt_az_motion
 
     async def mtm1m3_evt_detailed_state(
         self, *args: typing.Any, **kwargs: typing.Any
     ) -> types.SimpleNamespace:
         await asyncio.sleep(self.heartbeat_time / 4.0)
         return self._mtm1m3_evt_detailed_state
-
-    async def mtdome_cmd_move_az(
-        self, position: float, velocity: float, timeout: float
-    ) -> None:
-        asyncio.create_task(self._mtdome_move_az())
-
-    async def _mtdome_move_az(self) -> None:
-        # Mock implementation of cmd_moveAz
-        await asyncio.sleep(self.heartbeat_time * 3)
-        self.log.info("Slew dome to azimuth command executed")
-        self._mtdome_evt_azMotion_state = types.SimpleNamespace(
-            state=MTDome.MotionState.ENABLED, inPosition=True
-        )
 
     async def mtm1m3_evt_hp_test_status(
         self, *args: typing.Any, **kwargs: typing.Any
