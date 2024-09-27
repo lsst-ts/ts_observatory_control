@@ -160,26 +160,34 @@ class TestATCalsys(RemoteGroupAsyncMock):
         electrometers_exception = RuntimeError("Error in electrometers")
 
         self.atcalsys.latiss = unittest.mock.AsyncMock()
-        self.atcalsys.latiss.setup_instrument = unittest.mock.AsyncMock(
-            side_effect=latiss_exception
-        )
-        self.atcalsys.rem.atmonochromator.cmd_updateMonochromatorSetup.set_start = (
-            unittest.mock.AsyncMock(side_effect=monochromator_exception)
-        )
-        self.atcalsys.setup_electrometers = unittest.mock.AsyncMock(
-            side_effect=electrometers_exception
-        )
 
-        with pytest.raises(
-            RuntimeError,
-            match=re.escape(
-                "3 out of 3 failed.\n"
-                f"Setup monochromator failed with {monochromator_exception!r}.\n"
-                f"Setup latiss failed with {latiss_exception!r}.\n"
-                f"Setup electrometers failed with {electrometers_exception!r}.\n"
+        with (
+            unittest.mock.patch.object(
+                self.atcalsys.rem.atmonochromator.cmd_updateMonochromatorSetup,
+                "set_start",
+                side_effect=monochromator_exception,
+            ),
+            unittest.mock.patch.object(
+                self.atcalsys.latiss,
+                "setup_instrument",
+                side_effect=latiss_exception,
+            ),
+            unittest.mock.patch.object(
+                self.atcalsys,
+                "setup_electrometers",
+                side_effect=electrometers_exception,
             ),
         ):
-            await self.atcalsys.prepare_for_flat("at_whitelight_r")
+            with pytest.raises(
+                RuntimeError,
+                match=re.escape(
+                    "3 out of 3 failed.\n"
+                    f"Setup monochromator failed with {monochromator_exception!r}.\n"
+                    f"Setup latiss failed with {latiss_exception!r}.\n"
+                    f"Setup electrometers failed with {electrometers_exception!r}.\n"
+                ),
+            ):
+                await self.atcalsys.prepare_for_flat("at_whitelight_r")
 
     async def mock_end_readout(
         self, flush: bool, timeout: float
