@@ -231,7 +231,7 @@ class ATCalsys(BaseCalsys):
             task_setup_electrometer,
             return_exceptions=True,
         )
-        operations = ["Setup monochromator", "Setup latiss", "Setup electrometer"]
+        operations = ["Setup monochromator", "Setup latiss", "Setup electrometers"]
         exceptions = [
             (operation, value)
             for (operation, value) in zip(operations, return_values)
@@ -241,7 +241,7 @@ class ATCalsys(BaseCalsys):
         if exceptions:
             err_message = f"{len(exceptions)} out of {len(operations)} failed.\n"
             for operation, exception in exceptions:
-                err_message += f"{operation} failed with '{exception!r}'.\n"
+                err_message += f"{operation} failed with {exception!r}.\n"
             raise RuntimeError(err_message)
 
     async def calculate_optimized_exposure_times(

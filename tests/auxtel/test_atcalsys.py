@@ -20,6 +20,7 @@
 
 import asyncio
 import logging
+import re
 import types
 import unittest.mock
 
@@ -152,6 +153,33 @@ class TestATCalsys(RemoteGroupAsyncMock):
             name=config_data["atspec_grating"],
             timeout=mock_latiss.long_timeout,
         )
+
+    async def test_prepare_for_flat_with_exceptions(self) -> None:
+        latiss_exception = RuntimeError("Error in LATISS")
+        monochromator_exception = RuntimeError("Error in monochromator")
+        electrometers_exception = RuntimeError("Error in electrometers")
+
+        self.atcalsys.latiss = unittest.mock.AsyncMock()
+        self.atcalsys.latiss.setup_instrument = unittest.mock.AsyncMock(
+            side_effect=latiss_exception
+        )
+        self.atcalsys.rem.atmonochromator.cmd_updateMonochromatorSetup.set_start = (
+            unittest.mock.AsyncMock(side_effect=monochromator_exception)
+        )
+        self.atcalsys.setup_electrometers = unittest.mock.AsyncMock(
+            side_effect=electrometers_exception
+        )
+
+        with pytest.raises(
+            RuntimeError,
+            match=re.escape(
+                "3 out of 3 failed.\n"
+                f"Setup monochromator failed with {monochromator_exception!r}.\n"
+                f"Setup latiss failed with {latiss_exception!r}.\n"
+                f"Setup electrometers failed with {electrometers_exception!r}.\n"
+            ),
+        ):
+            await self.atcalsys.prepare_for_flat("at_whitelight_r")
 
     async def mock_end_readout(
         self, flush: bool, timeout: float
