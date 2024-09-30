@@ -20,6 +20,7 @@
 
 import asyncio
 import logging
+import re
 import types
 import unittest.mock
 
@@ -114,7 +115,6 @@ class TestATCalsys(RemoteGroupAsyncMock):
         )
 
     async def test_prepare_for_flat_no_latiss(self) -> None:
-
         with pytest.raises(
             RuntimeError,
             match="LATISS is not defined but at_whitelight_r requires it. "
@@ -153,6 +153,41 @@ class TestATCalsys(RemoteGroupAsyncMock):
             name=config_data["atspec_grating"],
             timeout=mock_latiss.long_timeout,
         )
+
+    async def test_prepare_for_flat_with_exceptions(self) -> None:
+        latiss_exception = RuntimeError("Error in LATISS")
+        monochromator_exception = RuntimeError("Error in monochromator")
+        electrometers_exception = RuntimeError("Error in electrometers")
+
+        self.atcalsys.latiss = unittest.mock.AsyncMock()
+
+        with (
+            unittest.mock.patch.object(
+                self.atcalsys.rem.atmonochromator.cmd_updateMonochromatorSetup,
+                "set_start",
+                side_effect=monochromator_exception,
+            ),
+            unittest.mock.patch.object(
+                self.atcalsys.latiss,
+                "setup_instrument",
+                side_effect=latiss_exception,
+            ),
+            unittest.mock.patch.object(
+                self.atcalsys,
+                "setup_electrometers",
+                side_effect=electrometers_exception,
+            ),
+        ):
+            with pytest.raises(
+                RuntimeError,
+                match=re.escape(
+                    "3 out of 3 failed.\n"
+                    f"Setup monochromator failed with {monochromator_exception!r}.\n"
+                    f"Setup latiss failed with {latiss_exception!r}.\n"
+                    f"Setup electrometers failed with {electrometers_exception!r}.\n"
+                ),
+            ):
+                await self.atcalsys.prepare_for_flat("at_whitelight_r")
 
     async def mock_end_readout(
         self, flush: bool, timeout: float

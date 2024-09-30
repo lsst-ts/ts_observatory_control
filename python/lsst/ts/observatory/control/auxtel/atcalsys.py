@@ -193,6 +193,12 @@ class ATCalsys(BaseCalsys):
             - float(config_data.get("wavelength_width", 0.0)) / 2.0
         )
 
+        if self.latiss is None and config_data["use_camera"]:
+            raise RuntimeError(
+                f"LATISS is not defined but {sequence_name} requires it. "
+                "Make sure you are instantiating LATISS and passing it to ATCalsys."
+            )
+
         grating_type = getattr(Grating, config_data["monochromator_grating"])
         task_setup_monochromator = (
             self.rem.atmonochromator.cmd_updateMonochromatorSetup.set_start(
@@ -204,11 +210,6 @@ class ATCalsys(BaseCalsys):
             )
         )
 
-        if self.latiss is None and config_data["use_camera"]:
-            raise RuntimeError(
-                f"LATISS is not defined but {sequence_name} requires it. "
-                "Make sure you are instantiating LATISS and passing it to ATCalsys."
-            )
         task_setup_latiss = (
             self.latiss.setup_instrument(
                 filter=config_data["atspec_filter"],
@@ -224,11 +225,24 @@ class ATCalsys(BaseCalsys):
             integration_time=float(config_data["electrometer_integration_time"]),
         )
 
-        await asyncio.gather(
+        return_values = await asyncio.gather(
             task_setup_monochromator,
             task_setup_latiss,
             task_setup_electrometer,
+            return_exceptions=True,
         )
+        operations = ["Setup monochromator", "Setup latiss", "Setup electrometers"]
+        exceptions = [
+            (operation, value)
+            for (operation, value) in zip(operations, return_values)
+            if isinstance(value, Exception)
+        ]
+
+        if exceptions:
+            err_message = f"{len(exceptions)} out of {len(operations)} failed.\n"
+            for operation, exception in exceptions:
+                err_message += f"{operation} failed with {exception!r}.\n"
+            raise RuntimeError(err_message)
 
     async def calculate_optimized_exposure_times(
         self, wavelengths: list, config_data: dict
