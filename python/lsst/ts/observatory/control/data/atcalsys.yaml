@@ -84,7 +84,7 @@ ptc_1:
   atspec_filter: SDSSr_65mm
   atspec_grating: empty_1
   wavelength: 500.0
-  monochromator_grating: MIRROR
+  monochromator_grating: null
   exit_slit: 7.0
   entrance_slit: 7.0
   electrometer_integration_time: 0.1
@@ -168,7 +168,7 @@ ptc_2:
   atspec_filter: SDSSr_65mm
   atspec_grating: empty_1
   wavelength: 500.0
-  monochromator_grating: MIRROR
+  monochromator_grating: null
   exit_slit: 7.0
   entrance_slit: 7.0
   electrometer_integration_time: 0.1
@@ -251,7 +251,7 @@ ptc_3:
   atspec_filter: SDSSr_65mm
   atspec_grating: empty_1
   wavelength: 500.0
-  monochromator_grating: MIRROR
+  monochromator_grating: null
   exit_slit: 7.0
   entrance_slit: 7.0
   electrometer_integration_time: 0.1
