@@ -15,20 +15,27 @@ properties:
   atspec_grating:
     type: string
   wavelength:
+    default: 500.0
     type: number
   wavelength_width:
     type: number
   wavelength_resolution:
     type: number
   monochromator_grating:
-    type: string
+    default: null
+    type: 
+      - string
+      - "null"
     enum:
       - MIRROR
       - RED
       - BLUE
+      - null
   exit_slit:
+    default: 7.0
     type: number
   entrance_slit:
+    default: 7.0
     type: number
   electrometer_integration_time:
     type: number
