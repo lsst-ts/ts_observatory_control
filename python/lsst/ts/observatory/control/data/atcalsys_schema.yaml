@@ -22,8 +22,8 @@ properties:
     type: string
   wavelength:
     description: >-
-      Center wavelength value used for the monochromator output
-      configuration.
+      Center wavelength value in nm, used for configuring the monochromator
+      output.
     type: number
   wavelength_width:
     description: >-
@@ -33,9 +33,10 @@ properties:
     type: number
   wavelength_resolution:
     description: >-
-      Optional. When using a monochromatic light source, defines the resolution
-      used to sample values within the scan range, which has a width defined by
-      `wavelength_width` and is centered around the `wavelength` attribute.
+      Optional. When using a monochromatic light source, it defines the
+      resolution used to sample values within the scan range, which has a width
+      defined by `wavelength_width` and is centered around the `wavelength`
+      attribute.
     type: number
   monochromator_grating:
     description: >-
