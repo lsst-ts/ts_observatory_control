@@ -361,30 +361,50 @@ class MTCalsys(BaseCalsys):
     async def laser_start_propagate(self) -> None:
         """Start the propagation of the Tunable Laser"""
 
-        await self.rem.tunablelaser.cmd_startPropagateLaser.start(
-            timeout=self.laser_warmup
+        laser_state = self.rem.tunablelaser.evt_detailedState.next(
+            flush=True, timeout=self.long_timeout
         )
 
-        laser_state = self.rem.tunablelaser.evt_detailedState.next(flush=True)
-        if laser_state not in {
+        while laser_state.DetailedState not in {
             LaserDetailedState.PROPAGATING_CONTINUOUS_MODE,
             LaserDetailedState.PROPAGATING_BURST_MODE,
         }:
-            raise RuntimeError("Tunable Laser did not start propagating when commanded")
+            try:
+                await self.rem.tunablelaser.cmd_startPropagateLaser.start(
+                    timeout=self.laser_warmup
+                )
+                laser_state = self.rem.tunablelaser.evt_detailedState.next(
+                    flush=True, timeout=self.long_timeout
+                )
+                self.log.info(f"Laser state: {laser_state.DetailedState}")
+            except asyncio.TimeoutError:
+                raise RuntimeError(
+                    "Tunable Laser did not start propagating when commanded"
+                )
 
     async def laser_stop_propagate(self) -> None:
         """Stop the propagation of the Tunable Laser"""
 
-        await self.rem.tunablelaser.cmd_stopPropagateLaser.start(
-            timeout=self.long_timeout
+        laser_state = self.rem.tunablelaser.evt_detailedState.next(
+            flush=True, timeout=self.long_timeout
         )
 
-        laser_state = self.rem.tunablelaser.evt_detailedState.next(flush=True)
-        if laser_state not in {
+        while laser_state.DetailedState not in {
             LaserDetailedState.NONPROPAGATING_CONTINUOUS_MODE,
             LaserDetailedState.NONPROPAGATING_BURST_MODE,
         }:
-            raise RuntimeError("Tunable Laser did not stop propagating when commanded")
+            try:
+                await self.rem.tunablelaser.cmd_stopPropagateLaser.start(
+                    timeout=self.laser_warmup
+                )
+                laser_state = self.rem.tunablelaser.evt_detailedState.next(
+                    flush=True, timeout=self.long_timeout
+                )
+                self.log.info(f"Laser state: {laser_state.DetailedState}")
+            except asyncio.TimeoutError:
+                raise RuntimeError(
+                    "Tunable Laser did not stop propagating when commanded"
+                )
 
     async def prepare_for_flat(self, sequence_name: str) -> None:
         """Configure the ATMonochromator according to the flat parameters
