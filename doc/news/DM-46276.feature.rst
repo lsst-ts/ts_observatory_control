@@ -1,0 +1,1 @@
+Changed change_laser_wavelength and setup_laser functions to be more useful in a variety of sal scripts
