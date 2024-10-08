@@ -139,3 +139,8 @@ laser_functional:
   use_camera: false
   optical_configuration: SCU
   wavelength: 500.0
+  use_electrometer: false
+  use_fiberspectrograph_red: false
+  use_fiberspectrograph_blue: false
+  exposure_times:
+    - 15.0
