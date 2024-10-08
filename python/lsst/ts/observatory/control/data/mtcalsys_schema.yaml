@@ -59,7 +59,7 @@ properties:
     items:
       type: number
   laser_mode:
-    type: boolean
+    type: integer
   optical_configuration: 
     type: string
     enum: 
