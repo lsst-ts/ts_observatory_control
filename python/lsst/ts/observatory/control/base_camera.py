@@ -965,7 +965,8 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
         if imgtype not in ["BIAS", "DARK"]:
             await self.setup_instrument(**kwargs)
 
-        if imgtype == "OBJECT" and self.ready_to_take_data is not None:
+        tcs_ready_imgtypes = ["OBJECT", "ENGTEST", "ACQ", "CWFS"]
+        if imgtype in tcs_ready_imgtypes and self.ready_to_take_data is not None:
             self.log.debug(f"imagetype: {imgtype}, wait for TCS to be ready.")
             try:
                 await asyncio.wait_for(
@@ -977,7 +978,7 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
                     "Timeout waiting for TCS to report as ready to take data "
                     f"(timeout={self.max_tcs_wait_time})."
                 )
-        elif imgtype == "OBJECT" and self.ready_to_take_data is None:
+        elif imgtype in tcs_ready_imgtypes and self.ready_to_take_data is None:
             self.log.debug(f"imagetype: {imgtype}, TCS synchronization not configured.")
         else:
             self.log.debug(f"imagetype: {imgtype}, skip TCS synchronization.")

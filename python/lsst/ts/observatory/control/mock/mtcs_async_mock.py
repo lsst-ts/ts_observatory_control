@@ -25,11 +25,10 @@ import types
 import typing
 
 import numpy as np
-from lsst.ts import idl, utils
-from lsst.ts.idl.enums import MTM1M3
+from lsst.ts import utils, xml
 from lsst.ts.observatory.control.maintel.mtcs import MTCS, MTCSUsages
 from lsst.ts.observatory.control.mock import RemoteGroupAsyncMock
-from lsst.ts.xml.enums import MTDome
+from lsst.ts.xml.enums import MTM1M3, MTDome
 
 
 class MTCSAsyncMock(RemoteGroupAsyncMock):
@@ -106,7 +105,7 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
         )
         self._mtrotator_evt_in_position = types.SimpleNamespace(inPosition=True)
         self._mtrotator_evt_controller_state = types.SimpleNamespace(
-            enabledSubstate=idl.enums.MTRotator.EnabledSubstate.INITIALIZING
+            enabledSubstate=xml.enums.MTRotator.EnabledSubstate.STATIONARY
         )
 
         # MTDome data
@@ -127,19 +126,19 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
 
         # MTM1M3 data
         self._mtm1m3_evt_detailed_state = types.SimpleNamespace(
-            detailedState=idl.enums.MTM1M3.DetailedState.PARKED
+            detailedState=xml.enums.MTM1M3.DetailedState.PARKED
         )
         self._mtm1m3_evt_applied_balance_forces = types.SimpleNamespace(
             forceMagnitude=0.0
         )
         self._mtm1m3_evt_hp_test_status = types.SimpleNamespace(
-            testState=[idl.enums.MTM1M3.HardpointTest.NOTTESTED] * 6
+            testState=[xml.enums.MTM1M3.HardpointTest.NOTTESTED] * 6
         )
         self._mtm1m3_evt_force_actuator_bump_test_status = types.SimpleNamespace(
             actuatorId=0,
-            primaryTest=[idl.enums.MTM1M3.BumpTest.NOTTESTED]
+            primaryTest=[xml.enums.MTM1M3.BumpTest.NOTTESTED]
             * len(self.mtcs.get_m1m3_actuator_ids()),
-            secondaryTest=[idl.enums.MTM1M3.BumpTest.NOTTESTED]
+            secondaryTest=[xml.enums.MTM1M3.BumpTest.NOTTESTED]
             * len(self.mtcs.get_m1m3_actuator_secondary_ids()),
             primaryTestTimestamps=[0.0] * len(self.mtcs.get_m1m3_actuator_ids()),
             secondaryTestTimestamps=[0.0]
@@ -149,8 +148,8 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
             slewFlag=False,
             balanceForcesApplied=False,
         )
-        self.desired_hp_test_final_status = idl.enums.MTM1M3.HardpointTest.PASSED
-        self.desired_bump_test_final_status = idl.enums.MTM1M3.BumpTest.PASSED
+        self.desired_hp_test_final_status = xml.enums.MTM1M3.HardpointTest.PASSED
+        self.desired_bump_test_final_status = xml.enums.MTM1M3.BumpTest.PASSED
 
         self.m1m3_actuator_offset = 101
 
@@ -437,11 +436,11 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
 
     async def _mtrotator_stop(self) -> None:
         self._mtrotator_evt_controller_state.enabledSubstate = (
-            idl.enums.MTRotator.EnabledSubstate.CONSTANT_VELOCITY
+            xml.enums.MTRotator.EnabledSubstate.CONSTANT_VELOCITY
         )
         await asyncio.sleep(1.0)
         self._mtrotator_evt_controller_state.enabledSubstate = (
-            idl.enums.MTRotator.EnabledSubstate.STATIONARY
+            xml.enums.MTRotator.EnabledSubstate.STATIONARY
         )
 
     async def mtrotator_tel_rotation_next(
@@ -587,7 +586,7 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
         if (
             raise_m1m3
             and self._mtm1m3_evt_detailed_state.detailedState
-            == idl.enums.MTM1M3.DetailedState.PARKED
+            == xml.enums.MTM1M3.DetailedState.PARKED
         ):
             self._mtm1m3_raise_task = asyncio.create_task(self.execute_raise_m1m3())
         else:
@@ -604,7 +603,7 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
         # since it could change considerably from what the m1m3 actually does.
         asyncio.create_task(
             self._set_m1m3_detailed_state(
-                idl.enums.MTM1M3.DetailedState.PARKEDENGINEERING
+                xml.enums.MTM1M3.DetailedState.PARKEDENGINEERING
             )
         )
 
@@ -626,7 +625,7 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
         # simply put m1m3 in PARKED state, regardless of which engineering
         # state it was before.
         asyncio.create_task(
-            self._set_m1m3_detailed_state(idl.enums.MTM1M3.DetailedState.PARKED)
+            self._set_m1m3_detailed_state(xml.enums.MTM1M3.DetailedState.PARKED)
         )
 
     async def mtm1m3_cmd_test_hardpoint(
@@ -658,8 +657,8 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
         self, *args: typing.Any, **kwargs: typing.Any
     ) -> None:
         if self._mtm1m3_evt_detailed_state.detailedState in {
-            idl.enums.MTM1M3.DetailedState.RAISINGENGINEERING,
-            idl.enums.MTM1M3.DetailedState.RAISING,
+            xml.enums.MTM1M3.DetailedState.RAISINGENGINEERING,
+            xml.enums.MTM1M3.DetailedState.RAISING,
         }:
             self._mtm1m3_abort_raise_task = asyncio.create_task(
                 self.execute_abort_raise_m1m3()
@@ -670,12 +669,12 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
     async def execute_raise_m1m3(self) -> None:
         self.log.debug("Start raising M1M3...")
         self._mtm1m3_evt_detailed_state.detailedState = (
-            idl.enums.MTM1M3.DetailedState.RAISING
+            xml.enums.MTM1M3.DetailedState.RAISING
         )
         await asyncio.sleep(self.execute_raise_lower_m1m3_time)
         self.log.debug("Done raising M1M3...")
         self._mtm1m3_evt_detailed_state.detailedState = (
-            idl.enums.MTM1M3.DetailedState.ACTIVE
+            xml.enums.MTM1M3.DetailedState.ACTIVE
         )
 
     async def mtm1m3_cmd_lower_m1m3(
@@ -686,7 +685,7 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
         if (
             lower_m1m3
             and self._mtm1m3_evt_detailed_state.detailedState
-            == idl.enums.MTM1M3.DetailedState.ACTIVE
+            == xml.enums.MTM1M3.DetailedState.ACTIVE
         ):
             self._mtm1m3_lower_task = asyncio.create_task(self.execute_lower_m1m3())
         else:
@@ -697,12 +696,12 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
     async def execute_lower_m1m3(self) -> None:
         self.log.debug("Start lowering M1M3...")
         self._mtm1m3_evt_detailed_state.detailedState = (
-            idl.enums.MTM1M3.DetailedState.LOWERING
+            xml.enums.MTM1M3.DetailedState.LOWERING
         )
         await asyncio.sleep(self.execute_raise_lower_m1m3_time)
         self.log.debug("Done lowering M1M3...")
         self._mtm1m3_evt_detailed_state.detailedState = (
-            idl.enums.MTM1M3.DetailedState.PARKED
+            xml.enums.MTM1M3.DetailedState.PARKED
         )
 
     async def execute_abort_raise_m1m3(self) -> None:
@@ -712,12 +711,12 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
 
         self.log.debug("Set m1m3 detailed state to lowering...")
         self._mtm1m3_evt_detailed_state.detailedState = (
-            idl.enums.MTM1M3.DetailedState.LOWERING
+            xml.enums.MTM1M3.DetailedState.LOWERING
         )
         await asyncio.sleep(self.execute_raise_lower_m1m3_time)
         self.log.debug("M1M3 raise task done, set detailed state to parked...")
         self._mtm1m3_evt_detailed_state.detailedState = (
-            idl.enums.MTM1M3.DetailedState.PARKED
+            xml.enums.MTM1M3.DetailedState.PARKED
         )
 
     async def mtm1m3_cmd_enable_hardpoint_corrections(
@@ -741,7 +740,7 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
             )
 
     async def _set_m1m3_detailed_state(
-        self, detailed_state: idl.enums.MTM1M3.DetailedState
+        self, detailed_state: xml.enums.MTM1M3.DetailedState
     ) -> None:
         self.log.debug(
             f"M1M3 detailed state: {self._mtm1m3_evt_detailed_state.detailedState!r} -> {detailed_state!r}"
@@ -751,8 +750,8 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
 
     async def _mtm1m3_cmd_test_hardpoint(self, hp: int) -> None:
         hp_test_status = [
-            idl.enums.MTM1M3.HardpointTest.TESTINGPOSITIVE,
-            idl.enums.MTM1M3.HardpointTest.TESTINGNEGATIVE,
+            xml.enums.MTM1M3.HardpointTest.TESTINGPOSITIVE,
+            xml.enums.MTM1M3.HardpointTest.TESTINGNEGATIVE,
             self.desired_hp_test_final_status,
         ]
 
@@ -765,10 +764,10 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
         self, actuator_id: int, test_primary: bool, test_secondary: bool
     ) -> None:
         bump_test_states = [
-            idl.enums.MTM1M3.BumpTest.TESTINGPOSITIVE,
-            idl.enums.MTM1M3.BumpTest.TESTINGPOSITIVEWAIT,
-            idl.enums.MTM1M3.BumpTest.TESTINGNEGATIVE,
-            idl.enums.MTM1M3.BumpTest.TESTINGNEGATIVEWAIT,
+            xml.enums.MTM1M3.BumpTest.TESTINGPOSITIVE,
+            xml.enums.MTM1M3.BumpTest.TESTINGPOSITIVEWAIT,
+            xml.enums.MTM1M3.BumpTest.TESTINGNEGATIVE,
+            xml.enums.MTM1M3.BumpTest.TESTINGNEGATIVEWAIT,
         ]
 
         if test_primary:

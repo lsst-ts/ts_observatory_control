@@ -21,6 +21,9 @@
 
 import logging
 
+# from typing import Any, Dict, NoReturn, Optional
+from typing import Any, Dict
+
 import pytest
 from lsst.ts import utils
 from lsst.ts.observatory.control import Usages
@@ -316,3 +319,110 @@ class TestGenericCamera(BaseCameraAsyncMock):
 
     async def test_take_acq(self) -> None:
         await self.assert_take_acq()
+
+    image_types: Dict[str, Dict[str, Any]] = {
+        "BIAS": {
+            "assert_method": "assert_take_bias",
+            "params": {"nbias": 1},
+        },
+        "DARK": {
+            "assert_method": "assert_take_darks",
+            "params": {"ndarks": 1, "exptime": 1.0},
+        },
+        "FLAT": {
+            "assert_method": "assert_take_flats",
+            "params": {"nflats": 1, "exptime": 1.0},
+        },
+        "FOCUS": {
+            "assert_method": "assert_take_focus",
+            "params": {"n": 1, "exptime": 1.0},
+        },
+        "OBJECT": {
+            "assert_method": "assert_take_object",
+            "params": {"n": 1, "exptime": 1.0},
+        },
+        "ENGTEST": {
+            "assert_method": "assert_take_engtest",
+            "params": {"n": 1, "exptime": 1.0},
+        },
+        "ACQ": {
+            "assert_method": "assert_take_acq",
+            "params": {"n": 1, "exptime": 1.0},
+        },
+        "CWFS": {
+            "assert_method": "assert_take_cwfs",
+            "params": {"n": 1, "exptime": 1.0},
+        },
+    }
+
+    def reset_mocks(self) -> None:
+        self.remote_group.camera.cmd_takeImages.set.reset_mock()
+        self.remote_group.camera.cmd_takeImages.start.reset_mock()
+        self.remote_group.camera.evt_endReadout.flush.reset_mock()
+
+    async def test_take_image_no_tcs_sync(self) -> None:
+        image_types_no_tcs = ["BIAS", "DARK", "FLAT", "FOCUS"]
+
+        for img_type in image_types_no_tcs:
+            with self.subTest(image_type=img_type):
+                with self.get_fake_tcs() as fake_tcs:
+                    fake_tcs.fail = False
+                    methods = self.image_types.get(img_type)
+                    assert (
+                        methods is not None
+                    ), f"Image type '{img_type}' not found in image_types mapping."
+
+                    assert_method_name = methods["assert_method"]
+                    params = methods["params"]
+
+                    self.reset_mocks()
+
+                    assert_take_method = getattr(self, assert_method_name, None)
+                    assert (
+                        assert_take_method is not None
+                    ), f"Image type '{img_type}' not found in image_types mapping."
+
+                    await assert_take_method(**params)
+
+                    # Ensure that ready_to_take_data was not called
+                    assert fake_tcs.called == 0
+
+    async def test_take_image_tcs_sync(self) -> None:
+        image_types_tcs = ["OBJECT", "ENGTEST", "ACQ", "CWFS"]
+
+        for img_type in image_types_tcs:
+            with self.subTest(image_type=img_type):
+                methods = self.image_types.get(img_type)
+                assert (
+                    methods is not None
+                ), f"Image type '{img_type}' not found in image_types mapping."
+
+                params = methods["params"]
+
+                self.reset_mocks()
+
+                await self.assert_take_image_tcs_sync(
+                    image_type=img_type,
+                    should_fail=False,
+                    **params,
+                )
+
+    async def test_take_image_tcs_sync_fail(self) -> None:
+        image_types_tcs = ["OBJECT", "ENGTEST", "ACQ", "CWFS"]
+
+        for img_type in image_types_tcs:
+            with self.subTest(image_type=img_type):
+                methods = self.image_types.get(img_type)
+                assert (
+                    methods is not None
+                ), f"Image type '{img_type}' not found in image_types mapping."
+
+                params = methods["params"]
+
+                self.reset_mocks()
+
+                await self.assert_take_image_tcs_sync(
+                    image_type=img_type,
+                    should_fail=True,
+                    **params,
+                )
