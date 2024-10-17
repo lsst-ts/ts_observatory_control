@@ -392,6 +392,39 @@ class TestATTCS(ATCSAsyncMock):
         with pytest.raises(RuntimeError):
             await self.atcs.close_dome(force=False)
 
+    async def test_assert_ataos_corrections_enabled_when_on(self) -> None:
+        self._ataos_evt_correction_enabled.m1 = True
+        self._ataos_evt_correction_enabled.hexapod = True
+        self._ataos_evt_correction_enabled.atspectrograph = True
+
+        await self.atcs.assert_ataos_corrections_enabled()
+
+    async def test_assert_ataos_corrections_enabled_when_off_m1(self) -> None:
+        self._ataos_evt_correction_enabled.m1 = False
+        self._ataos_evt_correction_enabled.hexapod = True
+        self._ataos_evt_correction_enabled.atspectrograph = True
+
+        with pytest.raises(AssertionError):
+            await self.atcs.assert_ataos_corrections_enabled()
+
+    async def test_assert_ataos_corrections_enabled_when_off_hexapod(self) -> None:
+        self._ataos_evt_correction_enabled.m1 = True
+        self._ataos_evt_correction_enabled.hexapod = False
+        self._ataos_evt_correction_enabled.atspectrograph = True
+
+        with pytest.raises(AssertionError):
+            await self.atcs.assert_ataos_corrections_enabled()
+
+    async def test_assert_ataos_corrections_enabled_when_off_atspectrograph(
+        self,
+    ) -> None:
+        self._ataos_evt_correction_enabled.m1 = True
+        self._ataos_evt_correction_enabled.hexapod = True
+        self._ataos_evt_correction_enabled.atspectrograph = False
+
+        with pytest.raises(AssertionError):
+            await self.atcs.assert_ataos_corrections_enabled()
+
     async def test_assert_m1_correction_disable_when_off(self) -> None:
         self._ataos_evt_correction_enabled.m1 = False
 
