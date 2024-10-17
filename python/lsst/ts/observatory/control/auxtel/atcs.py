@@ -2181,6 +2181,34 @@ class ATCS(BaseTCS):
 
         return in_position.inPosition
 
+    async def assert_ataos_corrections_enabled(self) -> None:
+        """Assert that m1, hexapod and atspectrograph corrections are enabled.
+
+        Raises
+        ------
+        AssertionError
+            If ATAOS m1, hexapod, or atspectrograph corrections are disabled.
+
+        """
+
+        self.log.debug("Check ATAOS corrections are enabled.")
+        ataos_corrections = await self.rem.ataos.evt_correctionEnabled.aget(
+            timeout=self.fast_timeout
+        )
+
+        assert (
+            ataos_corrections.hexapod
+            and ataos_corrections.m1
+            and ataos_corrections.atspectrograph
+        ), (
+            "Not all required ATAOS corrections are enabled. "
+            "The following loops must all be closed (True), but are currently: "
+            f"Hexapod: {ataos_corrections.hexapod}, "
+            f"M1: {ataos_corrections.m1}, "
+            f"ATSpectrograph: {ataos_corrections.atspectrograph}. "
+            "Enable corrections with the ATAOS 'enableCorrection' command before proceeding.",
+        )
+
     async def assert_m1_correction_disabled(self, message: str = "") -> None:
         """Assert that m1 corrections is disabled.
 
