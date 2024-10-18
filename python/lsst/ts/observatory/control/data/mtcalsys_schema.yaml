@@ -4,15 +4,21 @@ title: Configuration file validation schema of Main Telescope Calibration System
 type: object
 properties:
   calib_type:
+    description: >-
+      Type of flat field calibration. There are two types, `Whitelight` for
+      broad spectrum light and `Mono` for monochromatic.
     type: string
     enum:
       - Mono
       - WhiteLight
   use_camera:
+    description: Indicates whether the operation requires a camera.
     type: boolean
   mtcamera_filter:
+    description: The filter name to install.
     type: string
   led_name:
+    description: List of LED serial numbers to be turned on.
     type: array
     items:
       type: string
@@ -28,24 +34,63 @@ properties:
         - M940L3
         - M970L4
   wavelength:
+    description: >-
+      Center wavelength value in nm, used for configuring the Tunable Laser
     type: number
   wavelength_width:
+    description: >-
+      Optional. Defines the width of the wavelength scan range to configure the
+      Tunable Laser for the flat-field calibration sequence when using
+      monochromatic light.
     type: number
   wavelength_resolution:
+    description: >-
+      Optional. When using a monochromatic light source, it defines the
+      resolution used to sample values within the scan range, which has a width
+      defined by `wavelength_width` and is centered around the `wavelength`
+      attribute.
     type: number
   led_location:
+    description: >-
+      Absolute distance to move the horizontal linear stage between LED
+      modules, expressed in mm.
     type: number
   led_focus:
+    description: >-
+      Absolute distance in nm for the horizontal linear stage to move a lens to
+      focus the laser light from the fiber.
     type: number
   use_electrometer:
+    description: Identifies if the electrometer will be used in the exposure.
     type: boolean
   use_fiberspectrograph_red:
+    description: >-
+      Identifies if the fiberspectrograph for red color will be used in the
+      exposure.
     type: boolean
   use_fiberspectrograph_blue:
+    description: >-
+      Identifies if the fiberspectrograph for blue color will be used in the
+      exposure.
     type: boolean
   electrometer_integration_time:
+    description: >-
+      Integration time in seconds (166.67e-6 to 200e-3) for each sample.
+
+      The integration time (measurement speed) of the analog to digital (A/D)
+      converter, the period of time the input signal is measured (also known as
+      aperture). Due to the time it takes to read the buffer and process the
+      data, this is not the rate at which samples are taken. This is generally
+      specified by the Power Line Cycle (PLC), where 1 PLC for 60Hz is
+      16.67msec. Fast integration=0.01PLC; Medium integration=0.1PLC; Normal
+      (default) integration = 1PLC; High Accuracy integration=10PLC. Here the
+      integration is set in seconds.
     type: number
   electrometer_mode:
+    description: >-
+      Set electrometer to use different modes. The units recorded will be Amps
+      for `CURRENT`, Volts for `VOLTAGE`, Coulombs for `CHARGE`, and Ohms for
+      `RESISTANCE`.
     type: string
     enum:
       - CURRENT
@@ -53,8 +98,20 @@ properties:
       - VOLTAGE
       - RESISTANCE
   electrometer_range:
+    description: >-
+      Set measurement range, which effects the accuracy of measurements and the
+      max signal that can be measured. The maximum input signal is 105% of the
+      measurement range. It will set the value for the current mode selected.
+      Auto-range will automatically go to the most sensitive (optimized) range
+      to make measurements. It is recommended to use autorange. When the
+      measurement range is changed, a zero correction will be performed.
+
+      -1 for automatic range. Volts range from 0 to 210 Volts, Current range
+      from 0 to 21e-3 Amps, Resistance from 0 to 100e18 Ohms, Charge from 0 to
+      +2.1e-6 Coulombs.
     type: number
   exposure_times:
+    description: List of Camera exposure times, in secs.
     type: array
     items:
       type: number
