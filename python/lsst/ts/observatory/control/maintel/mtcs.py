@@ -166,6 +166,9 @@ class MTCS(BaseTCS):
             [(fa.actuator_id, fa.s_index) for fa in FATable if fa.s_index is not None]
         )
 
+        # Mirror covers operation timeout, in seconds.
+        self.mirror_covers_timeout = 120.0
+
         try:
             self._create_asyncio_events()
         except RuntimeError:
@@ -813,7 +816,7 @@ class MTCS(BaseTCS):
 
             while cover_state.state != MTMount.DeployableMotionState.DEPLOYED:
                 cover_state = await self.rem.mtmount.evt_mirrorCoversMotionState.next(
-                    flush=False, timeout=self.fast_timeout
+                    flush=False, timeout=self.mirror_covers_timeout
                 )
                 self.log.debug(
                     f"Cover state: {MTMount.DeployableMotionState(cover_state.state)!r}"
@@ -825,7 +828,7 @@ class MTCS(BaseTCS):
                 )
                 if cover_system_state.state == MTMount.PowerState.FAULT:
                     raise RuntimeError(
-                        f"Close cover failed. Cover system state: "
+                        "Close cover failed. Cover system state: "
                         f"{MTMount.PowerState(cover_system_state.state)!r}"
                     )
             self.log.info(
@@ -886,7 +889,7 @@ class MTCS(BaseTCS):
 
             while cover_state.state != MTMount.DeployableMotionState.RETRACTED:
                 cover_state = await self.rem.mtmount.evt_mirrorCoversMotionState.next(
-                    flush=False, timeout=self.fast_timeout
+                    flush=False, timeout=self.mirror_covers_timeout
                 )
                 self.log.debug(
                     f"Cover state: {MTMount.DeployableMotionState(cover_state.state)!r}"
@@ -898,7 +901,7 @@ class MTCS(BaseTCS):
                 )
                 if cover_system_state.state == MTMount.PowerState.FAULT:
                     raise RuntimeError(
-                        f"Open cover failed. Cover system state: "
+                        "Open cover failed. Cover system state: "
                         f"{MTMount.PowerState(cover_system_state.state)!r}"
                     )
             self.log.info(
