@@ -32,7 +32,7 @@ import numpy as np
 from astropy.coordinates import Angle
 from lsst.ts import salobj, utils
 from lsst.ts.utils import angle_diff
-from lsst.ts.xml.enums import MTM1M3, MTM2, MTDome, MTPtg, MTRotator
+from lsst.ts.xml.enums import MTM1M3, MTM2, MTDome, MTMount, MTPtg, MTRotator
 
 try:
     from lsst.ts.xml.tables.m1m3 import FATable
@@ -134,6 +134,7 @@ class MTCS(BaseTCS):
         self.tel_flat_el = 39.0
         self.tel_flat_az = 205.7
         self.tel_settle_time = 3.0
+        self.tel_operate_mirror_covers_el = 70.0
 
         self.dome_park_az = 285.0
         self.dome_park_el = 80.0
@@ -164,6 +165,9 @@ class MTCS(BaseTCS):
         self._m1m3_actuator_id_sindex_table: dict[int, int] = dict(
             [(fa.actuator_id, fa.s_index) for fa in FATable if fa.s_index is not None]
         )
+
+        # Mirror covers operation timeout, in seconds.
+        self.mirror_covers_timeout = 120.0
 
         try:
             self._create_asyncio_events()
@@ -773,8 +777,69 @@ class MTCS(BaseTCS):
         raise NotImplementedError("# TODO: Implement (DM-21336).")
 
     async def close_m1_cover(self) -> None:
-        # TODO: Implement (DM-21336).
-        raise NotImplementedError("# TODO: Implement (DM-21336).")
+        """Method to close mirror covers.
+
+        Warnings
+        --------
+        The mirror covers should be closed when the telescope is pointing to
+        the zenith. The method will check if the telescope is in an operational
+        range and, if not, will move the telescope to an operational elevation,
+        maintaining the same azimuth before closing the mirror cover. The
+        telescope will be left in that same position in the end.
+
+        Raises
+        ------
+        RuntimeError
+            If mirror covers state is neither DEPLOYED nor RETRACTED.
+            If mirror system state is FAULT.
+        """
+        self.rem.mtmount.evt_mirrorCoversMotionState.flush()
+        cover_state = await self.rem.mtmount.evt_mirrorCoversMotionState.aget(
+            timeout=self.fast_timeout
+        )
+        self.log.debug(
+            f"Cover state: {MTMount.DeployableMotionState(cover_state.state)!r}"
+        )
+
+        if cover_state.state == MTMount.DeployableMotionState.DEPLOYED:
+            self.log.info("Mirror covers already closed.")
+        elif cover_state.state == MTMount.DeployableMotionState.RETRACTED:
+            self.log.info("Closing mirror covers.")
+
+            # Mirror covers shall close at zenith pointing.
+            if not await self.in_m1_cover_operational_range():
+                await self.slew_to_m1_cover_operational_range()
+
+            await self.rem.mtmount.cmd_closeMirrorCovers.start(
+                timeout=self.long_long_timeout
+            )
+
+            while cover_state.state != MTMount.DeployableMotionState.DEPLOYED:
+                cover_state = await self.rem.mtmount.evt_mirrorCoversMotionState.next(
+                    flush=False, timeout=self.mirror_covers_timeout
+                )
+                self.log.debug(
+                    f"Cover state: {MTMount.DeployableMotionState(cover_state.state)!r}"
+                )
+                cover_system_state = (
+                    await self.rem.mtmount.evt_mirrorCoversSystemState.aget(
+                        timeout=self.fast_timeout
+                    )
+                )
+                if cover_system_state.state == MTMount.PowerState.FAULT:
+                    raise RuntimeError(
+                        "Close cover failed. Cover system state: "
+                        f"{MTMount.PowerState(cover_system_state.state)!r}"
+                    )
+            self.log.info(
+                f"Cover state: {MTMount.DeployableMotionState(cover_state.state)!r}"
+            )
+        else:
+            raise RuntimeError(
+                f"Mirror covers in {MTMount.DeployableMotionState(cover_state.state)!r} "
+                f"state. Expected {MTMount.DeployableMotionState.RETRACTED!r} or "
+                f"{MTMount.DeployableMotionState.DEPLOYED!r}"
+            )
 
     async def home_dome(self) -> None:
         # TODO: Implement (DM-21336).
@@ -785,8 +850,107 @@ class MTCS(BaseTCS):
         raise NotImplementedError("# TODO: Implement (DM-21336).")
 
     async def open_m1_cover(self) -> None:
-        # TODO: Implement (DM-21336).
-        raise NotImplementedError("# TODO: Implement (DM-21336).")
+        """Method to open mirror covers.
+
+        Warnings
+        --------
+        The mirror covers should be opened when the telescope is pointing to
+        the zenith. The method will check if the telescope is in an operational
+        range and, if not, will move the telescope to an operational elevation,
+        maintaining the same azimuth before opening the mirror cover. The
+        telescope will be left in that same position in the end.
+
+        Raises
+        ------
+        RuntimeError
+            If mirror covers state is neither DEPLOYED nor RETRACTED.
+            If mirror system state is FAULT.
+        """
+        self.rem.mtmount.evt_mirrorCoversMotionState.flush()
+        cover_state = await self.rem.mtmount.evt_mirrorCoversMotionState.aget(
+            timeout=self.fast_timeout
+        )
+        self.log.debug(
+            f"Cover state: {MTMount.DeployableMotionState(cover_state.state)!r}"
+        )
+
+        if cover_state.state == MTMount.DeployableMotionState.RETRACTED:
+            self.log.info("Mirror covers already opened.")
+        elif cover_state.state == MTMount.DeployableMotionState.DEPLOYED:
+            self.log.info("Opening mirror covers.")
+
+            # Mirror covers shall open at zenith pointing.
+            if not await self.in_m1_cover_operational_range():
+                await self.slew_to_m1_cover_operational_range()
+
+            await self.rem.mtmount.cmd_openMirrorCovers.set_start(
+                leaf=MTMount.MirrorCover.ALL, timeout=self.long_long_timeout
+            )
+
+            while cover_state.state != MTMount.DeployableMotionState.RETRACTED:
+                cover_state = await self.rem.mtmount.evt_mirrorCoversMotionState.next(
+                    flush=False, timeout=self.mirror_covers_timeout
+                )
+                self.log.debug(
+                    f"Cover state: {MTMount.DeployableMotionState(cover_state.state)!r}"
+                )
+                cover_system_state = (
+                    await self.rem.mtmount.evt_mirrorCoversSystemState.aget(
+                        timeout=self.fast_timeout
+                    )
+                )
+                if cover_system_state.state == MTMount.PowerState.FAULT:
+                    raise RuntimeError(
+                        "Open cover failed. Cover system state: "
+                        f"{MTMount.PowerState(cover_system_state.state)!r}"
+                    )
+            self.log.info(
+                f"Cover state: {MTMount.DeployableMotionState(cover_state.state)!r}"
+            )
+        else:
+            raise RuntimeError(
+                f"Mirror covers in {MTMount.DeployableMotionState(cover_state.state)!r} "
+                f"state. Expected {MTMount.DeployableMotionState.RETRACTED!r} or "
+                f"{MTMount.DeployableMotionState.DEPLOYED!r}"
+            )
+
+    async def slew_to_m1_cover_operational_range(self) -> None:
+        """Slew the telescope to safe range for mirror covers operation.
+
+        This method will slew the telescope to a safe elevation to perform
+        mirror covers operations. It should be used in combination with the
+        in_m1_covers_operational_range method.
+
+        """
+        self.log.debug(
+            "Slewing telescope to operational range for mirror covers operation."
+        )
+        azimuth = await self.rem.mtmount.tel_azimuth.aget(timeout=self.fast_timeout)
+        rotation_data = await self.rem.mtrotator.tel_rotation.aget(
+            timeout=self.fast_timeout
+        )
+
+        await self.point_azel(
+            target_name="Mirror covers operation",
+            az=azimuth.actualPosition,
+            el=self.tel_operate_mirror_covers_el,
+            rot_tel=rotation_data.actualPosition,
+            wait_dome=False,
+        )
+
+    async def in_m1_cover_operational_range(self) -> bool:
+        """Check if MTMount is in safe range for mirror covers operation.
+
+        Returns
+        -------
+        elevation_in_range: `bool`
+            Returns `True` when telescope elevation is in safe range for
+            mirror covers operation.
+
+        """
+        elevation = await self.rem.mtmount.tel_elevation.aget(timeout=self.fast_timeout)
+
+        return elevation.actualPosition >= self.tel_operate_mirror_covers_el
 
     async def prepare_for_flatfield(self, check: typing.Any = None) -> None:
         # TODO: Implement (DM-21336).
