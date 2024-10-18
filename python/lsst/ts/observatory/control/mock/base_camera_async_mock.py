@@ -26,6 +26,7 @@ import types
 import typing
 
 import astropy
+import pytest
 from lsst.ts import utils
 from lsst.ts.observatory.control import CameraExposure
 from lsst.ts.observatory.control.mock import RemoteGroupAsyncMock
@@ -784,6 +785,60 @@ class BaseCameraAsyncMock(RemoteGroupAsyncMock):
             f"Expected {expected_discard_rows_await_count} got {discard_rows_await_count} "
             "await counts for cmd_discardRows.set_start."
         )
+
+    async def assert_take_image_tcs_sync(
+        self,
+        image_type: str,
+        exptime: float = 1.0,
+        n: int = 1,
+        should_fail: bool = False,
+        **kwargs: typing.Any,
+    ) -> None:
+        """Test that taking an image of a given type waits for TCS readiness
+        and asserts the camera commands.
+
+        Parameters
+        ----------
+        image_type : str
+            The image type to test (e.g., "OBJECT", "ENGTEST", "ACQ","CWFS").
+        exptime : float
+            Exposure time.
+        n : int
+            Number of images to take.
+        should_fail : bool
+            If True, simulate TCS failure and expect a RuntimeError.
+        **kwargs
+            Additional arguments to pass to the `assert_take_<type>` method.
+        """
+        image_type_lower = image_type.lower()
+
+        assert_method_name = f"assert_take_{image_type_lower}"
+
+        assert_take_method = getattr(self, assert_method_name, None)
+
+        if assert_take_method is None:
+            raise AttributeError(
+                f"No method found for image type '{image_type}'. "
+                f"Ensure that '{assert_method_name}' exist."
+            )
+
+        with self.get_fake_tcs() as fake_tcs:
+            fake_tcs.fail = should_fail
+
+            if should_fail:
+                with pytest.raises(RuntimeError):
+                    await assert_take_method(
+                        exptime=exptime,
+                        n=n,
+                        **kwargs,
+                    )
+            else:
+                await assert_take_method(
+                    exptime=exptime,
+                    n=n,
+                    **kwargs,
+                )
+                assert fake_tcs.called == 1
 
     @contextlib.contextmanager
     def get_fake_tcs(self) -> typing.Generator[FakeTCS, None, None]:
