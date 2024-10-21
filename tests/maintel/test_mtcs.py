@@ -29,7 +29,7 @@ import numpy as np
 import pytest
 from astropy.coordinates import Angle
 from lsst.ts import idl, utils
-from lsst.ts.idl.enums import MTM1M3, MTM2
+from lsst.ts.idl.enums import MTM1M3, MTM2, MTMount
 from lsst.ts.observatory.control.mock.mtcs_async_mock import MTCSAsyncMock
 from lsst.ts.observatory.control.utils import RotType
 from lsst.ts.xml.enums import MTDome
@@ -822,13 +822,206 @@ class TestMTCS(MTCSAsyncMock):
         with pytest.raises(NotImplementedError):
             await self.mtcs.close_dome()
 
-    async def test_open_m1_cover(self) -> None:
-        with pytest.raises(NotImplementedError):
+    async def test_in_m1_cover_operational_range(self) -> None:
+        self._mtmount_tel_elevation.actualPosition = (
+            self.mtcs.tel_operate_mirror_covers_el + 1.0
+        )
+
+        elevation_in_range = await self.mtcs.in_m1_cover_operational_range()
+
+        assert elevation_in_range
+
+    async def test_not_in_m1_cover_operational_range(self) -> None:
+        self._mtmount_tel_elevation.actualPosition = (
+            self.mtcs.tel_operate_mirror_covers_el - 1.0
+        )
+
+        elevation_in_range = await self.mtcs.in_m1_cover_operational_range()
+
+        assert not elevation_in_range
+
+    async def test_slew_to_m1_cover_operational_range(self) -> None:
+        self._mtmount_tel_azimuth.actualPosition = 0.0
+        self._mtmount_tel_elevation.actualPosition = (
+            self.mtcs.tel_operate_mirror_covers_el - 1.0
+        )
+        self._mtrotator_tel_rotation.actualPosition = 0.0
+
+        await self.mtcs.enable()
+        await self.mtcs.assert_all_enabled()
+        await self.mtcs.slew_to_m1_cover_operational_range()
+
+        # Assert mtptg command call from point_azel
+        self.mtcs.rem.mtptg.cmd_azElTarget.set.assert_called_with(
+            targetName="Mirror covers operation",
+            azDegs=self._mtmount_tel_azimuth.actualPosition,
+            elDegs=self.mtcs.tel_operate_mirror_covers_el,
+            rotPA=self._mtrotator_tel_rotation.actualPosition,
+        )
+
+    async def test_close_m1_cover_when_deployed(self) -> None:
+        self._mtmount_evt_mirror_covers_motion_state.state = (
+            idl.enums.MTMount.DeployableMotionState.DEPLOYED
+        )
+
+        await self.mtcs.close_m1_cover()
+
+        self.mtcs.rem.mtptg.cmd_azElTarget.set.assert_not_called()
+        self.mtcs.rem.mtmount.cmd_closeMirrorCovers.start.assert_not_awaited()
+
+    async def test_close_m1_cover_when_retracted(self) -> None:
+        self._mtmount_evt_mirror_covers_motion_state.state = (
+            idl.enums.MTMount.DeployableMotionState.RETRACTED
+        )
+        # Safe elevation for mirror covers operation
+        self._mtmount_tel_elevation.actualPosition = (
+            self.mtcs.tel_operate_mirror_covers_el + 1.0
+        )
+
+        await self.mtcs.close_m1_cover()
+
+        assert await self.mtcs.in_m1_cover_operational_range()
+        self.mtcs.rem.mtptg.cmd_azElTarget.set.assert_not_called()
+        self.mtcs.rem.mtmount.cmd_closeMirrorCovers.start.assert_awaited_with(
+            timeout=self.mtcs.long_long_timeout
+        )
+
+    async def test_close_m1_cover_when_retracted_below_el_limit(self) -> None:
+        self._mtmount_evt_mirror_covers_motion_state.state = (
+            idl.enums.MTMount.DeployableMotionState.RETRACTED
+        )
+        # Unsafe elevation for mirror covers operation
+        self._mtmount_tel_elevation.actualPosition = (
+            self.mtcs.tel_operate_mirror_covers_el - 1.0
+        )
+        self._mtmount_tel_azimuth.actualPosition = 0.0
+        self._mtrotator_tel_rotation.actualPosition = 0.0
+
+        await self.mtcs.enable()
+        await self.mtcs.assert_all_enabled()
+        await self.mtcs.close_m1_cover()
+
+        assert not await self.mtcs.in_m1_cover_operational_range()
+        self.mtcs.rem.mtptg.cmd_azElTarget.set.assert_called_with(
+            targetName="Mirror covers operation",
+            azDegs=self._mtmount_tel_azimuth.actualPosition,
+            elDegs=self.mtcs.tel_operate_mirror_covers_el,
+            rotPA=self._mtrotator_tel_rotation.actualPosition,
+        )
+        self.mtcs.rem.mtmount.cmd_closeMirrorCovers.start.assert_awaited_with(
+            timeout=self.mtcs.long_long_timeout
+        )
+
+    async def test_close_m1_cover_wrong_system_state(self) -> None:
+        self._mtmount_evt_mirror_covers_motion_state.state = (
+            idl.enums.MTMount.DeployableMotionState.RETRACTED
+        )
+        self._mtmount_evt_mirror_covers_system_state.state = (
+            idl.enums.MTMount.PowerState.FAULT
+        )
+        exception_message = (
+            "Close cover failed. Cover system state: "
+            f"{MTMount.PowerState(self._mtmount_evt_mirror_covers_system_state.state)!r}"
+        )
+
+        with pytest.raises(RuntimeError, match=exception_message):
+            await self.mtcs.close_m1_cover()
+
+    async def test_close_m1_cover_wrong_motion_state(self) -> None:
+        self._mtmount_evt_mirror_covers_motion_state.state = (
+            idl.enums.MTMount.DeployableMotionState.LOST
+        )
+        cover_state = self._mtmount_evt_mirror_covers_motion_state
+        exception_message = (
+            f"Mirror covers in {MTMount.DeployableMotionState(cover_state.state)!r} "
+            f"state. Expected {MTMount.DeployableMotionState.RETRACTED!r} or "
+            f"{MTMount.DeployableMotionState.DEPLOYED!r}"
+        )
+
+        with pytest.raises(RuntimeError, match=exception_message):
+            await self.mtcs.close_m1_cover()
+
+    async def test_open_m1_cover_when_retracted(self) -> None:
+        self._mtmount_evt_mirror_covers_motion_state.state = (
+            idl.enums.MTMount.DeployableMotionState.RETRACTED
+        )
+
+        await self.mtcs.open_m1_cover()
+
+        self.mtcs.rem.mtptg.cmd_azElTarget.set.assert_not_called()
+        self.mtcs.rem.mtmount.cmd_openMirrorCovers.set_start.assert_not_awaited()
+
+    async def test_open_m1_cover_when_deployed(self) -> None:
+        self._mtmount_evt_mirror_covers_motion_state.state = (
+            idl.enums.MTMount.DeployableMotionState.DEPLOYED
+        )
+        # Safe elevation for mirror covers operation
+        self._mtmount_tel_elevation.actualPosition = (
+            self.mtcs.tel_operate_mirror_covers_el + 1.0
+        )
+
+        await self.mtcs.open_m1_cover()
+
+        assert await self.mtcs.in_m1_cover_operational_range()
+        self.mtcs.rem.mtptg.cmd_azElTarget.set.assert_not_called()
+        self.mtcs.rem.mtmount.cmd_openMirrorCovers.set_start.assert_awaited_with(
+            leaf=MTMount.MirrorCover.ALL, timeout=self.mtcs.long_long_timeout
+        )
+
+    async def test_open_m1_cover_when_deployed_below_el_limit(self) -> None:
+        self._mtmount_evt_mirror_covers_motion_state.state = (
+            idl.enums.MTMount.DeployableMotionState.DEPLOYED
+        )
+        # Unsafe elevation for mirror covers operation
+        self._mtmount_tel_elevation.actualPosition = (
+            self.mtcs.tel_operate_mirror_covers_el - 1.0
+        )
+        self._mtmount_tel_azimuth.actualPosition = 0.0
+        self._mtrotator_tel_rotation.actualPosition = 0.0
+
+        await self.mtcs.enable()
+        await self.mtcs.assert_all_enabled()
+        await self.mtcs.open_m1_cover()
+
+        assert not await self.mtcs.in_m1_cover_operational_range()
+        self.mtcs.rem.mtptg.cmd_azElTarget.set.assert_called_with(
+            targetName="Mirror covers operation",
+            azDegs=self._mtmount_tel_azimuth.actualPosition,
+            elDegs=self.mtcs.tel_operate_mirror_covers_el,
+            rotPA=self._mtrotator_tel_rotation.actualPosition,
+        )
+        self.mtcs.rem.mtmount.cmd_openMirrorCovers.set_start.assert_awaited_with(
+            leaf=MTMount.MirrorCover.ALL, timeout=self.mtcs.long_long_timeout
+        )
+
+    async def test_open_m1_cover_wrong_system_state(self) -> None:
+        self._mtmount_evt_mirror_covers_motion_state.state = (
+            idl.enums.MTMount.DeployableMotionState.DEPLOYED
+        )
+        self._mtmount_evt_mirror_covers_system_state.state = (
+            idl.enums.MTMount.PowerState.FAULT
+        )
+        exception_message = (
+            "Open cover failed. Cover system state: "
+            f"{MTMount.PowerState(self._mtmount_evt_mirror_covers_system_state.state)!r}"
+        )
+
+        with pytest.raises(RuntimeError, match=exception_message):
             await self.mtcs.open_m1_cover()
 
-    async def test_close_m1_cover(self) -> None:
-        with pytest.raises(NotImplementedError):
-            await self.mtcs.close_m1_cover()
+    async def test_open_m1_cover_wrong_motion_state(self) -> None:
+        self._mtmount_evt_mirror_covers_motion_state.state = (
+            idl.enums.MTMount.DeployableMotionState.LOST
+        )
+        cover_state = self._mtmount_evt_mirror_covers_motion_state
+        exception_message = (
+            f"Mirror covers in {MTMount.DeployableMotionState(cover_state.state)!r} "
+            f"state. Expected {MTMount.DeployableMotionState.RETRACTED!r} or "
+            f"{MTMount.DeployableMotionState.DEPLOYED!r}"
+        )
+
+        with pytest.raises(RuntimeError, match=exception_message):
+            await self.mtcs.open_m1_cover()
 
     async def test_home_dome(self) -> None:
         with pytest.raises(NotImplementedError):

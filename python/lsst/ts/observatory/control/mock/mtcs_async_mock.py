@@ -98,6 +98,13 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
             inPosition=True,
         )
 
+        self._mtmount_evt_mirror_covers_motion_state = types.SimpleNamespace(
+            state=xml.enums.MTMount.DeployableMotionState.DEPLOYED
+        )
+        self._mtmount_evt_mirror_covers_system_state = types.SimpleNamespace(
+            state=xml.enums.MTMount.PowerState.ON
+        )
+
         # MTRotator data
         self._mtrotator_tel_rotation = types.SimpleNamespace(
             demandPosition=0.0,
@@ -201,6 +208,7 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
             "evt_target.next.side_effect": self.mtmount_evt_target_next,
             "evt_target.aget.side_effect": self.mtmount_evt_target_next,
             "tel_azimuth.next.side_effect": self.mtmount_tel_azimuth_next,
+            "tel_azimuth.aget.side_effect": self.mtmount_tel_azimuth_next,
             "tel_azimuth.DataType.return_value": self.get_sample(
                 "MTMount", "tel_azimuth"
             ),
@@ -211,6 +219,11 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
             "evt_cameraCableWrapFollowing.aget.side_effect": self.mtmount_evt_cameraCableWrapFollowing,
             "cmd_enableCameraCableWrapFollowing.start.side_effect": self.mtmount_cmd_enable_ccw_following,
             "cmd_disableCameraCableWrapFollowing.start.side_effect": self.mtmount_cmd_disable_ccw_following,
+            "evt_mirrorCoversMotionState.aget.side_effect": self.mtmount_evt_mirror_covers_motion_state,
+            "evt_mirrorCoversMotionState.next.side_effect": self.mtmount_evt_mirror_covers_motion_state,
+            "evt_mirrorCoversSystemState.aget.side_effect": self.mtmount_evt_mirror_covers_system_state,
+            "cmd_closeMirrorCovers.start.side_effect": self.mtmount_cmd_close_mirror_covers,
+            "cmd_openMirrorCovers.set_start.side_effect": self.mtmount_cmd_open_mirror_covers,
         }
 
         self.mtcs.rem.mtmount.configure_mock(**mtmount_mocks)
@@ -385,6 +398,7 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
     async def mtmount_tel_elevation_next(
         self, *args: typing.Any, **kwargs: typing.Any
     ) -> types.SimpleNamespace:
+        await asyncio.sleep(self.heartbeat_time)
         return self._mtmount_tel_elevation
 
     async def mtmount_evt_elevation_in_position_next(
@@ -414,6 +428,46 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
 
     async def mtrotator_cmd_move(self, *args: typing.Any, **kwargs: typing.Any) -> None:
         asyncio.create_task(self._mtrotator_move(position=kwargs.get("position", 0.0)))
+
+    async def mtmount_evt_mirror_covers_motion_state(
+        self, *args: typing.Any, **kwargs: typing.Any
+    ) -> types.SimpleNamespace:
+        await asyncio.sleep(self.heartbeat_time)
+        return self._mtmount_evt_mirror_covers_motion_state
+
+    async def mtmount_evt_mirror_covers_system_state(
+        self, *args: typing.Any, **kwargs: typing.Any
+    ) -> types.SimpleNamespace:
+        await asyncio.sleep(self.heartbeat_time)
+        return self._mtmount_evt_mirror_covers_system_state
+
+    async def mtmount_cmd_close_mirror_covers(
+        self, *args: typing.Any, **kwargs: typing.Any
+    ) -> None:
+        asyncio.create_task(self._mtmount_cmd_close_mirror_covers())
+
+    async def _mtmount_cmd_close_mirror_covers(self) -> None:
+        self._mtmount_evt_mirror_covers_motion_state.state = (
+            xml.enums.MTMount.DeployableMotionState.DEPLOYING
+        )
+        await asyncio.sleep(self.heartbeat_time)
+        self._mtmount_evt_mirror_covers_motion_state.state = (
+            xml.enums.MTMount.DeployableMotionState.DEPLOYED
+        )
+
+    async def mtmount_cmd_open_mirror_covers(
+        self, *args: typing.Any, **kwargs: typing.Any
+    ) -> None:
+        asyncio.create_task(self._mtmount_cmd_open_mirror_covers())
+
+    async def _mtmount_cmd_open_mirror_covers(self) -> None:
+        self._mtmount_evt_mirror_covers_motion_state.state = (
+            xml.enums.MTMount.DeployableMotionState.RETRACTING
+        )
+        await asyncio.sleep(self.heartbeat_time)
+        self._mtmount_evt_mirror_covers_motion_state.state = (
+            xml.enums.MTMount.DeployableMotionState.RETRACTED
+        )
 
     async def _mtrotator_move(self, position: float) -> None:
         self._mtrotator_evt_in_position.inPosition = False
