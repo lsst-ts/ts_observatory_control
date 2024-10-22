@@ -240,7 +240,9 @@ class BaseCalsys(RemoteGroup, metaclass=abc.ABCMeta):
         validation_errors = ""
         for item in self.calibration_config:
             try:
-                config_validator.validate(self.calibration_config[item])
+                self.calibration_config[item] = config_validator.validate(
+                    self.calibration_config[item]
+                )
             except jsonschema.ValidationError as e:
                 validation_errors += f"\t{item} failed validation: {e.message}.\n"
                 self.log.exception(f"{item} failed validation.")
