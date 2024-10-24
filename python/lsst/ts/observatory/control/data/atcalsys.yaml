@@ -44,7 +44,6 @@ at_whitelight_r:
   use_camera: true
   atspec_filter: SDSSr_65mm
   atspec_grating: empty_1  
-  wavelength: 500.0
   monochromator_grating: MIRROR 
   exit_slit: 5.0
   entrance_slit: 5.0
@@ -83,10 +82,6 @@ ptc_1:
   use_electrometer: true
   atspec_filter: SDSSr_65mm
   atspec_grating: empty_1
-  wavelength: 500.0
-  monochromator_grating: null
-  exit_slit: 7.0
-  entrance_slit: 7.0
   electrometer_integration_time: 0.1
   electrometer_mode: CURRENT
   electrometer_range: -1
@@ -167,10 +162,6 @@ ptc_2:
   use_electrometer: true
   atspec_filter: SDSSr_65mm
   atspec_grating: empty_1
-  wavelength: 500.0
-  monochromator_grating: null
-  exit_slit: 7.0
-  entrance_slit: 7.0
   electrometer_integration_time: 0.1
   electrometer_mode: CURRENT
   electrometer_range: -1
@@ -250,10 +241,6 @@ ptc_3:
   use_electrometer: true
   atspec_filter: SDSSr_65mm
   atspec_grating: empty_1
-  wavelength: 500.0
-  monochromator_grating: null
-  exit_slit: 7.0
-  entrance_slit: 7.0
   electrometer_integration_time: 0.1
   electrometer_mode: CURRENT
   electrometer_range: -1
