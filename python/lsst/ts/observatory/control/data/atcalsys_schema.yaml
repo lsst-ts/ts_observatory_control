@@ -14,6 +14,7 @@ properties:
   use_camera:
     description: Indicates whether the operation requires a camera.
     type: boolean
+    default: true
   atspec_filter:
     description: Name of the filter to select for the spectrograph.
     type: string
@@ -32,6 +33,7 @@ properties:
       monochromator for the flat-field calibration sequence when using
       monochromatic light.
     type: number
+    default: 0.0
   wavelength_resolution:
     description: >-
       Optional. When using a monochromatic light source, it defines the
@@ -39,6 +41,7 @@ properties:
       defined by `wavelength_width` and is centered around the `wavelength`
       attribute.
     type: number
+    default: 5.0
   monochromator_grating:
     description: >-
       Select the grating of the monochromator that will be in the path of
@@ -75,6 +78,7 @@ properties:
       (default) integration = 1PLC; High Accuracy integration=10PLC. Here the
       integration is set in seconds.
     type: number
+    default: 0.1
   electrometer_mode:
     description: >-
       Set electrometer to use different modes. The units recorded will be Amps
@@ -86,6 +90,7 @@ properties:
       - CHARGE
       - VOLTAGE
       - RESISTANCE
+    default: CURRENT
   electrometer_range:
     description: >-
       Set measurement range, which effects the accuracy of measurements and the
@@ -99,14 +104,17 @@ properties:
       from 0 to 21e-3 Amps, Resistance from 0 to 100e18 Ohms, Charge from 0 to
       +2.1e-6 Coulombs.
     type: number
+    default: -1
   use_fiberspectrograph:
     description: >-
       Identifies if the fiberspectrograph will be used in the exposure.
     type: boolean
+    default: true
   use_electrometer:
     description: >-
       Identifies if the electrometer will be used in the exposure.
     type: boolean
+    default: true
   exposure_times:
     description: >-
       List of Camera exposure times, in secs
