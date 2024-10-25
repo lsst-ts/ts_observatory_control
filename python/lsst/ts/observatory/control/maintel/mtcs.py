@@ -793,6 +793,9 @@ class MTCS(BaseTCS):
             If mirror covers state is neither DEPLOYED nor RETRACTED.
             If mirror system state is FAULT.
         """
+
+        await self.stop_tracking()
+
         self.rem.mtmount.evt_mirrorCoversMotionState.flush()
         cover_state = await self.rem.mtmount.evt_mirrorCoversMotionState.aget(
             timeout=self.fast_timeout
