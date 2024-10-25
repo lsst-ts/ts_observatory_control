@@ -40,6 +40,7 @@ properties:
     description: >-
       Center wavelength value in nm, used for configuring the Tunable Laser
     type: number
+    default: 400.0
   wavelength_width:
     description: >-
       Optional. Defines the width of the wavelength scan range to configure the
