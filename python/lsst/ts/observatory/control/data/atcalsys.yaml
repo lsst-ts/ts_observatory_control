@@ -4,7 +4,6 @@
 scan_g:
   calib_type: Mono
   atspec_filter: SDSSg_65mm
-  atspec_grating: empty_1
   wavelength: 475.0
   wavelength_width: 250
   monochromator_grating: RED
@@ -15,8 +14,6 @@ scan_g:
 
 scan_r:
   calib_type: Mono
-  atspec_filter: SDSSr_65mm
-  atspec_grating: empty_1
   wavelength: 625.0
   wavelength_width: 250
   monochromator_grating: RED
@@ -26,8 +23,6 @@ scan_r:
     - 15.0
 
 at_whitelight_r:
-  calib_type: WhiteLight
-  atspec_filter: SDSSr_65mm
   atspec_grating: empty_1  
   monochromator_grating: MIRROR 
   exit_slit: 5.0
@@ -56,10 +51,7 @@ at_whitelight_r:
     - 6.0
 
 ptc_1:
-  calib_type: WhiteLight
   use_fiberspectrograph: false 
-  atspec_filter: SDSSr_65mm
-  atspec_grating: empty_1
   exposure_times:
     - 14.40
     - 14.40
@@ -131,10 +123,7 @@ ptc_1:
     - 0.93
 
 ptc_2:
-  calib_type: WhiteLight
   use_fiberspectrograph: false 
-  atspec_filter: SDSSr_65mm
-  atspec_grating: empty_1
   exposure_times:
     - 15.35
     - 15.35
@@ -205,10 +194,7 @@ ptc_2:
 
 
 ptc_3:
-  calib_type: WhiteLight
   use_fiberspectrograph: false 
-  atspec_filter: SDSSr_65mm
-  atspec_grating: empty_1
   exposure_times:
     - 0.52
     - 0.52

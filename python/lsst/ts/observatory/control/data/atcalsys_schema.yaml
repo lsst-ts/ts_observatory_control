@@ -11,6 +11,7 @@ properties:
     enum:
       - Mono
       - WhiteLight
+    default: WhiteLight
   use_camera:
     description: Indicates whether the operation requires a camera.
     type: boolean
@@ -18,9 +19,11 @@ properties:
   atspec_filter:
     description: Name of the filter to select for the spectrograph.
     type: string
+    default: SDSSr_65mm
   atspec_grating:
     description: Name of the grating to select for the spectrograph.
     type: string
+    default: empty_1
   wavelength:
     description: >-
       Center wavelength value in nm, used for configuring the monochromator
