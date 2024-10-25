@@ -2,7 +2,6 @@
 # Created 2024-07-15
 
 whitelight_u:
-  calib_type: WhiteLight
   mtcamera_filter: u
   led_name: 
     - M385L3
@@ -13,7 +12,6 @@ whitelight_u:
     - 15.0
 
 whitelight_g:
-  calib_type: WhiteLight
   mtcamera_filter: g
   led_name:
     - M455L4
@@ -25,8 +23,6 @@ whitelight_g:
     - 15.0
 
 whitelight_r:
-  calib_type: WhiteLight
-  mtcamera_filter: r
   led_name:
     - M565L3
     - M660L4
@@ -37,7 +33,6 @@ whitelight_r:
     - 15.0
 
 whitelight_i:
-  calib_type: WhiteLight
   mtcamera_filter: i
   led_name:
     - M730L5
@@ -49,7 +44,6 @@ whitelight_i:
     - 15.0
 
 whitelight_z:
-  calib_type: WhiteLight
   mtcamera_filter: z
   led_name:
     - M850L3
@@ -61,21 +55,15 @@ whitelight_z:
     - 15.0
 
 whitelight_y:
-  calib_type: WhiteLight
   mtcamera_filter: y
   led_name:
     - M970L4
   wavelength: 970.0
-  led_location: 174.91
-  led_focus: 15.380
   exposure_times:
     - 15.0
 
 scan_r:
   calib_type: Mono
-  mtcamera_filter: r
-  led_location: 174.91
-  led_focus: 15.380
   wavelength: 625.0
   wavelength_width: 250
   wavelength_resolution: 5.0
