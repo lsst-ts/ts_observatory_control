@@ -205,7 +205,10 @@ class ComCam(BaseCamera):
         self.check_kwargs(**kwargs)
 
         filter_value = kwargs.get("filter", None)
-        if filter_value is not None and str(filter_value) != self.get_current_filter():
+        if (
+            filter_value is not None
+            and str(filter_value) != await self.get_current_filter()
+        ):
             await self.setup_filter(filter=str(filter_value))
 
     async def setup_filter(
