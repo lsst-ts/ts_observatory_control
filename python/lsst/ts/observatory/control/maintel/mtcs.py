@@ -141,6 +141,7 @@ class MTCS(BaseTCS):
         self.dome_flat_az = 20.0
         self.dome_flat_el = self.dome_park_el
         self.dome_slew_tolerance = Angle(1.5 * u.deg)
+        self.home_dome_az = 328.0
 
         # TODO (DM-45609): This is an initial guess for the time it takes the
         #  dome to park. It might need updating.
@@ -844,9 +845,40 @@ class MTCS(BaseTCS):
                 f"{MTMount.DeployableMotionState.DEPLOYED!r}"
             )
 
-    async def home_dome(self) -> None:
-        # TODO: Implement (DM-21336).
-        raise NotImplementedError("# TODO: Implement (DM-21336).")
+    async def home_dome(self, physical_az: float = 0.0) -> None:
+        self.log.info("Homing dome")
+        reported_az = await self.rem.mtdome.tel_azimuth.aget(timeout=self.fast_timeout)
+
+        offset = physical_az - reported_az.positionActual
+        self.log.debug(f"Dome azimuth offset: {offset} degrees")
+        target_az = Angle(self.home_dome_az - offset, unit=u.deg).deg
+        self.rem.mtdome.evt_azMotion.flush()
+        await self.rem.mtdome.cmd_moveAz.set_start(
+            position=target_az, velocity=0.0, timeout=self.park_dome_timeout
+        )
+
+        await self._handle_in_position(
+            self.rem.mtdome.evt_azMotion,
+            timeout=self.fast_timeout,
+            settle_time=self.tel_settle_time,
+            component_name="MTDome",
+        )
+
+        await self.rem.mtdome.cmd_stop.set_start(
+            engageBrakes=True, timeout=self.long_long_timeout
+        )
+        motion_state = await self.rem.mtdome.evt_azMotion.aget(
+            timeout=self.fast_timeout
+        )
+        while motion_state.state != MTDome.MotionState.STOPPED_BRAKED:
+            motion_state = await self.rem.mtdome.evt_azMotion.next(
+                flush=False, timeout=self.fast_timeout
+            )
+            self.log.debug(f"Motion state: {MTDome.MotionState(motion_state.state)!r}")
+
+        await self.rem.mtdome.cmd_setZeroAz.start(timeout=self.fast_timeout)
+        azimuth = await self.rem.mtdome.tel_azimuth.aget(timeout=self.fast_timeout)
+        self.log.debug(f"{azimuth.positionActual=}, {azimuth.positionCommanded=}")
 
     async def open_dome_shutter(self) -> None:
         # TODO: Implement (DM-21336).

@@ -253,6 +253,8 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
             "cmd_moveAz.set_start.side_effect": self.mtdome_cmd_move_az,
             "evt_azMotion.aget.side_effect": self.mtdome_evt_az_motion_next,
             "evt_azMotion.next.side_effect": self.mtdome_evt_az_motion_next,
+            "cmd_stop.set_start.side_effect": self.mtdome_cmd_stop,
+            "cmd_setZeroAz.start.side_effect": self.mtdome_cmd_set_zero_az,
         }
 
         self.mtcs.rem.mtdome.configure_mock(**mtdome_mocks)
@@ -583,6 +585,24 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
     ) -> types.SimpleNamespace:
         await asyncio.sleep(self.heartbeat_time * 3)
         return self._mtdome_evt_az_motion
+
+    async def mtdome_cmd_stop(self, *args: typing.Any, **kwargs: typing.Any) -> None:
+        asyncio.create_task(self._mtdome_stop())
+
+    async def _mtdome_stop(self) -> None:
+        self.log.info("Stopping dome.")
+        self._mtdome_evt_az_motion.state = xml.enums.MTDome.MotionState.STOPPING_BRAKING
+        await asyncio.sleep(self.heartbeat_time * 10)
+        self._mtdome_evt_az_motion.state = xml.enums.MTDome.MotionState.STOPPED_BRAKED
+        self.log.info("Dome stopped.")
+
+    async def mtdome_cmd_set_zero_az(
+        self, *args: typing.Any, **kwargs: typing.Any
+    ) -> None:
+        self._mtdome_tel_azimuth = types.SimpleNamespace(
+            positionActual=0.0,
+            positionCommanded=0.0,
+        )
 
     async def mtm1m3_evt_detailed_state(
         self, *args: typing.Any, **kwargs: typing.Any

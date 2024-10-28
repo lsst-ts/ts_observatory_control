@@ -1024,8 +1024,31 @@ class TestMTCS(MTCSAsyncMock):
             await self.mtcs.open_m1_cover()
 
     async def test_home_dome(self) -> None:
-        with pytest.raises(NotImplementedError):
-            await self.mtcs.home_dome()
+        physical_az = 320
+        self._mtdome_tel_azimuth.positionActual = 300
+
+        offset = physical_az - self._mtdome_tel_azimuth.positionActual
+
+        await self.mtcs.home_dome(physical_az)
+
+        self.mtcs.rem.mtdome.evt_azMotion.flush.assert_called()
+
+        self.mtcs.rem.mtdome.cmd_moveAz.set_start.assert_awaited_with(
+            position=self.mtcs.home_dome_az - offset,
+            velocity=0.0,
+            timeout=self.mtcs.park_dome_timeout,
+        )
+
+        assert self.mtcs.rem.mtdome.evt_azMotion.inPosition
+
+        self.mtcs.rem.mtdome.cmd_stop.set_start.assert_awaited_with(
+            engageBrakes=True, timeout=self.mtcs.long_long_timeout
+        )
+
+        self.mtcs.rem.mtdome.cmd_setZeroAz.start.assert_awaited_with(
+            timeout=self.mtcs.fast_timeout
+        )
+        assert self._mtdome_tel_azimuth.positionActual == 0.0
 
     async def test_open_dome_shutter(self) -> None:
         with pytest.raises(NotImplementedError):
