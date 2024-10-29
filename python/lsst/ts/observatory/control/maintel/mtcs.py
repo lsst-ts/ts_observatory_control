@@ -2231,8 +2231,15 @@ class MTCS(BaseTCS):
             Should the hexapod movement be synchronized? Default True.
         """
 
-        await self.rem.mthexapod_1.cmd_offset.set_start(
-            x=x, y=y, z=z, u=u, v=v, w=w, sync=sync, timeout=self.long_timeout
+        offset_dof_data = self.rem.mtaos.cmd_offsetDOF.DataType()
+        offset_dof_data.value[5] = -z
+        offset_dof_data.value[6] = -x
+        offset_dof_data.value[7] = y
+        offset_dof_data.value[8] = -u * 3600
+        offset_dof_data.value[9] = -v * 3600
+
+        await self.rem.mtaos.cmd_offsetDOF.start(
+            data=offset_dof_data, timeout=self.long_timeout
         )
 
         await self._handle_in_position(
