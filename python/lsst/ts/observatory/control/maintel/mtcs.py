@@ -977,10 +977,14 @@ class MTCS(BaseTCS):
         """Abstract method to flush events before and offset is performed."""
         self.rem.mtmount.evt_elevationInPosition.flush()
         self.rem.mtmount.evt_azimuthInPosition.flush()
+        self.rem.mtrotator.evt_inPosition.flush()
 
     async def offset_done(self) -> None:
         """Wait for offset events."""
-        await self.wait_for_mtmount_inposition(timeout=self.tel_settle_time)
+        await asyncio.gather(
+            self.wait_for_mtmount_inposition(timeout=self.tel_settle_time),
+            self.wait_for_rotator_inposition(timeout=self.long_long_timeout),
+        )
 
     async def get_bore_sight_angle(self) -> float:
         """Get the instrument bore sight angle with respect to the telescope
