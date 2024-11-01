@@ -2236,11 +2236,11 @@ class MTCS(BaseTCS):
         """
 
         offset_dof_data = self.rem.mtaos.cmd_offsetDOF.DataType()
-        offset_dof_data.value[5] = -z
-        offset_dof_data.value[6] = -x
+        offset_dof_data.value[5] = z
+        offset_dof_data.value[6] = x
         offset_dof_data.value[7] = y
-        offset_dof_data.value[8] = -u * 3600
-        offset_dof_data.value[9] = -v * 3600
+        offset_dof_data.value[8] = u
+        offset_dof_data.value[9] = v
 
         await self.rem.mtaos.cmd_offsetDOF.start(
             data=offset_dof_data, timeout=self.long_timeout
@@ -2286,11 +2286,11 @@ class MTCS(BaseTCS):
         """
 
         offset_dof_data = self.rem.mtaos.cmd_offsetDOF.DataType()
-        offset_dof_data.value[0] = -z
-        offset_dof_data.value[1] = -x
+        offset_dof_data.value[0] = z
+        offset_dof_data.value[1] = x
         offset_dof_data.value[2] = y
-        offset_dof_data.value[3] = -u * 3600
-        offset_dof_data.value[4] = -v * 3600
+        offset_dof_data.value[3] = u
+        offset_dof_data.value[4] = v
 
         await self.rem.mtaos.cmd_offsetDOF.start(
             data=offset_dof_data, timeout=self.long_timeout
