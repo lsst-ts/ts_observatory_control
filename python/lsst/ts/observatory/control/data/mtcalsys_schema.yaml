@@ -11,12 +11,15 @@ properties:
     enum:
       - Mono
       - WhiteLight
+    default: WhiteLight
   use_camera:
     description: Indicates whether the operation requires a camera.
     type: boolean
+    default: true
   mtcamera_filter:
     description: The filter name to install.
     type: string
+    default: r
   led_name:
     description: List of LED serial numbers to be turned on.
     type: array
@@ -37,6 +40,7 @@ properties:
     description: >-
       Center wavelength value in nm, used for configuring the Tunable Laser
     type: number
+    default: 400.0
   wavelength_width:
     description: >-
       Optional. Defines the width of the wavelength scan range to configure the
@@ -55,24 +59,29 @@ properties:
       Absolute distance to move the horizontal linear stage between LED
       modules, expressed in mm.
     type: number
+    default: 174.91
   led_focus:
     description: >-
       Absolute distance in nm for the horizontal linear stage to move a lens to
       focus the laser light from the fiber.
     type: number
+    default: 15.380
   use_electrometer:
     description: Identifies if the electrometer will be used in the exposure.
     type: boolean
+    default: true
   use_fiberspectrograph_red:
     description: >-
       Identifies if the fiberspectrograph for red color will be used in the
       exposure.
     type: boolean
+    default: true
   use_fiberspectrograph_blue:
     description: >-
       Identifies if the fiberspectrograph for blue color will be used in the
       exposure.
     type: boolean
+    default: true
   electrometer_integration_time:
     description: >-
       Integration time in seconds (166.67e-6 to 200e-3) for each sample.
@@ -86,6 +95,7 @@ properties:
       (default) integration = 1PLC; High Accuracy integration=10PLC. Here the
       integration is set in seconds.
     type: number
+    default: 0.1
   electrometer_mode:
     description: >-
       Set electrometer to use different modes. The units recorded will be Amps
@@ -97,6 +107,7 @@ properties:
       - CHARGE
       - VOLTAGE
       - RESISTANCE
+    default: CURRENT
   electrometer_range:
     description: >-
       Set measurement range, which effects the accuracy of measurements and the
@@ -110,6 +121,7 @@ properties:
       from 0 to 21e-3 Amps, Resistance from 0 to 100e18 Ohms, Charge from 0 to
       +2.1e-6 Coulombs.
     type: number
+    default: -1
   exposure_times:
     description: List of Camera exposure times, in secs.
     type: array

@@ -1,0 +1,1 @@
+Add new default values for ``ATCalsys`` configurations in ``atcalsys_schema.yaml``.

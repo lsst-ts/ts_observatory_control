@@ -238,16 +238,27 @@ class BaseCalsys(RemoteGroup, metaclass=abc.ABCMeta):
             config_validator = salobj.DefaultingValidator(schema=yaml.safe_load(f))
 
         validation_errors = ""
+        log_defaults = ""
         for item in self.calibration_config:
+            config_original = dict(self.calibration_config[item])
             try:
-                config_validator.validate(self.calibration_config[item])
+                self.calibration_config[item] = config_validator.validate(
+                    self.calibration_config[item]
+                )
             except jsonschema.ValidationError as e:
                 validation_errors += f"\t{item} failed validation: {e.message}.\n"
                 self.log.exception(f"{item} failed validation.")
+            config_with_defaults = self.calibration_config[item]
+            defaulted_attributes = set(config_with_defaults) - set(config_original)
+            log_defaults += f"\n{item}:\n" + "\n".join(
+                f"    {attr}: {config_with_defaults[attr]}"
+                for attr in defaulted_attributes
+            )
         if validation_errors:
             raise RuntimeError(
                 f"Failed schema validation:\n{validation_errors}Check logs for more information."
             )
+        self.log.debug(f"\n=== Applied Default Values ===\n{log_defaults}\n")
 
     def get_calibration_configuration(self, name: str) -> dict[str, typing.Any]:
         """Returns the configuration attributes given a configuration
