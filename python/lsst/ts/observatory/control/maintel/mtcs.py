@@ -2287,8 +2287,8 @@ class MTCS(BaseTCS):
 
         offset_dof_data = self.rem.mtaos.cmd_offsetDOF.DataType()
         offset_dof_data.value[0] = -z
-        offset_dof_data.value[1] = x
-        offset_dof_data.value[2] = -y
+        offset_dof_data.value[1] = -x
+        offset_dof_data.value[2] = y
         offset_dof_data.value[3] = -u * 3600
         offset_dof_data.value[4] = -v * 3600
 
