@@ -1029,6 +1029,8 @@ class TestMTCS(MTCSAsyncMock):
 
         offset = physical_az - self._mtdome_tel_azimuth.positionActual
 
+        await self.mtcs.enable()
+        await self.mtcs.assert_all_enabled()
         await self.mtcs.home_dome(physical_az)
 
         self.mtcs.rem.mtdome.evt_azMotion.flush.assert_called()
@@ -1036,13 +1038,15 @@ class TestMTCS(MTCSAsyncMock):
         self.mtcs.rem.mtdome.cmd_moveAz.set_start.assert_awaited_with(
             position=self.mtcs.home_dome_az - offset,
             velocity=0.0,
-            timeout=self.mtcs.park_dome_timeout,
+            timeout=self.mtcs.long_long_timeout,
         )
 
         assert self.mtcs.rem.mtdome.evt_azMotion.inPosition
 
         self.mtcs.rem.mtdome.cmd_stop.set_start.assert_awaited_with(
-            engageBrakes=True, timeout=self.mtcs.long_long_timeout
+            engageBrakes=True,
+            subSystemIds=MTDome.SubSystemId.AMCS,
+            timeout=self.mtcs.long_long_timeout,
         )
 
         self.mtcs.rem.mtdome.cmd_setZeroAz.start.assert_awaited_with(

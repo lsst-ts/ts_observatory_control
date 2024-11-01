@@ -846,26 +846,26 @@ class MTCS(BaseTCS):
             )
 
     async def home_dome(self, physical_az: float = 0.0) -> None:
+        """Utility method to home dome.
+
+        Parameters
+        ----------
+        physical_az : `float`
+            Azimuth angle of the dome as read by markings (in deg).
+
+        """
         self.log.info("Homing dome")
         reported_az = await self.rem.mtdome.tel_azimuth.aget(timeout=self.fast_timeout)
 
         offset = physical_az - reported_az.positionActual
         self.log.debug(f"Dome azimuth offset: {offset} degrees")
-        target_az = Angle(self.home_dome_az - offset, unit=u.deg).deg
-        self.rem.mtdome.evt_azMotion.flush()
-        await self.rem.mtdome.cmd_moveAz.set_start(
-            position=target_az, velocity=0.0, timeout=self.park_dome_timeout
-        )
-
-        await self._handle_in_position(
-            self.rem.mtdome.evt_azMotion,
-            timeout=self.fast_timeout,
-            settle_time=self.tel_settle_time,
-            component_name="MTDome",
-        )
+        target_az = self.home_dome_az - offset
+        await self.slew_dome_to(target_az)
 
         await self.rem.mtdome.cmd_stop.set_start(
-            engageBrakes=True, timeout=self.long_long_timeout
+            engageBrakes=True,
+            subSystemIds=MTDome.SubSystemId.AMCS,
+            timeout=self.long_long_timeout,
         )
         motion_state = await self.rem.mtdome.evt_azMotion.aget(
             timeout=self.fast_timeout
