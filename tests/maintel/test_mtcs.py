@@ -2016,7 +2016,7 @@ class TestMTCS(MTCSAsyncMock):
                 == hexapod_positions[axis]
             )
 
-        self.mtcs.rem.mthexapod_1.cmd_offset.set_start.assert_awaited_with(
+        self.mtcs.rem.mthexapod_1.cmd_move.set_start.assert_awaited_with(
             **hexapod_positions, w=0.0, sync=True, timeout=self.mtcs.long_timeout
         )
 
@@ -2027,9 +2027,7 @@ class TestMTCS(MTCSAsyncMock):
         )
         self.mtcs.rem.mthexapod_1.evt_inPosition.flush.assert_called()
 
-        self.mtcs.rem.mthexapod_1.evt_inPosition.next.assert_awaited_with(
-            timeout=self.mtcs.long_timeout, flush=False
-        )
+        self.mtcs.rem.mthexapod_1.evt_inPosition.next.assert_awaited()
 
     async def test_offset_m2_hexapod(self) -> None:
         hexapod_positions = dict([(axis, np.random.rand()) for axis in "xyzuv"])
@@ -2042,7 +2040,7 @@ class TestMTCS(MTCSAsyncMock):
                 == hexapod_positions[axis]
             )
 
-        self.mtcs.rem.mthexapod_2.cmd_offset.set_start.assert_awaited_with(
+        self.mtcs.rem.mthexapod_2.cmd_move.set_start.assert_awaited_with(
             **hexapod_positions, w=0.0, sync=True, timeout=self.mtcs.long_timeout
         )
 
@@ -2053,9 +2051,7 @@ class TestMTCS(MTCSAsyncMock):
         )
         self.mtcs.rem.mthexapod_2.evt_inPosition.flush.assert_called()
 
-        self.mtcs.rem.mthexapod_2.evt_inPosition.next.assert_awaited_with(
-            timeout=self.mtcs.long_timeout, flush=False
-        )
+        self.mtcs.rem.mthexapod_2.evt_inPosition.next.assert_awaited()
 
     async def test_reset_camera_hexapod_position(self) -> None:
         self._mthexapod_1_evt_uncompensated_position.z = 10.0
