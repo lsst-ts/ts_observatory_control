@@ -1,0 +1,1 @@
+In maintel/comcam.py avoid filter change if filter is in place.

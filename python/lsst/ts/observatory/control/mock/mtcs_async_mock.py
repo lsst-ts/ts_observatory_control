@@ -201,6 +201,7 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
         await self.setup_mtm2()
         await self.setup_mthexapod_1()
         await self.setup_mthexapod_2()
+        await self.setup_mtaos()
 
     async def setup_mtmount(self) -> None:
         """Augment MTMount."""
@@ -384,6 +385,18 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
         }
 
         self.mtcs.rem.mthexapod_2.configure_mock(**hexapod_2_mocks)
+
+    async def setup_mtaos(self) -> None:
+
+        offset_dof_field_info = self.get_sample("MTAOS", "cmd_offsetDOF")
+        mtaos_mocks = {
+            "cmd_offsetDOF.DataType.return_value": types.SimpleNamespace(
+                value=np.zeros(offset_dof_field_info.value.count)
+            ),
+            "cmd_offsetDOF.start.side_effect": self.mtaos_cmd_offset_dof,
+        }
+
+        self.mtcs.rem.mtaos.configure_mock(**mtaos_mocks)
 
     async def mtmount_evt_target_next(
         self, *args: typing.Any, **kwargs: typing.Any
@@ -1031,6 +1044,31 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
             self.execute_hexapod_offset(hexapod=1, **kwargs)
         )
         await asyncio.sleep(self.short_process_time)
+
+    async def mtaos_cmd_offset_dof(
+        self, *args: typing.Any, **kwargs: typing.Any
+    ) -> None:
+        self.log.info(f"{kwargs=}")
+        await self.mtcs.rem.mthexapod_1.cmd_move.set_start(
+            x=kwargs["data"].value[6],
+            y=kwargs["data"].value[7],
+            z=kwargs["data"].value[5],
+            u=kwargs["data"].value[8],
+            v=kwargs["data"].value[9],
+            w=0,
+            sync=True,
+            timeout=kwargs["timeout"],
+        )
+        await self.mtcs.rem.mthexapod_2.cmd_move.set_start(
+            x=kwargs["data"].value[1],
+            y=kwargs["data"].value[2],
+            z=kwargs["data"].value[0],
+            u=kwargs["data"].value[3],
+            v=kwargs["data"].value[4],
+            w=0,
+            sync=True,
+            timeout=kwargs["timeout"],
+        )
 
     async def mthexapod_2_cmd_offset(
         self, *args: typing.Any, **kwargs: typing.Any

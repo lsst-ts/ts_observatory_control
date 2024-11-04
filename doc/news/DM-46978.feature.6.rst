@@ -1,0 +1,1 @@
+Remove sign flips and arcsec conversion from offset_hexapod functions.

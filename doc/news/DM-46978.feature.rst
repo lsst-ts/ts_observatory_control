@@ -1,0 +1,1 @@
+In maintel/mtcs.py, update close_mirror_covers to stop tracking before closing the covers.

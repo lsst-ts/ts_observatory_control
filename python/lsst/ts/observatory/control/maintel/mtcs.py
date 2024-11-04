@@ -793,6 +793,9 @@ class MTCS(BaseTCS):
             If mirror covers state is neither DEPLOYED nor RETRACTED.
             If mirror system state is FAULT.
         """
+
+        await self.stop_tracking()
+
         self.rem.mtmount.evt_mirrorCoversMotionState.flush()
         cover_state = await self.rem.mtmount.evt_mirrorCoversMotionState.aget(
             timeout=self.fast_timeout
@@ -974,10 +977,14 @@ class MTCS(BaseTCS):
         """Abstract method to flush events before and offset is performed."""
         self.rem.mtmount.evt_elevationInPosition.flush()
         self.rem.mtmount.evt_azimuthInPosition.flush()
+        self.rem.mtrotator.evt_inPosition.flush()
 
     async def offset_done(self) -> None:
         """Wait for offset events."""
-        await self.wait_for_mtmount_inposition(timeout=self.tel_settle_time)
+        await asyncio.gather(
+            self.wait_for_mtmount_inposition(timeout=self.tel_settle_time),
+            self.wait_for_rotator_inposition(timeout=self.long_long_timeout),
+        )
 
     async def get_bore_sight_angle(self) -> float:
         """Get the instrument bore sight angle with respect to the telescope
@@ -2228,8 +2235,15 @@ class MTCS(BaseTCS):
             Should the hexapod movement be synchronized? Default True.
         """
 
-        await self.rem.mthexapod_1.cmd_offset.set_start(
-            x=x, y=y, z=z, u=u, v=v, w=w, sync=sync, timeout=self.long_timeout
+        offset_dof_data = self.rem.mtaos.cmd_offsetDOF.DataType()
+        offset_dof_data.value[5] = z
+        offset_dof_data.value[6] = x
+        offset_dof_data.value[7] = y
+        offset_dof_data.value[8] = u
+        offset_dof_data.value[9] = v
+
+        await self.rem.mtaos.cmd_offsetDOF.start(
+            data=offset_dof_data, timeout=self.long_timeout
         )
 
         await self._handle_in_position(
@@ -2271,8 +2285,15 @@ class MTCS(BaseTCS):
             Should the hexapod movement be synchronized? Default True.
         """
 
-        await self.rem.mthexapod_2.cmd_offset.set_start(
-            x=x, y=y, z=z, u=u, v=v, w=w, sync=sync, timeout=self.long_timeout
+        offset_dof_data = self.rem.mtaos.cmd_offsetDOF.DataType()
+        offset_dof_data.value[0] = z
+        offset_dof_data.value[1] = x
+        offset_dof_data.value[2] = y
+        offset_dof_data.value[3] = u
+        offset_dof_data.value[4] = v
+
+        await self.rem.mtaos.cmd_offsetDOF.start(
+            data=offset_dof_data, timeout=self.long_timeout
         )
 
         await self._handle_in_position(
