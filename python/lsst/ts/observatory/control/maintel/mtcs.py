@@ -862,6 +862,8 @@ class MTCS(BaseTCS):
         target_az = self.home_dome_az - offset
         await self.slew_dome_to(target_az)
 
+        self.rem.mtdome.evt_azMotion.flush()
+
         await self.rem.mtdome.cmd_stop.set_start(
             engageBrakes=True,
             subSystemIds=MTDome.SubSystemId.AMCS,
@@ -872,7 +874,7 @@ class MTCS(BaseTCS):
         )
         while motion_state.state != MTDome.MotionState.STOPPED_BRAKED:
             motion_state = await self.rem.mtdome.evt_azMotion.next(
-                flush=False, timeout=self.fast_timeout
+                flush=False, timeout=self.long_long_timeout
             )
             self.log.debug(f"Motion state: {MTDome.MotionState(motion_state.state)!r}")
 
