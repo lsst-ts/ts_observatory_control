@@ -338,7 +338,12 @@ class TestLSSTCam(BaseCameraAsyncMock):
 
         roi_spec = ROISpec(
             common=roi_common,
-            roi=dict(R40_SG0=roi),
+            roi=dict(
+                R40_SG0=roi,
+                R01_SG0=roi,
+                R02_SG0=roi,
+                R03_SG0=roi,
+            ),
         )
 
         # initialize guiders
