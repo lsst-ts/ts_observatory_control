@@ -48,6 +48,7 @@ class TestMTCalsys(RemoteGroupAsyncMock):
                 "evt_largeFileObjectAvailable.next.side_effect": self.mock_fiberspectrograph_lfoa
             }
         )
+        self.mtcalsys.rem.tunablelaser.configure_mock()
 
     async def setup_types(self) -> None:
         pass
@@ -111,6 +112,35 @@ class TestMTCalsys(RemoteGroupAsyncMock):
     async def test_change_laser_wavelength(self) -> None:
 
         await self.mtcalsys.change_laser_wavelength(wavelength=500.0)
+
+    async def test_setup_laser(self) -> None:
+        config_data = self.mtcalsys.get_calibration_configuration("laser_functional")
+
+        await self.mtcalsys.setup_laser(
+            mode=config_data["laser_mode"],
+            wavelength=config_data["wavelength"],
+            optical_configuration=config_data["optical_configuration"],
+            use_projector=False,
+        )
+
+        self.mtcalsys.rem.tunablelaser.cmd_setOpticalConfiguration.set_start.assert_awaited_with(
+            configuration=config_data["optical_configuration"],
+            timeout=self.mtcalsys.long_timeout,
+        )
+
+    async def test_laser_start_propagation(self) -> None:
+        await self.mtcalsys.laser_start_propagate()
+
+        self.mtcalsys.rem.tunablelaser.cmd_startPropagateLaser.start.assert_awaited_with(
+            timeout=self.mtcalsys.laser_warmup
+        )
+
+    async def test_laser_stop_propagation(self) -> None:
+        await self.mtcalsys.laser_stop_propagate()
+
+        self.mtcalsys.rem.tunablelaser.cmd_stopPropagateLaser.start.assert_awaited_with(
+            timeout=self.mtcalsys.laser_warmup
+        )
 
     async def test_prepare_for_whitelight_flat(self) -> None:
         mock_comcam = ComCam(
