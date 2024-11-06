@@ -64,8 +64,26 @@ whitelight_y:
 
 scan_r:
   calib_type: Mono
+  laser_mode: 1
+  optical_configuration: F1_SCU
+  use_camera: true
+  mtcamera_filter: r
+  led_location: 174.91
+  led_focus: 15.380
   wavelength: 625.0
   wavelength_width: 250
   wavelength_resolution: 5.0
+  exposure_times:
+    - 15.0
+
+laser_functional:
+  calib_type: Mono
+  laser_mode: 1
+  use_camera: false
+  optical_configuration: SCU
+  wavelength: 500.0
+  use_electrometer: false
+  use_fiberspectrograph_red: false
+  use_fiberspectrograph_blue: false
   exposure_times:
     - 15.0

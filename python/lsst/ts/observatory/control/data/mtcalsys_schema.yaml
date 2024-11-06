@@ -127,18 +127,23 @@ properties:
     type: array
     items:
       type: number
+  laser_mode:
+    type: integer
+  optical_configuration: 
+    type: string
+    enum: 
+      - SCU
+      - NO_SCU
+      - F1_SCU
+      - F2_SCU
+      - F2_NO_SCU
+      - F1_NO_SCU
 required:
 - calib_type
-- use_camera
-- mtcamera_filter
 - wavelength
-- led_location
-- led_focus
+- use_camera
 - use_electrometer
 - use_fiberspectrograph_red
 - use_fiberspectrograph_blue
-- electrometer_integration_time
-- electrometer_mode
-- electrometer_range
 - exposure_times
 additionalProperties: false

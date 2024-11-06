@@ -1,0 +1,8 @@
+Add features to allow ``MTCalSys`` to better handle the laser
+- In ``mtcalsys.py`` made the following changes: 
+ - Added ``laser_start_propagate`` and ``laser_stop_propagate()``
+ - Added ``get_laser_parameters()``
+ - Improved ``setup_laser()`` to change the wavelength and the optical configuration
+ - Changed ``change_laser_wavelength()`` so it can be used for the laser or whitelight system 
+- In ``mtcalsys.yaml`` added a laser functional setup
+- In ``mtcalsys_schema.yaml`` added laser mode and optical configuration
