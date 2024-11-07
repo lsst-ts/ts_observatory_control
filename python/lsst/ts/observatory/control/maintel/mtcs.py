@@ -2514,6 +2514,20 @@ class MTCS(BaseTCS):
         """Placeholder, still needs to be implemented."""
         # TODO: Finish implementation.
 
+        try:
+            await asyncio.gather(
+                self.wait_for_mtmount_inposition(self.long_timeout, False),
+                self._handle_in_position(
+                    in_position_event=self.rem.mthexapod_1.evt_inPosition,
+                    timeout=self.long_timeout,
+                    settle_time=0.0,
+                    component_name="Camera Hexapod",
+                ),
+            )
+
+        except asyncio.TimeoutError:
+            self.log.warning("Mount and/or Camera Hexapod not in position.")
+
     async def open_m1m3_booster_valve(self) -> None:
         """Open M1M3 booster valves."""
         if self.check.mtm1m3:
