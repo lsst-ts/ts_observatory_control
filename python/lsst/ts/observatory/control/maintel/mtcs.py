@@ -2793,6 +2793,12 @@ class MTCS(BaseTCS):
                     "cameraCableWrapFollowing",
                     "mirrorCoversMotionState",
                 ],
+                mtm1m3=[
+                    "boosterValveStatus",
+                    "forceActuatorState",
+                    "detailedState",
+                    "forceControllerState",
+                ],
                 mtdome=["azimuth", "lightWindScreen"],
                 mthexapod_1=["compensationMode"],
                 mthexapod_2=["compensationMode"],
