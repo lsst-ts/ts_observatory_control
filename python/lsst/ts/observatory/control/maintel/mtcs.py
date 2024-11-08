@@ -825,16 +825,7 @@ class MTCS(BaseTCS):
                 self.log.debug(
                     f"Cover state: {MTMount.DeployableMotionState(cover_state.state)!r}"
                 )
-                cover_system_state = (
-                    await self.rem.mtmount.evt_mirrorCoversSystemState.aget(
-                        timeout=self.fast_timeout
-                    )
-                )
-                if cover_system_state.state == MTMount.PowerState.FAULT:
-                    raise RuntimeError(
-                        "Close cover failed. Cover system state: "
-                        f"{MTMount.PowerState(cover_system_state.state)!r}"
-                    )
+
             self.log.info(
                 f"Cover state: {MTMount.DeployableMotionState(cover_state.state)!r}"
             )
@@ -920,30 +911,59 @@ class MTCS(BaseTCS):
             if not await self.in_m1_cover_operational_range():
                 await self.slew_to_m1_cover_operational_range()
 
-            await self.rem.mtmount.cmd_openMirrorCovers.set_start(
-                leaf=MTMount.MirrorCover.ALL, timeout=self.long_long_timeout
-            )
-
-            while cover_state.state != MTMount.DeployableMotionState.RETRACTED:
-                cover_state = await self.rem.mtmount.evt_mirrorCoversMotionState.next(
-                    flush=False, timeout=self.mirror_covers_timeout
+            try:
+                await self.rem.mtmount.cmd_openMirrorCovers.set_start(
+                    leaf=MTMount.MirrorCover.ALL, timeout=self.long_long_timeout
                 )
-                self.log.debug(
-                    f"Cover state: {MTMount.DeployableMotionState(cover_state.state)!r}"
+            except salobj.AckError as ack:
+                self.log.error(
+                    f"Open mirror cover command failed with {ack.ack!r}::{ack.error}. "
+                    "Checking state of the system."
                 )
-                cover_system_state = (
-                    await self.rem.mtmount.evt_mirrorCoversSystemState.aget(
-                        timeout=self.fast_timeout
+                cover_state = await self.rem.mtmount.evt_mirrorCoversMotionState.aget(
+                    timeout=self.mirror_covers_timeout
+                )
+                cover_locks_state = (
+                    await self.rem.mtmount.evt_mirrorCoverLocksMotionState.aget(
+                        timeout=self.mirror_covers_timeout
                     )
                 )
-                if cover_system_state.state == MTMount.PowerState.FAULT:
+                if (
+                    cover_state.state == MTMount.DeployableMotionState.RETRACTED
+                    and cover_locks_state.state
+                    == MTMount.DeployableMotionState.DEPLOYED
+                ):
+                    self.log.warning(
+                        f"Open mirror cover command failed {ack.ack!r}::{ack.error} "
+                        "but mirror cover in the correct state."
+                    )
+                else:
+                    cover_locks_element_state = [
+                        MTMount.DeployableMotionState(state)
+                        for state in cover_locks_state.elementsState
+                    ]
+                    cover_element_state = [
+                        MTMount.DeployableMotionState(state)
+                        for state in cover_state.elementsState
+                    ]
                     raise RuntimeError(
-                        "Open cover failed. Cover system state: "
-                        f"{MTMount.PowerState(cover_system_state.state)!r}"
+                        f"Open mirror cover command failed with {ack.ack!r}::{ack.error}. "
+                        f"Mirror cover state: {cover_element_state} "
+                        f"Mirror cover locks state: {cover_locks_element_state} "
                     )
+            cover_state = await self.rem.mtmount.evt_mirrorCoversMotionState.aget(
+                timeout=self.mirror_covers_timeout
+            )
+            cover_locks_state = (
+                await self.rem.mtmount.evt_mirrorCoverLocksMotionState.aget(
+                    timeout=self.mirror_covers_timeout
+                )
+            )
             self.log.info(
                 f"Cover state: {MTMount.DeployableMotionState(cover_state.state)!r}"
+                f"Cover locks state: {MTMount.DeployableMotionState(cover_locks_state.state)!r}"
             )
+
         else:
             raise RuntimeError(
                 f"Mirror covers in {MTMount.DeployableMotionState(cover_state.state)!r} "
