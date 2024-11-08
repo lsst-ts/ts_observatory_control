@@ -2794,6 +2794,8 @@ class MTCS(BaseTCS):
                     "mirrorCoversMotionState",
                 ],
                 mtdome=["azimuth", "lightWindScreen"],
+                mthexapod_1=["compensationMode"],
+                mthexapod_2=["compensationMode"],
             )
 
             usages[self.valid_use_cases.Slew] = UsagesResources(
