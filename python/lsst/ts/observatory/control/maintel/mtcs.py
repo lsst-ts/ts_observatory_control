@@ -2791,6 +2791,7 @@ class MTCS(BaseTCS):
                     "elevationInPosition",
                     "azimuthInPosition",
                     "cameraCableWrapFollowing",
+                    "mirrorCoversMotionState",
                 ],
                 mtdome=["azimuth", "lightWindScreen"],
             )
