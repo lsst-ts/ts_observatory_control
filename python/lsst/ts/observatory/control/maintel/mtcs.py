@@ -2792,6 +2792,7 @@ class MTCS(BaseTCS):
                     "azimuthInPosition",
                     "cameraCableWrapFollowing",
                     "mirrorCoversMotionState",
+                    "mirrorCoversSystemState",
                 ],
                 mtm1m3=[
                     "boosterValveStatus",
