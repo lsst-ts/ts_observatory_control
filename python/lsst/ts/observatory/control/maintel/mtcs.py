@@ -814,10 +814,59 @@ class MTCS(BaseTCS):
             if not await self.in_m1_cover_operational_range():
                 await self.slew_to_m1_cover_operational_range()
 
-            await self.rem.mtmount.cmd_closeMirrorCovers.start(
-                timeout=self.long_long_timeout
-            )
+            try:
+                await self.rem.mtmount.cmd_closeMirrorCovers.start(
+                    timeout=self.long_long_timeout
+                )
+            except salobj.AckError as ack:
 
+                self.log.error(
+                    f"Closing mirror cover command failed with {ack.ack!r}::{ack.error}. "
+                    "Checking state of the system."
+                )
+                cover_state = await self.rem.mtmount.evt_mirrorCoversMotionState.aget(
+                    timeout=self.mirror_covers_timeout
+                )
+                cover_locks_state = (
+                    await self.rem.mtmount.evt_mirrorCoverLocksMotionState.aget(
+                        timeout=self.mirror_covers_timeout
+                    )
+                )
+                if (
+                    cover_state.state == MTMount.DeployableMotionState.DEPLOYED
+                    and cover_locks_state.state
+                    == MTMount.DeployableMotionState.RETRACTED
+                ):
+                    self.log.warning(
+                        f"Close mirror cover command failed {ack.ack!r}::{ack.error} "
+                        "but mirror cover in the correct state."
+                    )
+                else:
+                    cover_locks_element_state = [
+                        MTMount.DeployableMotionState(state)
+                        for state in cover_locks_state.elementsState
+                    ]
+                    cover_element_state = [
+                        MTMount.DeployableMotionState(state)
+                        for state in cover_state.elementsState
+                    ]
+                    raise RuntimeError(
+                        f"Close mirror cover command failed with {ack.ack!r}::{ack.error}. "
+                        f"Mirror cover state: {cover_element_state} expected all to be DEPLOYED. "
+                        f"Mirror cover locks state: {cover_locks_element_state} expected all to be RETRACTED."
+                    )
+            cover_state = await self.rem.mtmount.evt_mirrorCoversMotionState.aget(
+                timeout=self.mirror_covers_timeout
+            )
+            cover_locks_state = (
+                await self.rem.mtmount.evt_mirrorCoverLocksMotionState.aget(
+                    timeout=self.mirror_covers_timeout
+                )
+            )
+            self.log.info(
+                f"Cover state: {MTMount.DeployableMotionState(cover_state.state)!r}"
+                f"Cover locks state: {MTMount.DeployableMotionState(cover_locks_state.state)!r}"
+            )
             while cover_state.state != MTMount.DeployableMotionState.DEPLOYED:
                 cover_state = await self.rem.mtmount.evt_mirrorCoversMotionState.next(
                     flush=False, timeout=self.mirror_covers_timeout
