@@ -2862,6 +2862,7 @@ class MTCS(BaseTCS):
                     "cameraCableWrapFollowing",
                     "mirrorCoversMotionState",
                     "mirrorCoversSystemState",
+                    "mirrorCoverLocksMotionState",
                 ],
                 mtm1m3=[
                     "boosterValveStatus",
