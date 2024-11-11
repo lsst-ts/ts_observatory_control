@@ -87,3 +87,20 @@ laser_functional:
   use_fiberspectrograph_blue: false
   exposure_times:
     - 15.0
+
+cbp_calibration:
+  calib_type: CBPCalibration
+  use_camera: false
+  wavelength: 700
+  wavelength_width: 800
+  wavelength_resolution: 50
+  use_cbpelectrometer: true 
+  use_cbpcalelectrometer: true
+  use_fiberspectrograph_red: false
+  use_fiberspectrograph_blue: false
+  electrometer_integration_time: 0.001
+  electrometer_mode: CHARGE
+  electrometer_range: 2e-6
+  laser_mode: BURST
+  optical_configuration: F1_SCU
+  exposure_times: 30
