@@ -147,8 +147,8 @@ class MTCalsys(BaseCalsys):
                 f"FiberSpectrograph:{self.fiberspectrograph_blue_index}",
                 f"FiberSpectrograph:{self.fiberspectrograph_red_index}",
                 f"Electrometer:{self.electrometer_projector_index}",
-                f"Electrometer:{self.electrometer_cbp_index}",
-                f"Electrometer:{self.electrometer_cbpcal_index}",
+                f"ElectrometerCBP:{self.electrometer_cbp_index}",
+                f"ElectrometerCBPCal:{self.electrometer_cbpcal_index}",
                 f"LinearStage:{self.linearstage_led_select_index}",
                 f"LinearStage:{self.linearstage_led_focus_index}",
                 f"LinearStage:{self.linearstage_laser_focus_index}",
@@ -206,7 +206,9 @@ class MTCalsys(BaseCalsys):
             await self.linearstage_projector_select.cmd_moveAbsolute.set_start(
                 distance=self.ls_select_led_location, timeout=self.long_timeout
             )
-        elif calibration_type == CalibrationType.CBPCalibration:
+        elif (calibration_type == CalibrationType.CBPCalibration) or (
+            calibration_type == CalibrationType.CBP
+        ):
             await self.setup_cbp(
                 config_data["cbp_azimuth"],
                 config_data["cbp_elevation"],
@@ -219,19 +221,12 @@ class MTCalsys(BaseCalsys):
                 range=float(config_data["electrometer_range"]),
                 integration_time=float(config_data["electrometer_integration_time"]),
             )
-        elif calibration_type == CalibrationType.CBP:
-            await self.setup_cbp(
-                config_data["cbp_azimuth"],
-                config_data["cbp_elevation"],
-                config_data["cbp_mask"],
-                config_data["cbp_focus"],
-                config_data["cbp_rotation"],
+            await self.setup_laser(
+                config_data["laser_mode"],
+                config_data["wavelength"],
+                config_data["optical_configuration"],
             )
-            await self.setup_electrometers(
-                mode=str(config_data["electrometer_mode"]),
-                range=float(config_data["electrometer_range"]),
-                integration_time=float(config_data["electrometer_integration_time"]),
-            )
+            await self.laser_start_propagate()
         else:
             await self.linearstage_led_select.cmd_moveAbsolute.set_start(
                 distance=self.led_rest_position, timeout=self.long_timeout
@@ -926,6 +921,14 @@ class MTCalsys(BaseCalsys):
     @property
     def electrometer(self) -> salobj.Remote:
         return getattr(self.rem, f"electrometer_{self.electrometer_projector_index}")
+
+    @property
+    def electrometerCBP(self) -> salobj.Remote:
+        return getattr(self.rem, f"electrometer_{self.electrometer_cbp_index}")
+
+    @property
+    def electrometerCBPCal(self) -> salobj.Remote:
+        return getattr(self.rem, f"electrometer_{self.electrometer_cbpcal_index}")
 
     @property
     def fiberspectrograph_red(self) -> salobj.Remote:
