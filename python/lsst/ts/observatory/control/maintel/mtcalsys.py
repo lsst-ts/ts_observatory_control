@@ -206,34 +206,29 @@ class MTCalsys(BaseCalsys):
             await self.linearstage_projector_select.cmd_moveAbsolute.set_start(
                 distance=self.ls_select_led_location, timeout=self.long_timeout
             )
-        elif (calibration_type == CalibrationType.CBPCalibration) or (
-            calibration_type == CalibrationType.CBP
-        ):
-            await self.setup_cbp(
-                config_data["cbp_azimuth"],
-                config_data["cbp_elevation"],
-                config_data["cbp_mask"],
-                config_data["cbp_focus"],
-                config_data["cbp_rotation"],
-            )
-            await self.setup_electrometers(
-                mode=str(config_data["electrometer_mode"]),
-                range=float(config_data["electrometer_range"]),
-                integration_time=float(config_data["electrometer_integration_time"]),
-            )
-            await self.setup_laser(
-                config_data["laser_mode"],
-                config_data["wavelength"],
-                config_data["optical_configuration"],
-            )
-            await self.laser_start_propagate()
         else:
-            await self.linearstage_led_select.cmd_moveAbsolute.set_start(
-                distance=self.led_rest_position, timeout=self.long_timeout
-            )
-            await self.linearstage_projector_select.cmd_moveAbsolute.set_start(
-                distance=self.ls_select_laser_location, timeout=self.long_timeout
-            )
+            if config_data["use_cbp"]:
+                await self.setup_cbp(
+                    config_data["cbp_azimuth"],
+                    config_data["cbp_elevation"],
+                    config_data["cbp_mask"],
+                    config_data["cbp_focus"],
+                    config_data["cbp_rotation"],
+                )
+                await self.setup_electrometers(
+                    mode=str(config_data["electrometer_mode"]),
+                    range=float(config_data["electrometer_range"]),
+                    integration_time=float(
+                        config_data["electrometer_integration_time"]
+                    ),
+                )
+            else:
+                await self.linearstage_led_select.cmd_moveAbsolute.set_start(
+                    distance=self.led_rest_position, timeout=self.long_timeout
+                )
+                await self.linearstage_projector_select.cmd_moveAbsolute.set_start(
+                    distance=self.ls_select_laser_location, timeout=self.long_timeout
+                )
             await self.setup_laser(
                 config_data["laser_mode"],
                 config_data["wavelength"],
@@ -370,9 +365,9 @@ class MTCalsys(BaseCalsys):
         self,
         azimuth: float,
         elevation: float,
-        mask: typing.Optional[int] = None,
-        focus: typing.Optional[float] = None,
-        rotation: typing.Optional[int] = None,
+        mask: int,
+        focus: float,
+        rotation: float,
     ) -> None:
         """Perform all steps for preparing the CBP for measurements.
 
@@ -389,10 +384,6 @@ class MTCalsys(BaseCalsys):
         rot: `int`
             Rotator position of mask in degrees
             Default 0
-        use_projector : `bool`
-            identifies if you are using the projector while
-            changing the wavelength
-            Default True
         """
         timeout = 60
         await self.rem.cbp.cmd_move.set_start(
@@ -646,7 +637,7 @@ class MTCalsys(BaseCalsys):
                 electrometer_integration_time=config_data[
                     "electrometer_integration_time"
                 ],
-                use_electrometer=config_data["use_electrometer"],
+                use_electrometer=config_data["use_flatfieldelectrometer"],
             )
             fiberspectrograph_exptimes_red = (
                 await self._calculate_fiberspectrograph_exposure_times(
@@ -923,11 +914,11 @@ class MTCalsys(BaseCalsys):
         return getattr(self.rem, f"electrometer_{self.electrometer_projector_index}")
 
     @property
-    def electrometerCBP(self) -> salobj.Remote:
+    def electrometer_cbp(self) -> salobj.Remote:
         return getattr(self.rem, f"electrometer_{self.electrometer_cbp_index}")
 
     @property
-    def electrometerCBPCal(self) -> salobj.Remote:
+    def electrometer_cbp_cal(self) -> salobj.Remote:
         return getattr(self.rem, f"electrometer_{self.electrometer_cbpcal_index}")
 
     @property

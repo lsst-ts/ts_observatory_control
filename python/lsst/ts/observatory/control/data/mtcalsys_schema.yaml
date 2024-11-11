@@ -66,10 +66,22 @@ properties:
       focus the laser light from the fiber.
     type: number
     default: 15.380
-  use_electrometer:
-    description: Identifies if the electrometer will be used in the exposure.
+  use_cbp:
+    description: Identifies if the CBP will be used.
+    type: boolean
+    default: false
+  use_flatfieldelectrometer:
+    description: Identifies if the flatfield electrometer will be used in the exposure.
     type: boolean
     default: true
+  use_cbpelectrometer:
+    description: Identifies if the cbp electrometer will be used in the exposure.
+    type: boolean
+    default: false
+  use_cbpcalelectrometer:
+    description: Identifies if the cbpcal electrometer will be used in the exposure.
+    type: boolean
+    default: false
   use_fiberspectrograph_red:
     description: >-
       Identifies if the fiberspectrograph for red color will be used in the
@@ -138,11 +150,35 @@ properties:
       - F2_SCU
       - F2_NO_SCU
       - F1_NO_SCU
+  cbp_elevation:
+    description: CBP elevation in degrees.
+    type: number
+    default: 0
+  cbp_azimuth:
+    description: CBP azimuth in degrees.
+    type: number
+    default: 0
+  cbp_mask:
+    description: CBP azimuth in degrees.
+    type: integer
+    default: 3
+    minimum: 1
+    maximum: 5
+  cbp_rotation:
+    description: CBP mask rotator angle in degrees.
+    type: number
+    default: 0
+  cbp_focus:
+    description: CBP focus position in um.
+    type: number
+    default: 6000
+    minimum: 0
+    maximum: 13000  
 required:
 - calib_type
 - wavelength
 - use_camera
-- use_electrometer
+- use_flatfieldelectrometer
 - use_fiberspectrograph_red
 - use_fiberspectrograph_blue
 - exposure_times
