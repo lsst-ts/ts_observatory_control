@@ -130,6 +130,8 @@ class MTCalsys(BaseCalsys):
     ) -> None:
 
         self.electrometer_projector_index = 103
+        self.electrometer_cbp_index = 101
+        self.electrometer_cbpcal_index = 102
         self.fiberspectrograph_blue_index = 1
         self.fiberspectrograph_red_index = 2
         self.linearstage_led_select_index = 1
@@ -145,6 +147,8 @@ class MTCalsys(BaseCalsys):
                 f"FiberSpectrograph:{self.fiberspectrograph_blue_index}",
                 f"FiberSpectrograph:{self.fiberspectrograph_red_index}",
                 f"Electrometer:{self.electrometer_projector_index}",
+                f"Electrometer:{self.electrometer_cbp_index}",
+                f"Electrometer:{self.electrometer_cbpcal_index}",
                 f"LinearStage:{self.linearstage_led_select_index}",
                 f"LinearStage:{self.linearstage_led_focus_index}",
                 f"LinearStage:{self.linearstage_laser_focus_index}",
@@ -201,6 +205,32 @@ class MTCalsys(BaseCalsys):
         if calibration_type == CalibrationType.WhiteLight:
             await self.linearstage_projector_select.cmd_moveAbsolute.set_start(
                 distance=self.ls_select_led_location, timeout=self.long_timeout
+            )
+        elif calibration_type == CalibrationType.CBPCalibration:
+            await self.setup_cbp(
+                config_data["cbp_azimuth"],
+                config_data["cbp_elevation"],
+                config_data["cbp_mask"],
+                config_data["cbp_focus"],
+                config_data["cbp_rotation"],
+            )
+            await self.setup_electrometers(
+                mode=str(config_data["electrometer_mode"]),
+                range=float(config_data["electrometer_range"]),
+                integration_time=float(config_data["electrometer_integration_time"]),
+            )
+        elif calibration_type == CalibrationType.CBP:
+            await self.setup_cbp(
+                config_data["cbp_azimuth"],
+                config_data["cbp_elevation"],
+                config_data["cbp_mask"],
+                config_data["cbp_focus"],
+                config_data["cbp_rotation"],
+            )
+            await self.setup_electrometers(
+                mode=str(config_data["electrometer_mode"]),
+                range=float(config_data["electrometer_range"]),
+                integration_time=float(config_data["electrometer_integration_time"]),
             )
         else:
             await self.linearstage_led_select.cmd_moveAbsolute.set_start(

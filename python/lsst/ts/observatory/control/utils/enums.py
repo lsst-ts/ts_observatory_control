@@ -158,6 +158,8 @@ class CalibrationType(enum.IntEnum):
 
     WhiteLight = 1
     Mono = 2
+    CBP = 3
+    CBPCalibration = 4
 
 
 # TODO: (DM-46168) Revert workaround for TunableLaser XML changes
