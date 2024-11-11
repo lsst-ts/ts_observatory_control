@@ -136,6 +136,7 @@ class MTCalsys(BaseCalsys):
         self.linearstage_led_focus_index = 2
         self.linearstage_laser_focus_index = 3
         self.linearstage_select_index = 4
+        self.cbp_index = 1
 
         super().__init__(
             components=[
@@ -148,6 +149,7 @@ class MTCalsys(BaseCalsys):
                 f"LinearStage:{self.linearstage_led_focus_index}",
                 f"LinearStage:{self.linearstage_laser_focus_index}",
                 f"LinearStage:{self.linearstage_select_index}",
+                f"CBP:{self.cbp_index}",
             ],
             domain=domain,
             log=log,
@@ -338,6 +340,47 @@ class MTCalsys(BaseCalsys):
 
         await self.change_laser_optical_configuration(optical_configuration)
         await self.change_laser_wavelength(wavelength, use_projector)
+
+    async def setup_cbp(
+        self,
+        azimuth: float,
+        elevation: float,
+        mask: typing.Optional[int] = None,
+        focus: typing.Optional[float] = None,
+        rotation: typing.Optional[int] = None,
+    ) -> None:
+        """Perform all steps for preparing the CBP for measurements.
+
+        Parameters
+        ----------
+        az : `float`
+            Azimuth of CBP in degrees
+        el : `float`
+            Elevation of CBP in degrees
+        mask : `int`
+            Mask number to use
+        focus: `float`
+            Focus position in um
+        rot: `int`
+            Rotator position of mask in degrees
+            Default 0
+        use_projector : `bool`
+            identifies if you are using the projector while
+            changing the wavelength
+            Default True
+        """
+        timeout = 60
+        await self.rem.cbp.cmd_move.set_start(
+            azimuth=azimuth, elevation=elevation, timeout=timeout
+        )
+        if focus is not None:
+            await self.rem.cbp.cmd_setFocus.set_start(focus=focus, timeout=timeout)
+        if mask is not None:
+            await self.rem.cmd_changeMask.set_start(mask=mask, timeout=timeout)
+        if rotation is not None:
+            await self.rem.cmd_changeMaskRotation.set_start(
+                mask_rotation=rotation, timeout=timeout
+            )
 
     async def get_laser_parameters(self) -> tuple:
         """Get laser configuration
