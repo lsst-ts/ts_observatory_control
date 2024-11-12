@@ -806,20 +806,14 @@ class MTCalsys(BaseCalsys):
             fiber_spectrum_blue_exposure_task = asyncio.create_task(
                 fiber_spectrum_blue_exposure_coroutine
             )
-            self.log.debug(f"Electrometers to scan are {electrometers_to_scan}")
-            self.log.debug(
-                f"number electrometers to scan are {len(electrometers_to_scan)}"
-            )
             if len(electrometers_to_scan) == 0:
                 electrometer_exposure_task = asyncio.create_task(
                     electrometer_exposure_coroutine
                 )
-                self.log.debug("Number of electrometers is 0")
             elif len(electrometers_to_scan) == 1:
                 electrometer_exposure_task = asyncio.create_task(
                     electrometer_exposure_coroutine
                 )
-                self.log.debug("Number of electrometers is 1")
             else:
                 electrometer_exposure_task_1 = asyncio.create_task(
                     electrometer_exposure_coroutine_1
@@ -827,7 +821,6 @@ class MTCalsys(BaseCalsys):
                 electrometer_exposure_task_2 = asyncio.create_task(
                     electrometer_exposure_coroutine_2
                 )
-                self.log.debug("Number of electrometers is 2")
 
             mtcamera_exposure_id = await mtcamera_exposure_task
         finally:
