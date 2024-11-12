@@ -102,8 +102,8 @@ cbp_calibration:
   use_fiberspectrograph_blue: false
   electrometer_integration_time: 0.001
   electrometer_mode: CHARGE
-  electrometer_range: 2e-6
-  laser_mode: BURST
+  electrometer_range: 0.000002
+  laser_mode: 2
   optical_configuration: F1_SCU
   exposure_times:
     - 30.0

@@ -785,7 +785,7 @@ class MTCalsys(BaseCalsys):
             electrometer_exposure_coroutine = self.take_electrometer_scan(
                 exposure_time=electrometer_exposure_time,
                 exposures_done=exposures_done,
-                electrometer_to_scan=electrometers_to_scan,
+                electrometer_to_scan=electrometers_to_scan[0],
             )
         else:
             electrometer_exposure_coroutine_1 = self.take_electrometer_scan(
@@ -806,10 +806,20 @@ class MTCalsys(BaseCalsys):
             fiber_spectrum_blue_exposure_task = asyncio.create_task(
                 fiber_spectrum_blue_exposure_coroutine
             )
-            if (len(electrometers_to_scan) == 0) or (len(electrometers_to_scan) == 0):
+            self.log.debug(f"Electrometers to scan are {electrometers_to_scan}")
+            self.log.debug(
+                f"number electrometers to scan are {len(electrometers_to_scan)}"
+            )
+            if len(electrometers_to_scan) == 0:
                 electrometer_exposure_task = asyncio.create_task(
                     electrometer_exposure_coroutine
                 )
+                self.log.debug("Number of electrometers is 0")
+            elif len(electrometers_to_scan) == 1:
+                electrometer_exposure_task = asyncio.create_task(
+                    electrometer_exposure_coroutine
+                )
+                self.log.debug("Number of electrometers is 1")
             else:
                 electrometer_exposure_task_1 = asyncio.create_task(
                     electrometer_exposure_coroutine_1
@@ -817,10 +827,11 @@ class MTCalsys(BaseCalsys):
                 electrometer_exposure_task_2 = asyncio.create_task(
                     electrometer_exposure_coroutine_2
                 )
+                self.log.debug("Number of electrometers is 2")
 
             mtcamera_exposure_id = await mtcamera_exposure_task
         finally:
-            if (len(electrometers_to_scan) == 0) or (len(electrometers_to_scan) == 0):
+            if (len(electrometers_to_scan) == 0) or (len(electrometers_to_scan) == 1):
                 exposures_done.set_result(True)
                 (
                     fiber_spectrum_red_exposure_result,
