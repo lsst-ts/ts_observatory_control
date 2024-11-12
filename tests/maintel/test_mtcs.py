@@ -840,6 +840,36 @@ class TestMTCS(MTCSAsyncMock):
 
         assert not elevation_in_range
 
+    async def test_park_mount_zenith(self) -> None:
+        await self.mtcs.enable()
+        await self.mtcs.assert_all_enabled()
+
+        await self.mtcs.park_mount(MTMount.ParkPosition.ZENITH)
+
+        self.mtcs.rem.mtmount.cmd_park.start.assert_awaited_with(
+            position=MTMount.ParkPosition.ZENITH, timeout=self.mtcs.long_timeout
+        )
+
+    async def test_park_mount_horizon(self) -> None:
+        await self.mtcs.enable()
+        await self.mtcs.assert_all_enabled()
+
+        await self.mtcs.park_mount(MTMount.ParkPosition.HORIZON)
+
+        self.mtcs.rem.mtmount.cmd_park.start.assert_awaited_with(
+            position=MTMount.ParkPosition.HORIZON, timeout=self.mtcs.long_timeout
+        )
+
+    async def test_unpark_mount(self) -> None:
+        await self.mtcs.enable()
+        await self.mtcs.assert_all_enabled()
+
+        await self.mtcs.unpark_mount()
+
+        self.mtcs.rem.mtmount.cmd_unpark.start.assert_awaited_with(
+            timeout=self.mtcs.long_timeout
+        )
+
     async def test_slew_to_m1_cover_operational_range(self) -> None:
         self._mtmount_tel_azimuth.actualPosition = 0.0
         self._mtmount_tel_elevation.actualPosition = (

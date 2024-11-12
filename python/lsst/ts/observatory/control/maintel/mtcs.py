@@ -989,6 +989,38 @@ class MTCS(BaseTCS):
 
         return elevation.actualPosition >= self.tel_operate_mirror_covers_el
 
+    async def park_mount(self, position: MTMount.ParkPosition) -> None:
+        """Park the TMA in the selected position.
+
+        Parameters
+        ----------
+        position : `MTMount.ParkPosition`
+            The position to park the TMA.
+        """
+
+        await self.assert_all_enabled(
+            message="All components need to be enabled for parking the TMA."
+        )
+
+        # check first if Mount is already in PARKED state (?)
+        # to implement
+
+        await self.rem.mtmount.cmd_park.start(
+            position=position, timeout=self.long_timeout
+        )
+
+    async def unpark_mount(self) -> None:
+        """Un-park the TMA."""
+
+        await self.assert_all_enabled(
+            message="All components need to be enabled for unparking the TMA."
+        )
+
+        # check first if Mount is PARKED state (?)
+        # to implement
+
+        await self.rem.mtmount.cmd_unpark.start(timeout=self.long_timeout)
+
     async def prepare_for_flatfield(self, check: typing.Any = None) -> None:
         # TODO: Implement (DM-21336).
         raise NotImplementedError("# TODO: Implement (DM-21336).")
