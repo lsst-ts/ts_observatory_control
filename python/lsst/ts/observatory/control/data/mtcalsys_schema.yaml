@@ -132,7 +132,7 @@ properties:
       -1 for automatic range. Volts range from 0 to 210 Volts, Current range
       from 0 to 21e-3 Amps, Resistance from 0 to 100e18 Ohms, Charge from 0 to
       +2.1e-6 Coulombs.
-    type: number
+    type: float
     default: -1
   exposure_times:
     description: List of Camera exposure times, in secs.

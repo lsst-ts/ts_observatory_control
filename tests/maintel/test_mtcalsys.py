@@ -77,6 +77,8 @@ class TestMTCalsys(RemoteGroupAsyncMock):
 
         cls.image_index = index_generator()
         cls.electrometer_projector_index = index_generator()
+        cls.electrometer_cbp_index = index_generator()
+        cls.electrometer_cbpcal_index = index_generator()
         cls.fiberspectrograph_blue_index = index_generator()
         cls.fiberspectrograph_red_index = index_generator()
         cls.linearstage_led_select_index = index_generator()
@@ -99,10 +101,10 @@ class TestMTCalsys(RemoteGroupAsyncMock):
             integration_time=float(config_data["electrometer_integration_time"]),
         )
 
-        self.mtcalsys.electrometer.cmd_performZeroCalib.start.assert_awaited_with(
+        self.mtcalsys.electrometer_flatfield.cmd_performZeroCalib.start.assert_awaited_with(
             timeout=self.mtcalsys.long_timeout
         )
-        self.mtcalsys.electrometer.cmd_setDigitalFilter.set_start.assert_awaited_with(
+        self.mtcalsys.electrometer_flatfield.cmd_setDigitalFilter.set_start.assert_awaited_with(
             activateFilter=False,
             activateAvgFilter=False,
             activateMedFilter=False,
