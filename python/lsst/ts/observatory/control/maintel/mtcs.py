@@ -237,7 +237,7 @@ class MTCS(BaseTCS):
 
         assert self._dome_az_in_position is not None
 
-        _check = self.check if check is None else check
+        _check = copy.copy(self.check) if check is None else copy.copy(check)
 
         ccw_following = await self.rem.mtmount.evt_cameraCableWrapFollowing.aget(
             timeout=self.fast_timeout
@@ -285,6 +285,14 @@ class MTCS(BaseTCS):
         )
 
         async with self.m1m3_booster_valve():
+            for comp in self.components_attr:
+                if getattr(_check, comp):
+                    self.log.debug(f"Checking state of {comp}.")
+                    getattr(self.rem, comp).evt_summaryState.flush()
+                    self.scheduled_coro.append(
+                        asyncio.create_task(self.check_component_state(comp))
+                    )
+
             await slew_cmd.start(timeout=slew_timeout)
             self._dome_az_in_position.clear()
             if offset_cmd is not None:
@@ -300,13 +308,6 @@ class MTCS(BaseTCS):
                 )
             )
             self.scheduled_coro.append(asyncio.create_task(self.monitor_position()))
-
-            for comp in self.components_attr:
-                if getattr(_check, comp):
-                    getattr(self.rem, comp).evt_summaryState.flush()
-                    self.scheduled_coro.append(
-                        asyncio.create_task(self.check_component_state(comp))
-                    )
 
             await self.process_as_completed(self.scheduled_coro)
 
