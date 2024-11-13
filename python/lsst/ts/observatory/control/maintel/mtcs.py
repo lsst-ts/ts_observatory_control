@@ -739,8 +739,8 @@ class MTCS(BaseTCS):
             Reformated check namespace.
         """
         check = copy.copy(self.check)
-        check.mtdome = wait_dome
-        check.mtdometrajectory = wait_dome
+        check.mtdome = wait_dome and self.check.mtdome
+        check.mtdometrajectory = wait_dome and self.check.mtdometrajectory
         return check
 
     async def slew_dome_to(self, az: float, check: typing.Any = None) -> None:
