@@ -1484,7 +1484,7 @@ class TestMTCS(MTCSAsyncMock):
             timeout=self.mtcs.long_timeout,
         )
         self.mtcs.rem.mtm1m3.evt_hardpointTestStatus.flush.assert_called()
-        self.mtcs.rem.mtm1m3.evt_hardpointTestStatus.next.assert_awaited_with(
+        self.mtcs.rem.mtm1m3.evt_hardpointTestStatus.aget.assert_awaited_with(
             flush=False,
             timeout=self.mtcs.timeout_hardpoint_test_status,
         )
@@ -1500,7 +1500,7 @@ class TestMTCS(MTCSAsyncMock):
             timeout=self.mtcs.long_timeout,
         )
         self.mtcs.rem.mtm1m3.evt_hardpointTestStatus.flush.assert_called()
-        self.mtcs.rem.mtm1m3.evt_hardpointTestStatus.next.assert_awaited_with(
+        self.mtcs.rem.mtm1m3.evt_hardpointTestStatus.aget.assert_awaited_with(
             flush=False,
             timeout=self.mtcs.timeout_hardpoint_test_status,
         )

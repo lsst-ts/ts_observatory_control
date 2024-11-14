@@ -268,6 +268,7 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
             "evt_detailedState.next.side_effect": self.mtm1m3_evt_detailed_state,
             "evt_detailedState.aget.side_effect": self.mtm1m3_evt_detailed_state,
             "evt_hardpointTestStatus.next.side_effect": self.mtm1m3_evt_hp_test_status,
+            "evt_hardpointTestStatus.aget.side_effect": self.mtm1m3_evt_hp_test_status,
             "evt_forceActuatorBumpTestStatus.next.side_effect": self.mtm1m3_evt_bump_test_status,
             "evt_forceActuatorBumpTestStatus.aget.side_effect": self.mtm1m3_evt_bump_test_status,
             "cmd_raiseM1M3.set_start.side_effect": self.mtm1m3_cmd_raise_m1m3,
