@@ -960,6 +960,8 @@ class MTCS(BaseTCS):
             # Mirror covers shall open at zenith pointing.
             if not await self.in_m1_cover_operational_range():
                 await self.slew_to_m1_cover_operational_range()
+            else:
+                await self.stop_tracking()
 
             try:
                 await self.rem.mtmount.cmd_openMirrorCovers.set_start(
