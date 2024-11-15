@@ -1002,9 +1002,6 @@ class MTCS(BaseTCS):
             message="All components need to be enabled for parking the TMA."
         )
 
-        # check first if Mount is already in PARKED state (?)
-        # to implement
-
         await self.rem.mtmount.cmd_park.start(
             position=position, timeout=self.long_timeout
         )
@@ -1015,9 +1012,6 @@ class MTCS(BaseTCS):
         await self.assert_all_enabled(
             message="All components need to be enabled for unparking the TMA."
         )
-
-        # check first if Mount is PARKED state (?)
-        # to implement
 
         await self.rem.mtmount.cmd_unpark.start(timeout=self.long_timeout)
 
