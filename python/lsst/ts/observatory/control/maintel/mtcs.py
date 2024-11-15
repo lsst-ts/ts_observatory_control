@@ -1044,6 +1044,7 @@ class MTCS(BaseTCS):
             rot_tel=rotation_data.actualPosition,
             wait_dome=False,
         )
+        await self.stop_tracking()
 
     async def in_m1_cover_operational_range(self) -> bool:
         """Check if MTMount is in safe range for mirror covers operation.
