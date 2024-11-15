@@ -796,8 +796,6 @@ class MTCS(BaseTCS):
             If mirror system state is FAULT.
         """
 
-        await self.stop_tracking()
-
         self.rem.mtmount.evt_mirrorCoversMotionState.flush()
         cover_state = await self.rem.mtmount.evt_mirrorCoversMotionState.aget(
             timeout=self.fast_timeout
@@ -814,6 +812,8 @@ class MTCS(BaseTCS):
             # Mirror covers shall close at zenith pointing.
             if not await self.in_m1_cover_operational_range():
                 await self.slew_to_m1_cover_operational_range()
+            else:
+                await self.stop_tracking()
 
             try:
                 await self.rem.mtmount.cmd_closeMirrorCovers.start(
