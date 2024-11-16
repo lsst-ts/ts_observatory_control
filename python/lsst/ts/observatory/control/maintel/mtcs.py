@@ -2596,10 +2596,10 @@ class MTCS(BaseTCS):
                     settle_time=0.0,
                     component_name="Camera Hexapod",
                 ),
+                self.wait_for_rotator_inposition(self.long_timeout, False),
             )
-
         except asyncio.TimeoutError:
-            self.log.warning("Mount and/or Camera Hexapod not in position.")
+            self.log.warning("Mount, Camera Hexapod or Rotator not in position.")
 
     async def open_m1m3_booster_valve(self) -> None:
         """Open M1M3 booster valves."""
