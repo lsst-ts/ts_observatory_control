@@ -1485,7 +1485,6 @@ class TestMTCS(MTCSAsyncMock):
         )
         self.mtcs.rem.mtm1m3.evt_hardpointTestStatus.flush.assert_called()
         self.mtcs.rem.mtm1m3.evt_hardpointTestStatus.aget.assert_awaited_with(
-            flush=False,
             timeout=self.mtcs.timeout_hardpoint_test_status,
         )
 
@@ -1501,9 +1500,21 @@ class TestMTCS(MTCSAsyncMock):
         )
         self.mtcs.rem.mtm1m3.evt_hardpointTestStatus.flush.assert_called()
         self.mtcs.rem.mtm1m3.evt_hardpointTestStatus.aget.assert_awaited_with(
-            flush=False,
             timeout=self.mtcs.timeout_hardpoint_test_status,
         )
+
+    async def test_run_m1m3_hard_point_test_timeout(self) -> None:
+        message = (
+            f"No heartbeat received from M1M3 in the last {self.mtcs.timeout_hardpoint_test_status}s"
+            " while waiting for hard point data information. Check CSC liveliness."
+        )
+        with unittest.mock.patch.object(
+            self.mtcs.rem.mtm1m3.evt_heartbeat,
+            "next",
+            side_effect=asyncio.TimeoutError,
+        ):
+            with pytest.raises(RuntimeError, match=message):
+                await self.mtcs.run_m1m3_hard_point_test(hp=1)
 
     async def test_stop_m1m3_hard_point_test(self) -> None:
         await self.mtcs.stop_m1m3_hard_point_test(hp=1)

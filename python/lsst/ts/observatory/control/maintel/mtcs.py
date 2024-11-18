@@ -1318,7 +1318,7 @@ class MTCS(BaseTCS):
             hp_test_state = MTM1M3.HardpointTest(
                 (
                     await self.rem.mtm1m3.evt_hardpointTestStatus.aget(
-                        flush=False, timeout=self.timeout_hardpoint_test_status
+                        timeout=self.timeout_hardpoint_test_status
                     )
                 ).testState[hp - 1]
             )
@@ -1331,9 +1331,15 @@ class MTCS(BaseTCS):
             else:
                 self.log.info(f"Hard point {hp} test state: {hp_test_state!r}.")
 
-            await self.rem.mtm1m3.evt_heartbeat.next(
-                flush=True, timeout=self.timeout_hardpoint_test_status
-            )
+            try:
+                await self.rem.mtm1m3.evt_heartbeat.next(
+                    flush=True, timeout=self.timeout_hardpoint_test_status
+                )
+            except asyncio.TimeoutError:
+                raise RuntimeError(
+                    f"No heartbeat received from M1M3 in the last {self.timeout_hardpoint_test_status}s"
+                    " while waiting for hard point data information. Check CSC liveliness."
+                )
 
     async def _wait_bump_test_ok(
         self, actuator_id: int, primary: bool, secondary: bool
