@@ -1,0 +1,1 @@
+In ``maintel/comcam.py``, add CCOOD.evt_imageInOODS to TakeImage usage. 

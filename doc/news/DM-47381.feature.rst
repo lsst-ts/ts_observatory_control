@@ -1,0 +1,1 @@
+IN ``base_camera.py``, remove ROI spec splitting.
