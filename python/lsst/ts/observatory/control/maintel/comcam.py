@@ -328,7 +328,7 @@ class ComCam(BaseCamera):
             )
 
             usages[self.valid_use_cases.TakeImage] = UsagesResources(
-                components_attr=["cccamera"],
+                components_attr=["cccamera", "ccoods"],
                 readonly=False,
                 cccamera=[
                     "takeImages",
@@ -336,6 +336,9 @@ class ComCam(BaseCamera):
                     "endReadout",
                     "endSetFilter",
                     "availableFilters",
+                ],
+                ccoods=[
+                    "imageInOODS",
                 ],
             )
 

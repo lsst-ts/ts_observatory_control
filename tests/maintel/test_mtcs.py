@@ -944,14 +944,12 @@ class TestMTCS(MTCSAsyncMock):
 
     async def test_close_m1_cover_wrong_system_state(self) -> None:
         self._mtmount_evt_mirror_covers_motion_state.state = (
-            idl.enums.MTMount.DeployableMotionState.RETRACTED
-        )
-        self._mtmount_evt_mirror_covers_system_state.state = (
-            idl.enums.MTMount.PowerState.FAULT
+            idl.enums.MTMount.DeployableMotionState.LOST
         )
         exception_message = (
-            "Close cover failed. Cover system state: "
-            f"{MTMount.PowerState(self._mtmount_evt_mirror_covers_system_state.state)!r}"
+            f"Mirror covers in {idl.enums.MTMount.DeployableMotionState.LOST!r} state. "
+            f"Expected {idl.enums.MTMount.DeployableMotionState.RETRACTED!r} or "
+            f"{idl.enums.MTMount.DeployableMotionState.DEPLOYED!r}"
         )
 
         with pytest.raises(RuntimeError, match=exception_message):
@@ -1026,14 +1024,12 @@ class TestMTCS(MTCSAsyncMock):
 
     async def test_open_m1_cover_wrong_system_state(self) -> None:
         self._mtmount_evt_mirror_covers_motion_state.state = (
-            idl.enums.MTMount.DeployableMotionState.DEPLOYED
-        )
-        self._mtmount_evt_mirror_covers_system_state.state = (
-            idl.enums.MTMount.PowerState.FAULT
+            idl.enums.MTMount.DeployableMotionState.LOST
         )
         exception_message = (
-            "Open cover failed. Cover system state: "
-            f"{MTMount.PowerState(self._mtmount_evt_mirror_covers_system_state.state)!r}"
+            f"Mirror covers in {idl.enums.MTMount.DeployableMotionState.LOST!r} "
+            f"state. Expected {MTMount.DeployableMotionState.RETRACTED!r} or "
+            f"{MTMount.DeployableMotionState.DEPLOYED!r}"
         )
 
         with pytest.raises(RuntimeError, match=exception_message):

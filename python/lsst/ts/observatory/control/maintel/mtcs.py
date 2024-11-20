@@ -155,7 +155,7 @@ class MTCS(BaseTCS):
         # timeout to raise m1m3, in seconds.
         self.m1m3_raise_timeout = 600.0
         # time it takes for m1m3 to settle after a slew finishes.
-        self.m1m3_settle_time = 2.0
+        self.m1m3_settle_time = 5.0
 
         # Tolerance on the stability of the balance force magnitude
         self.m1m3_force_magnitude_stable_tolerance = 50.0
@@ -237,7 +237,7 @@ class MTCS(BaseTCS):
 
         assert self._dome_az_in_position is not None
 
-        _check = self.check if check is None else check
+        _check = copy.copy(self.check) if check is None else copy.copy(check)
 
         ccw_following = await self.rem.mtmount.evt_cameraCableWrapFollowing.aget(
             timeout=self.fast_timeout
@@ -285,6 +285,14 @@ class MTCS(BaseTCS):
         )
 
         async with self.m1m3_booster_valve():
+            for comp in self.components_attr:
+                if getattr(_check, comp):
+                    self.log.debug(f"Checking state of {comp}.")
+                    getattr(self.rem, comp).evt_summaryState.flush()
+                    self.scheduled_coro.append(
+                        asyncio.create_task(self.check_component_state(comp))
+                    )
+
             await slew_cmd.start(timeout=slew_timeout)
             self._dome_az_in_position.clear()
             if offset_cmd is not None:
@@ -300,13 +308,6 @@ class MTCS(BaseTCS):
                 )
             )
             self.scheduled_coro.append(asyncio.create_task(self.monitor_position()))
-
-            for comp in self.components_attr:
-                if getattr(_check, comp):
-                    getattr(self.rem, comp).evt_summaryState.flush()
-                    self.scheduled_coro.append(
-                        asyncio.create_task(self.check_component_state(comp))
-                    )
 
             await self.process_as_completed(self.scheduled_coro)
 
@@ -738,8 +739,8 @@ class MTCS(BaseTCS):
             Reformated check namespace.
         """
         check = copy.copy(self.check)
-        check.mtdome = wait_dome
-        check.mtdometrajectory = wait_dome
+        check.mtdome = wait_dome and self.check.mtdome
+        check.mtdometrajectory = wait_dome and self.check.mtdometrajectory
         return check
 
     async def slew_dome_to(self, az: float, check: typing.Any = None) -> None:
@@ -795,8 +796,6 @@ class MTCS(BaseTCS):
             If mirror system state is FAULT.
         """
 
-        await self.stop_tracking()
-
         self.rem.mtmount.evt_mirrorCoversMotionState.flush()
         cover_state = await self.rem.mtmount.evt_mirrorCoversMotionState.aget(
             timeout=self.fast_timeout
@@ -813,11 +812,62 @@ class MTCS(BaseTCS):
             # Mirror covers shall close at zenith pointing.
             if not await self.in_m1_cover_operational_range():
                 await self.slew_to_m1_cover_operational_range()
+            else:
+                await self.stop_tracking()
 
-            await self.rem.mtmount.cmd_closeMirrorCovers.start(
-                timeout=self.long_long_timeout
+            try:
+                await self.rem.mtmount.cmd_closeMirrorCovers.start(
+                    timeout=self.long_long_timeout
+                )
+            except salobj.AckError as ack:
+
+                self.log.error(
+                    f"Closing mirror cover command failed with {ack.ack!r}::{ack.error}. "
+                    "Checking state of the system."
+                )
+                cover_state = await self.rem.mtmount.evt_mirrorCoversMotionState.aget(
+                    timeout=self.mirror_covers_timeout
+                )
+                cover_locks_state = (
+                    await self.rem.mtmount.evt_mirrorCoverLocksMotionState.aget(
+                        timeout=self.mirror_covers_timeout
+                    )
+                )
+                if (
+                    cover_state.state == MTMount.DeployableMotionState.DEPLOYED
+                    and cover_locks_state.state
+                    == MTMount.DeployableMotionState.RETRACTED
+                ):
+                    self.log.warning(
+                        f"Close mirror cover command failed {ack.ack!r}::{ack.error} "
+                        "but mirror cover in the correct state."
+                    )
+                else:
+                    cover_locks_element_state = [
+                        MTMount.DeployableMotionState(state)
+                        for state in cover_locks_state.elementsState
+                    ]
+                    cover_element_state = [
+                        MTMount.DeployableMotionState(state)
+                        for state in cover_state.elementsState
+                    ]
+                    raise RuntimeError(
+                        f"Close mirror cover command failed with {ack.ack!r}::{ack.error}. "
+                        f"Mirror cover state: {cover_element_state} expected all to be DEPLOYED. "
+                        f"Mirror cover locks state: {cover_locks_element_state} expected all to be RETRACTED."
+                    )
+            cover_state = await self.rem.mtmount.evt_mirrorCoversMotionState.aget(
+                timeout=self.mirror_covers_timeout
             )
-
+            cover_locks_state = (
+                await self.rem.mtmount.evt_mirrorCoverLocksMotionState.aget(
+                    timeout=self.mirror_covers_timeout
+                )
+            )
+            self.log.info(
+                f"Cover state: {MTMount.DeployableMotionState(cover_state.state)!r}"
+                f"Cover locks state: {MTMount.DeployableMotionState(cover_locks_state.state)!r}"
+            )
             while cover_state.state != MTMount.DeployableMotionState.DEPLOYED:
                 cover_state = await self.rem.mtmount.evt_mirrorCoversMotionState.next(
                     flush=False, timeout=self.mirror_covers_timeout
@@ -825,16 +875,7 @@ class MTCS(BaseTCS):
                 self.log.debug(
                     f"Cover state: {MTMount.DeployableMotionState(cover_state.state)!r}"
                 )
-                cover_system_state = (
-                    await self.rem.mtmount.evt_mirrorCoversSystemState.aget(
-                        timeout=self.fast_timeout
-                    )
-                )
-                if cover_system_state.state == MTMount.PowerState.FAULT:
-                    raise RuntimeError(
-                        "Close cover failed. Cover system state: "
-                        f"{MTMount.PowerState(cover_system_state.state)!r}"
-                    )
+
             self.log.info(
                 f"Cover state: {MTMount.DeployableMotionState(cover_state.state)!r}"
             )
@@ -919,31 +960,62 @@ class MTCS(BaseTCS):
             # Mirror covers shall open at zenith pointing.
             if not await self.in_m1_cover_operational_range():
                 await self.slew_to_m1_cover_operational_range()
+            else:
+                await self.stop_tracking()
 
-            await self.rem.mtmount.cmd_openMirrorCovers.set_start(
-                leaf=MTMount.MirrorCover.ALL, timeout=self.long_long_timeout
-            )
-
-            while cover_state.state != MTMount.DeployableMotionState.RETRACTED:
-                cover_state = await self.rem.mtmount.evt_mirrorCoversMotionState.next(
-                    flush=False, timeout=self.mirror_covers_timeout
+            try:
+                await self.rem.mtmount.cmd_openMirrorCovers.set_start(
+                    leaf=MTMount.MirrorCover.ALL, timeout=self.long_long_timeout
                 )
-                self.log.debug(
-                    f"Cover state: {MTMount.DeployableMotionState(cover_state.state)!r}"
+            except salobj.AckError as ack:
+                self.log.error(
+                    f"Open mirror cover command failed with {ack.ack!r}::{ack.error}. "
+                    "Checking state of the system."
                 )
-                cover_system_state = (
-                    await self.rem.mtmount.evt_mirrorCoversSystemState.aget(
-                        timeout=self.fast_timeout
+                cover_state = await self.rem.mtmount.evt_mirrorCoversMotionState.aget(
+                    timeout=self.mirror_covers_timeout
+                )
+                cover_locks_state = (
+                    await self.rem.mtmount.evt_mirrorCoverLocksMotionState.aget(
+                        timeout=self.mirror_covers_timeout
                     )
                 )
-                if cover_system_state.state == MTMount.PowerState.FAULT:
+                if (
+                    cover_state.state == MTMount.DeployableMotionState.RETRACTED
+                    and cover_locks_state.state
+                    == MTMount.DeployableMotionState.DEPLOYED
+                ):
+                    self.log.warning(
+                        f"Open mirror cover command failed {ack.ack!r}::{ack.error} "
+                        "but mirror cover in the correct state."
+                    )
+                else:
+                    cover_locks_element_state = [
+                        MTMount.DeployableMotionState(state)
+                        for state in cover_locks_state.elementsState
+                    ]
+                    cover_element_state = [
+                        MTMount.DeployableMotionState(state)
+                        for state in cover_state.elementsState
+                    ]
                     raise RuntimeError(
-                        "Open cover failed. Cover system state: "
-                        f"{MTMount.PowerState(cover_system_state.state)!r}"
+                        f"Open mirror cover command failed with {ack.ack!r}::{ack.error}. "
+                        f"Mirror cover state: {cover_element_state} "
+                        f"Mirror cover locks state: {cover_locks_element_state} "
                     )
+            cover_state = await self.rem.mtmount.evt_mirrorCoversMotionState.aget(
+                timeout=self.mirror_covers_timeout
+            )
+            cover_locks_state = (
+                await self.rem.mtmount.evt_mirrorCoverLocksMotionState.aget(
+                    timeout=self.mirror_covers_timeout
+                )
+            )
             self.log.info(
                 f"Cover state: {MTMount.DeployableMotionState(cover_state.state)!r}"
+                f"Cover locks state: {MTMount.DeployableMotionState(cover_locks_state.state)!r}"
             )
+
         else:
             raise RuntimeError(
                 f"Mirror covers in {MTMount.DeployableMotionState(cover_state.state)!r} "
@@ -974,6 +1046,7 @@ class MTCS(BaseTCS):
             rot_tel=rotation_data.actualPosition,
             wait_dome=False,
         )
+        await self.stop_tracking()
 
     async def in_m1_cover_operational_range(self) -> bool:
         """Check if MTMount is in safe range for mirror covers operation.
@@ -2514,6 +2587,19 @@ class MTCS(BaseTCS):
         """Placeholder, still needs to be implemented."""
         # TODO: Finish implementation.
 
+        try:
+            await asyncio.gather(
+                self.wait_for_mtmount_inposition(self.long_timeout, False),
+                self._handle_in_position(
+                    in_position_event=self.rem.mthexapod_1.evt_inPosition,
+                    timeout=self.long_timeout,
+                    settle_time=0.0,
+                    component_name="Camera Hexapod",
+                ),
+            )
+        except asyncio.TimeoutError:
+            self.log.warning("Mount, Camera Hexapod or Rotator not in position.")
+
     async def open_m1m3_booster_valve(self) -> None:
         """Open M1M3 booster valves."""
         if self.check.mtm1m3:
@@ -2777,8 +2863,19 @@ class MTCS(BaseTCS):
                     "elevationInPosition",
                     "azimuthInPosition",
                     "cameraCableWrapFollowing",
+                    "mirrorCoversMotionState",
+                    "mirrorCoversSystemState",
+                    "mirrorCoverLocksMotionState",
+                ],
+                mtm1m3=[
+                    "boosterValveStatus",
+                    "forceActuatorState",
+                    "detailedState",
+                    "forceControllerState",
                 ],
                 mtdome=["azimuth", "lightWindScreen"],
+                mthexapod_1=["compensationMode"],
+                mthexapod_2=["compensationMode"],
             )
 
             usages[self.valid_use_cases.Slew] = UsagesResources(
