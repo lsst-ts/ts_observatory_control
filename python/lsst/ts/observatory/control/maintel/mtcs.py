@@ -1547,9 +1547,9 @@ class MTCS(BaseTCS):
                 )
             except (asyncio.TimeoutError, salobj.base.AckTimeoutError):
                 self.log.warning("Command timed out, continuing.")
-            else:
-                self.log.debug("Waiting for force balance system to settle.")
+            self.log.info("Waiting for force balance system to settle.")
             await self._wait_force_balance_system_state(enable=enable)
+            await asyncio.sleep(self.m1m3_settle_time)
         else:
             self.log.warning(
                 f"Hardpoint corrections already in desired state ({enable=}). Nothing to do."
