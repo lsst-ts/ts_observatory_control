@@ -1708,19 +1708,6 @@ class TestMTCS(MTCSAsyncMock):
         ) = await self.mtcs.get_m1m3_bump_test_status(actuator_id=actuator_id)
 
         assert primary_status == idl.enums.MTM1M3.BumpTest.FAILED
-        assert secondary_status != idl.enums.MTM1M3.BumpTest.FAILED
-
-        with pytest.raises(RuntimeError):
-            await self.mtcs._wait_bump_test_ok(
-                actuator_id=actuator_id, primary=False, secondary=True
-            )
-
-        (
-            primary_status,
-            secondary_status,
-        ) = await self.mtcs.get_m1m3_bump_test_status(actuator_id=actuator_id)
-
-        assert primary_status == idl.enums.MTM1M3.BumpTest.FAILED
         assert secondary_status == idl.enums.MTM1M3.BumpTest.FAILED
 
     async def test_stop_m1m3_bump_test_running(self) -> None:

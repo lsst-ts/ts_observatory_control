@@ -1,0 +1,1 @@
+IN ``mtcs.py``, wait for both primary and secondary bump tests to finish to avoid a race condition where the last actuator has its test cancelled due to exiting engineering mode on M1M3.
