@@ -1447,6 +1447,14 @@ class MTCS(BaseTCS):
             done = (primary_status == MTM1M3.BumpTest.PASSED if primary else True) and (
                 secondary_status == MTM1M3.BumpTest.PASSED if secondary else True
             )
+            primary_testing = (
+                primary_status not in {MTM1M3.BumpTest.PASSED, MTM1M3.BumpTest.FAILED}
+                and primary
+            )
+            secondary_testing = (
+                secondary_status not in {MTM1M3.BumpTest.PASSED, MTM1M3.BumpTest.FAILED}
+                and secondary
+            )
 
             if done:
                 self.log.info(
@@ -1454,11 +1462,15 @@ class MTCS(BaseTCS):
                     f"{primary_status!r}[{primary}], {secondary_status!r}[{secondary}]"
                 )
                 return
-            elif primary and primary_status == MTM1M3.BumpTest.FAILED:
+            elif (
+                primary and primary_status == MTM1M3.BumpTest.FAILED
+            ) and not secondary_testing:
                 raise RuntimeError(
                     f"Primary bump test failed for actuator {actuator_id}."
                 )
-            elif secondary and secondary_status == MTM1M3.BumpTest.FAILED:
+            elif (
+                secondary and secondary_status == MTM1M3.BumpTest.FAILED
+            ) and not primary_testing:
                 raise RuntimeError(
                     f"Secondary bump test failed for actuator {actuator_id}."
                 )
