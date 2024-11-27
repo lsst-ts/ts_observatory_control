@@ -155,7 +155,7 @@ class MTCS(BaseTCS):
         # timeout to raise m1m3, in seconds.
         self.m1m3_raise_timeout = 600.0
         # time it takes for m1m3 to settle after a slew finishes.
-        self.m1m3_settle_time = 5.0
+        self.m1m3_settle_time = 0.0
 
         # Tolerance on the stability of the balance force magnitude
         self.m1m3_force_magnitude_stable_tolerance = 50.0
