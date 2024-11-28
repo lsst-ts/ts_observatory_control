@@ -1903,6 +1903,7 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
         timeout: float,
         settle_time: float = 5.0,
         component_name: str = "",
+        race_condition_timeout: float = 5.0,
     ) -> str:
         """Handle inPosition event.
 
@@ -1917,6 +1918,8 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
         component_name : `str`, optional
             The name of the component. This is used in log messages and to
             construct a return message when in position.
+        race_condition_timeout : `float`
+            Timeout to use when handling race condition (in seconds).
 
         Returns
         -------
@@ -1931,7 +1934,7 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
         in_position = await in_position_event.aget(timeout=self.fast_timeout)
         self.log.debug(f"{component_name} in position: {in_position.inPosition}.")
 
-        _settle_time = max([settle_time, self.fast_timeout])
+        _settle_time = max([settle_time, race_condition_timeout])
 
         if in_position.inPosition:
             self.log.debug(
