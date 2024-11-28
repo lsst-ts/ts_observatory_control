@@ -128,6 +128,16 @@ class MTCS(BaseTCS):
 
         self.open_dome_shutter_time = 1200.0
         self.timeout_hardpoint_test_status = 600.0
+        # There is a race condition when commanding the mount
+        # to a new target, which is the time it takes for it
+        # to start moving after we send the command to the pointing.
+        # This timeout expresses how long to wait when handling this
+        # race condition.
+        self.mtmount_race_condition_timeout = 3.0
+        # Similar to the mtmount_race_condition_timeout, this is
+        # used to check the in position event race condition for
+        # the hexapod when checking if it is ready to take data.
+        self.hexapod_ready_to_take_data_timeout = 0.5
 
         self.tel_park_el = 80.0
         self.tel_park_az = 0.0
@@ -503,12 +513,14 @@ class MTCS(BaseTCS):
                 timeout=timeout,
                 settle_time=0.0,
                 component_name="MTMount elevation",
+                race_condition_timeout=self.mtmount_race_condition_timeout,
             ),
             self._handle_in_position(
                 self.rem.mtmount.evt_azimuthInPosition,
                 timeout=timeout,
                 settle_time=0.0,
                 component_name="MTMount azimuth",
+                race_condition_timeout=self.mtmount_race_condition_timeout,
             ),
         )
 
@@ -2595,6 +2607,7 @@ class MTCS(BaseTCS):
                     timeout=self.long_timeout,
                     settle_time=0.0,
                     component_name="Camera Hexapod",
+                    race_condition_timeout=self.hexapod_ready_to_take_data_timeout,
                 ),
             )
         except asyncio.TimeoutError:
