@@ -138,6 +138,10 @@ class MTCS(BaseTCS):
         # used to check the in position event race condition for
         # the hexapod when checking if it is ready to take data.
         self.hexapod_ready_to_take_data_timeout = 0.5
+        # Similar to the mtmount_race_condition_timeout, this is
+        # used to check the in position event race condition for
+        # the rotator when checking if it is in position.
+        self.mtrotator_race_condition_timeout = 3.0
 
         self.tel_park_el = 80.0
         self.tel_park_az = 0.0
@@ -584,8 +588,9 @@ class MTCS(BaseTCS):
         return await self._handle_in_position(
             self.rem.mtrotator.evt_inPosition,
             timeout=timeout,
-            settle_time=self.tel_settle_time,
+            settle_time=0.0,
             component_name="MTRotator",
+            race_condition_timeout=self.mtrotator_race_condition_timeout,
         )
 
     async def dome_az_in_position(self) -> str:
