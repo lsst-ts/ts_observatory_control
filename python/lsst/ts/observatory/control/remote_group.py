@@ -443,11 +443,16 @@ class RemoteGroup:
                 timeout=self.fast_timeout
             )
             return salobj.State(ss.summaryState)
-        except asyncio.TimeoutError as e:
+        except asyncio.TimeoutError:
             if ignore_timeout:
                 return None
             else:
-                raise e
+                raise asyncio.TimeoutError(
+                    f"Timeout getting summary state for {component}. "
+                    "This usually means that no historical data is available. "
+                    "You might have to recycle the CSC state manually to recover "
+                    "from this condition."
+                )
 
     async def next_state(self, component: str) -> salobj.State:
         """Get summary state for component.

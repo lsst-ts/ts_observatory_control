@@ -1,0 +1,1 @@
+In base_tcs, update _handle_in_position method to expose the timeout to use when handling the initial state race condition.	81efa99	Tiago Ribeiro <tribeiro@lsst.org>	Dec 1, 2024 at 10:59 PM

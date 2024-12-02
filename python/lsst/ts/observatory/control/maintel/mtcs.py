@@ -33,11 +33,7 @@ from astropy.coordinates import Angle
 from lsst.ts import salobj, utils
 from lsst.ts.utils import angle_diff
 from lsst.ts.xml.enums import MTM1M3, MTM2, MTDome, MTMount, MTPtg, MTRotator
-
-try:
-    from lsst.ts.xml.tables.m1m3 import FATable
-except ImportError:
-    from lsst.ts.criopy.M1M3FATable import FATABLE as FATable
+from lsst.ts.xml.tables.m1m3 import FATable
 
 from ..base_tcs import BaseTCS
 from ..constants import mtcs_constants
@@ -128,6 +124,20 @@ class MTCS(BaseTCS):
 
         self.open_dome_shutter_time = 1200.0
         self.timeout_hardpoint_test_status = 600.0
+        # There is a race condition when commanding the mount
+        # to a new target, which is the time it takes for it
+        # to start moving after we send the command to the pointing.
+        # This timeout expresses how long to wait when handling this
+        # race condition.
+        self.mtmount_race_condition_timeout = 3.0
+        # Similar to the mtmount_race_condition_timeout, this is
+        # used to check the in position event race condition for
+        # the hexapod when checking if it is ready to take data.
+        self.hexapod_ready_to_take_data_timeout = 0.5
+        # Similar to the mtmount_race_condition_timeout, this is
+        # used to check the in position event race condition for
+        # the rotator when checking if it is in position.
+        self.mtrotator_race_condition_timeout = 3.0
 
         self.tel_park_el = 80.0
         self.tel_park_az = 0.0
@@ -155,7 +165,7 @@ class MTCS(BaseTCS):
         # timeout to raise m1m3, in seconds.
         self.m1m3_raise_timeout = 600.0
         # time it takes for m1m3 to settle after a slew finishes.
-        self.m1m3_settle_time = 5.0
+        self.m1m3_settle_time = 0.0
 
         # Tolerance on the stability of the balance force magnitude
         self.m1m3_force_magnitude_stable_tolerance = 50.0
@@ -503,12 +513,14 @@ class MTCS(BaseTCS):
                 timeout=timeout,
                 settle_time=0.0,
                 component_name="MTMount elevation",
+                race_condition_timeout=self.mtmount_race_condition_timeout,
             ),
             self._handle_in_position(
                 self.rem.mtmount.evt_azimuthInPosition,
                 timeout=timeout,
                 settle_time=0.0,
                 component_name="MTMount azimuth",
+                race_condition_timeout=self.mtmount_race_condition_timeout,
             ),
         )
 
@@ -572,8 +584,9 @@ class MTCS(BaseTCS):
         return await self._handle_in_position(
             self.rem.mtrotator.evt_inPosition,
             timeout=timeout,
-            settle_time=self.tel_settle_time,
+            settle_time=0.0,
             component_name="MTRotator",
+            race_condition_timeout=self.mtrotator_race_condition_timeout,
         )
 
     async def dome_az_in_position(self) -> str:
@@ -1547,9 +1560,9 @@ class MTCS(BaseTCS):
                 )
             except (asyncio.TimeoutError, salobj.base.AckTimeoutError):
                 self.log.warning("Command timed out, continuing.")
-            else:
-                self.log.debug("Waiting for force balance system to settle.")
+            self.log.info("Waiting for force balance system to settle.")
             await self._wait_force_balance_system_state(enable=enable)
+            await asyncio.sleep(self.m1m3_settle_time)
         else:
             self.log.warning(
                 f"Hardpoint corrections already in desired state ({enable=}). Nothing to do."
@@ -2595,6 +2608,7 @@ class MTCS(BaseTCS):
                     timeout=self.long_timeout,
                     settle_time=0.0,
                     component_name="Camera Hexapod",
+                    race_condition_timeout=self.hexapod_ready_to_take_data_timeout,
                 ),
             )
         except asyncio.TimeoutError:

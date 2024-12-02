@@ -1,0 +1,1 @@
+Removed backwards compatibility with m1m3 FATables not being in ts-xml.
