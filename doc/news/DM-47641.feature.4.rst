@@ -1,0 +1,1 @@
+In maintel/mtcs.py, update wait_for_rotator_inposition to use a lower race condition timeout and to not await any settling time.
