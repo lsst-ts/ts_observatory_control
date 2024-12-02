@@ -581,13 +581,17 @@ class MTCS(BaseTCS):
         `str`
             Message indicating the component is in position.
         """
-        return await self._handle_in_position(
-            self.rem.mtrotator.evt_inPosition,
-            timeout=timeout,
-            settle_time=0.0,
-            component_name="MTRotator",
-            race_condition_timeout=self.mtrotator_race_condition_timeout,
-        )
+        try:
+            return await self._handle_in_position(
+                self.rem.mtrotator.evt_inPosition,
+                timeout=timeout,
+                settle_time=0.0,
+                component_name="MTRotator",
+                race_condition_timeout=self.mtrotator_race_condition_timeout,
+            )
+        except asyncio.TimeoutError:
+            self.log.warning("MTRotator time-out getting into position. Continuing.")
+            return "MTRotator timedout getting in position."
 
     async def dome_az_in_position(self) -> str:
         """Wait for `_dome_az_in_position` event to be set and return a string
