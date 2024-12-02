@@ -33,11 +33,7 @@ from astropy.coordinates import Angle
 from lsst.ts import salobj, utils
 from lsst.ts.utils import angle_diff
 from lsst.ts.xml.enums import MTM1M3, MTM2, MTDome, MTMount, MTPtg, MTRotator
-
-try:
-    from lsst.ts.xml.tables.m1m3 import FATable
-except ImportError:
-    from lsst.ts.criopy.M1M3FATable import FATABLE as FATable
+from lsst.ts.xml.tables.m1m3 import FATable
 
 from ..base_tcs import BaseTCS
 from ..constants import mtcs_constants
