@@ -8,6 +8,105 @@ Version History
 
 .. towncrier release notes start
 
+v0.40.0 (2024-12-03)
+====================
+
+New Features
+------------
+
+- Add method in ``ATCS`` to check if ATAOS corrections are enabled (`DM-38823 <https://rubinobs.atlassian.net/browse/DM-38823>`_)
+- Adds initial implementation of MTCalsys. (`DM-43628 <https://rubinobs.atlassian.net/browse/DM-43628>`_)
+- Add configuration schema validation support to ``BaseCalsys`` and schema validation files for ``ATCalsys`` and ``MTCalsys`` classes. (`DM-45260 <https://rubinobs.atlassian.net/browse/DM-45260>`_)
+- Add description fields to ``ATCalsys`` and ``MTCalsys`` schema validation files. (`DM-45261 <https://rubinobs.atlassian.net/browse/DM-45261>`_)
+- Implement dome parking in MTCS. (`DM-45609 <https://rubinobs.atlassian.net/browse/DM-45609>`_)
+- Implement dome unpark in MTCS. (`DM-45610 <https://rubinobs.atlassian.net/browse/DM-45610>`_)
+- In atcalsys, pass group_id metadata to the electromer and fiber spectrograph when taking data. (`DM-45696 <https://rubinobs.atlassian.net/browse/DM-45696>`_)
+- In base_tcs.py, expand captured rotator limit exceptions during slew cmd. (`DM-45696 <https://rubinobs.atlassian.net/browse/DM-45696>`_)
+- Add ``slew_dome_to`` method for main telescope in ``MTCS``. (`DM-45821 <https://rubinobs.atlassian.net/browse/DM-45821>`_)
+- Increase minimum electrometer exposure time to 1 second for Keithley electrometer (`DM-46003 <https://rubinobs.atlassian.net/browse/DM-46003>`_)
+- In atcalsys, remove work around to Electrometer going to Fault. (`DM-46011 <https://rubinobs.atlassian.net/browse/DM-46011>`_)
+- In atcalsys, add index to group id. (`DM-46011 <https://rubinobs.atlassian.net/browse/DM-46011>`_)
+- Extend TCS readiness check to other image types beyond OBJECT, such as:
+  ENGTEST, CWFS and ACQ. (`DM-46179 <https://rubinobs.atlassian.net/browse/DM-46179>`_)
+- In ``mtcalsys.yaml``, Added laser configuration information to all tests, including laser mode and optical configuration. (`DM-46276 <https://rubinobs.atlassian.net/browse/DM-46276>`_)
+- Add features to allow ``MTCalSys`` to better handle the laser
+  - In ``mtcalsys.py`` made the following changes: 
+   - Added ``laser_start_propagate`` and ``laser_stop_propagate()``
+   - Added ``get_laser_parameters()``
+   - Improved ``setup_laser()`` to change the wavelength and the optical configuration
+   - Changed ``change_laser_wavelength()`` so it can be used for the laser or whitelight system 
+  - In ``mtcalsys.yaml`` added a laser functional setup
+  - In ``mtcalsys_schema.yaml`` added laser mode and optical configuration (`DM-46276 <https://rubinobs.atlassian.net/browse/DM-46276>`_)
+- Implement open and close mirror covers methods in MTCS. (`DM-46309 <https://rubinobs.atlassian.net/browse/DM-46309>`_)
+- Add feature to allow ``ATCalSys`` to skip monochromator configuration. 
+
+  - In ``atcalsys_schema.yaml``, add default values for wavelength, entrace_slit and exit_slit. 
+    Add option to set monochromator_grating to None to skip monchromator configuration and set None as default value.
+  - In ``atcalsys.py``, add feature to skip configuring monochromator if monchromator_grating is None.
+  - In ``atcalsys.yaml``, update monochromator configuration values for ptc curves to skip monchromator configuration. (`DM-46458 <https://rubinobs.atlassian.net/browse/DM-46458>`_)
+- In maintel/mtcs.py, update close_mirror_covers to stop tracking before closing the covers. (`DM-46978 <https://rubinobs.atlassian.net/browse/DM-46978>`_)
+- Remove sign flips and arcsec conversion from offset_hexapod functions. (`DM-46978 <https://rubinobs.atlassian.net/browse/DM-46978>`_)
+- Fix MTCS offset_m2_hexapod decentering signs. (`DM-46978 <https://rubinobs.atlassian.net/browse/DM-46978>`_)
+- In maintel/mtcs.py, update flush_offset_events and offset_done method to take rotator into account. (`DM-46978 <https://rubinobs.atlassian.net/browse/DM-46978>`_)
+- In maintel/comcam.py avoid filter change if filter is in place. (`DM-46978 <https://rubinobs.atlassian.net/browse/DM-46978>`_)
+- In maintel/mtcs.py, update offset_m2_hexapod to use MTAOS offsetDOF to offset the m2 hexapod. (`DM-46978 <https://rubinobs.atlassian.net/browse/DM-46978>`_)
+- In maintel/mtcs.py, update offset_camera_hexapod to use MTAOS offsetDOF to offset the camera hexapod. (`DM-46978 <https://rubinobs.atlassian.net/browse/DM-46978>`_)
+- Add methods in ``MTCS`` to park and unpark the TMA. (`DM-46979 <https://rubinobs.atlassian.net/browse/DM-46979>`_)
+- Implement dome homing in ``MTCS``. (`DM-46980 <https://rubinobs.atlassian.net/browse/DM-46980>`_)
+- Cleanup of ``MTCalsys`` configuration file ``mtcalsys.yaml`` by removing attributes that use default values. (`DM-46983 <https://rubinobs.atlassian.net/browse/DM-46983>`_)
+- Add new default values for ``ATCalsys`` configurations in ``atcalsys_schema.yaml``. (`DM-46983 <https://rubinobs.atlassian.net/browse/DM-46983>`_)
+- Cleanup of ``ATCalsys`` configuration file ``atcalsys.yaml`` by removing attributes that use default values. (`DM-46983 <https://rubinobs.atlassian.net/browse/DM-46983>`_)
+- Add new default values for ``MTCalsys`` configurations in ``mtcalsys_schema.yaml``. (`DM-46983 <https://rubinobs.atlassian.net/browse/DM-46983>`_)
+- Update ``_wait_hard_point_test_ok`` method in ``MTCS`` to be compatible with concurrent executions. (`DM-47223 <https://rubinobs.atlassian.net/browse/DM-47223>`_)
+- In ``maintel/comcam.py``, add CCOOD.evt_imageInOODS to TakeImage usage. (`DM-47381 <https://rubinobs.atlassian.net/browse/DM-47381>`_)
+- Add the following to MTCSUsages.All:
+  - mirrorCoversMotionState
+  - compensationMode
+  - m1m3 events
+  - mirrorCoversSystemState
+  - mirrorCoversLocksMotionState (`DM-47381 <https://rubinobs.atlassian.net/browse/DM-47381>`_)
+- Implement simple TCS synchronization in MTCS. (`DM-47381 <https://rubinobs.atlassian.net/browse/DM-47381>`_)
+- In ``maintel/mtcs.py``, create a local copy of the check attribute in the _slew method. (`DM-47381 <https://rubinobs.atlassian.net/browse/DM-47381>`_)
+- In ``maintel/mtcs.py``, make the following updates the open_m1_cover and close_m1_cover methods:
+  - Refactor open_m1_cover.
+  - Refactor close_m1_cover.
+  - Add stop_tracking later in the close_m1_cover operation. 
+  - Add stop_tracking to the slew_to_m1_cover_operational_range method after pointing the telescope.
+  - Update open_m1_cover to stop tracking if not repositioning the telescope. (`DM-47381 <https://rubinobs.atlassian.net/browse/DM-47381>`_)
+- In ``maintel/mtcs.py``, increase m1m3 settling time. (`DM-47381 <https://rubinobs.atlassian.net/browse/DM-47381>`_)
+- IN ``base_camera.py``, remove ROI spec splitting. (`DM-47381 <https://rubinobs.atlassian.net/browse/DM-47381>`_)
+- In maintel/mtcs, update _handle_m1m3_hardpoint_correction_command to wait for m1m3_settle_time after enabling/disabling force balance. (`DM-47641 <https://rubinobs.atlassian.net/browse/DM-47641>`_)
+- In maintel/mtcs.py, update wait_for_rotator_inposition to use a lower race condition timeout and to not await any settling time. (`DM-47641 <https://rubinobs.atlassian.net/browse/DM-47641>`_)
+- In maintel/mtcs, use the custom race_condition_timeout for checking the mount and hexapod are in position. (`DM-47641 <https://rubinobs.atlassian.net/browse/DM-47641>`_)
+- In base_tcs, update _handle_in_position method to expose the timeout to use when handling the initial state race condition.	81efa99	Tiago Ribeiro <tribeiro@lsst.org>	Dec 1, 2024 at 10:59 PM (`DM-47641 <https://rubinobs.atlassian.net/browse/DM-47641>`_)
+- In maintel/mtcs, reduce m1m3 setting time. (`DM-47641 <https://rubinobs.atlassian.net/browse/DM-47641>`_)
+
+
+Bug Fixes
+---------
+
+- Changed grating from Blue to Mirror for PTC curves to align with updated hardware configuration and xml (`DM-45975 <https://rubinobs.atlassian.net/browse/DM-45975>`_)
+- In atcalsys, fix exposure time in PTC 3 (`DM-46011 <https://rubinobs.atlassian.net/browse/DM-46011>`_)
+- Fix MTRotator enumeration from INITIALIZING to STATIONARY (`DM-46179 <https://rubinobs.atlassian.net/browse/DM-46179>`_)
+- In atcalsys, fix group_id metadata, removing spaces. (`DM-46201 <https://rubinobs.atlassian.net/browse/DM-46201>`_)
+- In ``BaseCalsys.load_calibration_config_file``, fix schema validation to update configurations with default values applied by ``salobj.DefaultingValidator``. (`DM-46983 <https://rubinobs.atlassian.net/browse/DM-46983>`_)
+- In ``maintel/mtcs.py``, fix set_azel_slew_checks to take into account value of the check flag for mtdome and mtdometrajectory. (`DM-47381 <https://rubinobs.atlassian.net/browse/DM-47381>`_)
+
+
+API Removal or Deprecation
+--------------------------
+
+- In MTCSAsyncMock remove old idl.enums import in favor of new xml.enums (`DM-46179 <https://rubinobs.atlassian.net/browse/DM-46179>`_)
+- Removed backwards compatibility with m1m3 FATables not being in ts-xml. (`DM-47641 <https://rubinobs.atlassian.net/browse/DM-47641>`_)
+
+
+Other Changes and Additions
+---------------------------
+
+- Temporary addition of Tunable Laser Optical Configuration into enum while xml prepared for deployment (`DM-46167 <https://rubinobs.atlassian.net/browse/DM-46167>`_)
+- Improve error reporting in ``ATCalsys.prepare_for_flat``. (`DM-46477 <https://rubinobs.atlassian.net/browse/DM-46477>`_)
+
+
 v0.38.1 (2024-08-16)
 ====================
 

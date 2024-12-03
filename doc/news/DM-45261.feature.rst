@@ -1,1 +1,0 @@
-Add description fields to ``ATCalsys`` and ``MTCalsys`` schema validation files.

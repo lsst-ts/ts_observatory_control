@@ -1,1 +1,0 @@
-Temporary addition of Tunable Laser Optical Configuration into enum while xml prepared for deployment
