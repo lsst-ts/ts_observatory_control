@@ -1,1 +1,0 @@
-In maintel/mtcs.py, update offset_camera_hexapod to use MTAOS offsetDOF to offset the camera hexapod.

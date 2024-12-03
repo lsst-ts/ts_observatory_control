@@ -1,1 +1,0 @@
-Update ``_wait_hard_point_test_ok`` method in ``MTCS`` to be compatible with concurrent executions.

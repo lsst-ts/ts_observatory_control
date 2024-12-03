@@ -1,1 +1,0 @@
-Fix MTRotator enumeration from INITIALIZING to STATIONARY

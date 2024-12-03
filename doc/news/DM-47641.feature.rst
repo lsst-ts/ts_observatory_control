@@ -1,1 +1,0 @@
-In maintel/mtcs, update _handle_m1m3_hardpoint_correction_command to wait for m1m3_settle_time after enabling/disabling force balance.

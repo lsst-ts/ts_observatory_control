@@ -1,6 +1,0 @@
-In ``maintel/mtcs.py``, make the following updates the open_m1_cover and close_m1_cover methods:
-- Refactor open_m1_cover.
-- Refactor close_m1_cover.
-- Add stop_tracking later in the close_m1_cover operation. 
-- Add stop_tracking to the slew_to_m1_cover_operational_range method after pointing the telescope.
-- Update open_m1_cover to stop tracking if not repositioning the telescope.

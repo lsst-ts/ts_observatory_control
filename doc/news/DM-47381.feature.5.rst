@@ -1,1 +1,0 @@
-In ``maintel/mtcs.py``, create a local copy of the check attribute in the _slew method.

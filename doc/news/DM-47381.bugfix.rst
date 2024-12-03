@@ -1,1 +1,0 @@
-In ``maintel/mtcs.py``, fix set_azel_slew_checks to take into account value of the check flag for mtdome and mtdometrajectory.

@@ -1,1 +1,0 @@
-Add method in ``ATCS`` to check if ATAOS corrections are enabled
