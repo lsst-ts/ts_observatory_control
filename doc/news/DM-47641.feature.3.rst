@@ -1,1 +1,0 @@
-In maintel/mtcs, use the custom race_condition_timeout for checking the mount and hexapod are in position.

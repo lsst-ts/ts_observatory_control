@@ -1,1 +1,0 @@
-In atcalsys, pass group_id metadata to the electromer and fiber spectrograph when taking data.

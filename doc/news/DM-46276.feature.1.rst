@@ -1,1 +1,0 @@
-In ``mtcalsys.yaml``, Added laser configuration information to all tests, including laser mode and optical configuration.

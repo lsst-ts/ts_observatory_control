@@ -1,1 +1,0 @@
-Cleanup of ``ATCalsys`` configuration file ``atcalsys.yaml`` by removing attributes that use default values.
