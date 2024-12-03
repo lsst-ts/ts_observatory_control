@@ -54,6 +54,11 @@ class TestLSSTCam(BaseCameraAsyncMock):
             topic="logevent_endReadout",
         )
 
+        self.start_integration = self.get_sample(
+            component="MTCamera",
+            topic="logevent_startIntegration",
+        )
+
     async def test_setup_instrument(self) -> None:
         valid_entries: typing.List[
             typing.Dict[str, typing.Union[int, float, str, None]]
