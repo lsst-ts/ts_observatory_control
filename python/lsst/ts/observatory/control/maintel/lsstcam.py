@@ -317,6 +317,7 @@ class LSSTCam(BaseCamera):
                     "setFilter",
                     "endReadout",
                     "endSetFilter",
+                    "startIntegration",
                     "availableFilters",
                 ],
                 mtheaderservice=["largeFileObjectAvailable"],
@@ -330,6 +331,7 @@ class LSSTCam(BaseCamera):
                     "setFilter",
                     "endReadout",
                     "endSetFilter",
+                    "startIntegration",
                     "availableFilters",
                 ],
             )
@@ -342,6 +344,7 @@ class LSSTCam(BaseCamera):
                     "setFilter",
                     "endReadout",
                     "endSetFilter",
+                    "startIntegration",
                     "availableFilters",
                 ],
                 mtheaderservice=["largeFileObjectAvailable"],
