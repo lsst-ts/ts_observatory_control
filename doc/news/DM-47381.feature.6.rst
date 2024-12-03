@@ -1,0 +1,1 @@
+In ``maintel/mtcs.py``, increase m1m3 settling time. 

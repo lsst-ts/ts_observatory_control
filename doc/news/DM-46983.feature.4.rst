@@ -1,0 +1,2 @@
+Cleanup of ``MTCalsys`` configuration file ``mtcalsys.yaml`` by removing attributes that use default values.
+

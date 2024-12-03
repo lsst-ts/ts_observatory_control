@@ -25,10 +25,10 @@ import types
 import typing
 
 import numpy as np
-from lsst.ts import idl, utils
-from lsst.ts.idl.enums import MTM1M3
+from lsst.ts import utils, xml
 from lsst.ts.observatory.control.maintel.mtcs import MTCS, MTCSUsages
 from lsst.ts.observatory.control.mock import RemoteGroupAsyncMock
+from lsst.ts.xml.enums import MTM1M3, MTDome
 
 
 class MTCSAsyncMock(RemoteGroupAsyncMock):
@@ -98,6 +98,22 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
             inPosition=True,
         )
 
+        self._mtmount_evt_mirror_covers_motion_state = types.SimpleNamespace(
+            state=xml.enums.MTMount.DeployableMotionState.DEPLOYED
+        )
+        self._mtmount_evt_mirror_covers_system_state = types.SimpleNamespace(
+            state=xml.enums.MTMount.PowerState.ON
+        )
+        self._mtmount_evt_mirror_covers_lock_motion_state = types.SimpleNamespace(
+            state=xml.enums.MTMount.DeployableMotionState.RETRACTED
+        )
+        self._mtmount_mirror_cover_final_closed_state = (
+            xml.enums.MTMount.DeployableMotionState.DEPLOYED
+        )
+        self._mtmount_mirror_cover_final_opened_state = (
+            xml.enums.MTMount.DeployableMotionState.RETRACTED
+        )
+
         # MTRotator data
         self._mtrotator_tel_rotation = types.SimpleNamespace(
             demandPosition=0.0,
@@ -105,7 +121,7 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
         )
         self._mtrotator_evt_in_position = types.SimpleNamespace(inPosition=True)
         self._mtrotator_evt_controller_state = types.SimpleNamespace(
-            enabledSubstate=idl.enums.MTRotator.EnabledSubstate.INITIALIZING
+            enabledSubstate=xml.enums.MTRotator.EnabledSubstate.STATIONARY
         )
 
         # MTDome data
@@ -119,21 +135,26 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
             positionCommanded=0.0,
         )
 
+        # MTDome Motion PARKED state. State is set by the mocked park cmd.
+        self._mtdome_evt_az_motion = types.SimpleNamespace(
+            state=MTDome.MotionState.UNDETERMINED, inPosition=False
+        )
+
         # MTM1M3 data
         self._mtm1m3_evt_detailed_state = types.SimpleNamespace(
-            detailedState=idl.enums.MTM1M3.DetailedState.PARKED
+            detailedState=xml.enums.MTM1M3.DetailedState.PARKED
         )
         self._mtm1m3_evt_applied_balance_forces = types.SimpleNamespace(
             forceMagnitude=0.0
         )
         self._mtm1m3_evt_hp_test_status = types.SimpleNamespace(
-            testState=[idl.enums.MTM1M3.HardpointTest.NOTTESTED] * 6
+            testState=[xml.enums.MTM1M3.HardpointTest.NOTTESTED] * 6
         )
         self._mtm1m3_evt_force_actuator_bump_test_status = types.SimpleNamespace(
             actuatorId=0,
-            primaryTest=[idl.enums.MTM1M3.BumpTest.NOTTESTED]
+            primaryTest=[xml.enums.MTM1M3.BumpTest.NOTTESTED]
             * len(self.mtcs.get_m1m3_actuator_ids()),
-            secondaryTest=[idl.enums.MTM1M3.BumpTest.NOTTESTED]
+            secondaryTest=[xml.enums.MTM1M3.BumpTest.NOTTESTED]
             * len(self.mtcs.get_m1m3_actuator_secondary_ids()),
             primaryTestTimestamps=[0.0] * len(self.mtcs.get_m1m3_actuator_ids()),
             secondaryTestTimestamps=[0.0]
@@ -143,8 +164,8 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
             slewFlag=False,
             balanceForcesApplied=False,
         )
-        self.desired_hp_test_final_status = idl.enums.MTM1M3.HardpointTest.PASSED
-        self.desired_bump_test_final_status = idl.enums.MTM1M3.BumpTest.PASSED
+        self.desired_hp_test_final_status = xml.enums.MTM1M3.HardpointTest.PASSED
+        self.desired_bump_test_final_status = xml.enums.MTM1M3.BumpTest.PASSED
 
         self.m1m3_actuator_offset = 101
 
@@ -189,6 +210,7 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
         await self.setup_mtm2()
         await self.setup_mthexapod_1()
         await self.setup_mthexapod_2()
+        await self.setup_mtaos()
 
     async def setup_mtmount(self) -> None:
         """Augment MTMount."""
@@ -196,6 +218,7 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
             "evt_target.next.side_effect": self.mtmount_evt_target_next,
             "evt_target.aget.side_effect": self.mtmount_evt_target_next,
             "tel_azimuth.next.side_effect": self.mtmount_tel_azimuth_next,
+            "tel_azimuth.aget.side_effect": self.mtmount_tel_azimuth_next,
             "tel_azimuth.DataType.return_value": self.get_sample(
                 "MTMount", "tel_azimuth"
             ),
@@ -206,6 +229,17 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
             "evt_cameraCableWrapFollowing.aget.side_effect": self.mtmount_evt_cameraCableWrapFollowing,
             "cmd_enableCameraCableWrapFollowing.start.side_effect": self.mtmount_cmd_enable_ccw_following,
             "cmd_disableCameraCableWrapFollowing.start.side_effect": self.mtmount_cmd_disable_ccw_following,
+            "evt_mirrorCoversMotionState.aget.side_effect": self.mtmount_evt_mirror_covers_motion_state,
+            "evt_mirrorCoversMotionState.next.side_effect": self.mtmount_evt_mirror_covers_motion_state,
+            "evt_mirrorCoversSystemState.aget.side_effect": self.mtmount_evt_mirror_covers_system_state,
+            "evt_mirrorCoverLocksMotionState.aget.side_effect": (
+                self.mtmount_evt_mirror_covers_locks_motion_state
+            ),
+            "evt_mirrorCoverLocksMotionState.next.side_effect": (
+                self.mtmount_evt_mirror_covers_locks_motion_state
+            ),
+            "cmd_closeMirrorCovers.start.side_effect": self.mtmount_cmd_close_mirror_covers,
+            "cmd_openMirrorCovers.set_start.side_effect": self.mtmount_cmd_open_mirror_covers,
         }
 
         self.mtcs.rem.mtmount.configure_mock(**mtmount_mocks)
@@ -228,7 +262,14 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
         """Augment MTDome."""
         mtdome_mocks = {
             "tel_azimuth.next.side_effect": self.mtdome_tel_azimuth_next,
+            "tel_azimuth.aget.side_effect": self.mtdome_tel_azimuth_next,
             "tel_lightWindScreen.next.side_effect": self.mtdome_tel_light_wind_screen_next,
+            "cmd_park.start.side_effect": self.mtdome_cmd_park,
+            "cmd_moveAz.set_start.side_effect": self.mtdome_cmd_move_az,
+            "evt_azMotion.aget.side_effect": self.mtdome_evt_az_motion_next,
+            "evt_azMotion.next.side_effect": self.mtdome_evt_az_motion_next,
+            "cmd_stop.set_start.side_effect": self.mtdome_cmd_stop,
+            "cmd_setZeroAz.start.side_effect": self.mtdome_cmd_set_zero_az,
         }
 
         self.mtcs.rem.mtdome.configure_mock(**mtdome_mocks)
@@ -242,6 +283,7 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
             "evt_detailedState.next.side_effect": self.mtm1m3_evt_detailed_state,
             "evt_detailedState.aget.side_effect": self.mtm1m3_evt_detailed_state,
             "evt_hardpointTestStatus.next.side_effect": self.mtm1m3_evt_hp_test_status,
+            "evt_hardpointTestStatus.aget.side_effect": self.mtm1m3_evt_hp_test_status,
             "evt_forceActuatorBumpTestStatus.next.side_effect": self.mtm1m3_evt_bump_test_status,
             "evt_forceActuatorBumpTestStatus.aget.side_effect": self.mtm1m3_evt_bump_test_status,
             "cmd_raiseM1M3.set_start.side_effect": self.mtm1m3_cmd_raise_m1m3,
@@ -362,6 +404,18 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
 
         self.mtcs.rem.mthexapod_2.configure_mock(**hexapod_2_mocks)
 
+    async def setup_mtaos(self) -> None:
+
+        offset_dof_field_info = self.get_sample("MTAOS", "cmd_offsetDOF")
+        mtaos_mocks = {
+            "cmd_offsetDOF.DataType.return_value": types.SimpleNamespace(
+                value=np.zeros(offset_dof_field_info.value.count)
+            ),
+            "cmd_offsetDOF.start.side_effect": self.mtaos_cmd_offset_dof,
+        }
+
+        self.mtcs.rem.mtaos.configure_mock(**mtaos_mocks)
+
     async def mtmount_evt_target_next(
         self, *args: typing.Any, **kwargs: typing.Any
     ) -> types.SimpleNamespace:
@@ -375,6 +429,7 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
     async def mtmount_tel_elevation_next(
         self, *args: typing.Any, **kwargs: typing.Any
     ) -> types.SimpleNamespace:
+        await asyncio.sleep(self.heartbeat_time)
         return self._mtmount_tel_elevation
 
     async def mtmount_evt_elevation_in_position_next(
@@ -405,6 +460,68 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
     async def mtrotator_cmd_move(self, *args: typing.Any, **kwargs: typing.Any) -> None:
         asyncio.create_task(self._mtrotator_move(position=kwargs.get("position", 0.0)))
 
+    async def mtmount_evt_mirror_covers_motion_state(
+        self, *args: typing.Any, **kwargs: typing.Any
+    ) -> types.SimpleNamespace:
+        await asyncio.sleep(self.heartbeat_time)
+        return self._mtmount_evt_mirror_covers_motion_state
+
+    async def mtmount_evt_mirror_covers_locks_motion_state(
+        self, *args: typing.Any, **kwargs: typing.Any
+    ) -> types.SimpleNamespace:
+        await asyncio.sleep(self.heartbeat_time)
+        return self._mtmount_evt_mirror_covers_lock_motion_state
+
+    async def mtmount_evt_mirror_covers_system_state(
+        self, *args: typing.Any, **kwargs: typing.Any
+    ) -> types.SimpleNamespace:
+        await asyncio.sleep(self.heartbeat_time)
+        return self._mtmount_evt_mirror_covers_system_state
+
+    async def mtmount_cmd_close_mirror_covers(
+        self, *args: typing.Any, **kwargs: typing.Any
+    ) -> None:
+        asyncio.create_task(self._mtmount_cmd_close_mirror_covers())
+
+    async def _mtmount_cmd_close_mirror_covers(self) -> None:
+        self._mtmount_evt_mirror_covers_lock_motion_state.state = (
+            xml.enums.MTMount.DeployableMotionState.RETRACTING
+        )
+        await asyncio.sleep(self.heartbeat_time)
+        self._mtmount_evt_mirror_covers_lock_motion_state.state = (
+            xml.enums.MTMount.DeployableMotionState.RETRACTED
+        )
+        await asyncio.sleep(self.heartbeat_time)
+        self._mtmount_evt_mirror_covers_motion_state.state = (
+            self._mtmount_mirror_cover_final_closed_state
+        )
+        await asyncio.sleep(self.heartbeat_time)
+        self._mtmount_evt_mirror_covers_motion_state.state = (
+            xml.enums.MTMount.DeployableMotionState.DEPLOYED
+        )
+
+    async def mtmount_cmd_open_mirror_covers(
+        self, *args: typing.Any, **kwargs: typing.Any
+    ) -> None:
+        asyncio.create_task(self._mtmount_cmd_open_mirror_covers())
+
+    async def _mtmount_cmd_open_mirror_covers(self) -> None:
+        self._mtmount_evt_mirror_covers_motion_state.state = (
+            xml.enums.MTMount.DeployableMotionState.RETRACTING
+        )
+        await asyncio.sleep(self.heartbeat_time)
+        self._mtmount_evt_mirror_covers_motion_state.state = (
+            self._mtmount_mirror_cover_final_opened_state
+        )
+        self._mtmount_evt_mirror_covers_lock_motion_state.state = (
+            xml.enums.MTMount.DeployableMotionState.DEPLOYING
+        )
+        await asyncio.sleep(self.heartbeat_time)
+        self._mtmount_evt_mirror_covers_lock_motion_state.state = (
+            xml.enums.MTMount.DeployableMotionState.DEPLOYED
+        )
+        await asyncio.sleep(self.heartbeat_time)
+
     async def _mtrotator_move(self, position: float) -> None:
         self._mtrotator_evt_in_position.inPosition = False
 
@@ -426,11 +543,11 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
 
     async def _mtrotator_stop(self) -> None:
         self._mtrotator_evt_controller_state.enabledSubstate = (
-            idl.enums.MTRotator.EnabledSubstate.CONSTANT_VELOCITY
+            xml.enums.MTRotator.EnabledSubstate.CONSTANT_VELOCITY
         )
         await asyncio.sleep(1.0)
         self._mtrotator_evt_controller_state.enabledSubstate = (
-            idl.enums.MTRotator.EnabledSubstate.STATIONARY
+            xml.enums.MTRotator.EnabledSubstate.STATIONARY
         )
 
     async def mtrotator_tel_rotation_next(
@@ -460,6 +577,70 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
         self, *args: typing.Any, **kwargs: typing.Any
     ) -> types.SimpleNamespace:
         return self._mtdome_tel_light_wind_screen
+
+    async def mtdome_cmd_park(self, timeout: float) -> None:
+        asyncio.create_task(self._mtdome_park())
+
+    async def _mtdome_park(self) -> None:
+        # Mock implementation of cmd_park
+        await asyncio.sleep(self.heartbeat_time)
+        self.log.info("Dome park command executed")
+        self._mtdome_evt_az_motion = types.SimpleNamespace(
+            state=MTDome.MotionState.PARKED, inPosition=True
+        )
+
+        self._mtdome_tel_azimuth = types.SimpleNamespace(
+            positionActual=360.0 - 32.0,  # as per current logic in MTDome
+            # do_park: 360.0 - DOME_AZIMUTH_OFFSET
+            positionCommanded=0.0,
+        )
+
+    async def mtdome_cmd_move_az(self, *args: typing.Any, **kwargs: typing.Any) -> None:
+        asyncio.create_task(self._mtdome_move_az())
+
+    async def _mtdome_move_az(self, *args: typing.Any, **kwargs: typing.Any) -> None:
+        # Mock implementation of dome park , unpark and slew_dome_to
+        self.log.info("Dome moveAz command executed")
+        await asyncio.sleep(self.heartbeat_time * 2)
+        # This wait time and Dome MotionSate MOVING is to mock the
+        # test_unpark_dome
+        self._mtdome_evt_az_motion = types.SimpleNamespace(
+            state=MTDome.MotionState.MOVING, inPosition=False
+        )
+
+        # The following delay is timed so that the MOVING state above
+        # remains long enough for the test_unpark_dome to pick it
+        # up and complete successfully. Same wise the test_slew_dome_to
+        # expects at some point an ENABLED and inPosition.
+        await asyncio.sleep(self.heartbeat_time * 3)
+        self.log.info("Slew dome to azimuth command executed")
+        self._mtdome_evt_az_motion = types.SimpleNamespace(
+            state=MTDome.MotionState.ENABLED, inPosition=True
+        )
+
+    async def mtdome_evt_az_motion_next(
+        self, *args: typing.Any, **kwargs: typing.Any
+    ) -> types.SimpleNamespace:
+        await asyncio.sleep(self.heartbeat_time * 3)
+        return self._mtdome_evt_az_motion
+
+    async def mtdome_cmd_stop(self, *args: typing.Any, **kwargs: typing.Any) -> None:
+        asyncio.create_task(self._mtdome_stop())
+
+    async def _mtdome_stop(self) -> None:
+        self.log.info("Stopping dome.")
+        self._mtdome_evt_az_motion.state = xml.enums.MTDome.MotionState.STOPPING_BRAKING
+        await asyncio.sleep(self.heartbeat_time * 10)
+        self._mtdome_evt_az_motion.state = xml.enums.MTDome.MotionState.STOPPED_BRAKED
+        self.log.info("Dome stopped.")
+
+    async def mtdome_cmd_set_zero_az(
+        self, *args: typing.Any, **kwargs: typing.Any
+    ) -> None:
+        self._mtdome_tel_azimuth = types.SimpleNamespace(
+            positionActual=0.0,
+            positionCommanded=0.0,
+        )
 
     async def mtm1m3_evt_detailed_state(
         self, *args: typing.Any, **kwargs: typing.Any
@@ -530,7 +711,7 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
         if (
             raise_m1m3
             and self._mtm1m3_evt_detailed_state.detailedState
-            == idl.enums.MTM1M3.DetailedState.PARKED
+            == xml.enums.MTM1M3.DetailedState.PARKED
         ):
             self._mtm1m3_raise_task = asyncio.create_task(self.execute_raise_m1m3())
         else:
@@ -547,7 +728,7 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
         # since it could change considerably from what the m1m3 actually does.
         asyncio.create_task(
             self._set_m1m3_detailed_state(
-                idl.enums.MTM1M3.DetailedState.PARKEDENGINEERING
+                xml.enums.MTM1M3.DetailedState.PARKEDENGINEERING
             )
         )
 
@@ -569,7 +750,7 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
         # simply put m1m3 in PARKED state, regardless of which engineering
         # state it was before.
         asyncio.create_task(
-            self._set_m1m3_detailed_state(idl.enums.MTM1M3.DetailedState.PARKED)
+            self._set_m1m3_detailed_state(xml.enums.MTM1M3.DetailedState.PARKED)
         )
 
     async def mtm1m3_cmd_test_hardpoint(
@@ -601,8 +782,8 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
         self, *args: typing.Any, **kwargs: typing.Any
     ) -> None:
         if self._mtm1m3_evt_detailed_state.detailedState in {
-            idl.enums.MTM1M3.DetailedState.RAISINGENGINEERING,
-            idl.enums.MTM1M3.DetailedState.RAISING,
+            xml.enums.MTM1M3.DetailedState.RAISINGENGINEERING,
+            xml.enums.MTM1M3.DetailedState.RAISING,
         }:
             self._mtm1m3_abort_raise_task = asyncio.create_task(
                 self.execute_abort_raise_m1m3()
@@ -613,12 +794,12 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
     async def execute_raise_m1m3(self) -> None:
         self.log.debug("Start raising M1M3...")
         self._mtm1m3_evt_detailed_state.detailedState = (
-            idl.enums.MTM1M3.DetailedState.RAISING
+            xml.enums.MTM1M3.DetailedState.RAISING
         )
         await asyncio.sleep(self.execute_raise_lower_m1m3_time)
         self.log.debug("Done raising M1M3...")
         self._mtm1m3_evt_detailed_state.detailedState = (
-            idl.enums.MTM1M3.DetailedState.ACTIVE
+            xml.enums.MTM1M3.DetailedState.ACTIVE
         )
 
     async def mtm1m3_cmd_lower_m1m3(
@@ -629,7 +810,7 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
         if (
             lower_m1m3
             and self._mtm1m3_evt_detailed_state.detailedState
-            == idl.enums.MTM1M3.DetailedState.ACTIVE
+            == xml.enums.MTM1M3.DetailedState.ACTIVE
         ):
             self._mtm1m3_lower_task = asyncio.create_task(self.execute_lower_m1m3())
         else:
@@ -640,12 +821,12 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
     async def execute_lower_m1m3(self) -> None:
         self.log.debug("Start lowering M1M3...")
         self._mtm1m3_evt_detailed_state.detailedState = (
-            idl.enums.MTM1M3.DetailedState.LOWERING
+            xml.enums.MTM1M3.DetailedState.LOWERING
         )
         await asyncio.sleep(self.execute_raise_lower_m1m3_time)
         self.log.debug("Done lowering M1M3...")
         self._mtm1m3_evt_detailed_state.detailedState = (
-            idl.enums.MTM1M3.DetailedState.PARKED
+            xml.enums.MTM1M3.DetailedState.PARKED
         )
 
     async def execute_abort_raise_m1m3(self) -> None:
@@ -655,12 +836,12 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
 
         self.log.debug("Set m1m3 detailed state to lowering...")
         self._mtm1m3_evt_detailed_state.detailedState = (
-            idl.enums.MTM1M3.DetailedState.LOWERING
+            xml.enums.MTM1M3.DetailedState.LOWERING
         )
         await asyncio.sleep(self.execute_raise_lower_m1m3_time)
         self.log.debug("M1M3 raise task done, set detailed state to parked...")
         self._mtm1m3_evt_detailed_state.detailedState = (
-            idl.enums.MTM1M3.DetailedState.PARKED
+            xml.enums.MTM1M3.DetailedState.PARKED
         )
 
     async def mtm1m3_cmd_enable_hardpoint_corrections(
@@ -684,7 +865,7 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
             )
 
     async def _set_m1m3_detailed_state(
-        self, detailed_state: idl.enums.MTM1M3.DetailedState
+        self, detailed_state: xml.enums.MTM1M3.DetailedState
     ) -> None:
         self.log.debug(
             f"M1M3 detailed state: {self._mtm1m3_evt_detailed_state.detailedState!r} -> {detailed_state!r}"
@@ -694,8 +875,8 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
 
     async def _mtm1m3_cmd_test_hardpoint(self, hp: int) -> None:
         hp_test_status = [
-            idl.enums.MTM1M3.HardpointTest.TESTINGPOSITIVE,
-            idl.enums.MTM1M3.HardpointTest.TESTINGNEGATIVE,
+            xml.enums.MTM1M3.HardpointTest.TESTINGPOSITIVE,
+            xml.enums.MTM1M3.HardpointTest.TESTINGNEGATIVE,
             self.desired_hp_test_final_status,
         ]
 
@@ -708,10 +889,10 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
         self, actuator_id: int, test_primary: bool, test_secondary: bool
     ) -> None:
         bump_test_states = [
-            idl.enums.MTM1M3.BumpTest.TESTINGPOSITIVE,
-            idl.enums.MTM1M3.BumpTest.TESTINGPOSITIVEWAIT,
-            idl.enums.MTM1M3.BumpTest.TESTINGNEGATIVE,
-            idl.enums.MTM1M3.BumpTest.TESTINGNEGATIVEWAIT,
+            xml.enums.MTM1M3.BumpTest.TESTINGPOSITIVE,
+            xml.enums.MTM1M3.BumpTest.TESTINGPOSITIVEWAIT,
+            xml.enums.MTM1M3.BumpTest.TESTINGNEGATIVE,
+            xml.enums.MTM1M3.BumpTest.TESTINGNEGATIVEWAIT,
         ]
 
         if test_primary:
@@ -921,6 +1102,31 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
             self.execute_hexapod_offset(hexapod=1, **kwargs)
         )
         await asyncio.sleep(self.short_process_time)
+
+    async def mtaos_cmd_offset_dof(
+        self, *args: typing.Any, **kwargs: typing.Any
+    ) -> None:
+        self.log.info(f"{kwargs=}")
+        await self.mtcs.rem.mthexapod_1.cmd_move.set_start(
+            x=kwargs["data"].value[6],
+            y=kwargs["data"].value[7],
+            z=kwargs["data"].value[5],
+            u=kwargs["data"].value[8],
+            v=kwargs["data"].value[9],
+            w=0,
+            sync=True,
+            timeout=kwargs["timeout"],
+        )
+        await self.mtcs.rem.mthexapod_2.cmd_move.set_start(
+            x=kwargs["data"].value[1],
+            y=kwargs["data"].value[2],
+            z=kwargs["data"].value[0],
+            u=kwargs["data"].value[3],
+            v=kwargs["data"].value[4],
+            w=0,
+            sync=True,
+            timeout=kwargs["timeout"],
+        )
 
     async def mthexapod_2_cmd_offset(
         self, *args: typing.Any, **kwargs: typing.Any

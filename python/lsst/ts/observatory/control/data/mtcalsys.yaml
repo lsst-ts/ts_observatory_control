@@ -2,26 +2,16 @@
 # Created 2024-07-15
 
 whitelight_u:
-  calib_type: WhiteLight
-  use_camera: true
   mtcamera_filter: u
   led_name: 
     - M385L3
   wavelength: 385.0
   led_location: 210.21
   led_focus: 50.68
-  use_electrometer: true
-  use_fiberspectrograph_red: true
-  use_fiberspectrograph_blue: true
-  electrometer_integration_time: 0.1
-  electrometer_mode: CURRENT
-  electrometer_range: -1
   exposure_times:
     - 15.0
 
 whitelight_g:
-  calib_type: WhiteLight
-  use_camera: true
   mtcamera_filter: g
   led_name:
     - M455L4
@@ -29,37 +19,20 @@ whitelight_g:
   wavelength: 480.0
   led_location: 9.15
   led_focus: 17.029
-  use_electrometer: true
-  use_fiberspectrograph_red: true
-  use_fiberspectrograph_blue: true
-  electrometer_integration_time: 0.1
-  electrometer_mode: CURRENT
-  electrometer_range: -1
   exposure_times:
     - 15.0
 
 whitelight_r:
-  calib_type: WhiteLight
-  use_camera: true
-  mtcamera_filter: r
   led_name:
     - M565L3
     - M660L4
   wavelength: 612.5
   led_location: 70.40
   led_focus: 16.279
-  use_electrometer: true
-  use_fiberspectrograph_red: true
-  use_fiberspectrograph_blue: true
-  electrometer_integration_time: 0.1
-  electrometer_mode: CURRENT
-  electrometer_range: -1
   exposure_times:
     - 15.0
 
 whitelight_i:
-  calib_type: WhiteLight
-  use_camera: true
   mtcamera_filter: i
   led_name:
     - M730L5
@@ -67,18 +40,10 @@ whitelight_i:
   wavelength: 755.0
   led_location: 237.36
   led_focus: 15.829
-  use_electrometer: true
-  use_fiberspectrograph_red: true
-  use_fiberspectrograph_blue: true
-  electrometer_integration_time: 0.1
-  electrometer_mode: CURRENT
-  electrometer_range: -1
   exposure_times:
     - 15.0
 
 whitelight_z:
-  calib_type: WhiteLight
-  use_camera: true
   mtcamera_filter: z
   led_name:
     - M850L3
@@ -86,35 +51,21 @@ whitelight_z:
   wavelength: 895.0
   led_location: 299.034
   led_focus: 15.505
-  use_electrometer: true
-  use_fiberspectrograph_red: true
-  use_fiberspectrograph_blue: true
-  electrometer_integration_time: 0.1
-  electrometer_mode: CURRENT
-  electrometer_range: -1
   exposure_times:
     - 15.0
 
 whitelight_y:
-  calib_type: WhiteLight
-  use_camera: true
   mtcamera_filter: y
   led_name:
     - M970L4
   wavelength: 970.0
-  led_location: 174.91
-  led_focus: 15.380
-  use_electrometer: true
-  use_fiberspectrograph_red: true
-  use_fiberspectrograph_blue: true
-  electrometer_integration_time: 0.1
-  electrometer_mode: CURRENT
-  electrometer_range: -1
   exposure_times:
     - 15.0
 
 scan_r:
   calib_type: Mono
+  laser_mode: 1
+  optical_configuration: F1_SCU
   use_camera: true
   mtcamera_filter: r
   led_location: 174.91
@@ -122,11 +73,17 @@ scan_r:
   wavelength: 625.0
   wavelength_width: 250
   wavelength_resolution: 5.0
-  use_electrometer: true
-  use_fiberspectrograph_red: true
-  use_fiberspectrograph_blue: true
-  electrometer_integration_time: 0.1
-  electrometer_mode: CURRENT
-  electrometer_range: -1
+  exposure_times:
+    - 15.0
+
+laser_functional:
+  calib_type: Mono
+  laser_mode: 1
+  use_camera: false
+  optical_configuration: SCU
+  wavelength: 500.0
+  use_electrometer: false
+  use_fiberspectrograph_red: false
+  use_fiberspectrograph_blue: false
   exposure_times:
     - 15.0

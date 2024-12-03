@@ -1,0 +1,6 @@
+Add feature to allow ``ATCalSys`` to skip monochromator configuration. 
+
+- In ``atcalsys_schema.yaml``, add default values for wavelength, entrace_slit and exit_slit. 
+  Add option to set monochromator_grating to None to skip monchromator configuration and set None as default value.
+- In ``atcalsys.py``, add feature to skip configuring monochromator if monchromator_grating is None.
+- In ``atcalsys.yaml``, update monochromator configuration values for ptc curves to skip monchromator configuration.

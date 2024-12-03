@@ -1,0 +1,142 @@
+$schema: http://json-schema.org/draft-07/schema#
+$id: https://github.com/lsst-ts/ts_observatory_control/blob/develop/python/lsst/ts/observatory/control/data/atcalsys_schema.yaml
+title: Configuration file validation schema of Auxiliary Telescope Calibration System
+type: object
+properties:
+  calib_type:
+    description: >-
+      Type of flat field calibration. There are two types, `Whitelight` for
+      broad spectrum light and `Mono` for monochromatic.
+    type: string
+    enum:
+      - Mono
+      - WhiteLight
+    default: WhiteLight
+  use_camera:
+    description: Indicates whether the operation requires a camera.
+    type: boolean
+    default: true
+  atspec_filter:
+    description: Name of the filter to select for the spectrograph.
+    type: string
+    default: SDSSr_65mm
+  atspec_grating:
+    description: Name of the grating to select for the spectrograph.
+    type: string
+    default: empty_1
+  wavelength:
+    description: >-
+      Center wavelength value in nm, used for configuring the monochromator
+      output.
+    type: number
+    default: 500.0
+  wavelength_width:
+    description: >-
+      Optional. Defines the width of the wavelength scan range to configure the
+      monochromator for the flat-field calibration sequence when using
+      monochromatic light.
+    type: number
+    default: 0.0
+  wavelength_resolution:
+    description: >-
+      Optional. When using a monochromatic light source, it defines the
+      resolution used to sample values within the scan range, which has a width
+      defined by `wavelength_width` and is centered around the `wavelength`
+      attribute.
+    type: number
+    default: 5.0
+  monochromator_grating:
+    description: >-
+      Select the grating of the monochromator that will be in the path of
+      light.
+    type:
+      - string
+      - "null"
+    enum:
+      - MIRROR
+      - RED
+      - BLUE
+      - null
+    default: null
+  exit_slit:
+    description: >-
+      Exit slit width for the monochromator, from 0 to 7 mm (inclusive).
+    type: number
+    default: 7.0
+  entrance_slit:
+    description: >-
+      Entrance slit width for the monochromator, from 0 to 7mm (inclusive).
+    type: number
+    default: 7.0
+  electrometer_integration_time:
+    description: >-
+      Integration time in seconds (166.67e-6 to 200e-3) for each sample.
+
+      The integration time (measurement speed) of the analog to digital (A/D)
+      converter, the period of time the input signal is measured (also known as
+      aperture). Due to the time it takes to read the buffer and process the
+      data, this is not the rate at which samples are taken. This is generally
+      specified by the Power Line Cycle (PLC), where 1 PLC for 60Hz is
+      16.67msec. Fast integration=0.01PLC; Medium integration=0.1PLC; Normal
+      (default) integration = 1PLC; High Accuracy integration=10PLC. Here the
+      integration is set in seconds.
+    type: number
+    default: 0.1
+  electrometer_mode:
+    description: >-
+      Set electrometer to use different modes. The units recorded will be Amps
+      for `CURRENT`, Volts for `VOLTAGE`, Coulombs for `CHARGE`, and Ohms for
+      `RESISTANCE`.
+    type: string
+    enum:
+      - CURRENT
+      - CHARGE
+      - VOLTAGE
+      - RESISTANCE
+    default: CURRENT
+  electrometer_range:
+    description: >-
+      Set measurement range, which effects the accuracy of measurements and the
+      max signal that can be measured. The maximum input signal is 105% of the
+      measurement range. It will set the value for the current mode selected.
+      Auto-range will automatically go to the most sensitive (optimized) range
+      to make measurements. It is recommended to use autorange. When the
+      measurement range is changed, a zero correction will be performed.
+
+      -1 for automatic range. Volts range from 0 to 210 Volts, Current range
+      from 0 to 21e-3 Amps, Resistance from 0 to 100e18 Ohms, Charge from 0 to
+      +2.1e-6 Coulombs.
+    type: number
+    default: -1
+  use_fiberspectrograph:
+    description: >-
+      Identifies if the fiberspectrograph will be used in the exposure.
+    type: boolean
+    default: true
+  use_electrometer:
+    description: >-
+      Identifies if the electrometer will be used in the exposure.
+    type: boolean
+    default: true
+  exposure_times:
+    description: >-
+      List of Camera exposure times, in secs
+    type: array
+    items:
+      type: number
+required:
+- calib_type
+- use_camera
+- atspec_filter
+- atspec_grating
+- wavelength
+- monochromator_grating
+- exit_slit
+- entrance_slit
+- electrometer_integration_time
+- electrometer_mode
+- electrometer_range
+- use_fiberspectrograph
+- use_electrometer
+- exposure_times
+additionalProperties: false

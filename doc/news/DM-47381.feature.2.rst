@@ -1,0 +1,6 @@
+Add the following to MTCSUsages.All:
+- mirrorCoversMotionState
+- compensationMode
+- m1m3 events
+- mirrorCoversSystemState
+- mirrorCoversLocksMotionState

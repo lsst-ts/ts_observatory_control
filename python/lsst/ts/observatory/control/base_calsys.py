@@ -26,6 +26,7 @@ import abc
 import logging
 import typing
 
+import jsonschema
 import yaml
 from lsst.ts import salobj
 from lsst.ts.xml.enums.Electrometer import UnitToRead
@@ -186,22 +187,43 @@ class BaseCalsys(RemoteGroup, metaclass=abc.ABCMeta):
     def load_calibration_config_file(self, filename: str | None = None) -> None:
         """Load the calibration configuration file.
 
-        By default it will determine the filename based on
-        the class name. However, it is possible to provide
-        an override with the full file name.
+        By default it will determine the filename based on the class
+        name. However, it is possible to provide an override with the
+        full file name.
+
+        It performs schema validation of the calibration configuration
+        file against the corresponding schema validation YAML file. The
+        schema file must be present and should be named with the class
+        name followed by the '_schema' suffix. If the validation fails,
+        an exception is raised.
 
         Parameters
         ----------
         filename : `str`, optional
-            Alternative file name with the calibration
-            configuration file.
+            Alternative file name with the calibration configuration
+            file.
+
+        Raises
+        ------
+        FileNotFoundError:
+            If the calibration configuration file or the schema
+            validation file doesn't exist.
+
+        RuntimeError:
+            If the validation of the calibration configuration file
+            fails.
+
         """
 
+        base_name = type(self).__name__.lower()
+
         data_path = (
-            (get_data_path() / f"{type(self).__name__.lower()}.yaml").as_posix()
+            (get_data_path() / f"{base_name}.yaml").as_posix()
             if filename is None
             else filename
         )
+
+        schema_path = (get_data_path() / f"{base_name}_schema.yaml").as_posix()
 
         if len(self.calibration_config) > 0:
             self.log.warning(
@@ -211,6 +233,32 @@ class BaseCalsys(RemoteGroup, metaclass=abc.ABCMeta):
 
         with open(data_path, "r") as f:
             self.calibration_config = yaml.safe_load(f)
+
+        with open(schema_path, "r") as f:
+            config_validator = salobj.DefaultingValidator(schema=yaml.safe_load(f))
+
+        validation_errors = ""
+        log_defaults = ""
+        for item in self.calibration_config:
+            config_original = dict(self.calibration_config[item])
+            try:
+                self.calibration_config[item] = config_validator.validate(
+                    self.calibration_config[item]
+                )
+            except jsonschema.ValidationError as e:
+                validation_errors += f"\t{item} failed validation: {e.message}.\n"
+                self.log.exception(f"{item} failed validation.")
+            config_with_defaults = self.calibration_config[item]
+            defaulted_attributes = set(config_with_defaults) - set(config_original)
+            log_defaults += f"\n{item}:\n" + "\n".join(
+                f"    {attr}: {config_with_defaults[attr]}"
+                for attr in defaulted_attributes
+            )
+        if validation_errors:
+            raise RuntimeError(
+                f"Failed schema validation:\n{validation_errors}Check logs for more information."
+            )
+        self.log.debug(f"\n=== Applied Default Values ===\n{log_defaults}\n")
 
     def get_calibration_configuration(self, name: str) -> dict[str, typing.Any]:
         """Returns the configuration attributes given a configuration

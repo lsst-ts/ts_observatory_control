@@ -6,7 +6,6 @@ setupRequired(sconsUtils)
 setupRequired(ts_utils)
 setupRequired(ts_salobj)
 setupRequired(ts_idl)
-setupRequired(ts_criopy)
 
 envPrepend(PATH, ${PRODUCT_DIR}/bin)
 

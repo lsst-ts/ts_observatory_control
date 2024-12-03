@@ -31,13 +31,9 @@ import astropy.units as u
 import numpy as np
 from astropy.coordinates import Angle
 from lsst.ts import salobj, utils
-from lsst.ts.idl.enums import MTM1M3, MTM2, MTPtg, MTRotator
 from lsst.ts.utils import angle_diff
-
-try:
-    from lsst.ts.xml.tables.m1m3 import FATable
-except ImportError:
-    from lsst.ts.criopy.M1M3FATable import FATABLE as FATable
+from lsst.ts.xml.enums import MTM1M3, MTM2, MTDome, MTMount, MTPtg, MTRotator
+from lsst.ts.xml.tables.m1m3 import FATable
 
 from ..base_tcs import BaseTCS
 from ..constants import mtcs_constants
@@ -128,26 +124,48 @@ class MTCS(BaseTCS):
 
         self.open_dome_shutter_time = 1200.0
         self.timeout_hardpoint_test_status = 600.0
+        # There is a race condition when commanding the mount
+        # to a new target, which is the time it takes for it
+        # to start moving after we send the command to the pointing.
+        # This timeout expresses how long to wait when handling this
+        # race condition.
+        self.mtmount_race_condition_timeout = 3.0
+        # Similar to the mtmount_race_condition_timeout, this is
+        # used to check the in position event race condition for
+        # the hexapod when checking if it is ready to take data.
+        self.hexapod_ready_to_take_data_timeout = 0.5
+        # Similar to the mtmount_race_condition_timeout, this is
+        # used to check the in position event race condition for
+        # the rotator when checking if it is in position.
+        self.mtrotator_race_condition_timeout = 3.0
 
         self.tel_park_el = 80.0
         self.tel_park_az = 0.0
         self.tel_flat_el = 39.0
         self.tel_flat_az = 205.7
         self.tel_settle_time = 3.0
+        self.tel_operate_mirror_covers_el = 70.0
 
         self.dome_park_az = 285.0
         self.dome_park_el = 80.0
         self.dome_flat_az = 20.0
         self.dome_flat_el = self.dome_park_el
         self.dome_slew_tolerance = Angle(1.5 * u.deg)
+        self.home_dome_az = 328.0
+
+        # TODO (DM-45609): This is an initial guess for the time it takes the
+        #  dome to park. It might need updating.
+        self.park_dome_timeout = 600
 
         self._dome_az_in_position: typing.Union[None, asyncio.Event] = None
         self._dome_el_in_positio: typing.Union[None, asyncio.Event] = None
 
+        self.dome_az_unpark_offset = 0.1  # A small move to un-park the Dome
+
         # timeout to raise m1m3, in seconds.
         self.m1m3_raise_timeout = 600.0
         # time it takes for m1m3 to settle after a slew finishes.
-        self.m1m3_settle_time = 2.0
+        self.m1m3_settle_time = 0.0
 
         # Tolerance on the stability of the balance force magnitude
         self.m1m3_force_magnitude_stable_tolerance = 50.0
@@ -158,6 +176,9 @@ class MTCS(BaseTCS):
         self._m1m3_actuator_id_sindex_table: dict[int, int] = dict(
             [(fa.actuator_id, fa.s_index) for fa in FATable if fa.s_index is not None]
         )
+
+        # Mirror covers operation timeout, in seconds.
+        self.mirror_covers_timeout = 120.0
 
         try:
             self._create_asyncio_events()
@@ -226,7 +247,7 @@ class MTCS(BaseTCS):
 
         assert self._dome_az_in_position is not None
 
-        _check = self.check if check is None else check
+        _check = copy.copy(self.check) if check is None else copy.copy(check)
 
         ccw_following = await self.rem.mtmount.evt_cameraCableWrapFollowing.aget(
             timeout=self.fast_timeout
@@ -274,6 +295,14 @@ class MTCS(BaseTCS):
         )
 
         async with self.m1m3_booster_valve():
+            for comp in self.components_attr:
+                if getattr(_check, comp):
+                    self.log.debug(f"Checking state of {comp}.")
+                    getattr(self.rem, comp).evt_summaryState.flush()
+                    self.scheduled_coro.append(
+                        asyncio.create_task(self.check_component_state(comp))
+                    )
+
             await slew_cmd.start(timeout=slew_timeout)
             self._dome_az_in_position.clear()
             if offset_cmd is not None:
@@ -289,13 +318,6 @@ class MTCS(BaseTCS):
                 )
             )
             self.scheduled_coro.append(asyncio.create_task(self.monitor_position()))
-
-            for comp in self.components_attr:
-                if getattr(_check, comp):
-                    getattr(self.rem, comp).evt_summaryState.flush()
-                    self.scheduled_coro.append(
-                        asyncio.create_task(self.check_component_state(comp))
-                    )
 
             await self.process_as_completed(self.scheduled_coro)
 
@@ -491,12 +513,14 @@ class MTCS(BaseTCS):
                 timeout=timeout,
                 settle_time=0.0,
                 component_name="MTMount elevation",
+                race_condition_timeout=self.mtmount_race_condition_timeout,
             ),
             self._handle_in_position(
                 self.rem.mtmount.evt_azimuthInPosition,
                 timeout=timeout,
                 settle_time=0.0,
                 component_name="MTMount azimuth",
+                race_condition_timeout=self.mtmount_race_condition_timeout,
             ),
         )
 
@@ -508,9 +532,9 @@ class MTCS(BaseTCS):
         Parameters
         ----------
         timeout: `float`
-            How to to wait for mount to be in position (in seconds).
+            How to wait for mount to be in position (in seconds).
         wait_settle: `bool`
-            After receiving the in position command add an addional settle
+            After receiving the in position command, add an additional settle
             wait? (default: True)
 
         Returns
@@ -560,8 +584,9 @@ class MTCS(BaseTCS):
         return await self._handle_in_position(
             self.rem.mtrotator.evt_inPosition,
             timeout=timeout,
-            settle_time=self.tel_settle_time,
+            settle_time=0.0,
             component_name="MTRotator",
+            race_condition_timeout=self.mtrotator_race_condition_timeout,
         )
 
     async def dome_az_in_position(self) -> str:
@@ -579,6 +604,140 @@ class MTCS(BaseTCS):
         await self._dome_el_in_position.wait()
         return "Dome elevation in position."
 
+    async def wait_for_dome_state(
+        self,
+        expected_states: set[MTDome.MotionState],
+        bad_states: set[MTDome.MotionState],
+        timeout: float,
+        check_in_position: bool = False,
+    ) -> None:
+        """Wait for a specific dome state.
+
+        Parameters
+        ----------
+        expected_states : set[MTDome.MotionState]
+            Valid states to transition into while un-parking.
+        bad_states : set[MTDome.MotionState]
+            States that are not allowed while un-parking and should raise an
+            error.
+        timeout : float
+            Maximum time to wait for the correct state.
+
+        Raises
+        ------
+        RuntimeError
+            If a bad state is encountered or the expected state is not reached
+             in time.
+        """
+
+        def dome_ready(az_motion: salobj.type_hints.BaseMsgType) -> bool:
+            return (
+                az_motion.state in expected_states and az_motion.inPosition
+                if check_in_position
+                else az_motion.state in expected_states
+            )
+
+        az_motion = await self.rem.mtdome.evt_azMotion.aget(timeout=timeout)
+
+        while not dome_ready(az_motion):
+            az_motion = await self.rem.mtdome.evt_azMotion.next(
+                Flush=False, timeout=timeout
+            )
+
+            if az_motion.state in bad_states:
+                raise RuntimeError(
+                    f"Dome transitioned to an invalid state: {MTDome.MotionState(az_motion.state).name}"
+                )
+
+            self.log.debug(
+                f"Dome state: {MTDome.MotionState(az_motion.state).name}, inPosition: {az_motion.inPosition}"
+            )
+
+    async def park_dome(self) -> None:
+        """Park the dome by moving it to the park azimuth."""
+        self.log.info("Parking dome")
+
+        await self.assert_all_enabled(
+            message="All components need to be enabled for parking the Dome."
+        )
+
+        # check first if Dome is already in PARKED state
+        az_motion = await self.rem.mtdome.evt_azMotion.aget(timeout=self.fast_timeout)
+
+        if az_motion.state == MTDome.MotionState.PARKED:
+            self.log.info("Dome is already in PARKED state.")
+        else:
+            self.rem.mtdome.evt_azMotion.flush()
+
+            await self.rem.mtdome.cmd_park.start(timeout=self.long_timeout)
+
+            # Define expected and bad states for parking
+            expected_states = {MTDome.MotionState.PARKED}
+            bad_states = {
+                MTDome.MotionState.ERROR,
+                MTDome.MotionState.UNDETERMINED,
+                MTDome.MotionState.DISABLED,
+                MTDome.MotionState.DISABLING,
+            }
+
+            self.log.info("Waiting for dome to reach the PARKED state.")
+
+            await self.wait_for_dome_state(
+                expected_states,
+                bad_states,
+                timeout=self.park_dome_timeout,
+                check_in_position=True,
+            )
+
+    async def unpark_dome(self) -> None:
+        """Un-Park the dome by moving it a small delta amount."""
+
+        await self.assert_all_enabled(
+            message="All components need to be enabled for un-parking the Dome."
+        )
+
+        self.log.debug("Checking if the dome is currently PARKED.")
+        az_motion = await self.rem.mtdome.evt_azMotion.aget(timeout=self.fast_timeout)
+
+        if az_motion.state == MTDome.MotionState.PARKED:
+            self.log.info("Dome is currently PARKED. Proceeding to un-park.")
+
+            current_position = await self.rem.mtdome.tel_azimuth.aget(
+                timeout=self.fast_timeout
+            )
+
+            unparked_position = (
+                current_position.positionActual + self.dome_az_unpark_offset
+            )
+
+            self.rem.mtdome.evt_azMotion.flush()
+
+            # We don't specify the dome velocity as it defaults to
+            # zero, which is what we want.
+            await self.rem.mtdome.cmd_moveAz.set_start(
+                position=unparked_position,
+                timeout=self.park_dome_timeout,
+            )
+
+            # Define expected and bad states for parking
+            expected_states = {MTDome.MotionState.MOVING, MTDome.MotionState.CRAWLING}
+            bad_states = {
+                MTDome.MotionState.ERROR,
+                MTDome.MotionState.UNDETERMINED,
+                MTDome.MotionState.DISABLED,
+                MTDome.MotionState.DISABLING,
+                MTDome.MotionState.PARKED,
+                MTDome.MotionState.PARKING,
+            }
+
+            self.log.info("Waiting for dome to reach the PARKED state.")
+
+            await self.wait_for_dome_state(
+                expected_states, bad_states, timeout=self.park_dome_timeout
+            )
+        else:
+            self.log.info("Dome is not in PARKED state. No need to un-park.")
+
     def set_azel_slew_checks(self, wait_dome: bool) -> typing.Any:
         """Handle azEl slew to wait or not for the dome.
 
@@ -593,8 +752,8 @@ class MTCS(BaseTCS):
             Reformated check namespace.
         """
         check = copy.copy(self.check)
-        check.mtdome = wait_dome
-        check.mtdometrajectory = wait_dome
+        check.mtdome = wait_dome and self.check.mtdome
+        check.mtdometrajectory = wait_dome and self.check.mtdometrajectory
         return check
 
     async def slew_dome_to(self, az: float, check: typing.Any = None) -> None:
@@ -608,28 +767,339 @@ class MTCS(BaseTCS):
             Override `self.check` for defining which resources are used.
 
         """
-        # TODO: Implement (DM-21336).
-        raise NotImplementedError("# TODO: Implement (DM-21336).")
+        self.log.info(f"Slewing MT dome to position az = {az}.")
+        await self.assert_all_enabled()
+
+        await self.disable_dome_following(check)
+
+        self.rem.mtdome.evt_azMotion.flush()
+
+        target_az = Angle(az, unit=u.deg).deg
+        await self.rem.mtdome.cmd_moveAz.set_start(
+            position=target_az, velocity=0.0, timeout=self.long_long_timeout
+        )
+
+        # Wait for MT Dome to reach final position
+        await self._handle_in_position(
+            self.rem.mtdome.evt_azMotion,
+            timeout=self.fast_timeout,
+            settle_time=self.tel_settle_time,
+            component_name="MTDome",
+        )
 
     async def close_dome(self) -> None:
         # TODO: Implement (DM-21336).
         raise NotImplementedError("# TODO: Implement (DM-21336).")
 
     async def close_m1_cover(self) -> None:
-        # TODO: Implement (DM-21336).
-        raise NotImplementedError("# TODO: Implement (DM-21336).")
+        """Method to close mirror covers.
 
-    async def home_dome(self) -> None:
-        # TODO: Implement (DM-21336).
-        raise NotImplementedError("# TODO: Implement (DM-21336).")
+        Warnings
+        --------
+        The mirror covers should be closed when the telescope is pointing to
+        the zenith. The method will check if the telescope is in an operational
+        range and, if not, will move the telescope to an operational elevation,
+        maintaining the same azimuth before closing the mirror cover. The
+        telescope will be left in that same position in the end.
+
+        Raises
+        ------
+        RuntimeError
+            If mirror covers state is neither DEPLOYED nor RETRACTED.
+            If mirror system state is FAULT.
+        """
+
+        self.rem.mtmount.evt_mirrorCoversMotionState.flush()
+        cover_state = await self.rem.mtmount.evt_mirrorCoversMotionState.aget(
+            timeout=self.fast_timeout
+        )
+        self.log.debug(
+            f"Cover state: {MTMount.DeployableMotionState(cover_state.state)!r}"
+        )
+
+        if cover_state.state == MTMount.DeployableMotionState.DEPLOYED:
+            self.log.info("Mirror covers already closed.")
+        elif cover_state.state == MTMount.DeployableMotionState.RETRACTED:
+            self.log.info("Closing mirror covers.")
+
+            # Mirror covers shall close at zenith pointing.
+            if not await self.in_m1_cover_operational_range():
+                await self.slew_to_m1_cover_operational_range()
+            else:
+                await self.stop_tracking()
+
+            try:
+                await self.rem.mtmount.cmd_closeMirrorCovers.start(
+                    timeout=self.long_long_timeout
+                )
+            except salobj.AckError as ack:
+
+                self.log.error(
+                    f"Closing mirror cover command failed with {ack.ack!r}::{ack.error}. "
+                    "Checking state of the system."
+                )
+                cover_state = await self.rem.mtmount.evt_mirrorCoversMotionState.aget(
+                    timeout=self.mirror_covers_timeout
+                )
+                cover_locks_state = (
+                    await self.rem.mtmount.evt_mirrorCoverLocksMotionState.aget(
+                        timeout=self.mirror_covers_timeout
+                    )
+                )
+                if (
+                    cover_state.state == MTMount.DeployableMotionState.DEPLOYED
+                    and cover_locks_state.state
+                    == MTMount.DeployableMotionState.RETRACTED
+                ):
+                    self.log.warning(
+                        f"Close mirror cover command failed {ack.ack!r}::{ack.error} "
+                        "but mirror cover in the correct state."
+                    )
+                else:
+                    cover_locks_element_state = [
+                        MTMount.DeployableMotionState(state)
+                        for state in cover_locks_state.elementsState
+                    ]
+                    cover_element_state = [
+                        MTMount.DeployableMotionState(state)
+                        for state in cover_state.elementsState
+                    ]
+                    raise RuntimeError(
+                        f"Close mirror cover command failed with {ack.ack!r}::{ack.error}. "
+                        f"Mirror cover state: {cover_element_state} expected all to be DEPLOYED. "
+                        f"Mirror cover locks state: {cover_locks_element_state} expected all to be RETRACTED."
+                    )
+            cover_state = await self.rem.mtmount.evt_mirrorCoversMotionState.aget(
+                timeout=self.mirror_covers_timeout
+            )
+            cover_locks_state = (
+                await self.rem.mtmount.evt_mirrorCoverLocksMotionState.aget(
+                    timeout=self.mirror_covers_timeout
+                )
+            )
+            self.log.info(
+                f"Cover state: {MTMount.DeployableMotionState(cover_state.state)!r}"
+                f"Cover locks state: {MTMount.DeployableMotionState(cover_locks_state.state)!r}"
+            )
+            while cover_state.state != MTMount.DeployableMotionState.DEPLOYED:
+                cover_state = await self.rem.mtmount.evt_mirrorCoversMotionState.next(
+                    flush=False, timeout=self.mirror_covers_timeout
+                )
+                self.log.debug(
+                    f"Cover state: {MTMount.DeployableMotionState(cover_state.state)!r}"
+                )
+
+            self.log.info(
+                f"Cover state: {MTMount.DeployableMotionState(cover_state.state)!r}"
+            )
+        else:
+            raise RuntimeError(
+                f"Mirror covers in {MTMount.DeployableMotionState(cover_state.state)!r} "
+                f"state. Expected {MTMount.DeployableMotionState.RETRACTED!r} or "
+                f"{MTMount.DeployableMotionState.DEPLOYED!r}"
+            )
+
+    async def home_dome(self, physical_az: float = 0.0) -> None:
+        """Utility method to home dome.
+
+        Parameters
+        ----------
+        physical_az : `float`
+            Azimuth angle of the dome as read by markings (in deg).
+
+        """
+        self.log.info("Homing dome")
+        reported_az = await self.rem.mtdome.tel_azimuth.aget(timeout=self.fast_timeout)
+
+        offset = physical_az - reported_az.positionActual
+        self.log.debug(f"Dome azimuth offset: {offset} degrees")
+        target_az = self.home_dome_az - offset
+        await self.slew_dome_to(target_az)
+
+        self.rem.mtdome.evt_azMotion.flush()
+
+        await self.rem.mtdome.cmd_stop.set_start(
+            engageBrakes=True,
+            subSystemIds=MTDome.SubSystemId.AMCS,
+            timeout=self.long_long_timeout,
+        )
+        motion_state = await self.rem.mtdome.evt_azMotion.aget(
+            timeout=self.fast_timeout
+        )
+        while motion_state.state != MTDome.MotionState.STOPPED_BRAKED:
+            motion_state = await self.rem.mtdome.evt_azMotion.next(
+                flush=False, timeout=self.long_long_timeout
+            )
+            self.log.debug(f"Motion state: {MTDome.MotionState(motion_state.state)!r}")
+
+        await self.rem.mtdome.cmd_setZeroAz.start(timeout=self.fast_timeout)
+        azimuth = await self.rem.mtdome.tel_azimuth.aget(timeout=self.fast_timeout)
+        self.log.debug(f"{azimuth.positionActual=}, {azimuth.positionCommanded=}")
 
     async def open_dome_shutter(self) -> None:
         # TODO: Implement (DM-21336).
         raise NotImplementedError("# TODO: Implement (DM-21336).")
 
     async def open_m1_cover(self) -> None:
-        # TODO: Implement (DM-21336).
-        raise NotImplementedError("# TODO: Implement (DM-21336).")
+        """Method to open mirror covers.
+
+        Warnings
+        --------
+        The mirror covers should be opened when the telescope is pointing to
+        the zenith. The method will check if the telescope is in an operational
+        range and, if not, will move the telescope to an operational elevation,
+        maintaining the same azimuth before opening the mirror cover. The
+        telescope will be left in that same position in the end.
+
+        Raises
+        ------
+        RuntimeError
+            If mirror covers state is neither DEPLOYED nor RETRACTED.
+            If mirror system state is FAULT.
+        """
+        self.rem.mtmount.evt_mirrorCoversMotionState.flush()
+        cover_state = await self.rem.mtmount.evt_mirrorCoversMotionState.aget(
+            timeout=self.fast_timeout
+        )
+        self.log.debug(
+            f"Cover state: {MTMount.DeployableMotionState(cover_state.state)!r}"
+        )
+
+        if cover_state.state == MTMount.DeployableMotionState.RETRACTED:
+            self.log.info("Mirror covers already opened.")
+        elif cover_state.state == MTMount.DeployableMotionState.DEPLOYED:
+            self.log.info("Opening mirror covers.")
+
+            # Mirror covers shall open at zenith pointing.
+            if not await self.in_m1_cover_operational_range():
+                await self.slew_to_m1_cover_operational_range()
+            else:
+                await self.stop_tracking()
+
+            try:
+                await self.rem.mtmount.cmd_openMirrorCovers.set_start(
+                    leaf=MTMount.MirrorCover.ALL, timeout=self.long_long_timeout
+                )
+            except salobj.AckError as ack:
+                self.log.error(
+                    f"Open mirror cover command failed with {ack.ack!r}::{ack.error}. "
+                    "Checking state of the system."
+                )
+                cover_state = await self.rem.mtmount.evt_mirrorCoversMotionState.aget(
+                    timeout=self.mirror_covers_timeout
+                )
+                cover_locks_state = (
+                    await self.rem.mtmount.evt_mirrorCoverLocksMotionState.aget(
+                        timeout=self.mirror_covers_timeout
+                    )
+                )
+                if (
+                    cover_state.state == MTMount.DeployableMotionState.RETRACTED
+                    and cover_locks_state.state
+                    == MTMount.DeployableMotionState.DEPLOYED
+                ):
+                    self.log.warning(
+                        f"Open mirror cover command failed {ack.ack!r}::{ack.error} "
+                        "but mirror cover in the correct state."
+                    )
+                else:
+                    cover_locks_element_state = [
+                        MTMount.DeployableMotionState(state)
+                        for state in cover_locks_state.elementsState
+                    ]
+                    cover_element_state = [
+                        MTMount.DeployableMotionState(state)
+                        for state in cover_state.elementsState
+                    ]
+                    raise RuntimeError(
+                        f"Open mirror cover command failed with {ack.ack!r}::{ack.error}. "
+                        f"Mirror cover state: {cover_element_state} "
+                        f"Mirror cover locks state: {cover_locks_element_state} "
+                    )
+            cover_state = await self.rem.mtmount.evt_mirrorCoversMotionState.aget(
+                timeout=self.mirror_covers_timeout
+            )
+            cover_locks_state = (
+                await self.rem.mtmount.evt_mirrorCoverLocksMotionState.aget(
+                    timeout=self.mirror_covers_timeout
+                )
+            )
+            self.log.info(
+                f"Cover state: {MTMount.DeployableMotionState(cover_state.state)!r}"
+                f"Cover locks state: {MTMount.DeployableMotionState(cover_locks_state.state)!r}"
+            )
+
+        else:
+            raise RuntimeError(
+                f"Mirror covers in {MTMount.DeployableMotionState(cover_state.state)!r} "
+                f"state. Expected {MTMount.DeployableMotionState.RETRACTED!r} or "
+                f"{MTMount.DeployableMotionState.DEPLOYED!r}"
+            )
+
+    async def slew_to_m1_cover_operational_range(self) -> None:
+        """Slew the telescope to safe range for mirror covers operation.
+
+        This method will slew the telescope to a safe elevation to perform
+        mirror covers operations. It should be used in combination with the
+        in_m1_covers_operational_range method.
+
+        """
+        self.log.debug(
+            "Slewing telescope to operational range for mirror covers operation."
+        )
+        azimuth = await self.rem.mtmount.tel_azimuth.aget(timeout=self.fast_timeout)
+        rotation_data = await self.rem.mtrotator.tel_rotation.aget(
+            timeout=self.fast_timeout
+        )
+
+        await self.point_azel(
+            target_name="Mirror covers operation",
+            az=azimuth.actualPosition,
+            el=self.tel_operate_mirror_covers_el,
+            rot_tel=rotation_data.actualPosition,
+            wait_dome=False,
+        )
+        await self.stop_tracking()
+
+    async def in_m1_cover_operational_range(self) -> bool:
+        """Check if MTMount is in safe range for mirror covers operation.
+
+        Returns
+        -------
+        elevation_in_range: `bool`
+            Returns `True` when telescope elevation is in safe range for
+            mirror covers operation.
+
+        """
+        elevation = await self.rem.mtmount.tel_elevation.aget(timeout=self.fast_timeout)
+
+        return elevation.actualPosition >= self.tel_operate_mirror_covers_el
+
+    async def park_mount(self, position: MTMount.ParkPosition) -> None:
+        """Park the TMA in the selected position.
+
+        Parameters
+        ----------
+        position : `MTMount.ParkPosition`
+            The position to park the TMA.
+        """
+
+        await self.assert_all_enabled(
+            message="All components need to be enabled for parking the TMA."
+        )
+
+        await self.rem.mtmount.cmd_park.start(
+            position=position, timeout=self.long_timeout
+        )
+
+    async def unpark_mount(self) -> None:
+        """Un-park the TMA."""
+
+        await self.assert_all_enabled(
+            message="All components need to be enabled for unparking the TMA."
+        )
+
+        await self.rem.mtmount.cmd_unpark.start(timeout=self.long_timeout)
 
     async def prepare_for_flatfield(self, check: typing.Any = None) -> None:
         # TODO: Implement (DM-21336).
@@ -653,10 +1123,14 @@ class MTCS(BaseTCS):
         """Abstract method to flush events before and offset is performed."""
         self.rem.mtmount.evt_elevationInPosition.flush()
         self.rem.mtmount.evt_azimuthInPosition.flush()
+        self.rem.mtrotator.evt_inPosition.flush()
 
     async def offset_done(self) -> None:
         """Wait for offset events."""
-        await self.wait_for_mtmount_inposition(timeout=self.tel_settle_time)
+        await asyncio.gather(
+            self.wait_for_mtmount_inposition(timeout=self.tel_settle_time),
+            self.wait_for_rotator_inposition(timeout=self.long_long_timeout),
+        )
 
     async def get_bore_sight_angle(self) -> float:
         """Get the instrument bore sight angle with respect to the telescope
@@ -923,11 +1397,14 @@ class MTCS(BaseTCS):
 
         self.log.info("Checking if the hard point breakaway test has passed.")
 
-        while True:
+        timer_task = asyncio.create_task(
+            asyncio.sleep(self.timeout_hardpoint_test_status)
+        )
+        while not timer_task.done():
             hp_test_state = MTM1M3.HardpointTest(
                 (
-                    await self.rem.mtm1m3.evt_hardpointTestStatus.next(
-                        flush=False, timeout=self.timeout_hardpoint_test_status
+                    await self.rem.mtm1m3.evt_hardpointTestStatus.aget(
+                        timeout=self.timeout_hardpoint_test_status
                     )
                 ).testState[hp - 1]
             )
@@ -939,6 +1416,16 @@ class MTCS(BaseTCS):
                 return
             else:
                 self.log.info(f"Hard point {hp} test state: {hp_test_state!r}.")
+
+            try:
+                await self.rem.mtm1m3.evt_heartbeat.next(
+                    flush=True, timeout=self.timeout_hardpoint_test_status
+                )
+            except asyncio.TimeoutError:
+                raise RuntimeError(
+                    f"No heartbeat received from M1M3 in the last {self.timeout_hardpoint_test_status}s"
+                    " while waiting for hard point data information. Check CSC liveliness."
+                )
 
     async def _wait_bump_test_ok(
         self, actuator_id: int, primary: bool, secondary: bool
@@ -1073,9 +1560,9 @@ class MTCS(BaseTCS):
                 )
             except (asyncio.TimeoutError, salobj.base.AckTimeoutError):
                 self.log.warning("Command timed out, continuing.")
-            else:
-                self.log.debug("Waiting for force balance system to settle.")
+            self.log.info("Waiting for force balance system to settle.")
             await self._wait_force_balance_system_state(enable=enable)
+            await asyncio.sleep(self.m1m3_settle_time)
         else:
             self.log.warning(
                 f"Hardpoint corrections already in desired state ({enable=}). Nothing to do."
@@ -1907,8 +2394,15 @@ class MTCS(BaseTCS):
             Should the hexapod movement be synchronized? Default True.
         """
 
-        await self.rem.mthexapod_1.cmd_offset.set_start(
-            x=x, y=y, z=z, u=u, v=v, w=w, sync=sync, timeout=self.long_timeout
+        offset_dof_data = self.rem.mtaos.cmd_offsetDOF.DataType()
+        offset_dof_data.value[5] = z
+        offset_dof_data.value[6] = x
+        offset_dof_data.value[7] = y
+        offset_dof_data.value[8] = u
+        offset_dof_data.value[9] = v
+
+        await self.rem.mtaos.cmd_offsetDOF.start(
+            data=offset_dof_data, timeout=self.long_timeout
         )
 
         await self._handle_in_position(
@@ -1950,8 +2444,15 @@ class MTCS(BaseTCS):
             Should the hexapod movement be synchronized? Default True.
         """
 
-        await self.rem.mthexapod_2.cmd_offset.set_start(
-            x=x, y=y, z=z, u=u, v=v, w=w, sync=sync, timeout=self.long_timeout
+        offset_dof_data = self.rem.mtaos.cmd_offsetDOF.DataType()
+        offset_dof_data.value[0] = z
+        offset_dof_data.value[1] = x
+        offset_dof_data.value[2] = y
+        offset_dof_data.value[3] = u
+        offset_dof_data.value[4] = v
+
+        await self.rem.mtaos.cmd_offsetDOF.start(
+            data=offset_dof_data, timeout=self.long_timeout
         )
 
         await self._handle_in_position(
@@ -2098,6 +2599,20 @@ class MTCS(BaseTCS):
     async def _ready_to_take_data(self) -> None:
         """Placeholder, still needs to be implemented."""
         # TODO: Finish implementation.
+
+        try:
+            await asyncio.gather(
+                self.wait_for_mtmount_inposition(self.long_timeout, False),
+                self._handle_in_position(
+                    in_position_event=self.rem.mthexapod_1.evt_inPosition,
+                    timeout=self.long_timeout,
+                    settle_time=0.0,
+                    component_name="Camera Hexapod",
+                    race_condition_timeout=self.hexapod_ready_to_take_data_timeout,
+                ),
+            )
+        except asyncio.TimeoutError:
+            self.log.warning("Mount, Camera Hexapod or Rotator not in position.")
 
     async def open_m1m3_booster_valve(self) -> None:
         """Open M1M3 booster valves."""
@@ -2362,8 +2877,19 @@ class MTCS(BaseTCS):
                     "elevationInPosition",
                     "azimuthInPosition",
                     "cameraCableWrapFollowing",
+                    "mirrorCoversMotionState",
+                    "mirrorCoversSystemState",
+                    "mirrorCoverLocksMotionState",
+                ],
+                mtm1m3=[
+                    "boosterValveStatus",
+                    "forceActuatorState",
+                    "detailedState",
+                    "forceControllerState",
                 ],
                 mtdome=["azimuth", "lightWindScreen"],
+                mthexapod_1=["compensationMode"],
+                mthexapod_2=["compensationMode"],
             )
 
             usages[self.valid_use_cases.Slew] = UsagesResources(

@@ -123,7 +123,6 @@ class ATCalsys(BaseCalsys):
         intended_usage: typing.Optional[int] = None,
         latiss: typing.Optional[LATISS] = None,
     ) -> None:
-
         self.electrometer_index = 201
         self.fiberspectrograph_index = 3
 
@@ -193,22 +192,29 @@ class ATCalsys(BaseCalsys):
             - float(config_data.get("wavelength_width", 0.0)) / 2.0
         )
 
-        grating_type = getattr(Grating, config_data["monochromator_grating"])
-        task_setup_monochromator = (
-            self.rem.atmonochromator.cmd_updateMonochromatorSetup.set_start(
-                wavelength=wavelength,
-                gratingType=grating_type.value,
-                fontExitSlitWidth=config_data["exit_slit"],
-                fontEntranceSlitWidth=config_data["entrance_slit"],
-                timeout=self.long_long_timeout,
-            )
-        )
-
         if self.latiss is None and config_data["use_camera"]:
             raise RuntimeError(
                 f"LATISS is not defined but {sequence_name} requires it. "
                 "Make sure you are instantiating LATISS and passing it to ATCalsys."
             )
+
+        if config_data["monochromator_grating"] is None:
+            self.log.info(
+                "Monochromator grating set to None, skipping monochromator configuration."
+            )
+            task_setup_monochromator = utils.make_done_future()
+        else:
+            grating_type = getattr(Grating, config_data["monochromator_grating"])
+            task_setup_monochromator = (
+                self.rem.atmonochromator.cmd_updateMonochromatorSetup.set_start(
+                    wavelength=wavelength,
+                    gratingType=grating_type.value,
+                    fontExitSlitWidth=config_data["exit_slit"],
+                    fontEntranceSlitWidth=config_data["entrance_slit"],
+                    timeout=self.long_long_timeout,
+                )
+            )
+
         task_setup_latiss = (
             self.latiss.setup_instrument(
                 filter=config_data["atspec_filter"],
@@ -224,11 +230,24 @@ class ATCalsys(BaseCalsys):
             integration_time=float(config_data["electrometer_integration_time"]),
         )
 
-        await asyncio.gather(
+        return_values = await asyncio.gather(
             task_setup_monochromator,
             task_setup_latiss,
             task_setup_electrometer,
+            return_exceptions=True,
         )
+        operations = ["Setup monochromator", "Setup latiss", "Setup electrometers"]
+        exceptions = [
+            (operation, value)
+            for (operation, value) in zip(operations, return_values)
+            if isinstance(value, Exception)
+        ]
+
+        if exceptions:
+            err_message = f"{len(exceptions)} out of {len(operations)} failed.\n"
+            for operation, exception in exceptions:
+                err_message += f"{operation} failed with {exception!r}.\n"
+            raise RuntimeError(err_message)
 
     async def calculate_optimized_exposure_times(
         self, wavelengths: list, config_data: dict
@@ -423,10 +442,11 @@ class ATCalsys(BaseCalsys):
             self.log.debug(
                 f"Performing {calibration_type.name} calibration with {exposure.wavelength=}."
             )
-            await self.change_wavelength(wavelength=exposure.wavelength)
+            if config_data["monochromator_grating"] is not None:
+                await self.change_wavelength(wavelength=exposure.wavelength)
             _exposure_metadata = exposure_metadata.copy()
             if "group_id" in _exposure_metadata:
-                _exposure_metadata["group_id"] += f" # {i+1}"
+                _exposure_metadata["group_id"] += f"#{i+1}"
 
             latiss_exposure_info: dict = dict()
             self.log.debug("Taking data sequence.")
@@ -471,7 +491,6 @@ class ATCalsys(BaseCalsys):
         fiber_spectrum_exposure_time: float | None,
         electrometer_exposure_time: float | None,
     ) -> dict:
-
         assert self.latiss is not None
 
         latiss_exposure_task = self.latiss.take_flats(
@@ -504,10 +523,11 @@ class ATCalsys(BaseCalsys):
             latiss_exposure_id = await latiss_exposure_task
         finally:
             exposures_done.set_result(True)
-            fiber_spectrum_exposure_result, electrometer_exposure_result = (
-                await asyncio.gather(
-                    fiber_spectrum_exposure_task, electrometer_exposure_task
-                )
+            (
+                fiber_spectrum_exposure_result,
+                electrometer_exposure_result,
+            ) = await asyncio.gather(
+                fiber_spectrum_exposure_task, electrometer_exposure_task
             )
 
         return {

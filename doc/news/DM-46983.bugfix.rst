@@ -1,0 +1,1 @@
+In ``BaseCalsys.load_calibration_config_file``, fix schema validation to update configurations with default values applied by ``salobj.DefaultingValidator``.

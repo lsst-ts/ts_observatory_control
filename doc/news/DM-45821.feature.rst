@@ -1,0 +1,1 @@
+Add ``slew_dome_to`` method for main telescope in ``MTCS``.

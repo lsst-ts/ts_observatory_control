@@ -1,0 +1,1 @@
+In maintel/mtcs.py, update flush_offset_events and offset_done method to take rotator into account.

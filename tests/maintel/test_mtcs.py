@@ -29,9 +29,10 @@ import numpy as np
 import pytest
 from astropy.coordinates import Angle
 from lsst.ts import idl, utils
-from lsst.ts.idl.enums import MTM1M3, MTM2
+from lsst.ts.idl.enums import MTM1M3, MTM2, MTMount
 from lsst.ts.observatory.control.mock.mtcs_async_mock import MTCSAsyncMock
 from lsst.ts.observatory.control.utils import RotType
+from lsst.ts.xml.enums import MTDome
 
 
 class TestMTCS(MTCSAsyncMock):
@@ -764,27 +765,320 @@ class TestMTCS(MTCSAsyncMock):
             num=0,
         )
 
+    async def test_park_dome(self) -> None:
+        await self.mtcs.enable()
+        await self.mtcs.assert_all_enabled()
+
+        # Call the park_dome method
+        await self.mtcs.park_dome()
+
+        az_motion = await self.mtcs.rem.mtdome.evt_azMotion.aget(
+            timeout=self.mtcs.park_dome_timeout
+        )
+
+        # Check the state of the azMotion event
+        assert (
+            az_motion.state == MTDome.MotionState.PARKED
+        ), "Dome did not reach the PARKED state."
+        assert az_motion.inPosition, "Dome is not in position."
+
+    async def test_unpark_dome(self) -> None:
+        await self.mtcs.enable()
+        await self.mtcs.assert_all_enabled()
+
+        # set initial PARKED state
+        await self.mtcs.park_dome()
+
+        await self.mtcs.unpark_dome()
+
+        az_motion = await self.mtcs.rem.mtdome.evt_azMotion.aget()
+
+        assert (
+            az_motion.state != MTDome.MotionState.PARKED
+        ), "Dome still in PARKED state."
+
     async def test_slew_dome_to(self) -> None:
         az = 90.0
 
-        with pytest.raises(NotImplementedError):
-            await self.mtcs.slew_dome_to(az)
+        await self.mtcs.enable()
+        await self.mtcs.assert_all_enabled()
+        check = self.get_all_checks()
+
+        await self.mtcs.slew_dome_to(az=az, check=check)
+
+        self.mtcs.rem.mtdome.evt_azMotion.flush.assert_called()
+
+        self.mtcs.rem.mtdometrajectory.cmd_setFollowingMode.set_start.assert_awaited_with(
+            enable=False, timeout=self.mtcs.fast_timeout
+        )
+
+        self.mtcs.rem.mtdome.cmd_moveAz.set_start.assert_awaited_with(
+            position=az, velocity=0.0, timeout=self.mtcs.long_long_timeout
+        )
+
+        assert self.mtcs.rem.mtdome.evt_azMotion.inPosition
 
     async def test_close_dome(self) -> None:
         with pytest.raises(NotImplementedError):
             await self.mtcs.close_dome()
 
-    async def test_open_m1_cover(self) -> None:
-        with pytest.raises(NotImplementedError):
-            await self.mtcs.open_m1_cover()
+    async def test_in_m1_cover_operational_range(self) -> None:
+        self._mtmount_tel_elevation.actualPosition = (
+            self.mtcs.tel_operate_mirror_covers_el + 1.0
+        )
 
-    async def test_close_m1_cover(self) -> None:
-        with pytest.raises(NotImplementedError):
+        elevation_in_range = await self.mtcs.in_m1_cover_operational_range()
+
+        assert elevation_in_range
+
+    async def test_not_in_m1_cover_operational_range(self) -> None:
+        self._mtmount_tel_elevation.actualPosition = (
+            self.mtcs.tel_operate_mirror_covers_el - 1.0
+        )
+
+        elevation_in_range = await self.mtcs.in_m1_cover_operational_range()
+
+        assert not elevation_in_range
+
+    async def test_park_mount_zenith(self) -> None:
+        await self.mtcs.enable()
+        await self.mtcs.assert_all_enabled()
+
+        await self.mtcs.park_mount(MTMount.ParkPosition.ZENITH)
+
+        self.mtcs.rem.mtmount.cmd_park.start.assert_awaited_with(
+            position=MTMount.ParkPosition.ZENITH, timeout=self.mtcs.long_timeout
+        )
+
+    async def test_park_mount_horizon(self) -> None:
+        await self.mtcs.enable()
+        await self.mtcs.assert_all_enabled()
+
+        await self.mtcs.park_mount(MTMount.ParkPosition.HORIZON)
+
+        self.mtcs.rem.mtmount.cmd_park.start.assert_awaited_with(
+            position=MTMount.ParkPosition.HORIZON, timeout=self.mtcs.long_timeout
+        )
+
+    async def test_unpark_mount(self) -> None:
+        await self.mtcs.enable()
+        await self.mtcs.assert_all_enabled()
+
+        await self.mtcs.unpark_mount()
+
+        self.mtcs.rem.mtmount.cmd_unpark.start.assert_awaited_with(
+            timeout=self.mtcs.long_timeout
+        )
+
+    async def test_slew_to_m1_cover_operational_range(self) -> None:
+        self._mtmount_tel_azimuth.actualPosition = 0.0
+        self._mtmount_tel_elevation.actualPosition = (
+            self.mtcs.tel_operate_mirror_covers_el - 1.0
+        )
+        self._mtrotator_tel_rotation.actualPosition = 0.0
+
+        await self.mtcs.enable()
+        await self.mtcs.assert_all_enabled()
+        await self.mtcs.slew_to_m1_cover_operational_range()
+
+        # Assert mtptg command call from point_azel
+        self.mtcs.rem.mtptg.cmd_azElTarget.set.assert_called_with(
+            targetName="Mirror covers operation",
+            azDegs=self._mtmount_tel_azimuth.actualPosition,
+            elDegs=self.mtcs.tel_operate_mirror_covers_el,
+            rotPA=self._mtrotator_tel_rotation.actualPosition,
+        )
+
+    async def test_close_m1_cover_when_deployed(self) -> None:
+        self._mtmount_evt_mirror_covers_motion_state.state = (
+            idl.enums.MTMount.DeployableMotionState.DEPLOYED
+        )
+
+        await self.mtcs.close_m1_cover()
+
+        self.mtcs.rem.mtptg.cmd_azElTarget.set.assert_not_called()
+        self.mtcs.rem.mtmount.cmd_closeMirrorCovers.start.assert_not_awaited()
+
+    async def test_close_m1_cover_when_retracted(self) -> None:
+        self._mtmount_evt_mirror_covers_motion_state.state = (
+            idl.enums.MTMount.DeployableMotionState.RETRACTED
+        )
+        # Safe elevation for mirror covers operation
+        self._mtmount_tel_elevation.actualPosition = (
+            self.mtcs.tel_operate_mirror_covers_el + 1.0
+        )
+
+        await self.mtcs.close_m1_cover()
+
+        assert await self.mtcs.in_m1_cover_operational_range()
+        self.mtcs.rem.mtptg.cmd_azElTarget.set.assert_not_called()
+        self.mtcs.rem.mtmount.cmd_closeMirrorCovers.start.assert_awaited_with(
+            timeout=self.mtcs.long_long_timeout
+        )
+
+    async def test_close_m1_cover_when_retracted_below_el_limit(self) -> None:
+        self._mtmount_evt_mirror_covers_motion_state.state = (
+            idl.enums.MTMount.DeployableMotionState.RETRACTED
+        )
+        # Unsafe elevation for mirror covers operation
+        self._mtmount_tel_elevation.actualPosition = (
+            self.mtcs.tel_operate_mirror_covers_el - 1.0
+        )
+        self._mtmount_tel_azimuth.actualPosition = 0.0
+        self._mtrotator_tel_rotation.actualPosition = 0.0
+
+        await self.mtcs.enable()
+        await self.mtcs.assert_all_enabled()
+        await self.mtcs.close_m1_cover()
+
+        assert not await self.mtcs.in_m1_cover_operational_range()
+        self.mtcs.rem.mtptg.cmd_azElTarget.set.assert_called_with(
+            targetName="Mirror covers operation",
+            azDegs=self._mtmount_tel_azimuth.actualPosition,
+            elDegs=self.mtcs.tel_operate_mirror_covers_el,
+            rotPA=self._mtrotator_tel_rotation.actualPosition,
+        )
+        self.mtcs.rem.mtmount.cmd_closeMirrorCovers.start.assert_awaited_with(
+            timeout=self.mtcs.long_long_timeout
+        )
+
+    async def test_close_m1_cover_wrong_system_state(self) -> None:
+        self._mtmount_evt_mirror_covers_motion_state.state = (
+            idl.enums.MTMount.DeployableMotionState.LOST
+        )
+        exception_message = (
+            f"Mirror covers in {idl.enums.MTMount.DeployableMotionState.LOST!r} state. "
+            f"Expected {idl.enums.MTMount.DeployableMotionState.RETRACTED!r} or "
+            f"{idl.enums.MTMount.DeployableMotionState.DEPLOYED!r}"
+        )
+
+        with pytest.raises(RuntimeError, match=exception_message):
             await self.mtcs.close_m1_cover()
 
+    async def test_close_m1_cover_wrong_motion_state(self) -> None:
+        self._mtmount_evt_mirror_covers_motion_state.state = (
+            idl.enums.MTMount.DeployableMotionState.LOST
+        )
+        cover_state = self._mtmount_evt_mirror_covers_motion_state
+        exception_message = (
+            f"Mirror covers in {MTMount.DeployableMotionState(cover_state.state)!r} "
+            f"state. Expected {MTMount.DeployableMotionState.RETRACTED!r} or "
+            f"{MTMount.DeployableMotionState.DEPLOYED!r}"
+        )
+
+        with pytest.raises(RuntimeError, match=exception_message):
+            await self.mtcs.close_m1_cover()
+
+    async def test_open_m1_cover_when_retracted(self) -> None:
+        self._mtmount_evt_mirror_covers_motion_state.state = (
+            idl.enums.MTMount.DeployableMotionState.RETRACTED
+        )
+
+        await self.mtcs.open_m1_cover()
+
+        self.mtcs.rem.mtptg.cmd_azElTarget.set.assert_not_called()
+        self.mtcs.rem.mtmount.cmd_openMirrorCovers.set_start.assert_not_awaited()
+
+    async def test_open_m1_cover_when_deployed(self) -> None:
+        self._mtmount_evt_mirror_covers_motion_state.state = (
+            idl.enums.MTMount.DeployableMotionState.DEPLOYED
+        )
+        # Safe elevation for mirror covers operation
+        self._mtmount_tel_elevation.actualPosition = (
+            self.mtcs.tel_operate_mirror_covers_el + 1.0
+        )
+
+        await self.mtcs.open_m1_cover()
+
+        assert await self.mtcs.in_m1_cover_operational_range()
+        self.mtcs.rem.mtptg.cmd_azElTarget.set.assert_not_called()
+        self.mtcs.rem.mtmount.cmd_openMirrorCovers.set_start.assert_awaited_with(
+            leaf=MTMount.MirrorCover.ALL, timeout=self.mtcs.long_long_timeout
+        )
+
+    async def test_open_m1_cover_when_deployed_below_el_limit(self) -> None:
+        self._mtmount_evt_mirror_covers_motion_state.state = (
+            idl.enums.MTMount.DeployableMotionState.DEPLOYED
+        )
+        # Unsafe elevation for mirror covers operation
+        self._mtmount_tel_elevation.actualPosition = (
+            self.mtcs.tel_operate_mirror_covers_el - 1.0
+        )
+        self._mtmount_tel_azimuth.actualPosition = 0.0
+        self._mtrotator_tel_rotation.actualPosition = 0.0
+
+        await self.mtcs.enable()
+        await self.mtcs.assert_all_enabled()
+        await self.mtcs.open_m1_cover()
+
+        assert not await self.mtcs.in_m1_cover_operational_range()
+        self.mtcs.rem.mtptg.cmd_azElTarget.set.assert_called_with(
+            targetName="Mirror covers operation",
+            azDegs=self._mtmount_tel_azimuth.actualPosition,
+            elDegs=self.mtcs.tel_operate_mirror_covers_el,
+            rotPA=self._mtrotator_tel_rotation.actualPosition,
+        )
+        self.mtcs.rem.mtmount.cmd_openMirrorCovers.set_start.assert_awaited_with(
+            leaf=MTMount.MirrorCover.ALL, timeout=self.mtcs.long_long_timeout
+        )
+
+    async def test_open_m1_cover_wrong_system_state(self) -> None:
+        self._mtmount_evt_mirror_covers_motion_state.state = (
+            idl.enums.MTMount.DeployableMotionState.LOST
+        )
+        exception_message = (
+            f"Mirror covers in {idl.enums.MTMount.DeployableMotionState.LOST!r} "
+            f"state. Expected {MTMount.DeployableMotionState.RETRACTED!r} or "
+            f"{MTMount.DeployableMotionState.DEPLOYED!r}"
+        )
+
+        with pytest.raises(RuntimeError, match=exception_message):
+            await self.mtcs.open_m1_cover()
+
+    async def test_open_m1_cover_wrong_motion_state(self) -> None:
+        self._mtmount_evt_mirror_covers_motion_state.state = (
+            idl.enums.MTMount.DeployableMotionState.LOST
+        )
+        cover_state = self._mtmount_evt_mirror_covers_motion_state
+        exception_message = (
+            f"Mirror covers in {MTMount.DeployableMotionState(cover_state.state)!r} "
+            f"state. Expected {MTMount.DeployableMotionState.RETRACTED!r} or "
+            f"{MTMount.DeployableMotionState.DEPLOYED!r}"
+        )
+
+        with pytest.raises(RuntimeError, match=exception_message):
+            await self.mtcs.open_m1_cover()
+
     async def test_home_dome(self) -> None:
-        with pytest.raises(NotImplementedError):
-            await self.mtcs.home_dome()
+        physical_az = 320
+        self._mtdome_tel_azimuth.positionActual = 300
+
+        offset = physical_az - self._mtdome_tel_azimuth.positionActual
+
+        await self.mtcs.enable()
+        await self.mtcs.assert_all_enabled()
+        await self.mtcs.home_dome(physical_az)
+
+        self.mtcs.rem.mtdome.evt_azMotion.flush.assert_called()
+
+        self.mtcs.rem.mtdome.cmd_moveAz.set_start.assert_awaited_with(
+            position=self.mtcs.home_dome_az - offset,
+            velocity=0.0,
+            timeout=self.mtcs.long_long_timeout,
+        )
+
+        assert self.mtcs.rem.mtdome.evt_azMotion.inPosition
+
+        self.mtcs.rem.mtdome.cmd_stop.set_start.assert_awaited_with(
+            engageBrakes=True,
+            subSystemIds=MTDome.SubSystemId.AMCS,
+            timeout=self.mtcs.long_long_timeout,
+        )
+
+        self.mtcs.rem.mtdome.cmd_setZeroAz.start.assert_awaited_with(
+            timeout=self.mtcs.fast_timeout
+        )
+        assert self._mtdome_tel_azimuth.positionActual == 0.0
 
     async def test_open_dome_shutter(self) -> None:
         with pytest.raises(NotImplementedError):
@@ -1186,8 +1480,7 @@ class TestMTCS(MTCSAsyncMock):
             timeout=self.mtcs.long_timeout,
         )
         self.mtcs.rem.mtm1m3.evt_hardpointTestStatus.flush.assert_called()
-        self.mtcs.rem.mtm1m3.evt_hardpointTestStatus.next.assert_awaited_with(
-            flush=False,
+        self.mtcs.rem.mtm1m3.evt_hardpointTestStatus.aget.assert_awaited_with(
             timeout=self.mtcs.timeout_hardpoint_test_status,
         )
 
@@ -1202,10 +1495,22 @@ class TestMTCS(MTCSAsyncMock):
             timeout=self.mtcs.long_timeout,
         )
         self.mtcs.rem.mtm1m3.evt_hardpointTestStatus.flush.assert_called()
-        self.mtcs.rem.mtm1m3.evt_hardpointTestStatus.next.assert_awaited_with(
-            flush=False,
+        self.mtcs.rem.mtm1m3.evt_hardpointTestStatus.aget.assert_awaited_with(
             timeout=self.mtcs.timeout_hardpoint_test_status,
         )
+
+    async def test_run_m1m3_hard_point_test_timeout(self) -> None:
+        message = (
+            f"No heartbeat received from M1M3 in the last {self.mtcs.timeout_hardpoint_test_status}s"
+            " while waiting for hard point data information. Check CSC liveliness."
+        )
+        with unittest.mock.patch.object(
+            self.mtcs.rem.mtm1m3.evt_heartbeat,
+            "next",
+            side_effect=asyncio.TimeoutError,
+        ):
+            with pytest.raises(RuntimeError, match=message):
+                await self.mtcs.run_m1m3_hard_point_test(hp=1)
 
     async def test_stop_m1m3_hard_point_test(self) -> None:
         await self.mtcs.stop_m1m3_hard_point_test(hp=1)
@@ -1775,7 +2080,7 @@ class TestMTCS(MTCSAsyncMock):
                 == hexapod_positions[axis]
             )
 
-        self.mtcs.rem.mthexapod_1.cmd_offset.set_start.assert_awaited_with(
+        self.mtcs.rem.mthexapod_1.cmd_move.set_start.assert_awaited_with(
             **hexapod_positions, w=0.0, sync=True, timeout=self.mtcs.long_timeout
         )
 
@@ -1786,9 +2091,7 @@ class TestMTCS(MTCSAsyncMock):
         )
         self.mtcs.rem.mthexapod_1.evt_inPosition.flush.assert_called()
 
-        self.mtcs.rem.mthexapod_1.evt_inPosition.next.assert_awaited_with(
-            timeout=self.mtcs.long_timeout, flush=False
-        )
+        self.mtcs.rem.mthexapod_1.evt_inPosition.next.assert_awaited()
 
     async def test_offset_m2_hexapod(self) -> None:
         hexapod_positions = dict([(axis, np.random.rand()) for axis in "xyzuv"])
@@ -1801,7 +2104,7 @@ class TestMTCS(MTCSAsyncMock):
                 == hexapod_positions[axis]
             )
 
-        self.mtcs.rem.mthexapod_2.cmd_offset.set_start.assert_awaited_with(
+        self.mtcs.rem.mthexapod_2.cmd_move.set_start.assert_awaited_with(
             **hexapod_positions, w=0.0, sync=True, timeout=self.mtcs.long_timeout
         )
 
@@ -1812,9 +2115,7 @@ class TestMTCS(MTCSAsyncMock):
         )
         self.mtcs.rem.mthexapod_2.evt_inPosition.flush.assert_called()
 
-        self.mtcs.rem.mthexapod_2.evt_inPosition.next.assert_awaited_with(
-            timeout=self.mtcs.long_timeout, flush=False
-        )
+        self.mtcs.rem.mthexapod_2.evt_inPosition.next.assert_awaited()
 
     async def test_reset_camera_hexapod_position(self) -> None:
         self._mthexapod_1_evt_uncompensated_position.z = 10.0
