@@ -87,16 +87,131 @@ class BaseCameraAsyncMock(RemoteGroupAsyncMock):
     """
 
     async def setup_mocks(self) -> None:
+        self._end_readout_event = asyncio.Event()
+        self._end_readout_event.clear()
+        self._start_integration_event = asyncio.Event()
+        self._start_integration_event.clear()
+
+        self.image_name: str | None = None
+
         self.remote_group.camera.evt_endReadout.next.configure_mock(
             side_effect=self.next_end_readout
         )
+        self.remote_group.camera.evt_endReadout.aget.configure_mock(
+            side_effect=self.aget_end_readout
+        )
+        self.remote_group.camera.evt_startIntegration.aget.configure_mock(
+            side_effect=self.aget_start_integration
+        )
+        self.remote_group.camera.evt_startIntegration.next.configure_mock(
+            side_effect=self.next_start_integration
+        )
+        self.remote_group.camera.cmd_takeImages.start.configure_mock(
+            side_effect=self.start_take_images
+        )
+        self.remote_group.camera.cmd_takeImages.set.configure_mock(
+            side_effect=self.set_take_images
+        )
+        try:
+            self.remote_group.camera.cmd_startImage.set.configure_mock(
+                side_effect=self.set_start_image
+            )
+            self.remote_group.camera.cmd_startImage.start.configure_mock(
+                side_effect=self.start_start_image
+            )
+            self.remote_group.camera.cmd_endImage.start.configure_mock(
+                side_effect=self.start_end_image
+            )
+        except AttributeError:
+            self.log.warning("Camera does not support stuttered images.")
+
+    async def aget_end_readout(
+        self, *args: typing.Any, **kwargs: typing.Any
+    ) -> types.SimpleNamespace:
+        if self.image_name is None:
+            raise asyncio.TimeoutError("No image taken.")
+        else:
+            return self.end_readout
 
     async def next_end_readout(
         self, *args: typing.Any, **kwargs: typing.Any
     ) -> types.SimpleNamespace:
-        date_id = astropy.time.Time.now().tai.isot.split("T")[0].replace("-", "")
-        self.end_readout.imageName = f"test_genericcamera_{date_id}_{next(index_gen)}"
+        self.log.info("Waiting for next end readout start.")
+        await asyncio.wait_for(
+            self._end_readout_event.wait(), timeout=kwargs["timeout"]
+        )
+        self.end_readout.imageName = self.image_name
+        self.log.info("Waiting for next end readout end.")
         return self.end_readout
+
+    async def aget_start_integration(
+        self, *args: typing.Any, **kwargs: typing.Any
+    ) -> types.SimpleNamespace:
+        if self.image_name is None:
+            raise asyncio.TimeoutError("No image taken.")
+        else:
+            return self.start_integration
+
+    async def next_start_integration(
+        self, *args: typing.Any, **kwargs: typing.Any
+    ) -> types.SimpleNamespace:
+        self.log.debug("Next start integration start.")
+        await asyncio.wait_for(
+            self._start_integration_event.wait(), timeout=kwargs["timeout"]
+        )
+        self.log.debug("Next start integration end.")
+        return self.start_integration
+
+    async def start_take_images(self, *args: typing.Any, **kwargs: typing.Any) -> None:
+        self.log.debug("Take images start.")
+        for snap in range(self.start_integration.numImages - 1):
+            self._end_readout_event.clear()
+            self.set_next_image_name()
+            self.start_integration.imageName = self.image_name
+            self._start_integration_event.set()
+            await self._mock_take_image()
+
+        self._end_readout_event.clear()
+        self.set_next_image_name()
+        self.start_integration.imageName = self.image_name
+        self._start_integration_event.set()
+        asyncio.create_task(self._mock_take_image())
+        self.log.debug("Take images end.")
+
+    def set_take_images(self, *args: typing.Any, **kwargs: typing.Any) -> None:
+        self.log.debug("Set take images start.")
+        self.end_readout.exposureTime = kwargs["expTime"]
+        self.end_readout.numImages = kwargs["numImages"]
+        self.start_integration.exposureTime = kwargs["expTime"]
+        self.start_integration.numImages = kwargs["numImages"]
+        self.log.debug("Set take images end.")
+
+    def set_start_image(self, *args: typing.Any, **kwargs: typing.Any) -> None:
+        self.log.debug("Set start image start.")
+        self.start_integration.exposureTime = kwargs["timeout"]
+        self.log.debug("Set start image end.")
+
+    async def start_start_image(self, *args: typing.Any, **kwargs: typing.Any) -> None:
+
+        self._end_readout_event.clear()
+        self.set_next_image_name()
+        self.start_integration.imageName = self.image_name
+        self._start_integration_event.set()
+
+    async def start_end_image(self, *args: typing.Any, **kwargs: typing.Any) -> None:
+        self._end_readout_event.set()
+
+    def set_next_image_name(self) -> None:
+
+        date_id = astropy.time.Time.now().tai.isot.split("T")[0].replace("-", "")
+        self.image_name = f"test_genericcamera_{date_id}_{next(index_gen)}"
+
+    async def _mock_take_image(self) -> None:
+        self.log.debug("Mock take image start.")
+        await asyncio.sleep(0.5)
+        self._end_readout_event.set()
+        self._start_integration_event.clear()
+        self.log.debug("Mock take image end.")
 
     async def assert_take_bias(
         self,
