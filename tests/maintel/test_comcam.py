@@ -52,6 +52,10 @@ class TestComCam(BaseCameraAsyncMock):
             component="CCCamera",
             topic="logevent_endReadout",
         )
+        self.start_integration = self.get_sample(
+            component="CCCamera",
+            topic="logevent_startIntegration",
+        )
 
     async def test_setup_instrument(self) -> None:
         valid_entries: typing.List[
