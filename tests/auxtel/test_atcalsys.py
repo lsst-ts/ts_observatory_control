@@ -189,13 +189,35 @@ class TestATCalsys(RemoteGroupAsyncMock):
             ):
                 await self.atcalsys.prepare_for_flat("at_whitelight_r")
 
+    async def mock_aget_start_integration(
+        self, timeout: float
+    ) -> types.SimpleNamespace:
+
+        self.current_image_index = next(self.image_index)
+        self.log.debug(
+            f"Calling mock aget start integration: {self.current_image_index=}."
+        )
+        return types.SimpleNamespace(
+            imageName=f"A_B_20240523_{self.current_image_index:04d}", exposureTime=1.0
+        )
+
+    async def mock_start_integration(
+        self, flush: bool, timeout: float
+    ) -> types.SimpleNamespace:
+
+        self.log.debug(f"Calling mock start integration: {self.current_image_index=}.")
+        return types.SimpleNamespace(
+            imageName=f"A_B_20240523_{self.current_image_index:04d}", exposureTime=1.0
+        )
+
     async def mock_end_readout(
         self, flush: bool, timeout: float
     ) -> types.SimpleNamespace:
-        image_index = next(self.image_index)
-        self.log.debug(f"Calling mock end readout: {image_index=}.")
-        await asyncio.sleep(0.5)
-        return types.SimpleNamespace(imageName=f"A_B_20240523_{image_index:04d}")
+        self.log.debug(f"Calling mock end readout: {self.current_image_index=}.")
+        await asyncio.sleep(0.1)
+        return types.SimpleNamespace(
+            imageName=f"A_B_20240523_{self.current_image_index:04d}"
+        )
 
     async def mock_electrometer_lfoa(
         self, flush: bool, timeout: float
@@ -223,6 +245,12 @@ class TestATCalsys(RemoteGroupAsyncMock):
             "FakeDomain", log=self.log, intended_usage=LATISSUsages.DryTest
         )
         mock_latiss.rem.atcamera = unittest.mock.AsyncMock()
+        mock_latiss.rem.atcamera.evt_startIntegration.aget.configure_mock(
+            side_effect=self.mock_aget_start_integration
+        )
+        mock_latiss.rem.atcamera.evt_startIntegration.next.configure_mock(
+            side_effect=self.mock_start_integration
+        )
         mock_latiss.rem.atspectrograph = unittest.mock.AsyncMock()
         mock_latiss.rem.atcamera.evt_endReadout.next.configure_mock(
             side_effect=self.mock_end_readout
@@ -255,6 +283,12 @@ class TestATCalsys(RemoteGroupAsyncMock):
             "FakeDomain", log=self.log, intended_usage=LATISSUsages.DryTest
         )
         mock_latiss.rem.atcamera = unittest.mock.AsyncMock()
+        mock_latiss.rem.atcamera.evt_startIntegration.aget.configure_mock(
+            side_effect=self.mock_aget_start_integration
+        )
+        mock_latiss.rem.atcamera.evt_startIntegration.next.configure_mock(
+            side_effect=self.mock_start_integration
+        )
         mock_latiss.rem.atcamera.evt_endReadout.next.configure_mock(
             side_effect=self.mock_end_readout
         )
