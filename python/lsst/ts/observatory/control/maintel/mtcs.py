@@ -2628,7 +2628,6 @@ class MTCS(BaseTCS):
         """Close M1M3 booster valves."""
         if self.check.mtm1m3:
             await self._handle_m1m3_booster_valve(open=False)
-            await asyncio.sleep(self.fast_timeout)
 
     async def _handle_m1m3_booster_valve(self, open: bool) -> None:
         """Handle opening the M1M3 booster valves"""
