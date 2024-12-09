@@ -22,6 +22,7 @@ __all__ = ["BaseTCS"]
 
 import abc
 import asyncio
+import contextlib
 import enum
 import logging
 import typing
@@ -1367,7 +1368,8 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
         """
         self.flush_offset_events()
 
-        await offset_cmd
+        async with self.ready_to_offset():
+            await offset_cmd
 
         try:
             await self.offset_done()
@@ -1378,6 +1380,14 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
         self.log.debug("Waiting for telescope to settle.")
         await asyncio.sleep(self.tel_settle_time)
         self.log.debug("Done")
+
+    @contextlib.asynccontextmanager
+    async def ready_to_offset(self) -> typing.AsyncIterator[None]:
+        """A context manager to handle preparing the telescope for offset.
+
+        By default it does nothing.
+        """
+        yield
 
     async def ready_to_take_data(self) -> None:
         """Wait for the telescope control system to be ready to take data."""
