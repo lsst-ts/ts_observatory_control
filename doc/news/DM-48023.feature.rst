@@ -1,0 +1,4 @@
+Updated ``BaseTCS`` to introduce a mechanism to execute code to prepare the telescope for offsetting.
+
+This consist of having an async context manager that is used when calling the offset command.
+By default this context manager does nothing.

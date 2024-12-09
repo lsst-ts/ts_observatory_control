@@ -558,6 +558,13 @@ class TestMTCS(MTCSAsyncMock):
             type=1, off1=ra_offset, off2=dec_offset, num=0
         )
 
+        self.mtcs.rem.mtm1m3.cmd_setSlewFlag.set_start.assert_awaited_with(
+            timeout=self.mtcs.fast_timeout,
+        )
+        self.mtcs.rem.mtm1m3.cmd_clearSlewFlag.set_start.assert_awaited_with(
+            timeout=self.mtcs.fast_timeout,
+        )
+
     async def test_offset_azel(self) -> None:
         az_offset, el_offset = 10.0, -10.0
 
@@ -566,6 +573,12 @@ class TestMTCS(MTCSAsyncMock):
 
         self.mtcs.rem.mtptg.cmd_offsetAzEl.set_start.assert_called_with(
             az=az_offset, el=el_offset, num=1
+        )
+        self.mtcs.rem.mtm1m3.cmd_setSlewFlag.set_start.assert_awaited_with(
+            timeout=self.mtcs.fast_timeout,
+        )
+        self.mtcs.rem.mtm1m3.cmd_clearSlewFlag.set_start.assert_awaited_with(
+            timeout=self.mtcs.fast_timeout,
         )
 
     async def test_offset_azel_with_defaults(self) -> None:
@@ -699,6 +712,13 @@ class TestMTCS(MTCSAsyncMock):
 
         self.mtcs.rem.mtptg.cmd_offsetAzEl.set_start.assert_called_with(
             az=az, el=el, num=1
+        )
+
+        self.mtcs.rem.mtm1m3.cmd_setSlewFlag.set_start.assert_awaited_with(
+            timeout=self.mtcs.fast_timeout,
+        )
+        self.mtcs.rem.mtm1m3.cmd_clearSlewFlag.set_start.assert_awaited_with(
+            timeout=self.mtcs.fast_timeout,
         )
 
     async def test_offset_xy_with_defaults(self) -> None:
