@@ -2721,6 +2721,16 @@ class MTCS(BaseTCS):
             await self.wait_m1m3_settle()
             await self.close_m1m3_booster_valve()
 
+    @contextlib.asynccontextmanager
+    async def ready_to_offset(self) -> typing.AsyncIterator[None]:
+        """Make sure telescope is ready to perform an offset.
+
+        Overrides the parent class to implement setting/unsetting
+        the slew flag on m1m3.
+        """
+        async with self.m1m3_booster_valve():
+            yield
+
     async def wait_m1m3_settle(self) -> None:
         """Wait until m1m3 has settle."""
         # For now this method will only sleep for m1m3_settle_time.
