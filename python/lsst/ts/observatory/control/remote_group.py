@@ -265,7 +265,7 @@ class RemoteGroup:
 
         self._components = dict(
             [
-                (component, component.lower().replace(":", "_"))
+                (component, self._remote_name_to_attr_format(component))
                 for component in components
             ]
         )
@@ -317,6 +317,26 @@ class RemoteGroup:
             asyncio.gather(*start_task_list) if len(start_task_list) > 0 else None
         )
 
+    @staticmethod
+    def _remote_name_to_attr_format(component_name: str) -> str:
+        """Returns the remote name in a format compatible with Python object
+        attribute names.
+
+        Parameters
+        ----------
+        component_name: `str`
+            Name of the CSC with the same format as that used to initialize the
+            `salobj.Remotes`, e.g.; "MTMount" or "Hexapod:1".
+
+        Returns
+        -------
+        `str`
+            The name of the CSC in lowercase, replacing the colon by an
+            underscore, e.g. "Hexapod:1" -> "hexapod_1" or "ATHexapod" ->
+            "athexapod".
+        """
+        return component_name.lower().replace(":", "_")
+
     def components_to_check(self) -> typing.List[str]:
         """Return components for which check is enabled.
 
@@ -330,6 +350,34 @@ class RemoteGroup:
             for component in self.components_attr
             if getattr(self.check, component)
         ]
+
+    def disable_checks_for_components(self, components: typing.List[str]) -> None:
+        """Disables checks for a list of components.
+
+        The elements of `components` that are not part of the CSC group will be
+        ignored.
+
+        Parameters
+        ----------
+        components: `list` of `str`
+            A list of strings that indentifies the components to disable the
+            check. The names can be eather in attribute format (e.g. "mtmount"
+            or "hexapod_1") or in salobj remote name format (e.g. "MTMount" or
+            "Hexapod:1").
+
+        """
+        for comp in components:
+            attr_comp = self._remote_name_to_attr_format(comp)
+            if attr_comp not in self._components.values():
+                self.log.warning(
+                    f"Component {attr_comp} (referred to as {comp!r}) not in CSC Group. "
+                    f"Must be one of {self.components} or {self.components_attr}. Ignoring."
+                )
+            else:
+                self.log.debug(
+                    f"Disabling check for the component {attr_comp} (referred to as {comp!r})."
+                )
+                setattr(self.check, attr_comp, False)
 
     def get_required_resources(
         self, component: str, intended_usage: typing.Union[None, int]

@@ -1,0 +1,1 @@
+Add support to ``RemoteGroup`` for disabling checks for a list of components.

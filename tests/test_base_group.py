@@ -202,3 +202,30 @@ class TestBaseGroup(RemoteGroupTestCase, unittest.IsolatedAsyncioTestCase):
 
             with pytest.raises(RuntimeError):
                 self.basegroup.get_work_components(["bad_1"])
+
+    async def test_disable_components_checks(self) -> None:
+        async with self.make_group(usage=Usages.DryTest):
+            # For this test, it is necessary to have at least three components.
+            assert self.ntest >= 3, "Three components are needed to perform the test"
+            # Enable all checks and get the components of the remote
+            self.basegroup.reset_checks()
+            remote_components = self.basegroup.components_to_check()
+            # Components to disable checks
+            components_to_disable = [
+                "test_1",  # Component name in attribute-format
+                "Test:2",  # Component name in Salobj format
+                "Notcomp:1",  # Component name not part of the remote
+            ]
+
+            self.basegroup.disable_checks_for_components(
+                components=components_to_disable
+            )
+
+            # Retrieve the components with checks enabled
+            remote_enabled_checks = self.basegroup.components_to_check()
+
+            assert "test_1" not in remote_enabled_checks
+            assert "test_2" not in remote_enabled_checks
+            assert not hasattr(self.basegroup.check, "notcomp_1")
+            # The remaining components must have their checks enabled
+            assert all(comp in remote_enabled_checks for comp in remote_components[2:])
