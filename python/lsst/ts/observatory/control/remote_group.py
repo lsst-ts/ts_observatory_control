@@ -318,13 +318,13 @@ class RemoteGroup:
         )
 
     @staticmethod
-    def _remote_name_to_attr_format(salobj_remote_name: str) -> str:
+    def _remote_name_to_attr_format(component_name: str) -> str:
         """Returns the remote name in a format compatible with Python object
         attribute names.
 
         Parameters
         ----------
-        salobj_remote_name: `str`
+        component_name: `str`
             Name of the CSC with the same format as that used to initialize the
             `salobj.Remotes`, e.g.; "MTMount" or "Hexapod:1".
 
@@ -335,7 +335,7 @@ class RemoteGroup:
             underscore, e.g. "Hexapod:1" -> "hexapod_1" or "ATHexapod" ->
             "athexapod".
         """
-        return salobj_remote_name.lower().replace(":", "_")
+        return component_name.lower().replace(":", "_")
 
     def components_to_check(self) -> typing.List[str]:
         """Return components for which check is enabled.
