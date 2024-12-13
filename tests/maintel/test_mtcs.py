@@ -2455,3 +2455,22 @@ class TestMTCS(MTCSAsyncMock):
             assert (
                 actual_settings[setting] == expected_value
             ), f"Setting {setting} expected to be {expected_value} but was {actual_settings[setting]}"
+
+    async def test_m1m3_in_engineering_mode(self) -> None:
+
+        async with self.mtcs.m1m3_in_engineering_mode():
+            await asyncio.sleep(0)
+
+        self.mtcs.rem.mtm1m3.cmd_enterEngineering.start.assert_awaited_once()
+        self.mtcs.rem.mtm1m3.cmd_exitEngineering.start.assert_awaited_once()
+
+    async def test_m1m3_in_engineering_mode_with_failed_op(self) -> None:
+
+        try:
+            async with self.mtcs.m1m3_in_engineering_mode():
+                raise RuntimeError("This is a test.")
+        except RuntimeError:
+            pass
+
+        self.mtcs.rem.mtm1m3.cmd_enterEngineering.start.assert_awaited_once()
+        self.mtcs.rem.mtm1m3.cmd_exitEngineering.start.assert_awaited_once()
