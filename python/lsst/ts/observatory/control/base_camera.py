@@ -1148,7 +1148,6 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
         roi = roi_spec_dict.pop("roi")
         roi_spec_dict.update(roi)
         roi_spec_json = json.dumps(roi_spec_dict, separators=(",", ":"))
-        self.log.info(f"ROISpec(len:{len(roi_spec_json)}) fits in one command.")
         await self.camera.cmd_initGuiders.set_start(
             roiSpec=roi_spec_json,
             timeout=self.long_timeout,
