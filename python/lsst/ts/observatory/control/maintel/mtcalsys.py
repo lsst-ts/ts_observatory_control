@@ -130,12 +130,15 @@ class MTCalsys(BaseCalsys):
     ) -> None:
 
         self.electrometer_projector_index = 103
+        self.electrometer_cbp_index = 101
+        self.electrometer_cbpcal_index = 102
         self.fiberspectrograph_blue_index = 1
         self.fiberspectrograph_red_index = 2
         self.linearstage_led_select_index = 1
         self.linearstage_led_focus_index = 2
         self.linearstage_laser_focus_index = 3
         self.linearstage_select_index = 4
+        self.cbp_index = 1
 
         super().__init__(
             components=[
@@ -144,10 +147,13 @@ class MTCalsys(BaseCalsys):
                 f"FiberSpectrograph:{self.fiberspectrograph_blue_index}",
                 f"FiberSpectrograph:{self.fiberspectrograph_red_index}",
                 f"Electrometer:{self.electrometer_projector_index}",
+                f"Electrometer:{self.electrometer_cbp_index}",
+                f"Electrometer:{self.electrometer_cbpcal_index}",
                 f"LinearStage:{self.linearstage_led_select_index}",
                 f"LinearStage:{self.linearstage_led_focus_index}",
                 f"LinearStage:{self.linearstage_laser_focus_index}",
                 f"LinearStage:{self.linearstage_select_index}",
+                f"CBP:{self.cbp_index}",
             ],
             domain=domain,
             log=log,
@@ -201,12 +207,28 @@ class MTCalsys(BaseCalsys):
                 distance=self.ls_select_led_location, timeout=self.long_timeout
             )
         else:
-            await self.linearstage_led_select.cmd_moveAbsolute.set_start(
-                distance=self.led_rest_position, timeout=self.long_timeout
-            )
-            await self.linearstage_projector_select.cmd_moveAbsolute.set_start(
-                distance=self.ls_select_laser_location, timeout=self.long_timeout
-            )
+            if config_data["use_cbp"]:
+                await self.setup_cbp(
+                    config_data["cbp_azimuth"],
+                    config_data["cbp_elevation"],
+                    config_data["cbp_mask"],
+                    config_data["cbp_focus"],
+                    config_data["cbp_rotation"],
+                )
+                await self.setup_electrometers(
+                    mode=str(config_data["electrometer_mode"]),
+                    range=float(config_data["electrometer_range"]),
+                    integration_time=float(
+                        config_data["electrometer_integration_time"]
+                    ),
+                )
+            else:
+                await self.linearstage_led_select.cmd_moveAbsolute.set_start(
+                    distance=self.led_rest_position, timeout=self.long_timeout
+                )
+                await self.linearstage_projector_select.cmd_moveAbsolute.set_start(
+                    distance=self.ls_select_laser_location, timeout=self.long_timeout
+                )
             await self.setup_laser(
                 config_data["laser_mode"],
                 config_data["wavelength"],
@@ -338,6 +360,43 @@ class MTCalsys(BaseCalsys):
 
         await self.change_laser_optical_configuration(optical_configuration)
         await self.change_laser_wavelength(wavelength, use_projector)
+
+    async def setup_cbp(
+        self,
+        azimuth: float,
+        elevation: float,
+        mask: int,
+        focus: float,
+        rotation: float,
+    ) -> None:
+        """Perform all steps for preparing the CBP for measurements.
+
+        Parameters
+        ----------
+        az : `float`
+            Azimuth of CBP in degrees
+        el : `float`
+            Elevation of CBP in degrees
+        mask : `int`
+            Mask number to use
+        focus: `float`
+            Focus position in um
+        rot: `int`
+            Rotator position of mask in degrees
+            Default 0
+        """
+        timeout = 60
+        await self.rem.cbp.cmd_move.set_start(
+            azimuth=azimuth, elevation=elevation, timeout=timeout
+        )
+        if focus is not None:
+            await self.rem.cbp.cmd_setFocus.set_start(focus=focus, timeout=timeout)
+        if mask is not None:
+            await self.rem.cmd_changeMask.set_start(mask=mask, timeout=timeout)
+        if rotation is not None:
+            await self.rem.cmd_changeMaskRotation.set_start(
+                mask_rotation=rotation, timeout=timeout
+            )
 
     async def get_laser_parameters(self) -> tuple:
         """Get laser configuration
@@ -509,6 +568,14 @@ class MTCalsys(BaseCalsys):
             wavelengths=calibration_wavelengths, config_data=config_data
         )
 
+        electrometers_to_scan = []
+        if config_data["use_cbpelectrometer"]:
+            electrometers_to_scan.append(self.electrometer_cbp)
+        if config_data["use_cbpcalelectrometer"]:
+            electrometers_to_scan.append(self.electrometer_cbp_cal)
+        if config_data["use_flatfieldelectrometer"]:
+            electrometers_to_scan.append(self.electrometer_flatfield)
+
         for exposure in exposure_table:
             self.log.debug(
                 f"Performing {calibration_type.name} calibration with {exposure.wavelength=}."
@@ -525,6 +592,7 @@ class MTCalsys(BaseCalsys):
                     fiber_spectrum_red_exposure_time=exposure.fiberspectrograph_red,
                     fiber_spectrum_blue_exposure_time=exposure.fiberspectrograph_blue,
                     electrometer_exposure_time=exposure.electrometer,
+                    electrometers_to_scan=electrometers_to_scan,
                 )
                 mtcamera_exposure_info.update(exposure_info)
 
@@ -540,6 +608,7 @@ class MTCalsys(BaseCalsys):
                         fiber_spectrum_red_exposure_time=exposure.fiberspectrograph_red,
                         fiber_spectrum_blue_exposure_time=exposure.fiberspectrograph_blue,
                         electrometer_exposure_time=exposure.electrometer,
+                        electrometers_to_scan=electrometers_to_scan,
                     )
                     mtcamera_exposure_info.update(exposure_info)
 
@@ -578,7 +647,7 @@ class MTCalsys(BaseCalsys):
                 electrometer_integration_time=config_data[
                     "electrometer_integration_time"
                 ],
-                use_electrometer=config_data["use_electrometer"],
+                use_electrometer=config_data["use_flatfieldelectrometer"],
             )
             fiberspectrograph_exptimes_red = (
                 await self._calculate_fiberspectrograph_exposure_times(
@@ -686,6 +755,7 @@ class MTCalsys(BaseCalsys):
         mtcamera_exptime: float,
         mtcamera_filter: str,
         exposure_metadata: dict,
+        electrometers_to_scan: list,
         fiber_spectrum_red_exposure_time: float | None,
         fiber_spectrum_blue_exposure_time: float | None,
         electrometer_exposure_time: float | None,
@@ -711,10 +781,24 @@ class MTCalsys(BaseCalsys):
             exposure_time=fiber_spectrum_blue_exposure_time,
             exposures_done=exposures_done,
         )
-        electrometer_exposure_coroutine = self.take_electrometer_scan(
-            exposure_time=electrometer_exposure_time,
-            exposures_done=exposures_done,
-        )
+        if (len(electrometers_to_scan) == 0) or (len(electrometers_to_scan) == 1):
+            electrometer_exposure_coroutine = self.take_electrometer_scan(
+                exposure_time=electrometer_exposure_time,
+                exposures_done=exposures_done,
+                electrometer_to_scan=electrometers_to_scan[0],
+            )
+        else:
+            electrometer_exposure_coroutine_1 = self.take_electrometer_scan(
+                exposure_time=electrometer_exposure_time,
+                exposures_done=exposures_done,
+                electrometer_to_scan=electrometers_to_scan[0],
+            )
+            electrometer_exposure_coroutine_2 = self.take_electrometer_scan(
+                exposure_time=electrometer_exposure_time,
+                exposures_done=exposures_done,
+                electrometer_to_scan=electrometers_to_scan[1],
+            )
+
         try:
             fiber_spectrum_red_exposure_task = asyncio.create_task(
                 fiber_spectrum_red_exposure_coroutine
@@ -722,23 +806,48 @@ class MTCalsys(BaseCalsys):
             fiber_spectrum_blue_exposure_task = asyncio.create_task(
                 fiber_spectrum_blue_exposure_coroutine
             )
-            electrometer_exposure_task = asyncio.create_task(
-                electrometer_exposure_coroutine
-            )
+            if len(electrometers_to_scan) == 0:
+                electrometer_exposure_task = asyncio.create_task(
+                    electrometer_exposure_coroutine
+                )
+            elif len(electrometers_to_scan) == 1:
+                electrometer_exposure_task = asyncio.create_task(
+                    electrometer_exposure_coroutine
+                )
+            else:
+                electrometer_exposure_task_1 = asyncio.create_task(
+                    electrometer_exposure_coroutine_1
+                )
+                electrometer_exposure_task_2 = asyncio.create_task(
+                    electrometer_exposure_coroutine_2
+                )
 
             mtcamera_exposure_id = await mtcamera_exposure_task
         finally:
-            exposures_done.set_result(True)
-            (
-                fiber_spectrum_red_exposure_result,
-                fiber_spectrum_blue_exposure_result,
-                electrometer_exposure_result,
-            ) = await asyncio.gather(
-                fiber_spectrum_red_exposure_task,
-                fiber_spectrum_blue_exposure_task,
-                electrometer_exposure_task,
-            )
-
+            if (len(electrometers_to_scan) == 0) or (len(electrometers_to_scan) == 1):
+                exposures_done.set_result(True)
+                (
+                    fiber_spectrum_red_exposure_result,
+                    fiber_spectrum_blue_exposure_result,
+                    electrometer_exposure_result,
+                ) = await asyncio.gather(
+                    fiber_spectrum_red_exposure_task,
+                    fiber_spectrum_blue_exposure_task,
+                    electrometer_exposure_task,
+                )
+            else:
+                exposures_done.set_result(True)
+                (
+                    fiber_spectrum_red_exposure_result,
+                    fiber_spectrum_blue_exposure_result,
+                    electrometer_exposure_result_1,
+                    electrometer_exposure_result_2,
+                ) = await asyncio.gather(
+                    fiber_spectrum_red_exposure_task,
+                    fiber_spectrum_blue_exposure_task,
+                    electrometer_exposure_task_1,
+                    electrometer_exposure_task_2,
+                )
         return {
             mtcamera_exposure_id[0]: dict(
                 fiber_spectrum_red_exposure_result=fiber_spectrum_red_exposure_result,
@@ -751,6 +860,7 @@ class MTCalsys(BaseCalsys):
         self,
         exposure_time: float | None,
         exposures_done: asyncio.Future,
+        electrometer_to_scan: salobj,
     ) -> list[str]:
         """Perform an electrometer scan for the specified duration.
 
@@ -760,6 +870,8 @@ class MTCalsys(BaseCalsys):
             Exposure time for the fiber spectrum (seconds).
         exposures_done : `asyncio.Future`
             A future indicating when the camera exposures where complete.
+        electrometer_to_scan : `salobj`
+            The electrometer that performs the scan.
 
         Returns
         -------
@@ -767,14 +879,14 @@ class MTCalsys(BaseCalsys):
             List of large file urls.
         """
 
-        self.electrometer.evt_largeFileObjectAvailable.flush()
+        electrometer_to_scan.evt_largeFileObjectAvailable.flush()
 
         electrometer_exposures = list()
 
         if exposure_time is not None:
 
             try:
-                await self.electrometer.cmd_startScanDt.set_start(
+                await electrometer_to_scan.cmd_startScanDt.set_start(
                     scanDuration=exposure_time,
                     timeout=exposure_time + self.long_timeout,
                 )
@@ -783,7 +895,7 @@ class MTCalsys(BaseCalsys):
 
             # Make sure that a new lfo was created
             try:
-                lfo = await self.electrometer.evt_largeFileObjectAvailable.next(
+                lfo = await electrometer_to_scan.evt_largeFileObjectAvailable.next(
                     timeout=self.long_timeout, flush=False
                 )
                 electrometer_exposures.append(lfo.url)
@@ -794,7 +906,9 @@ class MTCalsys(BaseCalsys):
                     "Time out waiting for electrometer data. Making sure electrometer "
                     "is in enabled state and continuing."
                 )
-                await salobj.set_summary_state(self.electrometer, salobj.State.ENABLED)
+                await salobj.set_summary_state(
+                    electrometer_to_scan, salobj.State.ENABLED
+                )
         return electrometer_exposures
 
     async def take_fiber_spectrum(
@@ -851,8 +965,16 @@ class MTCalsys(BaseCalsys):
         return fiber_spectrum_exposures
 
     @property
-    def electrometer(self) -> salobj.Remote:
+    def electrometer_flatfield(self) -> salobj.Remote:
         return getattr(self.rem, f"electrometer_{self.electrometer_projector_index}")
+
+    @property
+    def electrometer_cbp(self) -> salobj.Remote:
+        return getattr(self.rem, f"electrometer_{self.electrometer_cbp_index}")
+
+    @property
+    def electrometer_cbp_cal(self) -> salobj.Remote:
+        return getattr(self.rem, f"electrometer_{self.electrometer_cbpcal_index}")
 
     @property
     def fiberspectrograph_red(self) -> salobj.Remote:
