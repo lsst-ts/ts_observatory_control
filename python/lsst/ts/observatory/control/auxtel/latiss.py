@@ -326,7 +326,11 @@ class LATISS(BaseCamera):
                 components_attr=self.components_attr,
                 readonly=False,
                 generics=["summaryState"],
-                atcamera=["takeImages", "endReadout"],
+                atcamera=[
+                    "takeImages",
+                    "endReadout",
+                    "startIntegration",
+                ],
                 atspectrograph=[
                     "changeFilter",
                     "changeDisperser",
@@ -341,7 +345,11 @@ class LATISS(BaseCamera):
                 components_attr=["atcamera"],
                 readonly=False,
                 generics=["summaryState"],
-                atcamera=["takeImages", "endReadout"],
+                atcamera=[
+                    "takeImages",
+                    "endReadout",
+                    "startIntegration",
+                ],
             )
             usages[self.valid_use_cases.Setup] = UsagesResources(
                 components_attr=["atspectrograph"],
@@ -360,7 +368,11 @@ class LATISS(BaseCamera):
                 components_attr=["atcamera", "atspectrograph", "atheaderservice"],
                 readonly=False,
                 generics=["summaryState"],
-                atcamera=["takeImages", "endReadout"],
+                atcamera=[
+                    "takeImages",
+                    "endReadout",
+                    "startIntegration",
+                ],
                 atheaderservice=["largeFileObjectAvailable"],
                 atspectrograph=[
                     "changeFilter",
