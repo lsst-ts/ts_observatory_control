@@ -66,6 +66,11 @@ class TestGenericCamera(BaseCameraAsyncMock):
             topic="logevent_endReadout",
         )
 
+        self.start_integration = self.get_sample(
+            component="GenericCamera:1",
+            topic="logevent_startIntegration",
+        )
+
     async def test_start_live_view(self) -> None:
         await self.generic_camera.start_live_view(exptime=1.0)
 
