@@ -27,6 +27,7 @@ import enum
 import logging
 import typing
 import warnings
+from functools import partial
 from os.path import splitext
 
 import astropy.units as u
@@ -196,8 +197,13 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
                 self.log.warning(
                     f"Found more than one entry for {name}. Using first one."
                 )
-            ra = Angle(object_table[0]["RA"], unit=u.hourangle)
-            dec = Angle(object_table[0]["DEC"], unit=u.deg)
+
+            # Get RA and DEC keyword from table
+            ra_key = "RA" if "RA" in object_table.columns else "ra"
+            dec_key = "DEC" if "DEC" in object_table.columns else "dec"
+
+            ra = Angle(object_table[0][ra_key], unit=u.hourangle)
+            dec = Angle(object_table[0][dec_key], unit=u.deg)
             radec_icrs = ICRS(
                 ra=Angle(round(ra.value, 8), unit=u.hourangle),
                 dec=Angle(round(dec.value, 8), unit=u.deg),
@@ -1682,45 +1688,45 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
 
         customSimbad = Simbad()
 
-        customSimbad.add_votable_fields("distance_result", "fluxdata(V)")
+        customSimbad.add_votable_fields("V", "rvz_redshift", "ident")
         customSimbad.TIMEOUT = self.long_long_timeout
 
         radec = self.radec_from_azel(az=az, el=el)
 
-        _ra = radec.ra.to_string(u.deg, decimal=True)
-        _dec = radec.dec.to_string(u.deg, decimal=True, alwayssign=True)
-        r = Angle(radius * u.deg).to_string(u.deg, decimal=True)
-
+        # Build the ADQL-like criteria for V magnitude + HD catalog
         criteria = (
-            f"region(circle,ICRS,{_ra} {_dec},{r}d) & "
-            f"Vmag > {mag_limit} & Vmag < {mag_limit+mag_range} & "
-            "cat = HD"
+            f"V>{mag_limit} AND V<{mag_limit + mag_range} AND ident.id LIKE 'HD%'"
+        )
+
+        query_callable = partial(
+            customSimbad.query_region,
+            coordinates=radec,
+            radius=radius * u.deg,
+            criteria=criteria,
         )
 
         loop = asyncio.get_event_loop()
-
         try:
-            result_table = await loop.run_in_executor(
-                None, customSimbad.query_criteria, criteria
-            )
+            result_table = await loop.run_in_executor(None, query_callable)
         except Exception as e:
-            self.log.exception("Querying Simbad failed. {criteria=}")
-            raise RuntimeError(f"Query {criteria=} failed: {e!r}")
+            self.log.exception("Querying Simbad failed.")
+            raise RuntimeError(f"Query region for {radec} failed: {e!r}")
 
-        if result_table is None:
-            raise RuntimeError(f"No result from query: {criteria}.")
+        if result_table is None or len(result_table) == 0:
+            raise RuntimeError(f"No results found for region around {radec}.")
 
-        result_table.sort("FLUX_V")
+        result_table.sort("V")
 
-        target_main_id = str(result_table["MAIN_ID"][0])
+        target_ident_id = str(result_table["id"][0])
 
         radec_icrs = ICRS(
-            ra=Angle(result_table[0]["RA"], unit=u.hourangle),
-            dec=Angle(result_table[0]["DEC"], unit=u.deg),
+            ra=Angle(result_table[0]["ra"], unit=u.deg),
+            dec=Angle(result_table[0]["dec"], unit=u.deg),
         )
-        self.object_list_add(f"{target_main_id}".rstrip(), radec_icrs)
 
-        return f"{target_main_id}".rstrip()
+        self.object_list_add(f"{target_ident_id}".rstrip(), radec_icrs)
+
+        return f"{target_ident_id}".rstrip()
 
     async def find_target_local_catalog(
         self,
