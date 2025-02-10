@@ -275,7 +275,9 @@ class MTCalsys(BaseCalsys):
         assert optical_configuration in list(LaserOpticalConfiguration)
 
         current_configuration = (
-            await self.rem.tunablelaser.evt_opticalConfiguration.aget()
+            await self.rem.tunablelaser.evt_opticalConfiguration.aget(
+                timeout=self.long_timeout
+            )
         )
         if current_configuration.configuration != optical_configuration:
             self.log.debug(
