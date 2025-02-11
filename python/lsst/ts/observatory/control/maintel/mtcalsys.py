@@ -273,20 +273,29 @@ class MTCalsys(BaseCalsys):
         optical_configuration : LaserOpticalConfiguration
         """
         assert optical_configuration in list(LaserOpticalConfiguration)
-
-        current_configuration = (
-            await self.rem.tunablelaser.evt_opticalConfiguration.aget(
-                timeout=self.long_timeout
+        current_configuration = None
+        try:
+            current_configuration = (
+                await self.rem.tunablelaser.evt_opticalConfiguration.aget(
+                    timeout=self.long_timeout
+                )
             )
-        )
-        if current_configuration.configuration != optical_configuration:
             self.log.debug(
                 f"Changing optical configuration from {current_configuration} to {optical_configuration}"
             )
+        except asyncio.TimeoutError:
+            self.log.warning(
+                "Could not determine current optical configuration. "
+                f"Setting optical configuration to {optical_configuration}."
+            )
+
+        if (
+            current_configuration is None
+            or current_configuration.configuration != optical_configuration
+        ):
             await self.rem.tunablelaser.cmd_setOpticalConfiguration.set_start(
                 configuration=optical_configuration, timeout=self.long_timeout
             )
-
         else:
             self.log.debug("Laser Optical Configuration already in place.")
 
