@@ -348,6 +348,7 @@ class MTCalsys(BaseCalsys):
             )
 
         await self.change_laser_optical_configuration(optical_configuration)
+        self.log.debug(f"In mtcalsys, wavelength: {wavelength},{type(wavelength)}")
         await self.change_laser_wavelength(wavelength, use_projector)
 
     async def get_laser_parameters(self) -> tuple:
