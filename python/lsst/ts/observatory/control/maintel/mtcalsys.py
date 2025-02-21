@@ -339,6 +339,28 @@ class MTCalsys(BaseCalsys):
         await self.change_laser_optical_configuration(optical_configuration)
         await self.change_laser_wavelength(wavelength, use_projector)
 
+    async def get_projector_setup(self) -> tuple:
+        """Get configuration of flatfield projector
+
+        Returns
+        -------
+            list : configuration details
+        """
+
+        vertical_location = await self.linearstage_projector_select.position
+        led_location = await self.linearstage_led_select.position
+        led_focus = await self.linearstage_led_focus.position
+        laser_focus = await self.linearstage_laser_focus.position
+        led_state = await self.rem.ledprojector.evt_ledstate.aget()
+
+        # check vertical location vs good points
+        # check led location vs led levels
+        # check led focus vs levels
+        # check laser focus vs levels
+        # print led state probably
+
+        return (vertical_location, led_location, led_focus, laser_focus, led_state)
+
     async def get_laser_parameters(self) -> tuple:
         """Get laser configuration
 
