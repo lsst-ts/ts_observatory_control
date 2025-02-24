@@ -1,1 +1,0 @@
-In base_camera.py, remove support for splitting guider ROI specs into multiple part. Size limit no longer exists.
