@@ -1,0 +1,1 @@
+Refactor take image operation to allow returning from a take image sequence as soon as the exposure finished, instead of having to wait for the endReadout event.

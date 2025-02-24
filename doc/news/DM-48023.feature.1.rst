@@ -1,0 +1,1 @@
+Updated ``MTCS`` to implement ``ready_to_offset``, which uses the ``m1m3_booster_valve`` context manager to enable/disable slew flag before/after offseting.

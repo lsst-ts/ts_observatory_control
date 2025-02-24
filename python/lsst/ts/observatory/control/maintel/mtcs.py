@@ -1707,6 +1707,22 @@ class MTCS(BaseTCS):
         else:
             self.log.warning("M1M3 not in engineering mode.")
 
+    @contextlib.asynccontextmanager
+    async def m1m3_in_engineering_mode(self) -> typing.AsyncIterator[None]:
+        """Context manager to ensure m1m3 enters and exists engineering
+        mode before/after an operation.
+
+        If M1M3 is in engineering mode before, this context manager is a
+        nop, e.g. it will leave M1M3 in engineering mode afterwards.
+        """
+        try:
+            m1m3_in_engineering_mode_before = await self.is_m1m3_in_engineering_mode()
+            await self.enter_m1m3_engineering_mode()
+            yield
+        finally:
+            if not m1m3_in_engineering_mode_before:
+                await self.exit_m1m3_engineering_mode()
+
     async def run_m1m3_hard_point_test(self, hp: int) -> None:
         """Test an M1M3 hard point.
 
@@ -2628,7 +2644,6 @@ class MTCS(BaseTCS):
         """Close M1M3 booster valves."""
         if self.check.mtm1m3:
             await self._handle_m1m3_booster_valve(open=False)
-            await asyncio.sleep(self.fast_timeout)
 
     async def _handle_m1m3_booster_valve(self, open: bool) -> None:
         """Handle opening the M1M3 booster valves"""
@@ -2720,6 +2735,16 @@ class MTCS(BaseTCS):
         finally:
             await self.wait_m1m3_settle()
             await self.close_m1m3_booster_valve()
+
+    @contextlib.asynccontextmanager
+    async def ready_to_offset(self) -> typing.AsyncIterator[None]:
+        """Make sure telescope is ready to perform an offset.
+
+        Overrides the parent class to implement setting/unsetting
+        the slew flag on m1m3.
+        """
+        async with self.m1m3_booster_valve():
+            yield
 
     async def wait_m1m3_settle(self) -> None:
         """Wait until m1m3 has settle."""

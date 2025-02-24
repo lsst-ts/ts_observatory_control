@@ -116,8 +116,13 @@ class LATISSMock(BaseGroupMock):
             one_exp_time = data.expTime
             if data.shutter:
                 one_exp_time += self.shutter_time
+            date_id = astropy.time.Time.now().tai.isot.split("T")[0].replace("-", "")
+            image_name = f"test_latiss_{date_id}_{next(index_gen)}"
+            await self.atcam.evt_startIntegration.set_write(imageName=image_name)
             await asyncio.sleep(one_exp_time)
-            self.end_readout_task = asyncio.create_task(self.end_readout(data))
+            self.end_readout_task = asyncio.create_task(
+                self.end_readout(data, image_name=image_name)
+            )
             if i < data.numImages - 1:
                 await self.end_readout_task
 
@@ -136,7 +141,10 @@ class LATISSMock(BaseGroupMock):
         await asyncio.sleep(self.short_time)
         self.atcam_image_started = True
         self.atcam_start_image_time = utils.current_tai()
-        self.end_readout_coro = self.end_readout(data)
+        date_id = astropy.time.Time.now().tai.isot.split("T")[0].replace("-", "")
+        image_name = f"test_latiss_{date_id}_{next(index_gen)}"
+        await self.atcam.evt_startIntegration.set_write(imageName=image_name)
+        self.end_readout_coro = self.end_readout(data, image_name=image_name)
 
     async def cmd_end_image_callback(self, data: salobj.type_hints.BaseMsgType) -> None:
         await asyncio.sleep(self.short_time)
@@ -154,7 +162,9 @@ class LATISSMock(BaseGroupMock):
     ) -> None:
         await asyncio.sleep(self.short_time)
 
-    async def end_readout(self, data: salobj.type_hints.BaseMsgType) -> None:
+    async def end_readout(
+        self, data: salobj.type_hints.BaseMsgType, image_name: str
+    ) -> None:
         """Wait `self.readout_time` and send endReadout event."""
         self.log.debug(f"end_readout started: sleep {self.readout_time}")
         await asyncio.sleep(self.readout_time)
@@ -166,8 +176,6 @@ class LATISSMock(BaseGroupMock):
         else:
             self.exptime_list.append(utils.current_tai() - self.atcam_image_started)
 
-        date_id = astropy.time.Time.now().tai.isot.split("T")[0].replace("-", "")
-        image_name = f"test_latiss_{date_id}_{next(index_gen)}"
         self.log.debug(f"sending endReadout: {image_name} :: {data}")
 
         additional_keys, additional_values = list(

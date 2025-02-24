@@ -1,0 +1,1 @@
+In maintel/mtcs.py, remove settling time after clearing slew flag (currently refered to as close booster valve in the code).
