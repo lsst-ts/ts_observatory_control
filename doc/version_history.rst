@@ -8,6 +8,29 @@ Version History
 
 .. towncrier release notes start
 
+v0.41.0 (2025-02-24)
+====================
+
+New Features
+------------
+
+- Refactor take image operation to allow returning from a take image sequence as soon as the exposure finished, instead of having to wait for the endReadout event. (`DM-47552 <https://rubinobs.atlassian.net/browse/DM-47552>`_)
+- Add support to ``RemoteGroup`` for disabling checks for a list of components. (`DM-47619 <https://rubinobs.atlassian.net/browse/DM-47619>`_)
+- In maintel/mtcs.py, remove settling time after clearing slew flag (currently refered to as close booster valve in the code). (`DM-47890 <https://rubinobs.atlassian.net/browse/DM-47890>`_)
+- In maintel/mtcs.py, add a context manager to ensure m1m3 is in engineering mode before/after some operation and add unit tests. (`DM-47890 <https://rubinobs.atlassian.net/browse/DM-47890>`_)
+- Updated ``BaseTCS`` to introduce a mechanism to execute code to prepare the telescope for offsetting.
+
+  This consist of having an async context manager that is used when calling the offset command.
+  By default this context manager does nothing. (`DM-48023 <https://rubinobs.atlassian.net/browse/DM-48023>`_)
+- Updated ``MTCS`` to implement ``ready_to_offset``, which uses the ``m1m3_booster_valve`` context manager to enable/disable slew flag before/after offseting. (`DM-48023 <https://rubinobs.atlassian.net/browse/DM-48023>`_)
+
+
+API Removal or Deprecation
+--------------------------
+
+- In base_camera.py, remove support for splitting guider ROI specs into multiple part. Size limit no longer exists. (`DM-47414 <https://rubinobs.atlassian.net/browse/DM-47414>`_)
+
+
 v0.40.0 (2024-12-03)
 ====================
 
