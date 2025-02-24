@@ -1229,7 +1229,7 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
             float(camera_exposure.exp_time) + self.read_out_time
         ) * camera_exposure.n + self.long_long_timeout
 
-        await self.wait_for_camera_readiness()
+        self.camera.evt_endReadout.flush()
         if hasattr(self.camera, "evt_ccsCommandState"):
             self.log.info("Handling ccs command state.")
             try:
@@ -1268,43 +1268,6 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
             exp_ids.append(exp_id)
 
         return exp_ids
-
-    async def wait_for_camera_readiness(self) -> None:
-        """Wait until the camera is ready to take data."""
-        try:
-            self.camera.evt_endReadout.flush()
-            last_start_integration, last_end_readout = await asyncio.gather(
-                self.camera.evt_startIntegration.aget(timeout=self.long_timeout),
-                self.camera.evt_endReadout.aget(timeout=self.long_timeout),
-            )
-        except asyncio.TimeoutError:
-            self.log.info(
-                "Timeout getting last camera start integration and/or end readout events. "
-                "This usually means no data was taken with the camera yet, "
-                "or there is loss of historical data. Assuming camera is "
-                "ready to take data."
-            )
-            return
-
-        while last_end_readout.imageName != last_start_integration.imageName:
-            self.log.info(
-                f"Last integration started: {last_start_integration.imageName}, "
-                f"last integration completed: {last_end_readout.imageName}."
-            )
-            next_end_readout_timeout = (
-                self.long_timeout + last_start_integration.exposureTime
-            )
-            try:
-                last_end_readout = await self.camera.evt_endReadout.next(
-                    flush=False, timeout=next_end_readout_timeout
-                )
-            except asyncio.TimeoutError:
-                raise RuntimeError(
-                    f"No new end readout event in {next_end_readout_timeout}s. "
-                    f"Cannot determine if camera is ready to take data."
-                )
-
-        self.camera.evt_startIntegration.flush()
 
     async def _handle_take_stuttered(
         self, camera_exposure: CameraExposure
@@ -1403,12 +1366,12 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
         int
             Exposure id from next endReadout event.
         """
-        start_integration = await self.camera.evt_startIntegration.next(
+        end_readout = await self.camera.evt_endReadout.next(
             flush=False, timeout=self.long_long_timeout
         )
         # parse out visitID from filename
         # (Patrick comment) this is highly annoying
-        _, _, yyyymmdd, seq_num = start_integration.imageName.split("_")
+        _, _, yyyymmdd, seq_num = end_readout.imageName.split("_")
 
         return int((yyyymmdd + seq_num[1:]))
 
