@@ -87,3 +87,70 @@ laser_functional:
   use_fiberspectrograph_blue: false
   exposure_times:
     - 15.0
+
+whitelight_u_source:
+  mtcamera_filter: u
+  led_name: 
+    - M385L3
+  wavelength: 385.0
+  led_location: 210.21
+  led_focus: 50.68
+  use_camera: False
+  exposure_times:
+    - 15.0
+
+whitelight_g_source:
+  mtcamera_filter: g
+  led_name:
+    - M455L4
+    - M505L4
+  wavelength: 480.0
+  led_location: 9.15
+  led_focus: 17.029
+  use_camera: False
+  exposure_times:
+    - 15.0
+
+whitelight_r_source:
+  led_name:
+    - M565L3
+    - M660L4
+  wavelength: 612.5
+  led_location: 70.40
+  led_focus: 16.279
+  use_camera: False
+  exposure_times:
+    - 15.0
+
+whitelight_i_source:
+  mtcamera_filter: i
+  led_name:
+    - M730L5
+    - M780LP1
+  wavelength: 755.0
+  led_location: 237.36
+  led_focus: 15.829
+  use_camera: False
+  exposure_times:
+    - 15.0
+
+whitelight_z_source:
+  mtcamera_filter: z
+  led_name:
+    - M850L3
+    - M940L3
+  wavelength: 895.0
+  led_location: 299.034
+  led_focus: 15.505
+  use_camera: False
+  exposure_times:
+    - 15.0
+
+whitelight_y_source:
+  mtcamera_filter: y
+  led_name:
+    - M970L4
+  wavelength: 970.0
+  use_camera: False
+  exposure_times:
+    - 15.0
