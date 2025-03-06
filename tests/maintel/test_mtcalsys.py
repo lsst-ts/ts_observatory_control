@@ -43,7 +43,7 @@ class TestMTCalsys(RemoteGroupAsyncMock):
                 "evt_largeFileObjectAvailable.next.side_effect": self.mock_electrometer_lfoa
             }
         )
-        self.mtcalsys.rem.fiberspectrograph_1.configure_mock(
+        self.mtcalsys.rem.fiberspectrograph_101.configure_mock(
             **{
                 "evt_largeFileObjectAvailable.next.side_effect": self.mock_fiberspectrograph_lfoa
             }
@@ -158,7 +158,9 @@ class TestMTCalsys(RemoteGroupAsyncMock):
         )
 
         self.mtcalsys.mtcamera = mock_comcam
-
+        self.mtcalsys.linearstage_projector_select.tel_position.position = (
+            unittest.mock.Mock(return_value=9.96)
+        )
         try:
             await self.mtcalsys.prepare_for_flat("whitelight_r")
         finally:
