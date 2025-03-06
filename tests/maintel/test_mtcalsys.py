@@ -43,7 +43,7 @@ class TestMTCalsys(RemoteGroupAsyncMock):
                 "evt_largeFileObjectAvailable.next.side_effect": self.mock_electrometer_lfoa
             }
         )
-        self.mtcalsys.rem.fiberspectrograph_1.configure_mock(
+        self.mtcalsys.rem.fiberspectrograph_101.configure_mock(
             **{
                 "evt_largeFileObjectAvailable.next.side_effect": self.mock_fiberspectrograph_lfoa
             }
@@ -142,6 +142,13 @@ class TestMTCalsys(RemoteGroupAsyncMock):
             timeout=self.mtcalsys.laser_warmup
         )
 
+    async def test_park_projector(self) -> None:
+        await self.mtcalsys.park_projector()
+
+        self.mtcalsys.rem.ledprojector.cmd_switchAllOff.start.assert_awaited_with(
+            timeout=self.mtcalsys.long_timeout
+        )
+
     async def test_prepare_for_whitelight_flat(self) -> None:
         mock_comcam = ComCam(
             "FakeDomain", log=self.log, intended_usage=ComCamUsages.DryTest
@@ -158,7 +165,9 @@ class TestMTCalsys(RemoteGroupAsyncMock):
         )
 
         self.mtcalsys.mtcamera = mock_comcam
-
+        self.mtcalsys.linearstage_projector_select.tel_position.position = (
+            unittest.mock.Mock(return_value=9.96)
+        )
         try:
             await self.mtcalsys.prepare_for_flat("whitelight_r")
         finally:

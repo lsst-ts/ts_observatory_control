@@ -1,0 +1,1 @@
+added homing to the setup_calsys and turned off LEDs in the prepare_for_flat
