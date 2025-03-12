@@ -1,0 +1,1 @@
+Updated the `find_target_simbad` method in `base_tcs.py` to comply with Simbad queries in astroquery version 0.4.8, following the recent update of astroquery and Simbad API.
