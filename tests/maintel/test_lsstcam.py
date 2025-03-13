@@ -20,6 +20,7 @@
 import json
 import logging
 import typing
+from unittest.mock import AsyncMock, call
 
 import pytest
 from lsst.ts.observatory.control.maintel.lsstcam import LSSTCam, LSSTCamUsages
@@ -74,6 +75,20 @@ class TestLSSTCam(BaseCameraAsyncMock):
 
         with self.assertRaises(RuntimeError):
             await self.lsstcam.setup_instrument(invalid_key_word=123)
+
+    async def test_setup_instrument_with_mtcs(self) -> None:
+        valid_entry: typing.Dict[str, typing.Union[int, float, str, None]] = dict(
+            filter="band1"
+        )
+
+        self.lsstcam.mtcs = AsyncMock()
+
+        await self.lsstcam.setup_instrument(**valid_entry)
+        self.lsstcam.mtcs.assert_has_calls(
+            [call.stop_tracking(), call.move_rotator(position=0.0)], any_order=False
+        )
+
+        self.assert_setup_instrument(valid_entry)
 
     async def test_take_bias(self) -> None:
         await self.assert_take_bias(
