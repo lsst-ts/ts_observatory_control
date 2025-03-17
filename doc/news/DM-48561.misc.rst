@@ -1,1 +1,0 @@
-Replaced the `Jenkins` pipeline configuration with a simplified call to the shared library.
