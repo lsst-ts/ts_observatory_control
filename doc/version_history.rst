@@ -8,6 +8,27 @@ Version History
 
 .. towncrier release notes start
 
+v0.41.1 (2025-03-17)
+====================
+
+New Features
+------------
+
+- Added sequences in mtcalsys.yaml for the white light source tests, which won't use the camera (`DM-49257 <https://rubinobs.atlassian.net/browse/DM-49257>`_)
+
+
+Bug Fixes
+---------
+
+- Updated the `find_target_simbad` method in `base_tcs.py` to comply with Simbad queries in astroquery version 0.4.8, following the recent update of astroquery and Simbad API. (`DM-48561 <https://rubinobs.atlassian.net/browse/DM-48561>`_)
+
+
+Other Changes and Additions
+---------------------------
+
+- Replaced the `Jenkins` pipeline configuration with a simplified call to the shared library. (`DM-48561 <https://rubinobs.atlassian.net/browse/DM-48561>`_)
+
+
 v0.41.0 (2025-02-24)
 ====================
 

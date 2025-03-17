@@ -1,1 +1,0 @@
-Added sequences in mtcalsys.yaml for the white light source tests, which won't use the camera
