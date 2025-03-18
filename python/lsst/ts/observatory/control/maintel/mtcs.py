@@ -833,7 +833,6 @@ class MTCS(BaseTCS):
                     timeout=self.long_long_timeout
                 )
             except salobj.AckError as ack:
-
                 self.log.error(
                     f"Closing mirror cover command failed with {ack.ack!r}::{ack.error}. "
                     "Checking state of the system."
@@ -2912,7 +2911,7 @@ class MTCS(BaseTCS):
                     "detailedState",
                     "forceControllerState",
                 ],
-                mtdome=["azimuth", "lightWindScreen"],
+                mtdome=["azimuth", "lightWindScreen", "azMotion"],
                 mthexapod_1=["compensationMode"],
                 mthexapod_2=["compensationMode"],
             )
@@ -2943,7 +2942,7 @@ class MTCS(BaseTCS):
                     "azimuthInPosition",
                     "cameraCableWrapFollowing",
                 ],
-                mtdome=["azimuth", "lightWindScreen"],
+                mtdome=["azimuth", "lightWindScreen", "azMotion"],
                 mtm1m3=[
                     "boosterValveStatus",
                     "forceActuatorState",
