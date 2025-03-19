@@ -1,0 +1,7 @@
+
+Bump test logic has been improved to support detailed failure statuses (e.g. FAILED_TIMEOUT, FAILED_TESTEDPOSITIVE_OVERSHOOT, etc.) from the updated XML enumeration while preserving backward compatibility with the old FAILED single logic.
+
+
+
+
+
