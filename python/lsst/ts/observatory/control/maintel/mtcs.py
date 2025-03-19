@@ -2942,7 +2942,7 @@ class MTCS(BaseTCS):
                     "azimuthInPosition",
                     "cameraCableWrapFollowing",
                 ],
-                mtdome=["azimuth", "lightWindScreen"],
+                mtdome=["azimuth", "lightWindScreen", "azMotion"],
                 mtm1m3=[
                     "boosterValveStatus",
                     "forceActuatorState",
