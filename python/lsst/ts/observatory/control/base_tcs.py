@@ -1717,7 +1717,16 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
 
         result_table.sort("V")
 
-        target_ident_id = str(result_table["id"][0])
+        if "id" in result_table.colnames:
+            target_ident_id = str(result_table["id"][0])
+        elif "main_id" in result_table.colnames:
+            target_ident_id = str(result_table["main_id"][0])
+        elif "ident.id" in result_table.colnames:
+            target_ident_id = str(result_table["ident.id"][0])
+        else:
+            raise KeyError(
+                f"No suitable identifier column found in Simbad search for {radec}"
+            )
 
         radec_icrs = ICRS(
             ra=Angle(result_table[0]["ra"], unit=u.deg),
