@@ -155,8 +155,7 @@ class MTCalsys(BaseCalsys):
         )
 
         self.mtcamera = mtcamera
-        self.ls_select_led_location = 9.96  # mm
-        self.ls_select_laser_location = 79.96  # mm
+        self.ls_select_locations = {"led": 9.96, "laser": 79.96}
         self.led_rest_position = 120.0  # mm
 
         self.laser_enclosure_temp = 20.0  # C
@@ -196,16 +195,18 @@ class MTCalsys(BaseCalsys):
 
         calibration_type = getattr(CalibrationType, str(config_data["calib_type"]))
 
+        self.log.debug("Moving Vertical select stage to rest position.")
+        await self.linearstage_led_select.cmd_moveAbsolute.set_start(
+            distance=self.led_rest_position, timeout=self.long_timeout
+        )
+
         if calibration_type == CalibrationType.WhiteLight:
             await self.linearstage_projector_select.cmd_moveAbsolute.set_start(
-                distance=self.ls_select_led_location, timeout=self.long_timeout
+                distance=self.ls_select_locations["led"], timeout=self.long_timeout
             )
         else:
-            await self.linearstage_led_select.cmd_moveAbsolute.set_start(
-                distance=self.led_rest_position, timeout=self.long_timeout
-            )
             await self.linearstage_projector_select.cmd_moveAbsolute.set_start(
-                distance=self.ls_select_laser_location, timeout=self.long_timeout
+                distance=self.ls_select_locations["laser"], timeout=self.long_timeout
             )
             await self.setup_laser(
                 config_data["laser_mode"],
@@ -338,6 +339,29 @@ class MTCalsys(BaseCalsys):
 
         await self.change_laser_optical_configuration(optical_configuration)
         await self.change_laser_wavelength(wavelength, use_projector)
+
+    async def get_projector_setup(self) -> tuple:
+        """Get configuration of flatfield projector
+
+        Returns
+        -------
+            list : configuration details
+        """
+
+        select_location = await self.linearstage_projector_select.position
+        led_location = await self.linearstage_led_select.position
+        led_focus = await self.linearstage_led_focus.position
+        laser_focus = await self.linearstage_laser_focus.position
+        led_state = await self.rem.ledprojector.evt_ledstate.aget()
+
+        light_input = None
+        for location, value in self.ls_select_locations.items():
+            if abs(select_location - value) < 0.2:
+                light_input = location
+            else:
+                light_input = "Projector select stage is misaligned"
+
+        return (light_input, led_location, led_focus, laser_focus, led_state)
 
     async def get_laser_parameters(self) -> tuple:
         """Get laser configuration
