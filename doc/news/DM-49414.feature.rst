@@ -1,0 +1,1 @@
+Add azMotion to Slew usages in ``MTCS`` class.

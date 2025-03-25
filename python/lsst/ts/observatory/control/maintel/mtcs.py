@@ -156,6 +156,7 @@ class MTCS(BaseTCS):
         # TODO (DM-45609): This is an initial guess for the time it takes the
         #  dome to park. It might need updating.
         self.park_dome_timeout = 600
+        self.move_dome_timeout = 600
 
         self._dome_az_in_position: typing.Union[None, asyncio.Event] = None
         self._dome_el_in_positio: typing.Union[None, asyncio.Event] = None
@@ -782,7 +783,7 @@ class MTCS(BaseTCS):
         # Wait for MT Dome to reach final position
         await self._handle_in_position(
             self.rem.mtdome.evt_azMotion,
-            timeout=self.fast_timeout,
+            timeout=self.move_dome_timeout,
             settle_time=self.tel_settle_time,
             component_name="MTDome",
         )
@@ -833,7 +834,6 @@ class MTCS(BaseTCS):
                     timeout=self.long_long_timeout
                 )
             except salobj.AckError as ack:
-
                 self.log.error(
                     f"Closing mirror cover command failed with {ack.ack!r}::{ack.error}. "
                     "Checking state of the system."
@@ -2912,7 +2912,7 @@ class MTCS(BaseTCS):
                     "detailedState",
                     "forceControllerState",
                 ],
-                mtdome=["azimuth", "lightWindScreen"],
+                mtdome=["azimuth", "lightWindScreen", "azMotion"],
                 mthexapod_1=["compensationMode"],
                 mthexapod_2=["compensationMode"],
             )
@@ -2943,7 +2943,7 @@ class MTCS(BaseTCS):
                     "azimuthInPosition",
                     "cameraCableWrapFollowing",
                 ],
-                mtdome=["azimuth", "lightWindScreen"],
+                mtdome=["azimuth", "lightWindScreen", "azMotion"],
                 mtm1m3=[
                     "boosterValveStatus",
                     "forceActuatorState",
