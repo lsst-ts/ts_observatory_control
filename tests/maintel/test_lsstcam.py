@@ -20,6 +20,7 @@
 import json
 import logging
 import typing
+from unittest.mock import AsyncMock, call, patch
 
 import pytest
 from lsst.ts.observatory.control.maintel.lsstcam import LSSTCam, LSSTCamUsages
@@ -74,6 +75,82 @@ class TestLSSTCam(BaseCameraAsyncMock):
 
         with self.assertRaises(RuntimeError):
             await self.lsstcam.setup_instrument(invalid_key_word=123)
+
+    async def test_setup_instrument_with_mtcs(self) -> None:
+        valid_entry: typing.Dict[str, typing.Union[int, float, str, None]] = dict(
+            filter="band1"
+        )
+
+        mock_mtcs = AsyncMock()
+        mock_mtcs.check.mtmount = True
+        mock_mtcs.check.mtptg = True
+        mock_mtcs.check.mtrotator = True
+        self.lsstcam.mtcs = mock_mtcs
+
+        await self.lsstcam.setup_instrument(**valid_entry)
+        self.lsstcam.mtcs.assert_has_calls(
+            [
+                call.stop_tracking(),
+                call.move_rotator(position=self.lsstcam.rotator_filter_change_position),
+            ],
+            any_order=False,
+        )
+
+        self.assert_setup_instrument(valid_entry)
+
+    async def test_setup_instrument_with_mtcs_rotator_disabled(self) -> None:
+        valid_entry: typing.Dict[str, typing.Union[int, float, str, None]] = dict(
+            filter="band1"
+        )
+
+        mock_mtcs = AsyncMock()
+        mock_mtcs.check.mtmount = True
+        mock_mtcs.check.mtptg = True
+        mock_mtcs.check.mtrotator = False
+        self.lsstcam.mtcs = mock_mtcs
+
+        await self.lsstcam.setup_instrument(**valid_entry)
+
+        self.assert_setup_instrument(valid_entry)
+        mock_mtcs.stop_tracking.assert_not_awaited()
+        mock_mtcs.move_rotator.assert_not_awaited()
+
+    async def test_setup_instrument_with_mtcs_mount_disabled(self) -> None:
+        valid_entry: typing.Dict[str, typing.Union[int, float, str, None]] = dict(
+            filter="band1"
+        )
+
+        mock_mtcs = AsyncMock()
+        mock_mtcs.check.mtmount = False
+        mock_mtcs.check.mtptg = True
+        mock_mtcs.check.mtrotator = True
+        self.lsstcam.mtcs = mock_mtcs
+
+        await self.lsstcam.setup_instrument(**valid_entry)
+
+        self.assert_setup_instrument(valid_entry)
+        mock_mtcs.stop_tracking.assert_not_awaited()
+        mock_mtcs.move_rotator.assert_awaited_once_with(
+            position=self.lsstcam.rotator_filter_change_position
+        )
+
+    async def test_setup_instrument_change_to_same_filter(self) -> None:
+        valid_entry: typing.Dict[str, typing.Union[int, float, str, None]] = dict(
+            filter="band1"
+        )
+
+        mock_mtcs = AsyncMock()
+        mock_mtcs.check.mtmount = True
+        mock_mtcs.check.mtptg = True
+        mock_mtcs.check.mtrotator = True
+        self.lsstcam.mtcs = mock_mtcs
+
+        with patch.object(self.lsstcam, "get_current_filter", return_value="band1"):
+            await self.lsstcam.setup_instrument(**valid_entry)
+
+        self.lsstcam.rem.mtcamera.cmd_setFilter.set_start.assert_not_awaited()
+        mock_mtcs.stop_tracking.assert_not_awaited()
+        mock_mtcs.move_rotator.assert_not_awaited()
 
     async def test_take_bias(self) -> None:
         await self.assert_take_bias(

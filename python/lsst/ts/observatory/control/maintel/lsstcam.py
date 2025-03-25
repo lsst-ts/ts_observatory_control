@@ -29,6 +29,7 @@ from lsst.ts import salobj
 
 from ..base_camera import BaseCamera
 from ..remote_group import Usages, UsagesResources
+from .mtcs import MTCS
 
 
 class LSSTCamUsages(Usages):
@@ -82,6 +83,7 @@ class LSSTCam(BaseCamera):
         log: logging.Logger | None = None,
         intended_usage: int | None = None,
         tcs_ready_to_take_data: typing.Callable[[], typing.Awaitable] | None = None,
+        mtcs: MTCS | None = None,
     ) -> None:
         super().__init__(
             components=["MTCamera", "MTHeaderService", "MTOODS"],
@@ -92,6 +94,8 @@ class LSSTCam(BaseCamera):
             tcs_ready_to_take_data=tcs_ready_to_take_data,
         )
 
+        self.mtcs = mtcs
+        self.rotator_filter_change_position = 0.0  # rotator position (deg)
         self.read_out_time = 2.0  # readout time (sec)
         self.shutter_time = 1  # time to open or close shutter (sec)
         self.filter_change_timeout = 120  # time for filter to get into position (sec)
@@ -221,7 +225,15 @@ class LSSTCam(BaseCamera):
         `self.rem.mtcamera.evt_endSetFilter.DataType` or `None`
             End set filter event data.
         """
-        if filter is not None:
+        current_filter = await self.get_current_filter()
+        if filter is not None and filter != current_filter:
+            if self.mtcs is not None:
+                await self._setup_mtcs_for_filter_change()
+            else:
+                self.log.warning(
+                    "Changing the LSSTCam filter without an instance of MTCS."
+                )
+
             async with self.cmd_lock:
                 self.rem.mtcamera.evt_endSetFilter.flush()
                 await self.rem.mtcamera.cmd_setFilter.set_start(
@@ -233,7 +245,35 @@ class LSSTCam(BaseCamera):
                 self.log.info(f"Filter {end_set_filter.filterName} in position.")
                 return end_set_filter
         else:
+            if filter == current_filter:
+                self.log.warning(
+                    f"The filter {filter} is already in the light path, no change is done."
+                )
+
             return None
+
+    async def _setup_mtcs_for_filter_change(self) -> None:
+        assert self.mtcs is not None
+        if (
+            self.mtcs.check.mtmount
+            and self.mtcs.check.mtptg
+            and self.mtcs.check.mtrotator
+        ):
+            await self.mtcs.stop_tracking()
+        else:
+            self.log.warning(
+                f"Check on mtmount ({self.mtcs.check.mtmount}), "
+                f"mtptg ({self.mtcs.check.mtptg}) or "
+                f"mtrotator ({self.mtcs.check.mtrotator}) disabled, "
+                "changing filter without stop tracking."
+            )
+
+        if self.mtcs.check.mtrotator:
+            await self.mtcs.move_rotator(position=self.rotator_filter_change_position)
+        else:
+            self.log.warning(
+                "Rotator being ignored, skip moving rotator to filter change position."
+            )
 
     async def get_current_filter(self) -> str:
         """Get the current filter.
