@@ -1442,6 +1442,21 @@ class MTCS(BaseTCS):
             Wait for secondary (xy-axis) test to finish.
         """
 
+        # Determine failure states based on the XML version
+        if hasattr(MTM1M3.BumpTest, "FAILED"):
+            # Old XML version
+            FAILED_STATES = {MTM1M3.BumpTest.FAILED}
+        else:
+            # New XML version with granular failure states
+            FAILED_STATES = {
+                MTM1M3.BumpTest.FAILED_TIMEOUT,
+                MTM1M3.BumpTest.FAILED_TESTEDPOSITIVE_OVERSHOOT,
+                MTM1M3.BumpTest.FAILED_TESTEDPOSITIVE_UNDERSHOOT,
+                MTM1M3.BumpTest.FAILED_TESTEDNEGATIVE_OVERSHOOT,
+                MTM1M3.BumpTest.FAILED_TESTEDNEGATIVE_UNDERSHOOT,
+                MTM1M3.BumpTest.FAILED_NONTESTEDPROBLEM,
+            }
+
         while True:
             bump_test_status = (
                 await self.rem.mtm1m3.evt_forceActuatorBumpTestStatus.next(
@@ -1467,13 +1482,13 @@ class MTCS(BaseTCS):
                     f"{primary_status!r}[{primary}], {secondary_status!r}[{secondary}]"
                 )
                 return
-            elif primary and primary_status == MTM1M3.BumpTest.FAILED:
+            elif primary and primary_status in FAILED_STATES:
                 raise RuntimeError(
-                    f"Primary bump test failed for actuator {actuator_id}."
+                    f"Primary bump test failed for actuator {actuator_id} with status {primary_status!r}."
                 )
-            elif secondary and secondary_status == MTM1M3.BumpTest.FAILED:
+            elif secondary and secondary_status in FAILED_STATES:
                 raise RuntimeError(
-                    f"Secondary bump test failed for actuator {actuator_id}."
+                    f"Secondary bump test failed for actuator {actuator_id} with status {secondary_status!r}."
                 )
             else:
                 self.log.debug(
@@ -1495,6 +1510,21 @@ class MTCS(BaseTCS):
             If the bump test failed.
         """
 
+        # Determine failure states based on the XML version
+        if hasattr(MTM2.BumpTest, "FAILED"):
+            # Old XML version
+            FAILED_STATES = {MTM2.BumpTest.FAILED}
+        else:
+            # New XML version with granular failure states
+            FAILED_STATES = {
+                MTM2.BumpTest.FAILED_TIMEOUT,
+                MTM2.BumpTest.FAILED_TESTEDPOSITIVE_OVERSHOOT,
+                MTM2.BumpTest.FAILED_TESTEDPOSITIVE_UNDERSHOOT,
+                MTM2.BumpTest.FAILED_TESTEDNEGATIVE_OVERSHOOT,
+                MTM2.BumpTest.FAILED_TESTEDNEGATIVE_UNDERSHOOT,
+                MTM2.BumpTest.FAILED_NONTESTEDPROBLEM,
+            }
+
         while True:
             bump_test_status = await self.rem.mtm2.evt_actuatorBumpTestStatus.next(
                 flush=False, timeout=self.long_timeout
@@ -1506,8 +1536,10 @@ class MTCS(BaseTCS):
             if bump_test_status.status == MTM2.BumpTest.PASSED:
                 self.log.info(f"Bump test for actuator {actuator} passed.")
                 return
-            elif bump_test_status.status == MTM2.BumpTest.FAILED:
-                raise RuntimeError(f"Bump test for actuator {actuator} failed.")
+            elif bump_test_status.status in FAILED_STATES:
+                raise RuntimeError(
+                    f"Bump test for actuator {actuator} failed with status {bump_test_status.status!r}."
+                )
             else:
                 self.log.info(
                     f"Actuator {actuator} bump test status: {bump_test_status.status}"
