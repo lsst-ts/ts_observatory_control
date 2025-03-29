@@ -28,11 +28,10 @@ import astropy.units as units
 import numpy as np
 import pytest
 from astropy.coordinates import Angle
-from lsst.ts import idl, utils
-from lsst.ts.idl.enums import MTM1M3, MTM2, MTMount
+from lsst.ts import utils
 from lsst.ts.observatory.control.mock.mtcs_async_mock import MTCSAsyncMock
 from lsst.ts.observatory.control.utils import RotType
-from lsst.ts.xml.enums import MTDome
+from lsst.ts.xml.enums import MTM1M3, MTM2, MTDome, MTMount, MTRotator
 
 
 class TestMTCS(MTCSAsyncMock):
@@ -911,7 +910,7 @@ class TestMTCS(MTCSAsyncMock):
 
     async def test_close_m1_cover_when_deployed(self) -> None:
         self._mtmount_evt_mirror_covers_motion_state.state = (
-            idl.enums.MTMount.DeployableMotionState.DEPLOYED
+            MTMount.DeployableMotionState.DEPLOYED
         )
 
         await self.mtcs.close_m1_cover()
@@ -921,7 +920,7 @@ class TestMTCS(MTCSAsyncMock):
 
     async def test_close_m1_cover_when_retracted(self) -> None:
         self._mtmount_evt_mirror_covers_motion_state.state = (
-            idl.enums.MTMount.DeployableMotionState.RETRACTED
+            MTMount.DeployableMotionState.RETRACTED
         )
         # Safe elevation for mirror covers operation
         self._mtmount_tel_elevation.actualPosition = (
@@ -938,7 +937,7 @@ class TestMTCS(MTCSAsyncMock):
 
     async def test_close_m1_cover_when_retracted_below_el_limit(self) -> None:
         self._mtmount_evt_mirror_covers_motion_state.state = (
-            idl.enums.MTMount.DeployableMotionState.RETRACTED
+            MTMount.DeployableMotionState.RETRACTED
         )
         # Unsafe elevation for mirror covers operation
         self._mtmount_tel_elevation.actualPosition = (
@@ -964,12 +963,12 @@ class TestMTCS(MTCSAsyncMock):
 
     async def test_close_m1_cover_wrong_system_state(self) -> None:
         self._mtmount_evt_mirror_covers_motion_state.state = (
-            idl.enums.MTMount.DeployableMotionState.LOST
+            MTMount.DeployableMotionState.LOST
         )
         exception_message = (
-            f"Mirror covers in {idl.enums.MTMount.DeployableMotionState.LOST!r} state. "
-            f"Expected {idl.enums.MTMount.DeployableMotionState.RETRACTED!r} or "
-            f"{idl.enums.MTMount.DeployableMotionState.DEPLOYED!r}"
+            f"Mirror covers in {MTMount.DeployableMotionState.LOST!r} state. "
+            f"Expected {MTMount.DeployableMotionState.RETRACTED!r} or "
+            f"{MTMount.DeployableMotionState.DEPLOYED!r}"
         )
 
         with pytest.raises(RuntimeError, match=exception_message):
@@ -977,7 +976,7 @@ class TestMTCS(MTCSAsyncMock):
 
     async def test_close_m1_cover_wrong_motion_state(self) -> None:
         self._mtmount_evt_mirror_covers_motion_state.state = (
-            idl.enums.MTMount.DeployableMotionState.LOST
+            MTMount.DeployableMotionState.LOST
         )
         cover_state = self._mtmount_evt_mirror_covers_motion_state
         exception_message = (
@@ -991,7 +990,7 @@ class TestMTCS(MTCSAsyncMock):
 
     async def test_open_m1_cover_when_retracted(self) -> None:
         self._mtmount_evt_mirror_covers_motion_state.state = (
-            idl.enums.MTMount.DeployableMotionState.RETRACTED
+            MTMount.DeployableMotionState.RETRACTED
         )
 
         await self.mtcs.open_m1_cover()
@@ -1001,7 +1000,7 @@ class TestMTCS(MTCSAsyncMock):
 
     async def test_open_m1_cover_when_deployed(self) -> None:
         self._mtmount_evt_mirror_covers_motion_state.state = (
-            idl.enums.MTMount.DeployableMotionState.DEPLOYED
+            MTMount.DeployableMotionState.DEPLOYED
         )
         # Safe elevation for mirror covers operation
         self._mtmount_tel_elevation.actualPosition = (
@@ -1018,7 +1017,7 @@ class TestMTCS(MTCSAsyncMock):
 
     async def test_open_m1_cover_when_deployed_below_el_limit(self) -> None:
         self._mtmount_evt_mirror_covers_motion_state.state = (
-            idl.enums.MTMount.DeployableMotionState.DEPLOYED
+            MTMount.DeployableMotionState.DEPLOYED
         )
         # Unsafe elevation for mirror covers operation
         self._mtmount_tel_elevation.actualPosition = (
@@ -1044,10 +1043,10 @@ class TestMTCS(MTCSAsyncMock):
 
     async def test_open_m1_cover_wrong_system_state(self) -> None:
         self._mtmount_evt_mirror_covers_motion_state.state = (
-            idl.enums.MTMount.DeployableMotionState.LOST
+            MTMount.DeployableMotionState.LOST
         )
         exception_message = (
-            f"Mirror covers in {idl.enums.MTMount.DeployableMotionState.LOST!r} "
+            f"Mirror covers in {MTMount.DeployableMotionState.LOST!r} "
             f"state. Expected {MTMount.DeployableMotionState.RETRACTED!r} or "
             f"{MTMount.DeployableMotionState.DEPLOYED!r}"
         )
@@ -1057,7 +1056,7 @@ class TestMTCS(MTCSAsyncMock):
 
     async def test_open_m1_cover_wrong_motion_state(self) -> None:
         self._mtmount_evt_mirror_covers_motion_state.state = (
-            idl.enums.MTMount.DeployableMotionState.LOST
+            MTMount.DeployableMotionState.LOST
         )
         cover_state = self._mtmount_evt_mirror_covers_motion_state
         exception_message = (
@@ -1124,9 +1123,7 @@ class TestMTCS(MTCSAsyncMock):
         await self.mtcs.enable()
         await self.mtcs.assert_all_enabled()
 
-        self._mtm1m3_evt_detailed_state.detailedState = (
-            idl.enums.MTM1M3.DetailedState.PARKED
-        )
+        self._mtm1m3_evt_detailed_state.detailedState = MTM1M3.DetailedState.PARKED
 
         await self.mtcs.raise_m1m3()
 
@@ -1148,9 +1145,7 @@ class TestMTCS(MTCSAsyncMock):
         await self.mtcs.enable()
         await self.mtcs.assert_all_enabled()
 
-        self._mtm1m3_evt_detailed_state.detailedState = (
-            idl.enums.MTM1M3.DetailedState.ACTIVE
-        )
+        self._mtm1m3_evt_detailed_state.detailedState = MTM1M3.DetailedState.ACTIVE
         await self.mtcs.raise_m1m3()
 
         self.mtcs.rem.mtm1m3.evt_detailedState.aget.assert_awaited()
@@ -1162,9 +1157,7 @@ class TestMTCS(MTCSAsyncMock):
         await self.mtcs.enable()
         await self.mtcs.assert_all_enabled()
 
-        self._mtm1m3_evt_detailed_state.detailedState = (
-            idl.enums.MTM1M3.DetailedState.PARKED
-        )
+        self._mtm1m3_evt_detailed_state.detailedState = MTM1M3.DetailedState.PARKED
 
         m1m3_raise_task = asyncio.create_task(self.mtcs.raise_m1m3())
 
@@ -1190,13 +1183,11 @@ class TestMTCS(MTCSAsyncMock):
         )
 
     async def test_assert_m1m3_detailed_state(self) -> None:
-        self._mtm1m3_evt_detailed_state.detailedState = (
-            idl.enums.MTM1M3.DetailedState.ACTIVE
-        )
+        self._mtm1m3_evt_detailed_state.detailedState = MTM1M3.DetailedState.ACTIVE
 
-        for m1m3_detailed_state in idl.enums.MTM1M3.DetailedState:
+        for m1m3_detailed_state in MTM1M3.DetailedState:
             self.log.debug(f"{m1m3_detailed_state!r}")
-            if m1m3_detailed_state != idl.enums.MTM1M3.DetailedState.ACTIVE:
+            if m1m3_detailed_state != MTM1M3.DetailedState.ACTIVE:
                 with pytest.raises(AssertionError):
                     await self.mtcs.assert_m1m3_detailed_state(
                         detailed_states={m1m3_detailed_state}
@@ -1215,12 +1206,12 @@ class TestMTCS(MTCSAsyncMock):
         await self.mtcs.enable()
         await self.mtcs.assert_all_enabled()
 
-        for m1m3_detailed_state in idl.enums.MTM1M3.DetailedState:
+        for m1m3_detailed_state in MTM1M3.DetailedState:
             if m1m3_detailed_state not in {
-                idl.enums.MTM1M3.DetailedState.ACTIVE,
-                idl.enums.MTM1M3.DetailedState.ACTIVEENGINEERING,
-                idl.enums.MTM1M3.DetailedState.PARKED,
-                idl.enums.MTM1M3.DetailedState.PARKEDENGINEERING,
+                MTM1M3.DetailedState.ACTIVE,
+                MTM1M3.DetailedState.ACTIVEENGINEERING,
+                MTM1M3.DetailedState.PARKED,
+                MTM1M3.DetailedState.PARKEDENGINEERING,
             }:
                 self.log.debug(
                     f"Test m1m3 raise fails if detailed state is {m1m3_detailed_state!r}"
@@ -1234,9 +1225,7 @@ class TestMTCS(MTCSAsyncMock):
         await self.mtcs.enable()
         await self.mtcs.assert_all_enabled()
 
-        self._mtm1m3_evt_detailed_state.detailedState = (
-            idl.enums.MTM1M3.DetailedState.ACTIVE
-        )
+        self._mtm1m3_evt_detailed_state.detailedState = MTM1M3.DetailedState.ACTIVE
 
         await self.mtcs.lower_m1m3()
 
@@ -1263,12 +1252,12 @@ class TestMTCS(MTCSAsyncMock):
         self.mtcs.rem.mtm1m3.evt_detailedState.next.assert_not_awaited()
 
     async def test_lower_m1m3_not_lowerable(self) -> None:
-        for m1m3_detailed_state in idl.enums.MTM1M3.DetailedState:
+        for m1m3_detailed_state in MTM1M3.DetailedState:
             if m1m3_detailed_state not in {
-                idl.enums.MTM1M3.DetailedState.ACTIVE,
-                idl.enums.MTM1M3.DetailedState.ACTIVEENGINEERING,
-                idl.enums.MTM1M3.DetailedState.PARKED,
-                idl.enums.MTM1M3.DetailedState.PARKEDENGINEERING,
+                MTM1M3.DetailedState.ACTIVE,
+                MTM1M3.DetailedState.ACTIVEENGINEERING,
+                MTM1M3.DetailedState.PARKED,
+                MTM1M3.DetailedState.PARKEDENGINEERING,
             }:
                 self.log.debug(
                     f"Test m1m3 raise fails is detailed state is {m1m3_detailed_state!r}"
@@ -1279,9 +1268,7 @@ class TestMTCS(MTCSAsyncMock):
                     await self.mtcs.raise_m1m3()
 
     async def test_abort_raise_m1m3(self) -> None:
-        self._mtm1m3_evt_detailed_state.detailedState = (
-            idl.enums.MTM1M3.DetailedState.RAISING
-        )
+        self._mtm1m3_evt_detailed_state.detailedState = MTM1M3.DetailedState.RAISING
 
         await self.mtcs.enable()
         await self.mtcs.assert_all_enabled()
@@ -1292,17 +1279,14 @@ class TestMTCS(MTCSAsyncMock):
             timeout=self.mtcs.long_timeout
         )
         assert (
-            self._mtm1m3_evt_detailed_state.detailedState
-            == idl.enums.MTM1M3.DetailedState.PARKED
+            self._mtm1m3_evt_detailed_state.detailedState == MTM1M3.DetailedState.PARKED
         )
 
     async def test_abort_raise_m1m3_active(self) -> None:
         await self.mtcs.enable()
         await self.mtcs.assert_all_enabled()
 
-        self._mtm1m3_evt_detailed_state.detailedState = (
-            idl.enums.MTM1M3.DetailedState.ACTIVE
-        )
+        self._mtm1m3_evt_detailed_state.detailedState = MTM1M3.DetailedState.ACTIVE
 
         with pytest.raises(RuntimeError):
             await self.mtcs.abort_raise_m1m3()
@@ -1313,9 +1297,7 @@ class TestMTCS(MTCSAsyncMock):
         await self.mtcs.enable()
         await self.mtcs.assert_all_enabled()
 
-        self._mtm1m3_evt_detailed_state.detailedState = (
-            idl.enums.MTM1M3.DetailedState.PARKED
-        )
+        self._mtm1m3_evt_detailed_state.detailedState = MTM1M3.DetailedState.PARKED
 
         await self.mtcs.abort_raise_m1m3()
 
@@ -1403,9 +1385,7 @@ class TestMTCS(MTCSAsyncMock):
     async def test_is_m1m3_in_engineering_mode(self) -> None:
         m1m3_engineering_states = self.mtcs.m1m3_engineering_states
         m1m3_non_engineering_states = {
-            val
-            for val in idl.enums.MTM1M3.DetailedState
-            if val not in m1m3_engineering_states
+            val for val in MTM1M3.DetailedState if val not in m1m3_engineering_states
         }
 
         for detailed_state in m1m3_engineering_states:
@@ -1427,9 +1407,7 @@ class TestMTCS(MTCSAsyncMock):
     async def test_enter_m1m3_engineering_mode_not_in_eng_mode(self) -> None:
         m1m3_engineering_states = self.mtcs.m1m3_engineering_states
         m1m3_non_engineering_states = {
-            val
-            for val in idl.enums.MTM1M3.DetailedState
-            if val not in m1m3_engineering_states
+            val for val in MTM1M3.DetailedState if val not in m1m3_engineering_states
         }
         for detailed_state in m1m3_non_engineering_states:
             self._mtm1m3_evt_detailed_state.detailedState = detailed_state
@@ -1449,9 +1427,7 @@ class TestMTCS(MTCSAsyncMock):
 
         m1m3_engineering_states = self.mtcs.m1m3_engineering_states
         m1m3_non_engineering_states = {
-            val
-            for val in idl.enums.MTM1M3.DetailedState
-            if val not in m1m3_engineering_states
+            val for val in MTM1M3.DetailedState if val not in m1m3_engineering_states
         }
         for detailed_state in m1m3_non_engineering_states:
             self._mtm1m3_evt_detailed_state.detailedState = detailed_state
@@ -1480,9 +1456,7 @@ class TestMTCS(MTCSAsyncMock):
     async def test_exit_m1m3_engineering_mode_not_in_eng_mode(self) -> None:
         m1m3_engineering_states = self.mtcs.m1m3_engineering_states
         m1m3_non_engineering_states = {
-            val
-            for val in idl.enums.MTM1M3.DetailedState
-            if val not in m1m3_engineering_states
+            val for val in MTM1M3.DetailedState if val not in m1m3_engineering_states
         }
         for detailed_state in m1m3_non_engineering_states:
             self._mtm1m3_evt_detailed_state.detailedState = detailed_state
@@ -1505,7 +1479,7 @@ class TestMTCS(MTCSAsyncMock):
         )
 
     async def test_run_m1m3_hard_point_test_failed(self) -> None:
-        self.desired_hp_test_final_status = idl.enums.MTM1M3.HardpointTest.FAILED
+        self.desired_hp_test_final_status = MTM1M3.HardpointTest.FAILED
 
         with pytest.raises(RuntimeError):
             await self.mtcs.run_m1m3_hard_point_test(hp=1)
@@ -1564,8 +1538,8 @@ class TestMTCS(MTCSAsyncMock):
         )
 
         assert actuator_id == actuator_id
-        assert primary_status == idl.enums.MTM1M3.BumpTest.PASSED
-        assert secondary_status == idl.enums.MTM1M3.BumpTest.NOTTESTED
+        assert primary_status == MTM1M3.BumpTest.PASSED
+        assert secondary_status == MTM1M3.BumpTest.NOTTESTED
 
     async def test_run_m1m3_actuator_bump_test_default_no_secondary(self) -> None:
         actuator_id = 101
@@ -1589,7 +1563,7 @@ class TestMTCS(MTCSAsyncMock):
             timeout=self.mtcs.long_timeout,
         )
 
-        assert primary_status == idl.enums.MTM1M3.BumpTest.PASSED
+        assert primary_status == MTM1M3.BumpTest.PASSED
         assert secondary_status is None
 
     async def test_run_m1m3_actuator_bump_test_primary_secondary(self) -> None:
@@ -1617,8 +1591,8 @@ class TestMTCS(MTCSAsyncMock):
             timeout=self.mtcs.long_timeout,
         )
 
-        assert primary_status == idl.enums.MTM1M3.BumpTest.PASSED
-        assert secondary_status == idl.enums.MTM1M3.BumpTest.PASSED
+        assert primary_status == MTM1M3.BumpTest.PASSED
+        assert secondary_status == MTM1M3.BumpTest.PASSED
 
     async def test_run_m1m3_actuator_bump_test_secondary(self) -> None:
         actuator_id = self.mtcs.get_m1m3_actuator_secondary_ids()[0]
@@ -1645,13 +1619,13 @@ class TestMTCS(MTCSAsyncMock):
             timeout=self.mtcs.long_timeout,
         )
 
-        assert primary_status == idl.enums.MTM1M3.BumpTest.NOTTESTED
-        assert secondary_status == idl.enums.MTM1M3.BumpTest.PASSED
+        assert primary_status == MTM1M3.BumpTest.NOTTESTED
+        assert secondary_status == MTM1M3.BumpTest.PASSED
 
     async def test_run_m1m3_actuator_bump_test_fail(self) -> None:
         actuator_id = self.mtcs.get_m1m3_actuator_secondary_ids()[0]
 
-        self.desired_bump_test_final_status = idl.enums.MTM1M3.BumpTest.FAILED
+        self.desired_bump_test_final_status = MTM1M3.BumpTest.FAILED_NONTESTEDPROBLEM
 
         with pytest.raises(RuntimeError):
             await self.mtcs.run_m1m3_actuator_bump_test(
@@ -1674,11 +1648,11 @@ class TestMTCS(MTCSAsyncMock):
             timeout=self.mtcs.long_timeout,
         )
 
-        assert primary_status == idl.enums.MTM1M3.BumpTest.FAILED
-        assert secondary_status == idl.enums.MTM1M3.BumpTest.NOTTESTED
+        assert primary_status == MTM1M3.BumpTest.FAILED_NONTESTEDPROBLEM
+        assert secondary_status == MTM1M3.BumpTest.NOTTESTED
 
     async def test_run_m1m3_actuator_bump_test_2nd_fail(self) -> None:
-        self.desired_bump_test_final_status = idl.enums.MTM1M3.BumpTest.FAILED
+        self.desired_bump_test_final_status = MTM1M3.BumpTest.FAILED_NONTESTEDPROBLEM
 
         actuator_id = self.mtcs.get_m1m3_actuator_secondary_ids()[0]
 
@@ -1709,12 +1683,12 @@ class TestMTCS(MTCSAsyncMock):
             timeout=self.mtcs.long_timeout,
         )
 
-        assert primary_status == idl.enums.MTM1M3.BumpTest.NOTTESTED
-        assert secondary_status == idl.enums.MTM1M3.BumpTest.FAILED
+        assert primary_status == MTM1M3.BumpTest.NOTTESTED
+        assert secondary_status == MTM1M3.BumpTest.FAILED_NONTESTEDPROBLEM
 
     async def test_run_m1m3_actuator_bump_test_both_fail(self) -> None:
         actuator_id = 102
-        self.desired_bump_test_final_status = idl.enums.MTM1M3.BumpTest.FAILED
+        self.desired_bump_test_final_status = MTM1M3.BumpTest.FAILED_NONTESTEDPROBLEM
 
         with pytest.raises(RuntimeError):
             await self.mtcs.run_m1m3_actuator_bump_test(
@@ -1727,8 +1701,8 @@ class TestMTCS(MTCSAsyncMock):
             secondary_status,
         ) = await self.mtcs.get_m1m3_bump_test_status(actuator_id=actuator_id)
 
-        assert primary_status == idl.enums.MTM1M3.BumpTest.FAILED
-        assert secondary_status != idl.enums.MTM1M3.BumpTest.FAILED
+        assert primary_status == MTM1M3.BumpTest.FAILED_NONTESTEDPROBLEM
+        assert secondary_status != MTM1M3.BumpTest.FAILED_NONTESTEDPROBLEM
 
         with pytest.raises(RuntimeError):
             await self.mtcs._wait_bump_test_ok(
@@ -1740,8 +1714,8 @@ class TestMTCS(MTCSAsyncMock):
             secondary_status,
         ) = await self.mtcs.get_m1m3_bump_test_status(actuator_id=actuator_id)
 
-        assert primary_status == idl.enums.MTM1M3.BumpTest.FAILED
-        assert secondary_status == idl.enums.MTM1M3.BumpTest.FAILED
+        assert primary_status == MTM1M3.BumpTest.FAILED_NONTESTEDPROBLEM
+        assert secondary_status == MTM1M3.BumpTest.FAILED_NONTESTEDPROBLEM
 
     async def test_stop_m1m3_bump_test_running(self) -> None:
         self._mtm1m3_evt_force_actuator_bump_test_status.actuatorId = 102
@@ -1875,7 +1849,9 @@ class TestMTCS(MTCSAsyncMock):
         self.mtcs.rem.mtm2.evt_actuatorBumpTestStatus.next = unittest.mock.AsyncMock(
             side_effect=[
                 unittest.mock.Mock(actuator=55, status=MTM2.BumpTest.TESTINGPOSITIVE),
-                unittest.mock.Mock(actuator=55, status=MTM2.BumpTest.FAILED),
+                unittest.mock.Mock(
+                    actuator=55, status=MTM2.BumpTest.FAILED_NONTESTEDPROBLEM
+                ),
             ]
         )
 
@@ -1899,7 +1875,9 @@ class TestMTCS(MTCSAsyncMock):
 
         # Set up mock for evt_actuatorBumpTestStatus
         self.mtcs.rem.mtm2.evt_actuatorBumpTestStatus.next = unittest.mock.AsyncMock(
-            return_value=unittest.mock.Mock(actuator=99, status=MTM2.BumpTest.FAILED)
+            return_value=unittest.mock.Mock(
+                actuator=99, status=MTM2.BumpTest.FAILED_NONTESTEDPROBLEM
+            )
         )
 
         with pytest.raises(RuntimeError):
@@ -2023,7 +2001,7 @@ class TestMTCS(MTCSAsyncMock):
 
         assert (
             self._mtrotator_evt_controller_state.enabledSubstate
-            == idl.enums.MTRotator.EnabledSubstate.STATIONARY
+            == MTRotator.EnabledSubstate.STATIONARY
         )
 
     async def test_move_rotator_without_wait(self) -> None:

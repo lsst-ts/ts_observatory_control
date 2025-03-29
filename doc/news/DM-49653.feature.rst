@@ -1,0 +1,1 @@
+Switched enums from ts-idl to ts-xml.

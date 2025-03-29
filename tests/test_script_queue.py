@@ -27,11 +27,11 @@ import unittest
 import unittest.mock
 
 import yaml
-from lsst.ts import idl
 from lsst.ts.observatory.control import Usages
 from lsst.ts.observatory.control.mock import RemoteGroupAsyncMock
 from lsst.ts.observatory.control.script_queue import ScriptQueue
 from lsst.ts.xml.component_info import ComponentInfo
+from lsst.ts.xml.enums import ScriptQueue as ScriptQueueEnum
 
 HB_TIMEOUT = 5  # Heartbeat timeout (sec)
 MAKE_TIMEOUT = 60  # Timeout for make_script (sec)
@@ -51,7 +51,7 @@ class TestScriptQueue(RemoteGroupAsyncMock):
         cls.log = logging.getLogger(__name__)
 
         cls.script_queue = ScriptQueue(
-            queue_index=idl.enums.ScriptQueue.SalIndex.MAIN_TEL,
+            queue_index=ScriptQueueEnum.SalIndex.MAIN_TEL,
             domain="FakeDomain",
             log=cls.log,
             intended_usage=Usages.DryTest,
@@ -423,7 +423,7 @@ additionalProperties: false
             path=script,
             config=yaml.safe_dump(config),
             descr=description,
-            location=idl.enums.ScriptQueue.Location.LAST,
+            location=ScriptQueueEnum.Location.LAST,
             logLevel=log_level,
             pauseCheckpoint=pause_checkpoint,
             timeout=self.script_queue.long_timeout,

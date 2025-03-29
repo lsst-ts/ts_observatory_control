@@ -18,7 +18,7 @@ test:
     - pydantic
     - scipy
     - ts-criopy
-    - ts-idl {{ idl_version }}
+    - ts-xml {{ xml_version }}
     - ts-salobj {{ salobj_version }}
   source_files:
     - python
@@ -49,6 +49,6 @@ requirements:
     - python {{ python }}
     - scipy
     - ts-criopy
-    - ts-idl
+    - ts-xml
     - ts-salobj
 

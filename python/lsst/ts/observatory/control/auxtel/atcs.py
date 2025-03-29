@@ -30,8 +30,8 @@ import astropy.units as u
 import numpy as np
 from astropy.coordinates import Angle
 from lsst.ts import salobj, utils
-from lsst.ts.idl.enums import ATMCS, ATDome, ATPneumatics, ATPtg
 from lsst.ts.utils import angle_diff
+from lsst.ts.xml.enums import ATMCS, ATDome, ATPneumatics, ATPtg
 
 from ..base_tcs import BaseTCS
 from ..constants import atcs_constants
