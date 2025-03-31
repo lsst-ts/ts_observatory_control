@@ -642,7 +642,7 @@ class MTCS(BaseTCS):
 
         while not dome_ready(az_motion):
             az_motion = await self.rem.mtdome.evt_azMotion.next(
-                Flush=False, timeout=timeout
+                flush=False, timeout=timeout
             )
 
             if az_motion.state in bad_states:
