@@ -140,6 +140,10 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
             state=MTDome.MotionState.UNDETERMINED, inPosition=False
         )
 
+        self._mtdome_evt_shutter_motion = types.SimpleNamespace(
+            state=MTDome.MotionState.UNDETERMINED, inPosition=False
+        )
+
         # MTM1M3 data
         self._mtm1m3_evt_detailed_state = types.SimpleNamespace(
             detailedState=xml.enums.MTM1M3.DetailedState.PARKED
@@ -270,6 +274,9 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
             "evt_azMotion.next.side_effect": self.mtdome_evt_az_motion_next,
             "cmd_stop.set_start.side_effect": self.mtdome_cmd_stop,
             "cmd_setZeroAz.start.side_effect": self.mtdome_cmd_set_zero_az,
+            "evt_shutterMotion.aget.side_effect": self.mtdome_evt_shutter_motion_next,
+            "cmd_openShutter.start.side_effect": self.mtdome_cmd_open_shutter,
+            "cmd_closeShutter.start.side_effect": self.mtdome_cmd_close_shutter,
         }
 
         self.mtcs.rem.mtdome.configure_mock(**mtdome_mocks)
@@ -640,6 +647,46 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
         self._mtdome_tel_azimuth = types.SimpleNamespace(
             positionActual=0.0,
             positionCommanded=0.0,
+        )
+
+    async def mtdome_evt_shutter_motion_next(
+        self, *args: typing.Any, **kwargs: typing.Any
+    ) -> types.SimpleNamespace:
+        await asyncio.sleep(self.heartbeat_time)
+        return self._mtdome_evt_shutter_motion
+
+    async def mtdome_cmd_open_shutter(
+        self, *args: typing.Any, **kwargs: typing.Any
+    ) -> None:
+        asyncio.create_task(self._mtdome_open_shutter())
+
+    async def _mtdome_open_shutter(
+        self, *args: typing.Any, **kwargs: typing.Any
+    ) -> None:
+        self.log.debug("Dome openShutter command executed")
+        self._mtdome_evt_shutter_motion = types.SimpleNamespace(
+            state=MTDome.MotionState.OPENING, inPosition=False
+        )
+        await asyncio.sleep(self.heartbeat_time)
+        self._mtdome_evt_shutter_motion = types.SimpleNamespace(
+            state=MTDome.MotionState.OPEN, inPosition=True
+        )
+
+    async def mtdome_cmd_close_shutter(
+        self, *args: typing.Any, **kwargs: typing.Any
+    ) -> None:
+        asyncio.create_task(self._mtdome_close_shutter())
+
+    async def _mtdome_close_shutter(
+        self, *args: typing.Any, **kwargs: typing.Any
+    ) -> None:
+        self.log.debug("Dome closeShutter command executed")
+        self._mtdome_evt_shutter_motion = types.SimpleNamespace(
+            state=MTDome.MotionState.CLOSING, inPosition=False
+        )
+        await asyncio.sleep(self.heartbeat_time)
+        self._mtdome_evt_shutter_motion = types.SimpleNamespace(
+            state=MTDome.MotionState.CLOSED, inPosition=True
         )
 
     async def mtm1m3_evt_detailed_state(
