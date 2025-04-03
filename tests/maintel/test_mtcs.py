@@ -846,9 +846,70 @@ class TestMTCS(MTCSAsyncMock):
 
         assert self.mtcs.rem.mtdome.evt_azMotion.inPosition
 
-    async def test_close_dome(self) -> None:
-        with pytest.raises(NotImplementedError):
+    async def test_close_dome_when_m1_cover_deployed_and_wrong_el(self) -> None:
+        self._mtmount_evt_mirror_covers_motion_state.state = (
+            MTMount.DeployableMotionState.DEPLOYED
+        )
+        self._mtmount_tel_elevation.actualPosition = (
+            self.mtcs.tel_operate_dome_shutter_el + 1.0
+        )
+        self._mtdome_evt_shutter_motion.state = MTDome.MotionState.OPEN
+
+        await self.mtcs.close_dome()
+        self.mtcs.rem.mtdome.cmd_closeShutter.start.assert_awaited()
+
+    async def test_close_dome_when_m1_cover_retracted_and_ok_el(self) -> None:
+        self._mtmount_evt_mirror_covers_motion_state.state = (
+            MTMount.DeployableMotionState.RETRACTED
+        )
+        self._mtmount_tel_elevation.actualPosition = (
+            self.mtcs.tel_operate_dome_shutter_el - 1.0
+        )
+        self._mtdome_evt_shutter_motion.state = MTDome.MotionState.OPEN
+
+        await self.mtcs.close_dome()
+        self.mtcs.rem.mtdome.cmd_closeShutter.start.assert_awaited()
+
+    async def test_close_dome_when_m1_cover_retracted_and_wrong_el(self) -> None:
+        self._mtmount_evt_mirror_covers_motion_state.state = (
+            MTMount.DeployableMotionState.RETRACTED
+        )
+        self._mtmount_tel_elevation.actualPosition = (
+            self.mtcs.tel_operate_dome_shutter_el + 1.0
+        )
+        self._mtdome_evt_shutter_motion.state = MTDome.MotionState.OPEN
+
+        with pytest.raises(RuntimeError):
             await self.mtcs.close_dome()
+
+    async def test_close_dome_when_forced(self) -> None:
+        self._mtmount_evt_mirror_covers_motion_state.state = (
+            MTMount.DeployableMotionState.RETRACTED
+        )
+        self._mtmount_tel_elevation.actualPosition = (
+            self.mtcs.tel_operate_dome_shutter_el + 1.0
+        )
+        self._mtdome_evt_shutter_motion.state = MTDome.MotionState.OPEN
+
+        await self.mtcs.close_dome(force=True)
+        self.mtcs.rem.mtdome.cmd_closeShutter.start.assert_awaited()
+
+    async def test_close_dome_when_closed(self) -> None:
+        self._mtdome_evt_shutter_motion.state = MTDome.MotionState.CLOSED
+
+        await self.mtcs.close_dome()
+        self.mtcs.rem.mtdome.cmd_closeShutter.start.assert_not_awaited()
+
+    async def test_close_dome_wrong_state(self) -> None:
+        self._mtdome_evt_shutter_motion.state = MTDome.MotionState.ERROR
+        with pytest.raises(RuntimeError):
+            await self.mtcs.close_dome()
+
+    async def test_close_dome_wrong_state_but_forced(self) -> None:
+        self._mtdome_evt_shutter_motion.state = MTDome.MotionState.ERROR
+
+        await self.mtcs.close_dome(force=True)
+        self.mtcs.rem.mtdome.cmd_closeShutter.start.assert_awaited()
 
     async def test_in_m1_cover_operational_range(self) -> None:
         self._mtmount_tel_elevation.actualPosition = (
@@ -1108,9 +1169,70 @@ class TestMTCS(MTCSAsyncMock):
         )
         assert self._mtdome_tel_azimuth.positionActual == 0.0
 
-    async def test_open_dome_shutter(self) -> None:
-        with pytest.raises(NotImplementedError):
+    async def test_open_dome_shutter_when_m1_cover_deployed_and_wrong_el(self) -> None:
+        self._mtmount_evt_mirror_covers_motion_state.state = (
+            MTMount.DeployableMotionState.DEPLOYED
+        )
+        self._mtmount_tel_elevation.actualPosition = (
+            self.mtcs.tel_operate_dome_shutter_el + 1.0
+        )
+        self._mtdome_evt_shutter_motion.state = MTDome.MotionState.CLOSED
+
+        await self.mtcs.open_dome_shutter()
+        self.mtcs.rem.mtdome.cmd_openShutter.start.assert_awaited()
+
+    async def test_open_dome_shutter_when_m1_cover_retracted_and_ok_el(self) -> None:
+        self._mtmount_evt_mirror_covers_motion_state.state = (
+            MTMount.DeployableMotionState.RETRACTED
+        )
+        self._mtmount_tel_elevation.actualPosition = (
+            self.mtcs.tel_operate_dome_shutter_el - 1.0
+        )
+        self._mtdome_evt_shutter_motion.state = MTDome.MotionState.CLOSED
+
+        await self.mtcs.open_dome_shutter()
+        self.mtcs.rem.mtdome.cmd_openShutter.start.assert_awaited()
+
+    async def test_open_dome_shutter_when_m1_cover_retracted_and_wrong_el(self) -> None:
+        self._mtmount_evt_mirror_covers_motion_state.state = (
+            MTMount.DeployableMotionState.RETRACTED
+        )
+        self._mtmount_tel_elevation.actualPosition = (
+            self.mtcs.tel_operate_dome_shutter_el + 1.0
+        )
+        self._mtdome_evt_shutter_motion.state = MTDome.MotionState.CLOSED
+
+        with pytest.raises(RuntimeError):
             await self.mtcs.open_dome_shutter()
+
+    async def test_open_dome_shutter_when_forced(self) -> None:
+        self._mtmount_evt_mirror_covers_motion_state.state = (
+            MTMount.DeployableMotionState.RETRACTED
+        )
+        self._mtmount_tel_elevation.actualPosition = (
+            self.mtcs.tel_operate_dome_shutter_el + 1.0
+        )
+        self._mtdome_evt_shutter_motion.state = MTDome.MotionState.CLOSED
+
+        await self.mtcs.open_dome_shutter(force=True)
+        self.mtcs.rem.mtdome.cmd_openShutter.start.assert_awaited()
+
+    async def test_open_dome_shutter_when_open(self) -> None:
+        self._mtdome_evt_shutter_motion.state = MTDome.MotionState.OPEN
+
+        await self.mtcs.open_dome_shutter()
+        self.mtcs.rem.mtdome.cmd_openShutter.start.assert_not_awaited()
+
+    async def test_open_dome_shutter_wrong_state(self) -> None:
+        self._mtdome_evt_shutter_motion.state = MTDome.MotionState.ERROR
+        with pytest.raises(RuntimeError):
+            await self.mtcs.open_dome_shutter()
+
+    async def test_open_dome_wrong_state_but_forced(self) -> None:
+        self._mtdome_evt_shutter_motion.state = MTDome.MotionState.ERROR
+
+        await self.mtcs.open_dome_shutter(force=True)
+        self.mtcs.rem.mtdome.cmd_openShutter.start.assert_awaited()
 
     async def test_prepare_for_flatfield(self) -> None:
         with pytest.raises(NotImplementedError):
