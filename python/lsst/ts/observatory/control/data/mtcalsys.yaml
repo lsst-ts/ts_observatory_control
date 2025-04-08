@@ -6,8 +6,8 @@ whitelight_u:
   led_name: 
     - M385L3
   wavelength: 385.0
-  led_location: 210.21
-  led_focus: 50.68
+  led_location: 174.18
+  led_focus: 9.42
   exposure_times:
     - 15.0
 
@@ -17,8 +17,8 @@ whitelight_g:
     - M455L4
     - M505L4
   wavelength: 480.0
-  led_location: 9.15
-  led_focus: 17.029
+  led_location: 5.62
+  led_focus: 8.26
   exposure_times:
     - 15.0
 
@@ -27,8 +27,8 @@ whitelight_r:
     - M565L3
     - M660L4
   wavelength: 612.5
-  led_location: 70.40
-  led_focus: 16.279
+  led_location: 66.87
+  led_focus: 7.52
   exposure_times:
     - 15.0
 
@@ -36,10 +36,10 @@ whitelight_i:
   mtcamera_filter: i
   led_name:
     - M730L5
-    - M780LP1
+    - M810L3
   wavelength: 755.0
-  led_location: 237.36
-  led_focus: 15.829
+  led_location: 233.83
+  led_focus: 7.07
   exposure_times:
     - 15.0
 
@@ -49,8 +49,8 @@ whitelight_z:
     - M850L3
     - M940L3
   wavelength: 895.0
-  led_location: 299.034
-  led_focus: 15.505
+  led_location: 295.504
+  led_focus: 6.74
   exposure_times:
     - 15.0
 
@@ -59,6 +59,8 @@ whitelight_y:
   led_name:
     - M970L4
   wavelength: 970.0
+  led_location: 171.38
+  led_focus: 11.85
   exposure_times:
     - 15.0
 
@@ -93,8 +95,8 @@ whitelight_u_source:
   led_name: 
     - M385L3
   wavelength: 385.0
-  led_location: 210.21
-  led_focus: 50.68
+  led_location: 174.18
+  led_focus: 9.42
   use_camera: False
   exposure_times:
     - 15.0
@@ -105,8 +107,8 @@ whitelight_g_source:
     - M455L4
     - M505L4
   wavelength: 480.0
-  led_location: 9.15
-  led_focus: 17.029
+  led_location: 5.62
+  led_focus: 8.26
   use_camera: False
   exposure_times:
     - 15.0
@@ -116,8 +118,8 @@ whitelight_r_source:
     - M565L3
     - M660L4
   wavelength: 612.5
-  led_location: 70.40
-  led_focus: 16.279
+  led_location: 66.87
+  led_focus: 7.52
   use_camera: False
   exposure_times:
     - 15.0
@@ -126,10 +128,10 @@ whitelight_i_source:
   mtcamera_filter: i
   led_name:
     - M730L5
-    - M780LP1
+    - M810L3
   wavelength: 755.0
-  led_location: 237.36
-  led_focus: 15.829
+  led_location: 233.83
+  led_focus: 7.07
   use_camera: False
   exposure_times:
     - 15.0
@@ -140,8 +142,8 @@ whitelight_z_source:
     - M850L3
     - M940L3
   wavelength: 895.0
-  led_location: 299.034
-  led_focus: 15.505
+  led_location: 295.504
+  led_focus: 6.74
   use_camera: False
   exposure_times:
     - 15.0
@@ -151,6 +153,8 @@ whitelight_y_source:
   led_name:
     - M970L4
   wavelength: 970.0
+  led_location: 171.38
+  led_focus: 11.85
   use_camera: False
   exposure_times:
     - 15.0
