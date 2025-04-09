@@ -145,6 +145,7 @@ class MTCS(BaseTCS):
         self.tel_flat_az = 205.7
         self.tel_settle_time = 3.0
         self.tel_operate_mirror_covers_el = 70.0
+        self.tel_operate_dome_shutter_el = 5.0
 
         self.dome_park_az = 285.0
         self.dome_park_el = 80.0
@@ -788,9 +789,90 @@ class MTCS(BaseTCS):
             component_name="MTDome",
         )
 
-    async def close_dome(self) -> None:
-        # TODO: Implement (DM-21336).
-        raise NotImplementedError("# TODO: Implement (DM-21336).")
+    async def close_dome(self, force: bool = False) -> None:
+        """Method to close dome shutter.
+
+        Warnings
+        --------
+        The dome shutter should not be closed when the mirror covers are
+        retracted. This method will check if the covers are deployed or if the
+        telescope is in a safe elevation to continue.
+
+        Raises
+        ------
+        RuntimeError
+            If shutter motion state is neither OPEN nor CLOSED.
+            If mirror covers are RETRACTED and telescope elevation is not in
+            safe range unless force=True.
+        """
+        self.rem.mtdome.evt_shutterMotion.flush()
+        shutter_state = await self.rem.mtdome.evt_shutterMotion.aget(
+            timeout=self.fast_timeout
+        )
+        self.log.debug(f"Shutter state: {MTDome.MotionState(shutter_state.state)!r}")
+
+        if shutter_state.state == MTDome.MotionState.OPEN or force:
+            # Issue command only if mirror covers are deployed or if telescope
+            # elevation is near horizon or if force = True
+            cover_state = await self.rem.mtmount.evt_mirrorCoversMotionState.aget(
+                timeout=self.fast_timeout
+            )
+            elevation = await self.rem.mtmount.tel_elevation.aget(
+                timeout=self.fast_timeout
+            )
+
+            if (
+                cover_state.state == MTMount.DeployableMotionState.DEPLOYED
+                or elevation.actualPosition <= self.tel_operate_dome_shutter_el
+                or force
+            ):
+                if force:
+                    self.log.warning(
+                        "Force-closing MTDome shutter under these conditions: "
+                        f"Shutter state: {MTDome.MotionState(shutter_state.state)!r}. "
+                        f"Mirror covers: {MTMount.DeployableMotionState(cover_state.state)!r}. "
+                        f"Telescope elevation: {elevation.actualPosition} deg."
+                    )
+                else:
+                    self.log.info("Closing MTDome shutter.")
+
+                await self.rem.mtdome.cmd_closeShutter.start(
+                    timeout=self.open_dome_shutter_time
+                )
+
+                # Wait for MT Dome shutter door to reach final position
+                await self._handle_in_position(
+                    self.rem.mtdome.evt_shutterMotion,
+                    timeout=self.open_dome_shutter_time,
+                    component_name="MTDome shutter door",
+                )
+
+                shutter_state = await self.rem.mtdome.evt_shutterMotion.aget(
+                    timeout=self.fast_timeout
+                )
+                self.log.info(
+                    f"Shutter state: {MTDome.MotionState(shutter_state.state)!r}"
+                )
+
+            else:
+                raise RuntimeError(
+                    "MTDome shutter will not be closed under these conditions: "
+                    f"Shutter state: {MTDome.MotionState(shutter_state.state)!r}. "
+                    f"Mirror covers: {MTMount.DeployableMotionState(cover_state.state)!r}. "
+                    f"Telescope elevation: {elevation.actualPosition} deg. "
+                    "If you want to force this operation, run close_dome(force=True)."
+                )
+
+        elif shutter_state.state == MTDome.MotionState.CLOSED:
+            self.log.info("MTDome shutter door is already closed. Ignoring.")
+
+        else:
+            raise RuntimeError(
+                f"Shutter door state is "
+                f"{MTDome.MotionState(shutter_state.state)!r}. "
+                f"expected either {MTDome.MotionState.CLOSED!r}, "
+                f"{MTDome.MotionState.OPEN!r}"
+            )
 
     async def close_m1_cover(self) -> None:
         """Method to close mirror covers.
@@ -936,9 +1018,90 @@ class MTCS(BaseTCS):
         azimuth = await self.rem.mtdome.tel_azimuth.aget(timeout=self.fast_timeout)
         self.log.debug(f"{azimuth.positionActual=}, {azimuth.positionCommanded=}")
 
-    async def open_dome_shutter(self) -> None:
-        # TODO: Implement (DM-21336).
-        raise NotImplementedError("# TODO: Implement (DM-21336).")
+    async def open_dome_shutter(self, force: bool = False) -> None:
+        """Method to open dome shutter.
+
+        Warnings
+        --------
+        The dome shutter should not be opened when the mirror covers are
+        retracted. This method will check if the covers are deployed or if the
+        telescope is in a safe elevation to continue.
+
+        Raises
+        ------
+        RuntimeError
+            If shutter motion state is neither OPEN nor CLOSED.
+            If mirror covers are RETRACTED and telescope elevation is not in
+            safe range unless force=True.
+        """
+        self.rem.mtdome.evt_shutterMotion.flush()
+        shutter_state = await self.rem.mtdome.evt_shutterMotion.aget(
+            timeout=self.fast_timeout
+        )
+        self.log.debug(f"Shutter state: {MTDome.MotionState(shutter_state.state)!r}")
+
+        if shutter_state.state == MTDome.MotionState.CLOSED or force:
+            # Issue command only if mirror covers are deployed or if telescope
+            # elevation is near horizon or if force = True
+            cover_state = await self.rem.mtmount.evt_mirrorCoversMotionState.aget(
+                timeout=self.fast_timeout
+            )
+            elevation = await self.rem.mtmount.tel_elevation.aget(
+                timeout=self.fast_timeout
+            )
+
+            if (
+                cover_state.state == MTMount.DeployableMotionState.DEPLOYED
+                or elevation.actualPosition <= self.tel_operate_dome_shutter_el
+                or force
+            ):
+                if force:
+                    self.log.warning(
+                        "Force-opening MTDome shutter under these conditions: "
+                        f"Shutter state: {MTDome.MotionState(shutter_state.state)!r}. "
+                        f"Mirror covers: {MTMount.DeployableMotionState(cover_state.state)!r}. "
+                        f"Telescope elevation: {elevation.actualPosition} deg."
+                    )
+                else:
+                    self.log.info("Opening MTDome shutter.")
+
+                await self.rem.mtdome.cmd_openShutter.start(
+                    timeout=self.open_dome_shutter_time
+                )
+
+                # Wait for MT Dome shutter door to reach final position
+                await self._handle_in_position(
+                    self.rem.mtdome.evt_shutterMotion,
+                    timeout=self.open_dome_shutter_time,
+                    component_name="MTDome shutter door",
+                )
+
+                shutter_state = await self.rem.mtdome.evt_shutterMotion.aget(
+                    timeout=self.fast_timeout
+                )
+                self.log.info(
+                    f"Shutter state: {MTDome.MotionState(shutter_state.state)!r}"
+                )
+
+            else:
+                raise RuntimeError(
+                    "MTDome shutter will not be opened under these conditions: "
+                    f"Shutter state: {MTDome.MotionState(shutter_state.state)!r}. "
+                    f"Mirror covers: {MTMount.DeployableMotionState(cover_state.state)!r}. "
+                    f"Telescope elevation: {elevation.actualPosition} deg. "
+                    "If you want to force this operation, run open_dome_shutter(force=True)."
+                )
+
+        elif shutter_state.state == MTDome.MotionState.OPEN:
+            self.log.info("MTDome shutter door is already open. Ignoring.")
+
+        else:
+            raise RuntimeError(
+                f"Shutter door state is "
+                f"{MTDome.MotionState(shutter_state.state)!r}. "
+                f"expected either {MTDome.MotionState.CLOSED!r}, "
+                f"{MTDome.MotionState.OPEN!r}"
+            )
 
     async def open_m1_cover(self) -> None:
         """Method to open mirror covers.
@@ -2974,8 +3137,9 @@ class MTCS(BaseTCS):
                     "elevationInPosition",
                     "azimuthInPosition",
                     "cameraCableWrapFollowing",
+                    "mirrorCoversMotionState",
                 ],
-                mtdome=["azimuth", "lightWindScreen", "azMotion"],
+                mtdome=["azimuth", "lightWindScreen", "azMotion", "shutterMotion"],
                 mtm1m3=[
                     "boosterValveStatus",
                     "forceActuatorState",
