@@ -26,6 +26,7 @@ import unittest.mock
 
 import numpy as np
 import pytest
+from lsst.ts.observatory.control import ExposureLog
 from lsst.ts.observatory.control.auxtel.atcalsys import ATCalsys, ATCalsysUsages
 from lsst.ts.observatory.control.auxtel.latiss import LATISS, LATISSUsages
 from lsst.ts.observatory.control.mock import RemoteGroupAsyncMock
@@ -314,3 +315,79 @@ class TestATCalsys(RemoteGroupAsyncMock):
         self.atcalsys.rem.atmonochromator.cmd_changeWavelength.set_start.assert_has_awaits(
             expected_change_wavelegths_calls
         )
+
+    async def test_exposure_log_component_errors(self) -> None:
+
+        mock_latiss = LATISS(
+            "FakeDomain", log=self.log, intended_usage=LATISSUsages.DryTest
+        )
+        mock_latiss.rem.atcamera = unittest.mock.AsyncMock()
+        mock_latiss.rem.atcamera.evt_startIntegration.aget.configure_mock(
+            side_effect=self.mock_aget_start_integration
+        )
+        mock_latiss.rem.atcamera.evt_startIntegration.next.configure_mock(
+            side_effect=self.mock_start_integration
+        )
+        mock_latiss.rem.atcamera.evt_endReadout.next.configure_mock(
+            side_effect=self.mock_end_readout
+        )
+        mock_latiss.rem.atspectrograph = unittest.mock.AsyncMock()
+        self.atcalsys.latiss = mock_latiss
+
+        # Create an AckTimeoutError for electrometer
+        ack_timeout_error = asyncio.TimeoutError("Command timed out")
+        # Create a timeout error for fiber spectrograph
+        timeout_error = asyncio.TimeoutError("Event timeout")
+
+        # Setup the electrometer to timeout on command
+        self.atcalsys.electrometer.cmd_startScanDt.set_start.side_effect = (
+            ack_timeout_error
+        )
+
+        # Setup the fiber spectrograph to timeout when waiting for event
+        self.atcalsys.fiberspectrograph.evt_largeFileObjectAvailable.next.side_effect = [
+            types.SimpleNamespace(url="https://fiberspectrograph_url"),
+            timeout_error,
+        ]
+
+        try:
+            await self.atcalsys.exposure_log.clear()
+
+            await self.atcalsys.run_calibration_sequence(
+                "at_whitelight_r", exposure_metadata=dict()
+            )
+        finally:
+            self.atcalsys.latiss = None
+
+        exposure_entries = await self.atcalsys.exposure_log.get_entries()
+
+        assert len(exposure_entries) > 0, "No exposure entries found"
+
+        electrometer_error_entries = [
+            entry
+            for entry in exposure_entries
+            if "Command timed out" in entry.get("error_message", "")
+        ]
+
+        assert len(electrometer_error_entries) > 0
+
+    async def test_exposure_log_class(self) -> None:
+        """Test the basic functionality of the ExposureLog class."""
+        log = ExposureLog()
+
+        await log.add_entry("exp1", {"status": "pending"})
+        entries = await log.get_entries()
+        assert len(entries) == 1
+        assert entries[0]["exposure_id"] == "exp1"
+
+        await log.update_entry("exp1", {"status": "success"})
+        entries = await log.get_entries()
+        assert entries[0]["status"] == "success"
+
+        json_str = await log.serialize()
+        assert "exp1" in json_str
+        assert "success" in json_str
+
+        await log.clear()
+        entries = await log.get_entries()
+        assert len(entries) == 0
