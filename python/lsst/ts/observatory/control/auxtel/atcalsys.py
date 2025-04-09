@@ -444,11 +444,12 @@ class ATCalsys(BaseCalsys):
             )
 
             exposure_id = f"exposure_{i + 1}"
-            step_info = {
+            log_step_info = {
                 "wavelength": exposure.wavelength,
                 "status": "pending",
             }
-            await self.exposure_log.add_entry(exposure_id, step_info)
+            await self.exposure_log.add_entry(exposure_id, log_step_info)
+
             try:
                 if config_data["monochromator_grating"] is not None:
                     await self.change_wavelength(wavelength=exposure.wavelength)
@@ -467,11 +468,11 @@ class ATCalsys(BaseCalsys):
                     fiber_spectrum_exposure_time=exposure.fiberspectrograph,
                     electrometer_exposure_time=exposure.electrometer,
                 )
-                # latiss_exposure_info.update(exposure_info)
-                step_info["latiss_exposure_info"] = exposure_info
-                step_info["status"] = "success"
+                latiss_exposure_info.update(exposure_info)
 
-                await self.exposure_log.update_entry(exposure_id, step_info)
+                log_step_info["latiss_exposure_info"] = exposure_info
+                log_step_info["status"] = "success"
+                await self.exposure_log.update_entry(exposure_id, log_step_info)
 
                 if calibration_type == CalibrationType.Mono:
                     self.log.debug(
@@ -486,25 +487,41 @@ class ATCalsys(BaseCalsys):
                         fiber_spectrum_exposure_time=exposure.fiberspectrograph,
                         electrometer_exposure_time=exposure.electrometer,
                     )
-                    step_info["latiss_exposure_info"] = exposure_info
-                    step_info["status"] = "success"
 
-                    await self.exposure_log.update_entry(exposure_id, step_info)
-                    # latiss_exposure_info.update(exposure_info)
+                    log_step_info["latiss_exposure_info"] = exposure_info
+                    log_step_info["status"] = "success"
+                    await self.exposure_log.update_entry(exposure_id, log_step_info)
+
+                    latiss_exposure_info.update(exposure_info)
 
                 step = dict(
                     wavelength=exposure.wavelength,
                     latiss_exposure_info=latiss_exposure_info,
                 )
+                calibration_summary["steps"].append(step)
             except Exception as e:
                 self.log.exception(
                     f"Failed to take exposure at wavelength {exposure.wavelength}"
                 )
-                step_info["status"] = "failed"
-                step_info["error_message"] = str(e)
-                await self.exposure_log.update_entry(exposure_id, step_info)
 
-            calibration_summary["steps"].append(step)
+                current_log_entries = await self.exposure_log.get_entries()
+                current_entry = next(
+                    (
+                        entry
+                        for entry in current_log_entries
+                        if entry["exposure_id"] == exposure_id
+                    ),
+                    None,
+                )
+
+                if current_entry:
+                    update_info = {"status": "failed", "error_message": str(e)}
+                    await self.exposure_log.update_entry(exposure_id, update_info)
+                else:
+                    log_step_info["status"] = "failed"
+                    log_step_info["error_message"] = str(e)
+                    await self.exposure_log.update_entry(exposure_id, log_step_info)
+
         return calibration_summary
 
     async def _take_data(
