@@ -109,8 +109,6 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
 
         self.max_n_snaps_warning = 2
 
-        self._roi_spec_json: str | None = None
-
     async def take_bias(
         self,
         nbias: int,
@@ -1155,11 +1153,7 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
         roi_spec_dict = roi_spec.model_dump()
         roi = roi_spec_dict.pop("roi")
         roi_spec_dict.update(roi)
-        roi_spec_json = json.dumps(roi_spec_dict, separators=(",", ":"))
-        await self.camera.cmd_initGuiders.set_start(
-            roiSpec=roi_spec_json,
-            timeout=self.long_timeout,
-        )
+        self._roi_spec_json = json.dumps(roi_spec_dict, separators=(",", ":"))
 
     async def _handle_take_images(
         self, camera_exposure: CameraExposure
