@@ -3061,6 +3061,7 @@ class MTCS(BaseTCS):
                 readonly=False,
                 mtaos=[
                     "degreeOfFreedom",
+                    "wavefrontError",
                 ],
             )
 
