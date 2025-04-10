@@ -1,0 +1,1 @@
+Updates how BaseCamera handles init_guider to issue the initGuider command for every exposure in a sequence.
