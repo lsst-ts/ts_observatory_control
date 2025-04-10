@@ -64,6 +64,7 @@ class MTCSUsages(Usages):
     Shutdown = 1 << 5
     PrepareForFlatfield = 1 << 6
     DryTest = 1 << 7
+    AOS = 1 << 8
 
     def __iter__(self) -> typing.Iterator[int]:
         return iter(
@@ -77,6 +78,7 @@ class MTCSUsages(Usages):
                 self.Shutdown,
                 self.PrepareForFlatfield,
                 self.DryTest,
+                self.AOS,
             ]
         )
 
@@ -3215,6 +3217,15 @@ class MTCS(BaseTCS):
                     "summaryState",
                     "configurationsAvailable",
                     "heartbeat",
+                ],
+            )
+
+            usages[self.valid_use_cases.AOS] = UsagesResources(
+                components_attr=["mtaos"],
+                readonly=False,
+                mtaos=[
+                    "degreeOfFreedom",
+                    "wavefrontError",
                 ],
             )
 
