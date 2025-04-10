@@ -428,16 +428,27 @@ class TestLSSTCam(BaseCameraAsyncMock):
             ),
         )
 
-        # initialize guiders
-        await self.lsstcam.init_guider(roi_spec=roi_spec)
-
         roi_spec_dict = roi_spec.model_dump()
         roi = roi_spec_dict.pop("roi")
         roi_spec_dict.update(roi)
+        roi_spec_json = json.dumps(roi_spec_dict, separators=(",", ":"))
+
+        # initialize guiders
+        await self.lsstcam.init_guider(roi_spec=roi_spec)
+
+        assert self.lsstcam._roi_spec_json == roi_spec_json
+        self.lsstcam.rem.mtcamera.cmd_initGuiders.set_start.assert_not_awaited()
+
+        await self.assert_take_engtest(
+            n=3,
+            exptime=1.0,
+        )
+
         self.lsstcam.rem.mtcamera.cmd_initGuiders.set_start.assert_awaited_with(
-            roiSpec=json.dumps(roi_spec_dict, separators=(",", ":")),
+            roiSpec=roi_spec_json,
             timeout=self.lsstcam.long_timeout,
         )
+        assert self.lsstcam.rem.mtcamera.cmd_initGuiders.set_start.await_count == 3
 
     def assert_setup_instrument(
         self, entry: typing.Dict[str, typing.Union[int, float, str, None]]
