@@ -173,6 +173,9 @@ class TestMTCalsys(RemoteGroupAsyncMock):
         finally:
             self.mtcalsys.mtcamera = None
 
+    async def test_get_projector_setup(self) -> None:
+        await self.mtcalsys.get_projector_setup()
+
     async def mock_aget_start_integration(
         self, timeout: float
     ) -> types.SimpleNamespace:
