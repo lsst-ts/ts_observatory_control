@@ -569,33 +569,28 @@ class MTCalsys(BaseCalsys):
             wavelengths=calibration_wavelengths, config_data=config_data
         )
 
-        for exposure in exposure_table:
+        for i, exposure in enumerate(exposure_table):
             self.log.debug(
                 f"Performing {calibration_type.name} calibration with {exposure.wavelength=}."
             )
 
+            exposure_id = f"exposure_{i + 1}_w{exposure.wavelength:.1f}nm"
+
+            step_info = {
+                "wavelength": exposure.wavelength,
+                "status": "pending",
+            }
+            await self.exposure_log.add_entry(exposure_id, step_info)
+
             mtcamera_exposure_info: dict = dict()
 
-            for exptime in config_data["exposure_times"]:
-                self.log.debug("Taking data sequence.")
-                exposure_info = await self._take_data(
-                    mtcamera_exptime=exposure.camera,
-                    mtcamera_filter=str(config_data["mtcamera_filter"]),
-                    exposure_metadata=exposure_metadata,
-                    fiber_spectrum_red_exposure_time=exposure.fiberspectrograph_red,
-                    fiber_spectrum_blue_exposure_time=exposure.fiberspectrograph_blue,
-                    electrometer_exposure_time=exposure.electrometer,
-                )
-                mtcamera_exposure_info.update(exposure_info)
-
-                if calibration_type == CalibrationType.Mono:
-                    await self.change_laser_wavelength(wavelength=exposure.wavelength)
-                    self.log.debug(
-                        "Taking data sequence without filter for monochromatic set."
-                    )
+            try:
+                for exptime in config_data["exposure_times"]:
+                    self.log.debug("Taking data sequence.")
                     exposure_info = await self._take_data(
+                        exposure_id=exposure_id,
                         mtcamera_exptime=exposure.camera,
-                        mtcamera_filter="empty_1",
+                        mtcamera_filter=str(config_data["mtcamera_filter"]),
                         exposure_metadata=exposure_metadata,
                         fiber_spectrum_red_exposure_time=exposure.fiberspectrograph_red,
                         fiber_spectrum_blue_exposure_time=exposure.fiberspectrograph_blue,
@@ -603,11 +598,41 @@ class MTCalsys(BaseCalsys):
                     )
                     mtcamera_exposure_info.update(exposure_info)
 
+                    if calibration_type == CalibrationType.Mono:
+                        await self.change_laser_wavelength(
+                            wavelength=exposure.wavelength
+                        )
+                        self.log.debug(
+                            "Taking data sequence without filter for monochromatic set."
+                        )
+                        exposure_info = await self._take_data(
+                            exposure_id=exposure_id,
+                            mtcamera_exptime=exposure.camera,
+                            mtcamera_filter="empty_1",
+                            exposure_metadata=exposure_metadata,
+                            fiber_spectrum_red_exposure_time=exposure.fiberspectrograph_red,
+                            fiber_spectrum_blue_exposure_time=exposure.fiberspectrograph_blue,
+                            electrometer_exposure_time=exposure.electrometer,
+                        )
+                        mtcamera_exposure_info.update(exposure_info)
+
+            except Exception as e:
+                self.log.exception(
+                    f"Failed to take exposure at wavelength {exposure.wavelength}nm "
+                    f"(Exposure ID: {exposure_id})."
+                )
+                await self.exposure_log.update_entry(
+                    exposure_id,
+                    {
+                        "status": "failed",
+                        "error_message": str(e),
+                    },
+                )
+
             step = dict(
                 wavelength=exposure.wavelength,
                 mtcamera_exposure_info=mtcamera_exposure_info,
             )
-
             calibration_summary["steps"].append(step)
         return calibration_summary
 
@@ -743,6 +768,7 @@ class MTCalsys(BaseCalsys):
 
     async def _take_data(
         self,
+        exposure_id: str,
         mtcamera_exptime: float,
         mtcamera_filter: str,
         exposure_metadata: dict,
