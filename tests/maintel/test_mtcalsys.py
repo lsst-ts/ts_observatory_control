@@ -174,7 +174,9 @@ class TestMTCalsys(RemoteGroupAsyncMock):
             self.mtcalsys.mtcamera = None
 
     async def test_get_projector_setup(self) -> None:
-        await self.mtcalsys.get_projector_setup()
+        output = await self.mtcalsys.get_projector_setup()
+
+        assert output[0] == "misaligned"
 
     async def mock_aget_start_integration(
         self, timeout: float

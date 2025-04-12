@@ -395,8 +395,20 @@ class MTCalsys(BaseCalsys):
 
     async def get_projector_setup(
         self,
-    ) -> None:
-        """Get configuration of flatfield projector"""
+    ) -> tuple[str, float, float, float, str]:
+        """Get configuration of flatfield projector largely for
+        debugging purposes
+
+        Return
+        ------
+            tuple:
+                projector_location: whether or not the vertical stage is
+                aligned with led or laser output or neither
+                led_location: which LED system is aligned with teh optical path
+                led_focus: value of the led focus stage
+                laser_focus: value of the laser focus stage
+                led_state: shows whether LEDs are ON/OFF
+        """
 
         select_location = await self.linearstage_projector_select.tel_position.next(
             flush=True
@@ -424,6 +436,14 @@ class MTCalsys(BaseCalsys):
             f"LED Focus stage pos @: {led_focus.position}, \n"
             f"Laser Focus stage pos @: {laser_focus.position}, \n"
             f"LED State stage pos @: {led_state}"
+        )
+
+        return (
+            projector_location,
+            float(led_location.position),
+            float(led_focus.position),
+            float(laser_focus.position),
+            str(led_state),
         )
 
     async def get_laser_parameters(self) -> tuple:
