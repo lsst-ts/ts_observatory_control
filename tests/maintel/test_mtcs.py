@@ -2541,7 +2541,13 @@ class TestMTCS(MTCSAsyncMock):
 
         self.assert_m1m3_booster_valve_opened()
 
-    def assert_m1m3_booster_valve(self) -> None:
+    async def test_m1m3_booster_valve_failure(self) -> None:
+        with pytest.raises(RuntimeError):
+            async with self.mtcs.m1m3_booster_valve():
+                raise RuntimeError("Testing booster valve context with failure.")
+        self.assert_m1m3_booster_valve(cleared=False)
+
+    def assert_m1m3_booster_valve(self, cleared: bool = True) -> None:
         # M1M3 booster valve, xml 16/17/19 compatibility
         if hasattr(self.mtcs.rem.mtm1m3, "cmd_setAirSlewFlag"):
             self.mtcs.rem.mtm1m3.evt_forceControllerState.flush.assert_called()
@@ -2574,9 +2580,13 @@ class TestMTCS(MTCSAsyncMock):
             self.mtcs.rem.mtm1m3.cmd_setSlewFlag.set_start.assert_awaited_with(
                 timeout=self.mtcs.fast_timeout,
             )
-            self.mtcs.rem.mtm1m3.cmd_clearSlewFlag.set_start.assert_awaited_with(
-                timeout=self.mtcs.fast_timeout,
-            )
+            if cleared:
+                self.mtcs.rem.mtm1m3.cmd_clearSlewFlag.set_start.assert_awaited_with(
+                    timeout=self.mtcs.fast_timeout,
+                )
+            else:
+                self.mtcs.rem.mtm1m3.cmd_clearSlewFlag.set_start.assert_not_awaited()
+
         else:
             self.mtcs.rem.mtm1m3.evt_boosterValveStatus.flush.assert_called()
             self.mtcs.rem.mtm1m3.evt_boosterValveStatus.aget.assert_awaited_with(
