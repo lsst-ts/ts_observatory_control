@@ -2929,7 +2929,9 @@ class MTCS(BaseTCS):
         try:
             await self.open_m1m3_booster_valve()
             yield
-        finally:
+        except Exception:
+            raise
+        else:
             await self.wait_m1m3_settle()
             await self.close_m1m3_booster_valve()
 
