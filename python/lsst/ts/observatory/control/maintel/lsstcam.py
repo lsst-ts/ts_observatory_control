@@ -364,7 +364,7 @@ class LSSTCam(BaseCamera):
             )
 
             usages[self.valid_use_cases.TakeImage] = UsagesResources(
-                components_attr=["mtcamera"],
+                components_attr=["mtcamera", "mtoods"],
                 readonly=False,
                 mtcamera=[
                     "takeImages",
@@ -374,10 +374,13 @@ class LSSTCam(BaseCamera):
                     "startIntegration",
                     "availableFilters",
                 ],
+                mtoods=[
+                    "imageInOODS",
+                ],
             )
 
             usages[self.valid_use_cases.TakeImageFull] = UsagesResources(
-                components_attr=["mtcamera", "mtheaderservice"],
+                components_attr=["mtcamera", "mtheaderservice", "mtoods"],
                 readonly=False,
                 mtcamera=[
                     "takeImages",
@@ -388,6 +391,9 @@ class LSSTCam(BaseCamera):
                     "availableFilters",
                 ],
                 mtheaderservice=["largeFileObjectAvailable"],
+                mtoods=[
+                    "imageInOODS",
+                ],
             )
 
             self._usages = usages
