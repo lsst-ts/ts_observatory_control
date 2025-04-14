@@ -450,6 +450,19 @@ class TestLSSTCam(BaseCameraAsyncMock):
         )
         assert self.lsstcam.rem.mtcamera.cmd_initGuiders.set_start.await_count == 3
 
+    async def test_init_guider_default(self) -> None:
+
+        await self.assert_take_engtest(
+            n=3,
+            exptime=1.0,
+        )
+
+        self.lsstcam.rem.mtcamera.cmd_initGuiders.set_start.assert_awaited_with(
+            roiSpec=self.lsstcam._roi_spec_json,
+            timeout=self.lsstcam.long_timeout,
+        )
+        assert self.lsstcam.rem.mtcamera.cmd_initGuiders.set_start.await_count == 3
+
     def assert_setup_instrument(
         self, entry: typing.Dict[str, typing.Union[int, float, str, None]]
     ) -> None:
