@@ -22,6 +22,7 @@ __all__ = ["BaseCamera"]
 
 import abc
 import asyncio
+import enum
 import json
 import logging
 import typing
@@ -31,6 +32,11 @@ from lsst.ts import salobj
 
 from .remote_group import RemoteGroup
 from .utils import CameraExposure, ROISpec
+
+
+class CameraSubstate(enum.IntEnum):
+    IDLE = enum.auto()
+    BUSY = enum.auto()
 
 
 class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
@@ -1217,6 +1223,28 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
         ) * camera_exposure.n + self.long_long_timeout
 
         self.camera.evt_endReadout.flush()
+        if hasattr(self.camera, "evt_ccsCommandState"):
+            self.log.info("Handling ccs command state.")
+            try:
+                ccs_command_state = await self.camera.evt_ccsCommandState.aget(
+                    timeout=self.fast_timeout
+                )
+                self.camera.evt_ccsCommandState.flush()
+                self.log.info(
+                    f"CCS Command State: {CameraSubstate(ccs_command_state.substate).name}."
+                )
+                while ccs_command_state.substate != CameraSubstate.IDLE:
+                    ccs_command_state = await self.camera.evt_ccsCommandState.next(
+                        flush=False, timeout=self.fast_timeout
+                    )
+                    self.log.info(
+                        f"CCS command state: {CameraSubstate(ccs_command_state.substate).name}"
+                    )
+
+            except asyncio.TimeoutError:
+                self.log.warning("Could not determine CCS Command State; ignoring.")
+        else:
+            self.log.info("Not handling CCS Command State.")
         await self.camera.cmd_takeImages.start(timeout=take_images_timeout)
 
         exp_ids: typing.List[int] = []
