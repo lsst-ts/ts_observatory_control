@@ -1180,7 +1180,7 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
 
         exp_ids = []
         for _ in range(camera_exposure.n):
-            if self._roi_spec_json is not None:
+            if self._roi_spec_json is not None and camera_exposure.exp_time > 0:
                 await self.camera.cmd_initGuiders.set_start(
                     roiSpec=self._roi_spec_json,
                     timeout=self.long_timeout,
