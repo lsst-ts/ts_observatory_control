@@ -1929,6 +1929,7 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
         settle_time: float = 5.0,
         component_name: str = "",
         race_condition_timeout: float = 5.0,
+        unreliable_in_position: bool = False,
     ) -> str:
         """Handle inPosition event.
 
@@ -1984,7 +1985,26 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
 
         while not in_position.inPosition:
             in_position = await in_position_event.next(flush=False, timeout=timeout)
-            self.log.info(f"{component_name} in position: {in_position.inPosition}.")
+            if unreliable_in_position:
+                self.log.info(
+                    f"Handling unreliable in position event for {component_name}: {in_position.inPosition}."
+                )
+                try:
+                    in_position = await in_position_event.next(
+                        flush=False, timeout=settle_time
+                    )
+                    self.log.info(
+                        f"Got {in_position.inPosition} while handling unreliable "
+                        f"in position for {component_name}."
+                    )
+                except asyncio.TimeoutError:
+                    self.log.debug(
+                        "No new in position event while handling unreliable in position."
+                    )
+            else:
+                self.log.info(
+                    f"{component_name} in position: {in_position.inPosition}."
+                )
 
         self.log.debug(
             f"{component_name} in position {in_position.inPosition}. "
