@@ -22,7 +22,6 @@
 __all__ = ["LSSTCam", "LSSTCamUsages"]
 
 import asyncio
-import json
 import logging
 import typing
 
@@ -30,7 +29,6 @@ from lsst.ts import salobj
 
 from ..base_camera import BaseCamera
 from ..remote_group import Usages, UsagesResources
-from ..utils import ROI, ROICommon, ROISpec
 from .mtcs import MTCS
 
 
@@ -105,24 +103,6 @@ class LSSTCam(BaseCamera):
         self.valid_imagetype.append("SPOT")
 
         self.cmd_lock = asyncio.Lock()
-
-        roi_spec = ROISpec(
-            common=ROICommon(rows=400, cols=400, integration_time_millis=200),
-            roi=dict(
-                R00SG0=ROI(segment=7, start_row=800, start_col=56),
-                R00SG1=ROI(segment=0, start_row=800, start_col=56),
-                R04SG0=ROI(segment=7, start_row=800, start_col=56),
-                R04SG1=ROI(segment=0, start_row=800, start_col=56),
-                R40SG0=ROI(segment=7, start_row=800, start_col=56),
-                R40SG1=ROI(segment=0, start_row=800, start_col=56),
-                R44SG0=ROI(segment=7, start_row=800, start_col=56),
-                R44SG1=ROI(segment=0, start_row=800, start_col=56),
-            ),
-        )
-        roi_spec_dict = roi_spec.model_dump()
-        roi = roi_spec_dict.pop("roi")
-        roi_spec_dict.update(roi)
-        self._roi_spec_json = json.dumps(roi_spec_dict, separators=(",", ":"))
 
     async def take_spot(
         self,
