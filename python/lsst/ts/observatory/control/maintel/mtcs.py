@@ -588,9 +588,10 @@ class MTCS(BaseTCS):
         return await self._handle_in_position(
             self.rem.mtrotator.evt_inPosition,
             timeout=timeout,
-            settle_time=0.0,
+            settle_time=2.0,
             component_name="MTRotator",
             race_condition_timeout=self.mtrotator_race_condition_timeout,
+            unreliable_in_position=True,
         )
 
     async def dome_az_in_position(self) -> str:
