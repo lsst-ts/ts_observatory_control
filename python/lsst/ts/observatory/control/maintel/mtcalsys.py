@@ -549,9 +549,10 @@ class MTCalsys(BaseCalsys):
         if calibration_type == CalibrationType.WhiteLight:
             # Turn off all LEDs
             # TO-DO (DM-50206): Swap switchON/OFF
-            await self.rem.ledprojector.cmd_switchAllOn.set_start(
+            await self.rem.ledprojector.cmd_switchAllOn.start(
                 timeout=self.long_timeout,
             )
+
             # Confirm that Projector selection is at the LED location
             vertical_pos = await self.linearstage_projector_select.tel_position.next(
                 flush=True, timeout=self.long_timeout
