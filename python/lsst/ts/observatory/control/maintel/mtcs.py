@@ -812,6 +812,9 @@ class MTCS(BaseTCS):
         shutter_state = await self.rem.mtdome.evt_shutterMotion.aget(
             timeout=self.fast_timeout
         )
+        shutter_state.state = [
+            MTDome.MotionState(value) for value in shutter_state.state
+        ]
         self.log.debug(f"Shutter state: {shutter_state.state}")
 
         if (
@@ -1044,6 +1047,9 @@ class MTCS(BaseTCS):
         shutter_state = await self.rem.mtdome.evt_shutterMotion.aget(
             timeout=self.fast_timeout
         )
+        shutter_state.state = [
+            MTDome.MotionState(value) for value in shutter_state.state
+        ]
         self.log.debug(f"Shutter state: {shutter_state.state}")
 
         if (
