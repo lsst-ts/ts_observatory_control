@@ -156,11 +156,12 @@ class MTCalsys(BaseCalsys):
 
         self.mtcamera = mtcamera
         self.linearstage_projector_locations = {"led": 9.96, "laser": 79.96}
-        self.led_rest_position = 100.0  # mm
+        self.led_rest_position = 90.0  # mm
         self.linearstage_projector_pos_tolerance = 0.2
 
         self.laser_enclosure_temp = 20.0  # C
         self.laser_warmup = 20.0  # sec
+        self.stage_homing_timeout = 60.0  # sec
 
         self.exptime_dict: dict[str, float] = dict(
             camera=0.0,
@@ -198,14 +199,14 @@ class MTCalsys(BaseCalsys):
 
         # Home all linear stages.
         await self.linearstage_projector_select.cmd_getHome.start(
-            timeout=self.long_timeout
+            timeout=self.stage_homing_timeout
         )
         await self.linearstage_led_select.cmd_getHome.start(timeout=self.long_timeout)
         led_focus_home = self.linearstage_led_focus.cmd_getHome.start(
-            timeout=self.long_timeout
+            timeout=self.stage_homing_timeout
         )
         laser_focus_home = self.linearstage_laser_focus.cmd_getHome.start(
-            timeout=self.long_timeout
+            timeout=self.stage_homing_timeout
         )
 
         await asyncio.gather(
@@ -225,6 +226,7 @@ class MTCalsys(BaseCalsys):
                 distance=self.linearstage_projector_locations["led"],
                 timeout=self.long_timeout,
             )
+            await self.rem.ledprojector.cmd_adjustAllDACPower.set_start(dacValue=1.0)
         else:
             self.log.debug(
                 "Moving vertical projector selection stage to Laser position"
@@ -254,10 +256,10 @@ class MTCalsys(BaseCalsys):
         )
         # Home the focus stages
         led_focus_home = self.linearstage_led_focus.cmd_getHome.start(
-            timeout=self.long_timeout
+            timeout=self.stage_homing_timeout
         )
         laser_focus_home = self.linearstage_laser_focus.cmd_getHome.start(
-            timeout=self.long_timeout
+            timeout=self.stage_homing_timeout
         )
         await asyncio.gather(
             led_focus_home,
@@ -573,9 +575,9 @@ class MTCalsys(BaseCalsys):
                     distance=config_data.get("led_focus"), timeout=self.long_timeout
                 )
             )
-            # TO-DO (DM-50206): Swap switchON/OFF
-            task_turn_led_on = self.rem.ledprojector.cmd_switchOff.set_start(
-                serialNumbers=",".join(str(config_data.get("led_name"))),
+
+            task_turn_led_on = self.rem.ledprojector.cmd_switchOn.set_start(
+                serialNumbers=config_data.get("led_name"),
                 timeout=self.long_timeout,
             )
             await asyncio.gather(

@@ -2,7 +2,7 @@
 # Created 2024-07-15
 
 whitelight_u:
-  mtcamera_filter: u
+  mtcamera_filter: u_24
   led_name: 
     - M385L3
   wavelength: 385.0
@@ -12,7 +12,7 @@ whitelight_u:
     - 15.0
 
 whitelight_g:
-  mtcamera_filter: g
+  mtcamera_filter: g_6
   led_name:
     - M455L4
     - M505L4
@@ -23,6 +23,7 @@ whitelight_g:
     - 15.0
 
 whitelight_r:
+  mtcamera_filter: r_57
   led_name:
     - M565L3
     - M660L4
@@ -33,7 +34,7 @@ whitelight_r:
     - 15.0
 
 whitelight_i:
-  mtcamera_filter: i
+  mtcamera_filter: i_39
   led_name:
     - M730L5
     - M810L3
@@ -44,7 +45,7 @@ whitelight_i:
     - 15.0
 
 whitelight_z:
-  mtcamera_filter: z
+  mtcamera_filter: z_20
   led_name:
     - M850L3
     - M940L3
@@ -55,7 +56,7 @@ whitelight_z:
     - 15.0
 
 whitelight_y:
-  mtcamera_filter: y
+  mtcamera_filter: y_10
   led_name:
     - M970L4
   wavelength: 970.0
@@ -68,8 +69,8 @@ scan_r:
   calib_type: Mono
   laser_mode: 1
   optical_configuration: F1_SCU
-  use_camera: true
-  mtcamera_filter: r
+  use_camera: True
+  mtcamera_filter: r_57
   led_location: 174.91
   led_focus: 15.380
   wavelength: 625.0
@@ -81,17 +82,17 @@ scan_r:
 laser_functional:
   calib_type: Mono
   laser_mode: 1
-  use_camera: false
+  use_camera: False
   optical_configuration: SCU
   wavelength: 500.0
-  use_electrometer: false
-  use_fiberspectrograph_red: false
-  use_fiberspectrograph_blue: false
+  use_electrometer: False
+  use_fiberspectrograph_red: False
+  use_fiberspectrograph_blue: False
   exposure_times:
     - 15.0
 
 whitelight_u_source:
-  mtcamera_filter: u
+  mtcamera_filter: u_24
   led_name: 
     - M385L3
   wavelength: 385.0
@@ -102,7 +103,7 @@ whitelight_u_source:
     - 15.0
 
 whitelight_g_source:
-  mtcamera_filter: g
+  mtcamera_filter: g_6
   led_name:
     - M455L4
     - M505L4
@@ -114,6 +115,7 @@ whitelight_g_source:
     - 15.0
 
 whitelight_r_source:
+  mtcamera_filter: r_57
   led_name:
     - M565L3
     - M660L4
@@ -125,7 +127,7 @@ whitelight_r_source:
     - 15.0
 
 whitelight_i_source:
-  mtcamera_filter: i
+  mtcamera_filter: i_39
   led_name:
     - M730L5
     - M810L3
@@ -137,7 +139,7 @@ whitelight_i_source:
     - 15.0
 
 whitelight_z_source:
-  mtcamera_filter: z
+  mtcamera_filter: z_20
   led_name:
     - M850L3
     - M940L3
@@ -149,7 +151,7 @@ whitelight_z_source:
     - 15.0
 
 whitelight_y_source:
-  mtcamera_filter: y
+  mtcamera_filter: y_10
   led_name:
     - M970L4
   wavelength: 970.0
