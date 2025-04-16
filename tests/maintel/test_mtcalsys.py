@@ -145,7 +145,8 @@ class TestMTCalsys(RemoteGroupAsyncMock):
     async def test_park_projector(self) -> None:
         await self.mtcalsys.park_projector()
 
-        self.mtcalsys.rem.ledprojector.cmd_switchAllOff.start.assert_awaited_with(
+        # TO-DO (DM-50206): Swap On/Off
+        self.mtcalsys.rem.ledprojector.cmd_switchAllOn.start.assert_awaited_with(
             timeout=self.mtcalsys.long_timeout
         )
 

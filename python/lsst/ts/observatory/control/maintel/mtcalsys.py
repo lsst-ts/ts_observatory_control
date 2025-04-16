@@ -264,7 +264,8 @@ class MTCalsys(BaseCalsys):
             laser_focus_home,
         )
         # Turn off the LEDs
-        await self.rem.ledprojector.cmd_switchAllOff.start(
+        # TO-DO (DM-50206): Swap switchON/OFF
+        await self.rem.ledprojector.cmd_switchAllOn.start(
             timeout=self.long_timeout,
         )
 
@@ -547,9 +548,11 @@ class MTCalsys(BaseCalsys):
 
         if calibration_type == CalibrationType.WhiteLight:
             # Turn off all LEDs
-            await self.rem.ledprojector.cmd_switchAllOff.set_start(
+            # TO-DO (DM-50206): Swap switchON/OFF
+            await self.rem.ledprojector.cmd_switchAllOn.start(
                 timeout=self.long_timeout,
             )
+
             # Confirm that Projector selection is at the LED location
             vertical_pos = await self.linearstage_projector_select.tel_position.next(
                 flush=True, timeout=self.long_timeout
@@ -570,8 +573,9 @@ class MTCalsys(BaseCalsys):
                     distance=config_data.get("led_focus"), timeout=self.long_timeout
                 )
             )
-            task_turn_led_on = self.rem.ledprojector.cmd_switchOn.set_start(
-                serialNumbers=config_data.get("led_name"),
+            # TO-DO (DM-50206): Swap switchON/OFF
+            task_turn_led_on = self.rem.ledprojector.cmd_switchOff.set_start(
+                serialNumbers=",".join(str(config_data.get("led_name"))),
                 timeout=self.long_timeout,
             )
             await asyncio.gather(
