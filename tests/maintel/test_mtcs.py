@@ -853,7 +853,10 @@ class TestMTCS(MTCSAsyncMock):
         self._mtmount_tel_elevation.actualPosition = (
             self.mtcs.tel_operate_dome_shutter_el + 1.0
         )
-        self._mtdome_evt_shutter_motion.state = MTDome.MotionState.OPEN
+        self._mtdome_evt_shutter_motion.state = [
+            MTDome.MotionState.OPEN,
+            MTDome.MotionState.OPEN,
+        ]
 
         await self.mtcs.close_dome()
         self.mtcs.rem.mtdome.cmd_closeShutter.start.assert_awaited()
@@ -865,7 +868,10 @@ class TestMTCS(MTCSAsyncMock):
         self._mtmount_tel_elevation.actualPosition = (
             self.mtcs.tel_operate_dome_shutter_el - 1.0
         )
-        self._mtdome_evt_shutter_motion.state = MTDome.MotionState.OPEN
+        self._mtdome_evt_shutter_motion.state = [
+            MTDome.MotionState.OPEN,
+            MTDome.MotionState.OPEN,
+        ]
 
         await self.mtcs.close_dome()
         self.mtcs.rem.mtdome.cmd_closeShutter.start.assert_awaited()
@@ -877,7 +883,10 @@ class TestMTCS(MTCSAsyncMock):
         self._mtmount_tel_elevation.actualPosition = (
             self.mtcs.tel_operate_dome_shutter_el + 1.0
         )
-        self._mtdome_evt_shutter_motion.state = MTDome.MotionState.OPEN
+        self._mtdome_evt_shutter_motion.state = [
+            MTDome.MotionState.OPEN,
+            MTDome.MotionState.OPEN,
+        ]
 
         with pytest.raises(RuntimeError):
             await self.mtcs.close_dome()
@@ -889,24 +898,36 @@ class TestMTCS(MTCSAsyncMock):
         self._mtmount_tel_elevation.actualPosition = (
             self.mtcs.tel_operate_dome_shutter_el + 1.0
         )
-        self._mtdome_evt_shutter_motion.state = MTDome.MotionState.OPEN
+        self._mtdome_evt_shutter_motion.state = [
+            MTDome.MotionState.OPEN,
+            MTDome.MotionState.OPEN,
+        ]
 
         await self.mtcs.close_dome(force=True)
         self.mtcs.rem.mtdome.cmd_closeShutter.start.assert_awaited()
 
     async def test_close_dome_when_closed(self) -> None:
-        self._mtdome_evt_shutter_motion.state = MTDome.MotionState.CLOSED
+        self._mtdome_evt_shutter_motion.state = [
+            MTDome.MotionState.CLOSED,
+            MTDome.MotionState.CLOSED,
+        ]
 
         await self.mtcs.close_dome()
         self.mtcs.rem.mtdome.cmd_closeShutter.start.assert_not_awaited()
 
     async def test_close_dome_wrong_state(self) -> None:
-        self._mtdome_evt_shutter_motion.state = MTDome.MotionState.ERROR
+        self._mtdome_evt_shutter_motion.state = [
+            MTDome.MotionState.ERROR,
+            MTDome.MotionState.ERROR,
+        ]
         with pytest.raises(RuntimeError):
             await self.mtcs.close_dome()
 
     async def test_close_dome_wrong_state_but_forced(self) -> None:
-        self._mtdome_evt_shutter_motion.state = MTDome.MotionState.ERROR
+        self._mtdome_evt_shutter_motion.state = [
+            MTDome.MotionState.ERROR,
+            MTDome.MotionState.ERROR,
+        ]
 
         await self.mtcs.close_dome(force=True)
         self.mtcs.rem.mtdome.cmd_closeShutter.start.assert_awaited()
@@ -1176,7 +1197,10 @@ class TestMTCS(MTCSAsyncMock):
         self._mtmount_tel_elevation.actualPosition = (
             self.mtcs.tel_operate_dome_shutter_el + 1.0
         )
-        self._mtdome_evt_shutter_motion.state = MTDome.MotionState.CLOSED
+        self._mtdome_evt_shutter_motion.state = [
+            MTDome.MotionState.CLOSED,
+            MTDome.MotionState.CLOSED,
+        ]
 
         await self.mtcs.open_dome_shutter()
         self.mtcs.rem.mtdome.cmd_openShutter.start.assert_awaited()
@@ -1188,7 +1212,10 @@ class TestMTCS(MTCSAsyncMock):
         self._mtmount_tel_elevation.actualPosition = (
             self.mtcs.tel_operate_dome_shutter_el - 1.0
         )
-        self._mtdome_evt_shutter_motion.state = MTDome.MotionState.CLOSED
+        self._mtdome_evt_shutter_motion.state = [
+            MTDome.MotionState.CLOSED,
+            MTDome.MotionState.CLOSED,
+        ]
 
         await self.mtcs.open_dome_shutter()
         self.mtcs.rem.mtdome.cmd_openShutter.start.assert_awaited()
@@ -1200,7 +1227,10 @@ class TestMTCS(MTCSAsyncMock):
         self._mtmount_tel_elevation.actualPosition = (
             self.mtcs.tel_operate_dome_shutter_el + 1.0
         )
-        self._mtdome_evt_shutter_motion.state = MTDome.MotionState.CLOSED
+        self._mtdome_evt_shutter_motion.state = [
+            MTDome.MotionState.CLOSED,
+            MTDome.MotionState.CLOSED,
+        ]
 
         with pytest.raises(RuntimeError):
             await self.mtcs.open_dome_shutter()
@@ -1212,24 +1242,36 @@ class TestMTCS(MTCSAsyncMock):
         self._mtmount_tel_elevation.actualPosition = (
             self.mtcs.tel_operate_dome_shutter_el + 1.0
         )
-        self._mtdome_evt_shutter_motion.state = MTDome.MotionState.CLOSED
+        self._mtdome_evt_shutter_motion.state = [
+            MTDome.MotionState.CLOSED,
+            MTDome.MotionState.CLOSED,
+        ]
 
         await self.mtcs.open_dome_shutter(force=True)
         self.mtcs.rem.mtdome.cmd_openShutter.start.assert_awaited()
 
     async def test_open_dome_shutter_when_open(self) -> None:
-        self._mtdome_evt_shutter_motion.state = MTDome.MotionState.OPEN
+        self._mtdome_evt_shutter_motion.state = [
+            MTDome.MotionState.OPEN,
+            MTDome.MotionState.OPEN,
+        ]
 
         await self.mtcs.open_dome_shutter()
         self.mtcs.rem.mtdome.cmd_openShutter.start.assert_not_awaited()
 
     async def test_open_dome_shutter_wrong_state(self) -> None:
-        self._mtdome_evt_shutter_motion.state = MTDome.MotionState.ERROR
+        self._mtdome_evt_shutter_motion.state = [
+            MTDome.MotionState.ERROR,
+            MTDome.MotionState.ERROR,
+        ]
         with pytest.raises(RuntimeError):
             await self.mtcs.open_dome_shutter()
 
     async def test_open_dome_wrong_state_but_forced(self) -> None:
-        self._mtdome_evt_shutter_motion.state = MTDome.MotionState.ERROR
+        self._mtdome_evt_shutter_motion.state = [
+            MTDome.MotionState.ERROR,
+            MTDome.MotionState.ERROR,
+        ]
 
         await self.mtcs.open_dome_shutter(force=True)
         self.mtcs.rem.mtdome.cmd_openShutter.start.assert_awaited()
