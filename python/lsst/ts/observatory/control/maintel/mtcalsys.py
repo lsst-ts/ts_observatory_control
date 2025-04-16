@@ -156,7 +156,7 @@ class MTCalsys(BaseCalsys):
 
         self.mtcamera = mtcamera
         self.linearstage_projector_locations = {"led": 9.96, "laser": 79.96}
-        self.led_rest_position = 100.0  # mm
+        self.led_rest_position = 90.0  # mm
         self.linearstage_projector_pos_tolerance = 0.2
 
         self.laser_enclosure_temp = 20.0  # C
