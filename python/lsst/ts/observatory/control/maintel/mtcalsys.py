@@ -226,6 +226,7 @@ class MTCalsys(BaseCalsys):
                 distance=self.linearstage_projector_locations["led"],
                 timeout=self.long_timeout,
             )
+            await self.rem.ledprojector.cmd_adjustAllDACPower.set_start(dacValue=1.0)
         else:
             self.log.debug(
                 "Moving vertical projector selection stage to Laser position"
@@ -574,9 +575,9 @@ class MTCalsys(BaseCalsys):
                     distance=config_data.get("led_focus"), timeout=self.long_timeout
                 )
             )
-            # TO-DO (DM-50206): Swap switchON/OFF
-            task_turn_led_on = self.rem.ledprojector.cmd_switchOff.set_start(
-                serialNumbers=",".join(str(config_data.get("led_name"))),
+
+            task_turn_led_on = self.rem.ledprojector.cmd_switchOn.set_start(
+                serialNumbers=config_data.get("led_name"),
                 timeout=self.long_timeout,
             )
             await asyncio.gather(
