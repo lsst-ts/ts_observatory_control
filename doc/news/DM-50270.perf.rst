@@ -1,0 +1,1 @@
+In `lsstcam.py` avoid change filter command if filter is in place
