@@ -68,7 +68,7 @@ scan_r:
   calib_type: Mono
   laser_mode: 1
   optical_configuration: F1_SCU
-  use_camera: true
+  use_camera: True
   mtcamera_filter: r
   led_location: 174.91
   led_focus: 15.380
@@ -81,12 +81,12 @@ scan_r:
 laser_functional:
   calib_type: Mono
   laser_mode: 1
-  use_camera: false
+  use_camera: False
   optical_configuration: SCU
   wavelength: 500.0
-  use_electrometer: false
-  use_fiberspectrograph_red: false
-  use_fiberspectrograph_blue: false
+  use_electrometer: False
+  use_fiberspectrograph_red: False
+  use_fiberspectrograph_blue: False
   exposure_times:
     - 15.0
 
@@ -114,6 +114,7 @@ whitelight_g_source:
     - 15.0
 
 whitelight_r_source:
+  mtcamera_filter: r
   led_name:
     - M565L3
     - M660L4
