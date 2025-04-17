@@ -38,7 +38,7 @@ properties:
         - M970L4
   dac_value:
     description: Level of LED brightness (0-1.0)
-    type: float
+    type: number
     default: 1.0
   wavelength:
     description: >-
