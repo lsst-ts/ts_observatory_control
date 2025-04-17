@@ -36,6 +36,10 @@ properties:
         - M850L3
         - M940L3
         - M970L4
+  dac_value:
+    description: Level of LED brightness (0-1.0)
+    type: number
+    default: 1.0
   wavelength:
     description: >-
       Center wavelength value in nm, used for configuring the Tunable Laser
