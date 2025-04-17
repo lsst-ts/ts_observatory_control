@@ -158,6 +158,8 @@ class MTCalsys(BaseCalsys):
         self.linearstage_projector_locations = {"led": 9.96, "laser": 79.96}
         self.led_rest_position = 90.0  # mm
         self.linearstage_projector_pos_tolerance = 0.2
+        self.led_focus_axis = 1
+        self.linearstage_axis = 1
 
         self.laser_enclosure_temp = 20.0  # C
         self.laser_warmup = 20.0  # sec
@@ -217,13 +219,16 @@ class MTCalsys(BaseCalsys):
         # Move LED Select stage to a safe position
         self.log.debug("Moving LED select stage to safe position.")
         await self.linearstage_led_select.cmd_moveAbsolute.set_start(
-            distance=self.led_rest_position, timeout=self.long_timeout
+            distance=self.led_rest_position,
+            axis=self.linearstage_axis,
+            timeout=self.long_timeout,
         )
 
         if calibration_type == CalibrationType.WhiteLight:
             self.log.debug("Moving vertical projector selection stage to LED position")
             await self.linearstage_projector_select.cmd_moveAbsolute.set_start(
                 distance=self.linearstage_projector_locations["led"],
+                axis=self.linearstage_axis,
                 timeout=self.long_timeout,
             )
             await self.rem.ledprojector.cmd_adjustAllDACPower.set_start(
@@ -235,6 +240,7 @@ class MTCalsys(BaseCalsys):
             )
             await self.linearstage_projector_select.cmd_moveAbsolute.set_start(
                 distance=self.linearstage_projector_locations["laser"],
+                axis=self.linearstage_axis,
                 timeout=self.long_timeout,
             )
             await self.setup_laser(
@@ -250,10 +256,13 @@ class MTCalsys(BaseCalsys):
         """
         # Move vertical and LED Select stages to a safe position (not Home)
         await self.linearstage_led_select.cmd_moveAbsolute.set_start(
-            distance=self.led_rest_position, timeout=self.long_timeout
+            distance=self.led_rest_position,
+            axis=self.linearstage_axis,
+            timeout=self.long_timeout,
         )
         await self.linearstage_projector_select.cmd_moveAbsolute.set_start(
             distance=self.linearstage_projector_locations["led"],
+            axis=self.linearstage_axis,
             timeout=self.long_timeout,
         )
         # Home the focus stages
@@ -315,6 +324,7 @@ class MTCalsys(BaseCalsys):
         if use_projector:
             task_focus = self.linearstage_laser_focus.cmd_moveAbsolute.set_start(
                 distance=self.calculate_laser_focus_location(wavelength),
+                axis=self.linearstage_axis,
                 timeout=self.long_long_timeout,
             )
             await asyncio.gather(task_wavelength, task_focus)
@@ -565,16 +575,21 @@ class MTCalsys(BaseCalsys):
                 self.log.info("Projector select stage is not aligned with LED position")
                 self.linearstage_projector_select.cmd_moveAbsolute.set_start(
                     distance=self.linearstage_projector_locations["led"],
+                    axis=self.linearstage_axis,
                     timeout=self.long_timeout,
                 )
 
             # Move stages to properly align the selected LED and focus
             task_select_led = self.linearstage_led_select.cmd_moveAbsolute.set_start(
-                distance=config_data.get("led_location"), timeout=self.long_timeout
+                distance=config_data.get("led_location"),
+                axis=self.linearstage_axis,
+                timeout=self.long_timeout,
             )
             task_adjust_led_focus = (
                 self.linearstage_led_focus.cmd_moveAbsolute.set_start(
-                    distance=config_data.get("led_focus"), timeout=self.long_timeout
+                    distance=config_data.get("led_focus"),
+                    axis=self.led_focus_axis,
+                    timeout=self.long_timeout,
                 )
             )
             task_adjust_led_level = (
