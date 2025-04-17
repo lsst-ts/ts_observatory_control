@@ -201,14 +201,16 @@ class MTCalsys(BaseCalsys):
 
         # Home all linear stages.
         await self.linearstage_projector_select.cmd_getHome.start(
-            timeout=self.stage_homing_timeout
+            axis=self.linearstage_axis, timeout=self.stage_homing_timeout
         )
-        await self.linearstage_led_select.cmd_getHome.start(timeout=self.long_timeout)
+        await self.linearstage_led_select.cmd_getHome.start(
+            axis=self.linearstage_axis, timeout=self.long_timeout
+        )
         led_focus_home = self.linearstage_led_focus.cmd_getHome.start(
-            timeout=self.stage_homing_timeout
+            axis=self.linearstage_axis, timeout=self.stage_homing_timeout
         )
         laser_focus_home = self.linearstage_laser_focus.cmd_getHome.start(
-            timeout=self.stage_homing_timeout
+            axis=self.linearstage_axis, timeout=self.stage_homing_timeout
         )
 
         await asyncio.gather(
@@ -267,10 +269,10 @@ class MTCalsys(BaseCalsys):
         )
         # Home the focus stages
         led_focus_home = self.linearstage_led_focus.cmd_getHome.start(
-            timeout=self.stage_homing_timeout
+            axis=self.linearstage_axis, timeout=self.stage_homing_timeout
         )
         laser_focus_home = self.linearstage_laser_focus.cmd_getHome.start(
-            timeout=self.stage_homing_timeout
+            axis=self.linearstage_axis, timeout=self.stage_homing_timeout
         )
         await asyncio.gather(
             led_focus_home,
