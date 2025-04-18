@@ -441,7 +441,7 @@ class MTCalsys(BaseCalsys):
 
         for location, value in self.linearstage_projector_locations.items():
             if (
-                abs(float(select_location.position) - float(value))
+                abs(float(select_location.position0) - float(value))
                 < self.linearstage_projector_pos_tolerance
             ):
                 projector_location = location
