@@ -158,8 +158,8 @@ class MTCalsys(BaseCalsys):
         self.linearstage_projector_locations = {"led": 9.96, "laser": 79.96}
         self.led_rest_position = 90.0  # mm
         self.linearstage_projector_pos_tolerance = 0.2
-        self.led_focus_axis = 1
-        self.linearstage_axis = 1
+        self.led_focus_axis = 0
+        self.linearstage_axis = 0
 
         self.laser_enclosure_temp = 20.0  # C
         self.laser_warmup = 20.0  # sec
