@@ -449,17 +449,17 @@ class MTCalsys(BaseCalsys):
 
         self.log.info(
             f"Projector Location is {projector_location}, \n"
-            f"LED Location stage pos @: {led_location.position}, \n"
-            f"LED Focus stage pos @: {led_focus.position}, \n"
-            f"Laser Focus stage pos @: {laser_focus.position}, \n"
+            f"LED Location stage pos @: {led_location.position0}, \n"
+            f"LED Focus stage pos @: {led_focus.position0}, \n"
+            f"Laser Focus stage pos @: {laser_focus.position0}, \n"
             f"LED State stage pos @: {led_state}"
         )
 
         return (
             projector_location,
-            float(led_location.position),
-            float(led_focus.position),
-            float(laser_focus.position),
+            float(led_location.position0),
+            float(led_focus.position0),
+            float(laser_focus.position0),
             str(led_state),
         )
 
@@ -573,7 +573,7 @@ class MTCalsys(BaseCalsys):
             vertical_pos = await self.linearstage_projector_select.tel_position.next(
                 flush=True, timeout=self.long_timeout
             )
-            if vertical_pos.position != self.linearstage_projector_locations["led"]:
+            if vertical_pos.position0 != self.linearstage_projector_locations["led"]:
                 self.log.info("Projector select stage is not aligned with LED position")
                 self.linearstage_projector_select.cmd_moveAbsolute.set_start(
                     distance=self.linearstage_projector_locations["led"],
