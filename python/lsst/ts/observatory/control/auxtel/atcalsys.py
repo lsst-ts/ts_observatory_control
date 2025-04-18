@@ -442,48 +442,91 @@ class ATCalsys(BaseCalsys):
             self.log.debug(
                 f"Performing {calibration_type.name} calibration with {exposure.wavelength=}."
             )
-            if config_data["monochromator_grating"] is not None:
-                await self.change_wavelength(wavelength=exposure.wavelength)
-            _exposure_metadata = exposure_metadata.copy()
-            if "group_id" in _exposure_metadata:
-                _exposure_metadata["group_id"] += f"#{i+1}"
 
-            latiss_exposure_info: dict = dict()
-            self.log.debug("Taking data sequence.")
-            exposure_info = await self._take_data(
-                latiss_exptime=exposure.camera,
-                latiss_filter=str(config_data["atspec_filter"]),
-                latiss_grating=str(config_data["atspec_grating"]),
-                exposure_metadata=_exposure_metadata,
-                fiber_spectrum_exposure_time=exposure.fiberspectrograph,
-                electrometer_exposure_time=exposure.electrometer,
-            )
-            latiss_exposure_info.update(exposure_info)
+            exposure_id = f"exposure_{i + 1}"
+            log_step_info = {
+                "wavelength": exposure.wavelength,
+                "status": "pending",
+            }
+            await self.exposure_log.add_entry(exposure_id, log_step_info)
 
-            if calibration_type == CalibrationType.Mono:
-                self.log.debug(
-                    "Taking data sequence without filter for monochromatic set."
-                )
+            try:
+                if config_data["monochromator_grating"] is not None:
+                    await self.change_wavelength(wavelength=exposure.wavelength)
+                _exposure_metadata = exposure_metadata.copy()
+                if "group_id" in _exposure_metadata:
+                    _exposure_metadata["group_id"] += f"#{i+1}"
+
+                latiss_exposure_info: dict = dict()
+                self.log.debug("Taking data sequence.")
                 exposure_info = await self._take_data(
+                    exposure_id=exposure_id,
                     latiss_exptime=exposure.camera,
-                    latiss_filter="empty_1",
+                    latiss_filter=str(config_data["atspec_filter"]),
                     latiss_grating=str(config_data["atspec_grating"]),
-                    exposure_metadata=exposure_metadata,
+                    exposure_metadata=_exposure_metadata,
                     fiber_spectrum_exposure_time=exposure.fiberspectrograph,
                     electrometer_exposure_time=exposure.electrometer,
                 )
                 latiss_exposure_info.update(exposure_info)
 
-            step = dict(
-                wavelength=exposure.wavelength,
-                latiss_exposure_info=latiss_exposure_info,
-            )
+                log_step_info["latiss_exposure_info"] = exposure_info
+                log_step_info["status"] = "success"
+                await self.exposure_log.update_entry(exposure_id, log_step_info)
 
-            calibration_summary["steps"].append(step)
+                if calibration_type == CalibrationType.Mono:
+                    self.log.debug(
+                        "Taking data sequence without filter for monochromatic set."
+                    )
+                    exposure_info = await self._take_data(
+                        exposure_id=exposure_id,
+                        latiss_exptime=exposure.camera,
+                        latiss_filter="empty_1",
+                        latiss_grating=str(config_data["atspec_grating"]),
+                        exposure_metadata=exposure_metadata,
+                        fiber_spectrum_exposure_time=exposure.fiberspectrograph,
+                        electrometer_exposure_time=exposure.electrometer,
+                    )
+
+                    log_step_info["latiss_exposure_info"] = exposure_info
+                    log_step_info["status"] = "success"
+                    await self.exposure_log.update_entry(exposure_id, log_step_info)
+
+                    latiss_exposure_info.update(exposure_info)
+
+                step = dict(
+                    wavelength=exposure.wavelength,
+                    latiss_exposure_info=latiss_exposure_info,
+                )
+                calibration_summary["steps"].append(step)
+            except Exception as e:
+                self.log.exception(
+                    f"Failed to take exposure at wavelength {exposure.wavelength}"
+                )
+
+                current_log_entries = await self.exposure_log.get_entries()
+                current_entry = next(
+                    (
+                        entry
+                        for entry in current_log_entries
+                        if entry["exposure_id"] == exposure_id
+                    ),
+                    None,
+                )
+
+                if current_entry:
+                    update_info = {"status": "failed", "error_message": str(e)}
+                    await self.exposure_log.update_entry(exposure_id, update_info)
+                else:
+                    log_step_info["status"] = "failed"
+                    log_step_info["error_message"] = str(e)
+                    await self.exposure_log.update_entry(exposure_id, log_step_info)
+
         return calibration_summary
 
     async def _take_data(
         self,
+        exposure_id: str,
         latiss_exptime: float,
         latiss_filter: str,
         latiss_grating: str,
@@ -503,11 +546,13 @@ class ATCalsys(BaseCalsys):
         exposures_done: asyncio.Future = asyncio.Future()
 
         fiber_spectrum_exposure_coroutine = self.take_fiber_spectrum(
+            exposure_id=exposure_id,
             exposure_time=fiber_spectrum_exposure_time,
             exposures_done=exposures_done,
             group_id=exposure_metadata.get("group_id", ""),
         )
         electrometer_exposure_coroutine = self.take_electrometer_scan(
+            exposure_id=exposure_id,
             exposure_time=electrometer_exposure_time,
             exposures_done=exposures_done,
             group_id=exposure_metadata.get("group_id", ""),
@@ -539,6 +584,7 @@ class ATCalsys(BaseCalsys):
 
     async def take_electrometer_scan(
         self,
+        exposure_id: str,
         exposure_time: float | None,
         exposures_done: asyncio.Future,
         group_id: str,
@@ -571,18 +617,55 @@ class ATCalsys(BaseCalsys):
                     groupId=group_id,
                     timeout=exposure_time + self.long_timeout,
                 )
-            except salobj.AckTimeoutError:
+            except salobj.AckTimeoutError as e:
                 self.log.exception("Timed out waiting for the command ack. Continuing.")
+                await self.exposure_log.update_entry(
+                    exposure_id,
+                    {
+                        "electrometer_status": "timeout",
+                        "electrometer_error_message": f"AckTimeoutError: {str(e)}",
+                    },
+                )
 
             # Make sure that a new lfo was created
             lfo = await self.electrometer.evt_largeFileObjectAvailable.next(
                 timeout=self.long_timeout, flush=False
             )
             electrometer_exposures.append(lfo.url)
+
+            try:
+                lfo = await self.electrometer.evt_largeFileObjectAvailable.next(
+                    timeout=self.long_timeout, flush=False
+                )
+                electrometer_exposures.append(lfo.url)
+                await self.exposure_log.update_entry(
+                    exposure_id,
+                    {
+                        "electrometer_status": "success",
+                        "electrometer_data": electrometer_exposures,
+                    },
+                )
+            except asyncio.TimeoutError as e:
+                self.log.warning("Timeout waiting for electrometer data.")
+                await self.exposure_log.update_entry(
+                    exposure_id,
+                    {
+                        "electrometer_status": "failed",
+                        "electrometer_error_message": f"TimeoutError: {str(e)}",
+                    },
+                )
+        else:
+            await self.exposure_log.update_entry(
+                exposure_id,
+                {
+                    "electrometer_status": "not_used",
+                },
+            )
         return electrometer_exposures
 
     async def take_fiber_spectrum(
         self,
+        exposure_id: str,
         exposure_time: float | None,
         exposures_done: asyncio.Future,
         group_id: str,
@@ -619,13 +702,44 @@ class ATCalsys(BaseCalsys):
                     groupId=group_id,
                     timeout=exposure_time + self.long_timeout,
                 )
-            except salobj.AckTimeoutError:
+            except salobj.AckTimeoutError as e:
                 self.log.exception("Timed out waiting for the command ack. Continuing.")
+                await self.exposure_log.update_entry(
+                    exposure_id,
+                    {
+                        "fiber_spectrum_status": "timeout",
+                        "fiber_spectrum_error_message": f"AckTimeoutError: {str(e)}",
+                    },
+                )
 
-            lfo = await self.fiberspectrograph.evt_largeFileObjectAvailable.next(
-                timeout=self.long_timeout, flush=False
+            try:
+                lfo = await self.fiberspectrograph.evt_largeFileObjectAvailable.next(
+                    timeout=self.long_timeout, flush=False
+                )
+                fiber_spectrum_exposures.append(lfo.url)
+                await self.exposure_log.update_entry(
+                    exposure_id,
+                    {
+                        "fiber_spectrum_status": "success",
+                        "fiber_spectrum_data": fiber_spectrum_exposures,
+                    },
+                )
+            except asyncio.TimeoutError as e:
+                self.log.warning("Timeout waiting for fiber spectrograph data.")
+                await self.exposure_log.update_entry(
+                    exposure_id,
+                    {
+                        "fiber_spectrum_status": "failed",
+                        "fiber_spectrum_error_message": f"TimeoutError: {str(e)}",
+                    },
+                )
+        else:
+            await self.exposure_log.update_entry(
+                exposure_id,
+                {
+                    "fiber_spectrum_status": "not_used",
+                },
             )
-            fiber_spectrum_exposures.append(lfo.url)
         return fiber_spectrum_exposures
 
     async def start_chiller(self) -> None:
