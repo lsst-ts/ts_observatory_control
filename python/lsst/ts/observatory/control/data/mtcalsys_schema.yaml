@@ -22,20 +22,7 @@ properties:
     default: r
   led_name:
     description: List of LED serial numbers to be turned on.
-    type: array
-    items:
-      type: string
-      enum:
-        - M385L3
-        - M455L4
-        - M505L4
-        - M565L3
-        - M660L4
-        - M730L5
-        - M810L3
-        - M850L3
-        - M940L3
-        - M970L4
+    type: string
   dac_value:
     description: Level of LED brightness (0-1.0)
     type: number
