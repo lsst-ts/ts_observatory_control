@@ -137,7 +137,9 @@ whitelight_r_source:
 
 whitelight_i_source:
   mtcamera_filter: i_39
-  led_name: 'M730L5,M810L3'
+  led_name: 
+    - M730L5
+    - M810L3
   dac_value: 0.75
   wavelength: 755.0
   led_location: 233.83
