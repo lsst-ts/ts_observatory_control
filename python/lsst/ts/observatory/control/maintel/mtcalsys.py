@@ -931,11 +931,10 @@ class MTCalsys(BaseCalsys):
             List of large file urls.
         """
 
-        self.electrometer.evt_largeFileObjectAvailable.flush()
-
         electrometer_exposures = list()
 
         if exposure_time is not None:
+            self.electrometer.evt_largeFileObjectAvailable.flush()
 
             try:
                 await self.electrometer.cmd_startScanDt.set_start(
@@ -987,16 +986,14 @@ class MTCalsys(BaseCalsys):
         fiber_spectrum_exposures : `list`[`str`]
             List of large file urls.
         """
-        if fiberspectrograph_color == "blue":
-            fiberspec = self.fiberspectrograph_blue
-        elif fiberspectrograph_color == "red":
-            fiberspec = self.fiberspectrograph_red
-
-        fiberspec.evt_largeFileObjectAvailable.flush()
-
         fiber_spectrum_exposures = []
 
         if exposure_time is not None:
+            if fiberspectrograph_color == "blue":
+                fiberspec = self.fiberspectrograph_blue
+            elif fiberspectrograph_color == "red":
+                fiberspec = self.fiberspectrograph_red
+            fiberspec.evt_largeFileObjectAvailable.flush()
 
             try:
                 await fiberspec.cmd_expose.set_start(
