@@ -206,15 +206,15 @@ class MTCalsys(BaseCalsys):
         await self.linearstage_led_select.cmd_getHome.set_start(
             axis=self.linearstage_axis, timeout=self.long_timeout
         )
-        led_focus_home = self.linearstage_led_focus.cmd_getHome.set_start(
-            axis=self.linearstage_axis, timeout=self.stage_homing_timeout
-        )
+        # led_focus_home = self.linearstage_led_focus.cmd_getHome.set_start(
+        #     axis=self.led_focus_axis, timeout=self.stage_homing_timeout
+        # )
         laser_focus_home = self.linearstage_laser_focus.cmd_getHome.set_start(
             axis=self.linearstage_axis, timeout=self.stage_homing_timeout
         )
 
         await asyncio.gather(
-            led_focus_home,
+            # led_focus_home,
             laser_focus_home,
         )
 
@@ -268,14 +268,14 @@ class MTCalsys(BaseCalsys):
             timeout=self.long_timeout,
         )
         # Home the focus stages
-        led_focus_home = self.linearstage_led_focus.cmd_getHome.set_start(
-            axis=self.linearstage_axis, timeout=self.stage_homing_timeout
-        )
+        # led_focus_home = self.linearstage_led_focus.cmd_getHome.set_start(
+        #     axis=self.linearstage_axis, timeout=self.stage_homing_timeout
+        # )
         laser_focus_home = self.linearstage_laser_focus.cmd_getHome.set_start(
             axis=self.linearstage_axis, timeout=self.stage_homing_timeout
         )
         await asyncio.gather(
-            led_focus_home,
+            # led_focus_home,
             laser_focus_home,
         )
         # Turn off the LEDs
@@ -432,7 +432,8 @@ class MTCalsys(BaseCalsys):
         )
         self.log.debug(select_location)
         led_location = await self.linearstage_led_select.tel_position.next(flush=True)
-        led_focus = await self.linearstage_led_focus.tel_position.next(flush=True)
+        # led_focus = await self.linearstage_led_focus.
+        # tel_position.next(flush=True)
         laser_focus = await self.linearstage_laser_focus.tel_position.next(flush=True)
         led_state = await self.rem.ledprojector.evt_ledState.aget(
             timeout=self.fast_timeout
@@ -450,7 +451,7 @@ class MTCalsys(BaseCalsys):
         self.log.info(
             f"Projector Location is {projector_location}, \n"
             f"LED Location stage pos @: {led_location.position0}, \n"
-            f"LED Focus stage pos @: {led_focus.position0}, \n"
+            f"LED Focus stage pos @: Not working, \n"  # {led_focus.position0}
             f"Laser Focus stage pos @: {laser_focus.position0}, \n"
             f"LED State stage pos @: {led_state}"
         )
@@ -458,7 +459,7 @@ class MTCalsys(BaseCalsys):
         return (
             projector_location,
             float(led_location.position0),
-            float(led_focus.position0),
+            0.0,  # float(led_focus.position0),
             float(laser_focus.position0),
             str(led_state),
         )
@@ -587,13 +588,13 @@ class MTCalsys(BaseCalsys):
                 axis=self.linearstage_axis,
                 timeout=self.long_timeout,
             )
-            task_adjust_led_focus = (
-                self.linearstage_led_focus.cmd_moveAbsolute.set_start(
-                    distance=config_data.get("led_focus"),
-                    axis=self.led_focus_axis,
-                    timeout=self.long_timeout,
-                )
-            )
+            # task_adjust_led_focus = (
+            #     self.linearstage_led_focus.cmd_moveAbsolute.set_start(
+            #         distance=config_data.get("led_focus"),
+            #         axis=self.led_focus_axis,
+            #         timeout=self.long_timeout,
+            #     )
+            # )
             task_adjust_led_level = (
                 self.rem.ledprojector.cmd_adjustAllDACPower.set_start(
                     dacValue=config_data.get("dac_value")
@@ -605,7 +606,7 @@ class MTCalsys(BaseCalsys):
             )
             await asyncio.gather(
                 task_select_led,
-                task_adjust_led_focus,
+                # task_adjust_led_focus,
                 task_adjust_led_level,
                 task_turn_led_on,
                 task_setup_camera,
