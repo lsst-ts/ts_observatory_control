@@ -857,7 +857,12 @@ class MTCalsys(BaseCalsys):
             self.log.debug("Taking Data without MTCamera")
 
         exposures_done: asyncio.Future = asyncio.Future()
-
+        self.log.debug(
+            f"Exptimes:  \n"
+            f"fiberspec_red {fiber_spectrum_red_exposure_time}, \n"
+            f"fiberspec_rblue {fiber_spectrum_blue_exposure_time},  \n"
+            f"electrometer {electrometer_exposure_time}"
+        )
         fiber_spectrum_red_exposure_coroutine = self.take_fiber_spectrum(
             fiberspectrograph_color="red",
             exposure_time=fiber_spectrum_red_exposure_time,
