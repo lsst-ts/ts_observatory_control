@@ -448,10 +448,11 @@ class MTCalsys(BaseCalsys):
                 projector_location = "misaligned"
 
         self.log.info(
-            f"Projector Location is {projector_location}, \n"
-            f"LED Location stage pos @: {led_location.position}, \n"
-            f"LED Focus stage pos @: {led_focus.position}, \n"
-            f"Laser Focus stage pos @: {laser_focus.position}, \n"
+            f"Projector Location is {projector_location}, {select_location.position[0]} \n"
+            f"LED Location stage pos @: {led_location.position[0]}], \n"
+            f"LED Focus stage pos @: Not working, \n"
+            # {led_focus.position[0]}
+            f"Laser Focus stage pos @: {laser_focus.position[0]}, \n"
             f"LED State stage pos @: {led_state}"
         )
 
