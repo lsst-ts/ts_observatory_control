@@ -601,9 +601,9 @@ class MTCalsys(BaseCalsys):
                     dacValue=config_data.get("dac_value")
                 )
             )
-            self.log.debug(",".join(str(config_data.get("led_name"))))
+
             task_turn_led_on = self.rem.ledprojector.cmd_switchOff.set_start(
-                serialNumbers=",".join(str(config_data.get("led_name"))),
+                serialNumbers=config_data.get("led_name"),
                 timeout=self.long_timeout,
             )
             await asyncio.gather(
