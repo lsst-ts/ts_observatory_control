@@ -846,14 +846,16 @@ class MTCalsys(BaseCalsys):
         electrometer_exposure_time: float | None,
     ) -> dict:
 
-        assert self.mtcamera is not None
+        if self.mtcamera is not None:
+            mtcamera_exposure_task = self.mtcamera.take_flats(
+                mtcamera_exptime,
+                nflats=1,
+                filter=mtcamera_filter,
+                **exposure_metadata,
+            )
+        else:
+            self.log.debug("Taking Data without MTCamera")
 
-        mtcamera_exposure_task = self.mtcamera.take_flats(
-            mtcamera_exptime,
-            nflats=1,
-            filter=mtcamera_filter,
-            **exposure_metadata,
-        )
         exposures_done: asyncio.Future = asyncio.Future()
 
         fiber_spectrum_red_exposure_coroutine = self.take_fiber_spectrum(
@@ -861,6 +863,7 @@ class MTCalsys(BaseCalsys):
             exposure_time=fiber_spectrum_red_exposure_time,
             exposures_done=exposures_done,
         )
+
         fiber_spectrum_blue_exposure_coroutine = self.take_fiber_spectrum(
             fiberspectrograph_color="blue",
             exposure_time=fiber_spectrum_blue_exposure_time,
@@ -880,8 +883,10 @@ class MTCalsys(BaseCalsys):
             electrometer_exposure_task = asyncio.create_task(
                 electrometer_exposure_coroutine
             )
-
-            mtcamera_exposure_id = await mtcamera_exposure_task
+            if self.mtcamera is not None:
+                mtcamera_exposure_id = await mtcamera_exposure_task
+            else:
+                mtcamera_exposure_id = [0]
         finally:
             exposures_done.set_result(True)
             (
