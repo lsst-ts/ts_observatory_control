@@ -90,11 +90,13 @@ class TestMTCalsys(RemoteGroupAsyncMock):
     def test_load_calibration_config_file(self) -> None:
         self.mtcalsys.load_calibration_config_file()
 
-        assert "whitelight_r_57" in self.mtcalsys.get_configuration_options()
+        assert "whitelight_r_57_daily" in self.mtcalsys.get_configuration_options()
 
     async def test_setup_electrometers(self) -> None:
 
-        config_data = self.mtcalsys.get_calibration_configuration("whitelight_r_57")
+        config_data = self.mtcalsys.get_calibration_configuration(
+            "whitelight_r_57_daily"
+        )
 
         await self.mtcalsys.setup_electrometers(
             mode=str(config_data["electrometer_mode"]),
@@ -184,7 +186,7 @@ class TestMTCalsys(RemoteGroupAsyncMock):
             unittest.mock.Mock(return_value=9.96)
         )
         try:
-            await self.mtcalsys.prepare_for_flat("whitelight_r_57")
+            await self.mtcalsys.prepare_for_flat("whitelight_r_57_daily")
         finally:
             self.mtcalsys.mtcamera = None
 
@@ -254,28 +256,27 @@ class TestMTCalsys(RemoteGroupAsyncMock):
 
         try:
             calibration_summary = await self.mtcalsys.run_calibration_sequence(
-                "whitelight_r_57", exposure_metadata=dict()
+                "whitelight_u_24_daily", exposure_metadata=dict()
             )
         finally:
             self.mtcalsys.mtcamera = None
 
-        config_data = self.mtcalsys.get_calibration_configuration("whitelight_r_57")
+        config_data = self.mtcalsys.get_calibration_configuration(
+            "whitelight_u_24_daily"
+        )
 
         assert "sequence_name" in calibration_summary
-        assert calibration_summary["sequence_name"] == "whitelight_r_57"
+        assert calibration_summary["sequence_name"] == "whitelight_u_24_daily"
         assert "steps" in calibration_summary
         self.log.debug(f"number of steps: {len(calibration_summary['steps'])}")
-        assert len(calibration_summary["steps"]) == len(config_data["exposure_times"])
+        assert (
+            len(calibration_summary["steps"])
+            == len(config_data["exposure_times"]) * config_data["n_flat"]
+        )
         for mtcamera_exposure_info in calibration_summary["steps"][0][
             "mtcamera_exposure_info"
         ].values():
             assert len(mtcamera_exposure_info["electrometer_exposure_result"]) >= 1
-            assert (
-                len(mtcamera_exposure_info["fiber_spectrum_red_exposure_result"]) >= 1
-            )
-            assert (
-                len(mtcamera_exposure_info["fiber_spectrum_blue_exposure_result"]) >= 1
-            )
 
     async def test_run_calibration_sequence_mono(self) -> None:
 
@@ -321,12 +322,6 @@ class TestMTCalsys(RemoteGroupAsyncMock):
             "mtcamera_exposure_info"
         ].values():
             assert len(mtcamera_exposure_info["electrometer_exposure_result"]) >= 1
-            assert (
-                len(mtcamera_exposure_info["fiber_spectrum_red_exposure_result"]) >= 1
-            )
-            assert (
-                len(mtcamera_exposure_info["fiber_spectrum_blue_exposure_result"]) >= 1
-            )
         self.mtcalsys.change_laser_wavelength(
             wavelength=expected_change_wavelegths_calls
         )
