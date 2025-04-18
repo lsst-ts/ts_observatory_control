@@ -602,8 +602,9 @@ class MTCalsys(BaseCalsys):
                 )
             )
 
+            led_names: typing.Iterable[str] = config_data.get("led_name", [])
             task_turn_led_on = self.rem.ledprojector.cmd_switchOff.set_start(
-                serialNumbers=config_data.get("led_name"),
+                serialNumbers=",".join(led_names),
                 timeout=self.long_timeout,
             )
             await asyncio.gather(

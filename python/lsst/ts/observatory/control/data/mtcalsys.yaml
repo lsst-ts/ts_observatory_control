@@ -3,7 +3,8 @@
 
 whitelight_u:
   mtcamera_filter: u_24
-  led_name: 'M385L3'
+  led_name: 
+    - M385L3
   dac_value: 1.0
   wavelength: 385.0
   led_location: 174.18
@@ -13,7 +14,9 @@ whitelight_u:
 
 whitelight_g:
   mtcamera_filter: g_6
-  led_name: 'M455L4,M505L4'
+  led_name:
+    - M455L4
+    - M505L4
   dac_value: 1.0
   wavelength: 480.0
   led_location: 5.62
@@ -23,7 +26,9 @@ whitelight_g:
 
 whitelight_r:
   mtcamera_filter: r_57
-  led_name: 'M565L3,M660L4'
+  led_name:
+    - M565L3
+    - M660L4
   dac_value: 0.8
   wavelength: 612.5
   led_location: 66.87
@@ -33,7 +38,9 @@ whitelight_r:
 
 whitelight_i:
   mtcamera_filter: i_39
-  led_name: 'M730L5,M780LP1'
+  led_name:
+    - M730L5
+    - M810L3
   dac_value: 0.75
   wavelength: 755.0
   led_location: 233.83
@@ -43,7 +50,9 @@ whitelight_i:
 
 whitelight_z:
   mtcamera_filter: z_20
-  led_name: 'M850L3,M940L3'
+  led_name:
+    - M850L3
+    - M940L3
   dac_value: 0.65
   wavelength: 895.0
   led_location: 295.504
@@ -53,7 +62,8 @@ whitelight_z:
 
 whitelight_y:
   mtcamera_filter: y_10
-  led_name: 'M970L4'
+  led_name:
+    - M970L4
   dac_value: 1.0
   wavelength: 970.0
   led_location: 171.38
@@ -89,7 +99,8 @@ laser_functional:
 
 whitelight_u_source:
   mtcamera_filter: u_24
-  led_name: 'M385L3'
+  led_name: 
+    - M385L3
   dac_value: 1.0
   wavelength: 385.0
   led_location: 174.18
@@ -100,7 +111,9 @@ whitelight_u_source:
 
 whitelight_g_source:
   mtcamera_filter: g_6
-  led_name: 'M455L4,M505L4'
+  led_name:
+    - M455L4
+    - M505L4
   dac_value: 1.0
   wavelength: 480.0
   led_location: 5.62
@@ -111,7 +124,9 @@ whitelight_g_source:
 
 whitelight_r_source:
   mtcamera_filter: r_57
-  led_name: 'M565L3,M660L4'
+  led_name:
+    - M565L3
+    - M660L4
   dac_value: 0.78
   wavelength: 612.5
   led_location: 66.87
@@ -122,7 +137,7 @@ whitelight_r_source:
 
 whitelight_i_source:
   mtcamera_filter: i_39
-  led_name: 'M730L5,M780LP1'
+  led_name: 'M730L5,M810L3'
   dac_value: 0.75
   wavelength: 755.0
   led_location: 233.83
@@ -133,7 +148,9 @@ whitelight_i_source:
 
 whitelight_z_source:
   mtcamera_filter: z_20
-  led_name: 'M850L3,M940L3'
+  led_name:
+    - M850L3
+    - M940L3
   dac_value: 0.65
   wavelength: 895.0
   led_location: 295.504
@@ -144,7 +161,8 @@ whitelight_z_source:
 
 whitelight_y_source:
   mtcamera_filter: y_10
-  led_name: 'M970L4'
+  led_name:
+    - M970L4
   dac_value: 1.0
   wavelength: 970.0
   led_location: 171.38
