@@ -1,7 +1,7 @@
 # Configuration for calibration hardware setup
 # Created 2024-07-15
 
-whitelight_u:
+whitelight_u_24:
   mtcamera_filter: u_24
   led_name: 
     - M385L3
@@ -14,7 +14,7 @@ whitelight_u:
   exposure_times:
     - 30.0
 
-whitelight_g:
+whitelight_g_6:
   mtcamera_filter: g_6
   led_name:
     - M455L4
@@ -28,7 +28,7 @@ whitelight_g:
   exposure_times:
     - 10.0
 
-whitelight_r:
+whitelight_r_57:
   mtcamera_filter: r_57
   led_name:
     - M565L3
@@ -42,7 +42,7 @@ whitelight_r:
   exposure_times:
     - 10.0
 
-whitelight_i:
+whitelight_i_39:
   mtcamera_filter: i_39
   led_name:
     - M730L5
@@ -56,7 +56,7 @@ whitelight_i:
   exposure_times:
     - 10.0
 
-whitelight_z:
+whitelight_z_20:
   mtcamera_filter: z_20
   led_name:
     - M850L3
@@ -70,7 +70,7 @@ whitelight_z:
   exposure_times:
     - 15.0
 
-whitelight_y:
+whitelight_y_10:
   mtcamera_filter: y_10
   led_name:
     - M970L4
@@ -110,7 +110,6 @@ laser_functional:
     - 15.0
 
 whitelight_u_source:
-  mtcamera_filter: u_24
   led_name: 
     - M385L3
   dac_value: 1.0
@@ -124,7 +123,6 @@ whitelight_u_source:
     - 30.0
 
 whitelight_g_source:
-  mtcamera_filter: g_6
   led_name:
     - M455L4
     - M505L4
@@ -139,7 +137,6 @@ whitelight_g_source:
     - 10.0
 
 whitelight_r_source:
-  mtcamera_filter: r_57
   led_name:
     - M565L3
     - M660L4
@@ -154,7 +151,6 @@ whitelight_r_source:
     - 10.0
 
 whitelight_i_source:
-  mtcamera_filter: i_39
   led_name: 
     - M730L5
     - M810L3
@@ -169,7 +165,6 @@ whitelight_i_source:
     - 10.0
 
 whitelight_z_source:
-  mtcamera_filter: z_20
   led_name:
     - M850L3
     - M940L3
@@ -184,7 +179,6 @@ whitelight_z_source:
     - 10.0
 
 whitelight_y_source:
-  mtcamera_filter: y_10
   led_name:
     - M970L4
   dac_value: 1.0

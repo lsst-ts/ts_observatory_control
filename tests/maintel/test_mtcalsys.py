@@ -87,11 +87,11 @@ class TestMTCalsys(RemoteGroupAsyncMock):
     def test_load_calibration_config_file(self) -> None:
         self.mtcalsys.load_calibration_config_file()
 
-        assert "whitelight_r" in self.mtcalsys.get_configuration_options()
+        assert "whitelight_r_57" in self.mtcalsys.get_configuration_options()
 
     async def test_setup_electrometers(self) -> None:
 
-        config_data = self.mtcalsys.get_calibration_configuration("whitelight_r")
+        config_data = self.mtcalsys.get_calibration_configuration("whitelight_r_57")
 
         await self.mtcalsys.setup_electrometers(
             mode=str(config_data["electrometer_mode"]),
@@ -170,7 +170,7 @@ class TestMTCalsys(RemoteGroupAsyncMock):
             unittest.mock.Mock(return_value=9.96)
         )
         try:
-            await self.mtcalsys.prepare_for_flat("whitelight_r")
+            await self.mtcalsys.prepare_for_flat("whitelight_r_57")
         finally:
             self.mtcalsys.mtcamera = None
 
@@ -248,15 +248,15 @@ class TestMTCalsys(RemoteGroupAsyncMock):
 
         try:
             calibration_summary = await self.mtcalsys.run_calibration_sequence(
-                "whitelight_r", exposure_metadata=dict()
+                "whitelight_r_57", exposure_metadata=dict()
             )
         finally:
             self.mtcalsys.mtcamera = None
 
-        config_data = self.mtcalsys.get_calibration_configuration("whitelight_r")
+        config_data = self.mtcalsys.get_calibration_configuration("whitelight_r_57")
 
         assert "sequence_name" in calibration_summary
-        assert calibration_summary["sequence_name"] == "whitelight_r"
+        assert calibration_summary["sequence_name"] == "whitelight_r_57"
         assert "steps" in calibration_summary
         self.log.debug(f"number of steps: {len(calibration_summary['steps'])}")
         assert len(calibration_summary["steps"]) == len(config_data["exposure_times"])
