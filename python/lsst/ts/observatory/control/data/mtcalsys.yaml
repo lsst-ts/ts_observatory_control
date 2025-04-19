@@ -121,7 +121,7 @@ whitelight_u_source:
   use_fiberspectrograph_red: False
   use_fiberspectrograph_blue: False
   exposure_times:
-    - 1.0
+    - 30.0
 
 whitelight_g_source:
   led_name:
@@ -136,7 +136,7 @@ whitelight_g_source:
   use_fiberspectrograph_red: False
   use_fiberspectrograph_blue: False
   exposure_times:
-    - 1.0
+    - 10.0
 
 whitelight_r_source:
   led_name:
@@ -151,7 +151,7 @@ whitelight_r_source:
   use_fiberspectrograph_red: False
   use_fiberspectrograph_blue: False
   exposure_times:
-    - 1.0
+    - 10.0
 
 whitelight_i_source:
   led_name: 
@@ -166,7 +166,7 @@ whitelight_i_source:
   use_fiberspectrograph_red: False
   use_fiberspectrograph_blue: False
   exposure_times:
-    - 1.0
+    - 10.0
 
 whitelight_z_source:
   led_name:
@@ -181,7 +181,7 @@ whitelight_z_source:
   use_fiberspectrograph_red: False
   use_fiberspectrograph_blue: False
   exposure_times:
-    - 1.0
+    - 15.0
 
 whitelight_y_source:
   led_name:
@@ -195,4 +195,4 @@ whitelight_y_source:
   use_fiberspectrograph_red: False
   use_fiberspectrograph_blue: False
   exposure_times:
-    - 1.0
+    - 20.0
