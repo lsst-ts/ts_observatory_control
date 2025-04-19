@@ -792,7 +792,6 @@ class MTCalsys(BaseCalsys):
         electrometer_buffer_size = 16667
         electrometer_integration_overhead = 0.00254
         electrometer_time_separation_vs_integration = 3.07
-        nominal_exposure_time = 1.0
 
         electrometer_exptimes: list[float | None] = []
         for exptime in exptimes:
@@ -808,7 +807,7 @@ class MTCalsys(BaseCalsys):
                         f"Electrometer exposure time reduced to {max_exp_time}"
                     )
                 else:
-                    electrometer_exptimes.append(nominal_exposure_time)
+                    electrometer_exptimes.append(exptime)
             else:
                 electrometer_exptimes.append(None)
         return electrometer_exptimes
