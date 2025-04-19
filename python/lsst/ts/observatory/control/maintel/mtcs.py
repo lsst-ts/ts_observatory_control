@@ -3131,6 +3131,7 @@ class MTCS(BaseTCS):
                 components_attr=self.components_attr,
                 readonly=False,
                 generics=["summaryState", "configurationsAvailable", "heartbeat"],
+                mtaos=["closedLoopState"],
                 mtptg=[
                     "azElTarget",
                     "raDecTarget",
