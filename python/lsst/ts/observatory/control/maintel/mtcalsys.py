@@ -199,6 +199,13 @@ class MTCalsys(BaseCalsys):
 
         calibration_type = getattr(CalibrationType, str(config_data["calib_type"]))
 
+        if config_data["use_electrometer"]:
+            await self.setup_electrometers(
+                mode=str(config_data["electrometer_mode"]),
+                range=float(config_data["electrometer_range"]),
+                integration_time=float(config_data["electrometer_integration_time"]),
+            )
+
         # Home all linear stages.
         await self.linearstage_projector_select.cmd_getHome.set_start(
             axis=self.linearstage_axis, timeout=self.stage_homing_timeout
