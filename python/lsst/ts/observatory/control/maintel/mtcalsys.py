@@ -133,8 +133,8 @@ class MTCalsys(BaseCalsys):
         self.fiberspectrograph_blue_index = 102
         self.fiberspectrograph_red_index = 101
         self.linearstage_led_select_index = 102
-        self.linearstage_led_focus_index = 104
-        self.linearstage_laser_focus_index = 101
+        self.linearstage_led_focus_index = 101
+        self.linearstage_laser_focus_index = 104
         self.linearstage_select_index = 103
 
         super().__init__(
