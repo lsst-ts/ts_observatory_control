@@ -3146,7 +3146,11 @@ class MTCS(BaseTCS):
                     "target",
                     "focusNameSelected",
                 ],
-                mtrotator=["rotation", "inPosition"],
+                mtrotator=[
+                    "rotation",
+                    "inPosition",
+                    "controllerState",
+                ],
                 mtmount=[
                     "azimuth",
                     "elevation",
