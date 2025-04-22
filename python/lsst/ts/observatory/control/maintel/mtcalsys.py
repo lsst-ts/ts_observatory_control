@@ -851,12 +851,11 @@ class MTCalsys(BaseCalsys):
         )
         exposures_done: asyncio.Future = asyncio.Future()
 
-        group_id = None
-        try:
-            group_id = exposure_metadata["group_id"]
-        except KeyError:
-            self.log.exception(
-                "No Group ID for Electrometer/Fiber Spectrograph exposures. Continuing"
+        group_id = exposure_metadata.get("group_id", "")
+
+        if group_id == "":
+            self.log.warning(
+                "No Group ID for Electrometer/Fiber Spectrograph exposures. Continuing."
             )
 
         fiber_spectrum_red_exposure_coroutine = self.take_fiber_spectrum(
@@ -911,7 +910,7 @@ class MTCalsys(BaseCalsys):
     async def take_electrometer_scan(
         self,
         exposure_time: float | None,
-        group_id: str | None,
+        group_id: str,
         exposures_done: asyncio.Future,
     ) -> list[str]:
         """Perform an electrometer scan for the specified duration.
@@ -964,7 +963,7 @@ class MTCalsys(BaseCalsys):
         self,
         fiberspectrograph_color: str,
         exposure_time: float | None,
-        group_id: str | None,
+        group_id: str,
         exposures_done: asyncio.Future,
     ) -> list[str]:
         """Take exposures with the fiber spectrograph until
