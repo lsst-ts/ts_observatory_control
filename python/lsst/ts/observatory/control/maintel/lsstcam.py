@@ -260,6 +260,7 @@ class LSSTCam(BaseCamera):
             and self.mtcs.check.mtrotator
         ):
             await self.mtcs.stop_tracking()
+            await self.mtcs.stop_rotator()
         else:
             self.log.warning(
                 f"Check on mtmount ({self.mtcs.check.mtmount}), "
