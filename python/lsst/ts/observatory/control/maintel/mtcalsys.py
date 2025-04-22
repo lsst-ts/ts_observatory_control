@@ -851,19 +851,30 @@ class MTCalsys(BaseCalsys):
         )
         exposures_done: asyncio.Future = asyncio.Future()
 
+        group_id = None
+        try:
+            group_id = exposure_metadata["group_id"]
+        except KeyError:
+            self.log.exception(
+                "No Group ID for Electrometer/Fiber Spectrograph exposures. Continuing"
+            )
+
         fiber_spectrum_red_exposure_coroutine = self.take_fiber_spectrum(
             fiberspectrograph_color="red",
             exposure_time=fiber_spectrum_red_exposure_time,
             exposures_done=exposures_done,
+            group_id=group_id,
         )
         fiber_spectrum_blue_exposure_coroutine = self.take_fiber_spectrum(
             fiberspectrograph_color="blue",
             exposure_time=fiber_spectrum_blue_exposure_time,
             exposures_done=exposures_done,
+            group_id=group_id,
         )
         electrometer_exposure_coroutine = self.take_electrometer_scan(
             exposure_time=electrometer_exposure_time,
             exposures_done=exposures_done,
+            group_id=group_id,
         )
         try:
             fiber_spectrum_red_exposure_task = asyncio.create_task(
@@ -900,6 +911,7 @@ class MTCalsys(BaseCalsys):
     async def take_electrometer_scan(
         self,
         exposure_time: float | None,
+        group_id: str | None,
         exposures_done: asyncio.Future,
     ) -> list[str]:
         """Perform an electrometer scan for the specified duration.
@@ -926,6 +938,7 @@ class MTCalsys(BaseCalsys):
             try:
                 await self.electrometer.cmd_startScanDt.set_start(
                     scanDuration=exposure_time,
+                    groupId=group_id,
                     timeout=exposure_time + self.long_timeout,
                 )
             except salobj.AckTimeoutError:
@@ -951,6 +964,7 @@ class MTCalsys(BaseCalsys):
         self,
         fiberspectrograph_color: str,
         exposure_time: float | None,
+        group_id: str | None,
         exposures_done: asyncio.Future,
     ) -> list[str]:
         """Take exposures with the fiber spectrograph until
@@ -986,6 +1000,7 @@ class MTCalsys(BaseCalsys):
                 await fiberspec.cmd_expose.set_start(
                     duration=exposure_time,
                     numExposures=1,
+                    groupId=group_id,
                     timeout=exposure_time + self.long_timeout,
                 )
 
