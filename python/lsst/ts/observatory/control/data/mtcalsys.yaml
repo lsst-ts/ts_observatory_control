@@ -12,14 +12,14 @@ whitelight_u_24:
   use_fiberspectrograph_red: False
   use_fiberspectrograph_blue: False
   exposure_times:
-    - 30.0
+    - 15.0
 
 whitelight_g_6:
   mtcamera_filter: g_6
   led_name:
     - M455L4
     - M505L4
-  dac_value: 1.0
+  dac_value: 0.8
   wavelength: 480.0
   led_location: 5.62
   led_focus: 8.26
@@ -33,7 +33,7 @@ whitelight_r_57:
   led_name:
     - M565L3
     - M660L4
-  dac_value: 0.8
+  dac_value: 1.0
   wavelength: 612.5
   led_location: 66.87
   led_focus: 7.52
@@ -47,7 +47,7 @@ whitelight_i_39:
   led_name:
     - M730L5
     - M810L3
-  dac_value: 0.75
+  dac_value: 0.8
   wavelength: 755.0
   led_location: 233.83
   led_focus: 7.07
