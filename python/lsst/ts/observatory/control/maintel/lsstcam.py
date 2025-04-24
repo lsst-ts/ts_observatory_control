@@ -230,8 +230,9 @@ class LSSTCam(BaseCamera):
             if self.mtcs is not None:
                 await self._setup_mtcs_for_filter_change()
             else:
-                self.log.warning(
-                    "Changing the LSSTCam filter without an instance of MTCS."
+                raise RuntimeError(
+                    "Cannot change the LSSTCam filter without proper setup. "
+                    "You might want to use a dedicated operation to change filters."
                 )
 
             async with self.cmd_lock:

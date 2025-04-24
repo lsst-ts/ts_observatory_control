@@ -63,18 +63,15 @@ class TestLSSTCam(BaseCameraAsyncMock):
         )
 
     async def test_setup_instrument(self) -> None:
-        valid_entries: typing.List[
-            typing.Dict[str, typing.Union[int, float, str, None]]
-        ] = [
-            dict(filter=None),
-            dict(filter="band1"),
-        ]
+        # OK when no filter requested
+        await self.lsstcam.setup_instrument(filter=None)
+        self.assert_setup_instrument(dict(filter=None))
 
-        for entry in valid_entries:
-            await self.lsstcam.setup_instrument(**entry)
+        # Should raise when requesting a filter change without MTCS
+        with self.assertRaises(RuntimeError):
+            await self.lsstcam.setup_instrument(filter="band1")
 
-            self.assert_setup_instrument(entry)
-
+        # invalid keyword still raises
         with self.assertRaises(RuntimeError):
             await self.lsstcam.setup_instrument(invalid_key_word=123)
 
