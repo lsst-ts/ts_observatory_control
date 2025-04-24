@@ -656,39 +656,42 @@ class MTCalsys(BaseCalsys):
             wavelengths=calibration_wavelengths, config_data=config_data
         )
 
-        for exposure in exposure_table:
+        for i, exposure in enumerate(exposure_table):
             self.log.debug(
                 f"Performing {calibration_type.name} calibration with {exposure.wavelength=}."
             )
 
+            _exposure_metadata = exposure_metadata.copy()
+            if "group_id" in _exposure_metadata:
+                _exposure_metadata["group_id"] += f"#{i+1}"
+
             mtcamera_exposure_info: dict = dict()
 
-            for exptime in config_data["exposure_times"]:
-                self.log.debug("Taking data sequence.")
+            self.log.debug("Taking data sequence.")
+            exposure_info = await self._take_data(
+                mtcamera_exptime=exposure.camera,
+                mtcamera_filter=str(config_data["mtcamera_filter"]),
+                exposure_metadata=_exposure_metadata,
+                fiber_spectrum_red_exposure_time=exposure.fiberspectrograph_red,
+                fiber_spectrum_blue_exposure_time=exposure.fiberspectrograph_blue,
+                electrometer_exposure_time=exposure.electrometer,
+            )
+            mtcamera_exposure_info.update(exposure_info)
+
+            if calibration_type == CalibrationType.Mono:
+                await self.change_laser_wavelength(wavelength=exposure.wavelength)
+                self.log.debug(
+                    "Taking data sequence without filter for monochromatic set."
+                )
                 exposure_info = await self._take_data(
                     mtcamera_exptime=exposure.camera,
-                    mtcamera_filter=str(config_data["mtcamera_filter"]),
-                    exposure_metadata=exposure_metadata,
+                    mtcamera_filter="empty_1",
+                    exposure_metadata=_exposure_metadata,
                     fiber_spectrum_red_exposure_time=exposure.fiberspectrograph_red,
                     fiber_spectrum_blue_exposure_time=exposure.fiberspectrograph_blue,
                     electrometer_exposure_time=exposure.electrometer,
                 )
                 mtcamera_exposure_info.update(exposure_info)
-
-                if calibration_type == CalibrationType.Mono:
-                    await self.change_laser_wavelength(wavelength=exposure.wavelength)
-                    self.log.debug(
-                        "Taking data sequence without filter for monochromatic set."
-                    )
-                    exposure_info = await self._take_data(
-                        mtcamera_exptime=exposure.camera,
-                        mtcamera_filter="empty_1",
-                        exposure_metadata=exposure_metadata,
-                        fiber_spectrum_red_exposure_time=exposure.fiberspectrograph_red,
-                        fiber_spectrum_blue_exposure_time=exposure.fiberspectrograph_blue,
-                        electrometer_exposure_time=exposure.electrometer,
-                    )
-                    mtcamera_exposure_info.update(exposure_info)
 
             step = dict(
                 wavelength=exposure.wavelength,
