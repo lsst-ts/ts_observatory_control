@@ -13,6 +13,10 @@ whitelight_u_24:
   use_fiberspectrograph_blue: False
   exposure_times:
     - 15.0
+    - 15.0
+    - 15.0
+    - 15.0
+    - 15.0
 
 whitelight_g_6:
   mtcamera_filter: g_6
@@ -26,6 +30,10 @@ whitelight_g_6:
   use_fiberspectrograph_red: False
   use_fiberspectrograph_blue: False
   exposure_times:
+    - 10.0
+    - 10.0
+    - 10.0
+    - 10.0
     - 10.0
 
 whitelight_r_57:
@@ -41,6 +49,11 @@ whitelight_r_57:
   use_fiberspectrograph_blue: False
   exposure_times:
     - 10.0
+    - 10.0
+    - 10.0
+    - 10.0
+    - 10.0
+
 
 whitelight_i_39:
   mtcamera_filter: i_39
@@ -54,6 +67,10 @@ whitelight_i_39:
   use_fiberspectrograph_red: False
   use_fiberspectrograph_blue: False
   exposure_times:
+    - 10.0
+    - 10.0
+    - 10.0
+    - 10.0
     - 10.0
 
 whitelight_z_20:
@@ -69,6 +86,10 @@ whitelight_z_20:
   use_fiberspectrograph_blue: False
   exposure_times:
     - 15.0
+    - 15.0
+    - 15.0
+    - 15.0
+    - 15.0
 
 whitelight_y_10:
   mtcamera_filter: y_10
@@ -81,6 +102,10 @@ whitelight_y_10:
   use_fiberspectrograph_red: False
   use_fiberspectrograph_blue: False
   exposure_times:
+    - 20.0
+    - 20.0
+    - 20.0
+    - 20.0
     - 20.0
 
 scan_r:
