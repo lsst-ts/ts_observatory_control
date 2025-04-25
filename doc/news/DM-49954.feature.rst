@@ -1,0 +1,7 @@
+In base_camera.py:
+- Revert commit to refactor how start/end integration works.
+- Handle ccs command state for the camera.
+- Only run initGuider if exposure is larger than zero.
+- Skip error in initGuider if the error indicates it is not configured as guider.
+- Add _roi_spec_json attribute.
+- Update unit tests to accommodate changes. 
