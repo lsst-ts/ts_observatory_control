@@ -438,10 +438,9 @@ class TestLSSTCam(BaseCameraAsyncMock):
         roi_spec_dict = roi_spec.model_dump()
         roi = roi_spec_dict.pop("roi")
         roi_spec_dict.update(roi)
-        self.lsstcam.rem.mtcamera.cmd_initGuiders.set_start.assert_awaited_with(
-            roiSpec=json.dumps(roi_spec_dict, separators=(",", ":")),
-            timeout=self.lsstcam.long_timeout,
-        )
+        expected_roi_spec_json = json.dumps(roi_spec_dict, separators=(",", ":"))
+
+        assert self.lsstcam._roi_spec_json == expected_roi_spec_json
 
     def assert_setup_instrument(
         self, entry: typing.Dict[str, typing.Union[int, float, str, None]]
