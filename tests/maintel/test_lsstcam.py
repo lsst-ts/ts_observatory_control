@@ -87,12 +87,14 @@ class TestLSSTCam(BaseCameraAsyncMock):
         mock_mtcs.check.mtmount = True
         mock_mtcs.check.mtptg = True
         mock_mtcs.check.mtrotator = True
+
         self.lsstcam.mtcs = mock_mtcs
 
         await self.lsstcam.setup_instrument(**valid_entry)
         self.lsstcam.mtcs.assert_has_calls(
             [
                 call.stop_tracking(),
+                call.stop_rotator(),
                 call.move_rotator(position=self.lsstcam.rotator_filter_change_position),
             ],
             any_order=False,
