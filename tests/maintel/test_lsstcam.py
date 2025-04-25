@@ -43,6 +43,8 @@ class TestLSSTCam(BaseCameraAsyncMock):
             intended_usage=LSSTCamUsages.DryTest,
         )
 
+        cls.lsstcam._roi_spec_json = '{"roi": "default"}'
+
         return super().setUpClass()
 
     @property
