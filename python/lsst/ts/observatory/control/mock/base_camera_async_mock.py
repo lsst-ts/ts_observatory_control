@@ -29,6 +29,7 @@ import astropy
 import pytest
 from lsst.ts import utils
 from lsst.ts.observatory.control import CameraExposure
+from lsst.ts.observatory.control.base_camera import CameraSubstate
 from lsst.ts.observatory.control.mock import RemoteGroupAsyncMock
 
 HB_TIMEOUT = 5  # Heartbeat timeout (sec)
@@ -91,6 +92,7 @@ class BaseCameraAsyncMock(RemoteGroupAsyncMock):
         self._end_readout_event.clear()
         self._start_integration_event = asyncio.Event()
         self._start_integration_event.clear()
+        self._camera_substate = CameraSubstate.IDLE
 
         self.image_name: str | None = None
 
@@ -106,12 +108,16 @@ class BaseCameraAsyncMock(RemoteGroupAsyncMock):
         self.remote_group.camera.evt_startIntegration.next.configure_mock(
             side_effect=self.next_start_integration
         )
+        self.remote_group.camera.evt_ccsCommandState.aget.configure_mock(
+            side_effect=self.aget_ccs_command_state
+        )
         self.remote_group.camera.cmd_takeImages.start.configure_mock(
             side_effect=self.start_take_images
         )
         self.remote_group.camera.cmd_takeImages.set.configure_mock(
             side_effect=self.set_take_images
         )
+
         try:
             self.remote_group.camera.cmd_startImage.set.configure_mock(
                 side_effect=self.set_start_image
@@ -162,6 +168,11 @@ class BaseCameraAsyncMock(RemoteGroupAsyncMock):
         self.log.debug("Next start integration end.")
         return self.start_integration
 
+    async def aget_ccs_command_state(
+        self, *args: typing.Any, **kwargs: typing.Any
+    ) -> types.SimpleNamespace:
+        return types.SimpleNamespace(substate=self._camera_substate.value)
+
     async def start_take_images(self, *args: typing.Any, **kwargs: typing.Any) -> None:
         self.log.debug("Take images start.")
         for snap in range(self.start_integration.numImages - 1):
@@ -187,12 +198,12 @@ class BaseCameraAsyncMock(RemoteGroupAsyncMock):
         self.log.debug("Set take images end.")
 
     def set_start_image(self, *args: typing.Any, **kwargs: typing.Any) -> None:
+
         self.log.debug("Set start image start.")
         self.start_integration.exposureTime = kwargs["timeout"]
         self.log.debug("Set start image end.")
 
     async def start_start_image(self, *args: typing.Any, **kwargs: typing.Any) -> None:
-
         self._end_readout_event.clear()
         self.set_next_image_name()
         self.start_integration.imageName = self.image_name
