@@ -54,6 +54,9 @@ class TestGenericCamera(BaseCameraAsyncMock):
             log=cls.log,
             intended_usage=Usages.DryTest,
         )
+
+        cls.generic_camera._roi_spec_json = None
+
         return super().setUpClass()
 
     @property

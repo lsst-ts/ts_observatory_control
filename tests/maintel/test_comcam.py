@@ -41,6 +41,8 @@ class TestComCam(BaseCameraAsyncMock):
             intended_usage=ComCamUsages.DryTest,
         )
 
+        cls.comcam._roi_spec_json = None
+
         return super().setUpClass()
 
     @property
