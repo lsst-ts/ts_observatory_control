@@ -234,16 +234,8 @@ class TestMTCalsys(RemoteGroupAsyncMock):
         mock_comcam = ComCam(
             "FakeDomain", log=self.log, intended_usage=ComCamUsages.DryTest
         )
-        mock_comcam.rem.cccamera = unittest.mock.AsyncMock()
-        mock_comcam.rem.cccamera.evt_startIntegration.aget.configure_mock(
-            side_effect=self.mock_aget_start_integration
-        )
-        mock_comcam.rem.cccamera.evt_startIntegration.next.configure_mock(
-            side_effect=self.mock_start_integration
-        )
-        mock_comcam.rem.cccamera.evt_endReadout.next.configure_mock(
-            side_effect=self.mock_end_readout
-        )
+        mock_comcam.take_flats = unittest.mock.AsyncMock()
+
         self.mtcalsys.mtcamera = mock_comcam
 
         try:
@@ -276,16 +268,8 @@ class TestMTCalsys(RemoteGroupAsyncMock):
         mock_comcam = ComCam(
             "FakeDomain", log=self.log, intended_usage=ComCamUsages.DryTest
         )
-        mock_comcam.rem.cccamera = unittest.mock.AsyncMock()
-        mock_comcam.rem.cccamera.evt_startIntegration.aget.configure_mock(
-            side_effect=self.mock_aget_start_integration
-        )
-        mock_comcam.rem.cccamera.evt_startIntegration.next.configure_mock(
-            side_effect=self.mock_start_integration
-        )
-        mock_comcam.rem.cccamera.evt_endReadout.next.configure_mock(
-            side_effect=self.mock_end_readout
-        )
+        mock_comcam.take_flats = unittest.mock.AsyncMock()
+
         self.mtcalsys.mtcamera = mock_comcam
 
         try:
@@ -316,9 +300,8 @@ class TestMTCalsys(RemoteGroupAsyncMock):
         assert calibration_summary["sequence_name"] == "scan_r"
         assert "steps" in calibration_summary
         assert len(calibration_summary["steps"]) == 50
-        assert (
-            len(calibration_summary["steps"][0]["mtcamera_exposure_info"])
-            == len(config_data["exposure_times"]) * 2
+        assert len(calibration_summary["steps"][0]["mtcamera_exposure_info"]) == len(
+            config_data["exposure_times"]
         )
         for mtcamera_exposure_info in calibration_summary["steps"][0][
             "mtcamera_exposure_info"
