@@ -73,6 +73,29 @@ whitelight_i_39:
     - 10.0
     - 10.0
 
+whitelight_i_39_sequencer:
+  mtcamera_filter: i_39
+  led_name:
+    - M730L5
+    - M810L3
+  dac_value: 1.0
+  wavelength: 755.0
+  led_location: 233.83
+  led_focus: 7.07
+  use_fiberspectrograph_red: False
+  use_fiberspectrograph_blue: False
+  exposure_times:
+    - 20.0
+    - 20.0
+    - 20.0
+    - 20.0
+    - 20.0
+    - 20.0
+    - 20.0
+    - 20.0
+    - 20.0
+    - 20.0
+
 whitelight_z_20:
   mtcamera_filter: z_20
   led_name:
