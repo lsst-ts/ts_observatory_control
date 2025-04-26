@@ -43,6 +43,8 @@ class TestLSSTCam(BaseCameraAsyncMock):
             intended_usage=LSSTCamUsages.DryTest,
         )
 
+        cls.lsstcam._roi_spec_json = '{"roi": "default"}'
+
         return super().setUpClass()
 
     @property
@@ -85,12 +87,14 @@ class TestLSSTCam(BaseCameraAsyncMock):
         mock_mtcs.check.mtmount = True
         mock_mtcs.check.mtptg = True
         mock_mtcs.check.mtrotator = True
+
         self.lsstcam.mtcs = mock_mtcs
 
         await self.lsstcam.setup_instrument(**valid_entry)
         self.lsstcam.mtcs.assert_has_calls(
             [
                 call.stop_tracking(),
+                call.stop_rotator(),
                 call.move_rotator(position=self.lsstcam.rotator_filter_change_position),
             ],
             any_order=False,
@@ -434,10 +438,9 @@ class TestLSSTCam(BaseCameraAsyncMock):
         roi_spec_dict = roi_spec.model_dump()
         roi = roi_spec_dict.pop("roi")
         roi_spec_dict.update(roi)
-        self.lsstcam.rem.mtcamera.cmd_initGuiders.set_start.assert_awaited_with(
-            roiSpec=json.dumps(roi_spec_dict, separators=(",", ":")),
-            timeout=self.lsstcam.long_timeout,
-        )
+        expected_roi_spec_json = json.dumps(roi_spec_dict, separators=(",", ":"))
+
+        assert self.lsstcam._roi_spec_json == expected_roi_spec_json
 
     def assert_setup_instrument(
         self, entry: typing.Dict[str, typing.Union[int, float, str, None]]

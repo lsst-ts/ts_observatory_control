@@ -1,0 +1,1 @@
+In mtcalsys.yaml, update sequence names with LSSTCam filters names.

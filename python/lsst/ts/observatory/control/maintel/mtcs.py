@@ -64,6 +64,7 @@ class MTCSUsages(Usages):
     Shutdown = 1 << 5
     PrepareForFlatfield = 1 << 6
     DryTest = 1 << 7
+    AOS = 1 << 8
 
     def __iter__(self) -> typing.Iterator[int]:
         return iter(
@@ -77,6 +78,7 @@ class MTCSUsages(Usages):
                 self.Shutdown,
                 self.PrepareForFlatfield,
                 self.DryTest,
+                self.AOS,
             ]
         )
 
@@ -586,9 +588,10 @@ class MTCS(BaseTCS):
         return await self._handle_in_position(
             self.rem.mtrotator.evt_inPosition,
             timeout=timeout,
-            settle_time=0.0,
+            settle_time=2.0,
             component_name="MTRotator",
             race_condition_timeout=self.mtrotator_race_condition_timeout,
+            unreliable_in_position=True,
         )
 
     async def dome_az_in_position(self) -> str:
@@ -809,9 +812,15 @@ class MTCS(BaseTCS):
         shutter_state = await self.rem.mtdome.evt_shutterMotion.aget(
             timeout=self.fast_timeout
         )
-        self.log.debug(f"Shutter state: {MTDome.MotionState(shutter_state.state)!r}")
+        shutter_state.state = [
+            MTDome.MotionState(value) for value in shutter_state.state
+        ]
+        self.log.debug(f"Shutter state: {shutter_state.state}")
 
-        if shutter_state.state == MTDome.MotionState.OPEN or force:
+        if (
+            shutter_state.state == [MTDome.MotionState.OPEN, MTDome.MotionState.OPEN]
+            or force
+        ):
             # Issue command only if mirror covers are deployed or if telescope
             # elevation is near horizon or if force = True
             cover_state = await self.rem.mtmount.evt_mirrorCoversMotionState.aget(
@@ -829,7 +838,7 @@ class MTCS(BaseTCS):
                 if force:
                     self.log.warning(
                         "Force-closing MTDome shutter under these conditions: "
-                        f"Shutter state: {MTDome.MotionState(shutter_state.state)!r}. "
+                        f"Shutter state: {shutter_state.state}. "
                         f"Mirror covers: {MTMount.DeployableMotionState(cover_state.state)!r}. "
                         f"Telescope elevation: {elevation.actualPosition} deg."
                     )
@@ -850,28 +859,28 @@ class MTCS(BaseTCS):
                 shutter_state = await self.rem.mtdome.evt_shutterMotion.aget(
                     timeout=self.fast_timeout
                 )
-                self.log.info(
-                    f"Shutter state: {MTDome.MotionState(shutter_state.state)!r}"
-                )
+                self.log.info(f"Shutter state: {shutter_state.state}")
 
             else:
                 raise RuntimeError(
                     "MTDome shutter will not be closed under these conditions: "
-                    f"Shutter state: {MTDome.MotionState(shutter_state.state)!r}. "
+                    f"Shutter state: {shutter_state.state}. "
                     f"Mirror covers: {MTMount.DeployableMotionState(cover_state.state)!r}. "
                     f"Telescope elevation: {elevation.actualPosition} deg. "
                     "If you want to force this operation, run close_dome(force=True)."
                 )
 
-        elif shutter_state.state == MTDome.MotionState.CLOSED:
+        elif shutter_state.state == [
+            MTDome.MotionState.CLOSED,
+            MTDome.MotionState.CLOSED,
+        ]:
             self.log.info("MTDome shutter door is already closed. Ignoring.")
 
         else:
             raise RuntimeError(
-                f"Shutter door state is "
-                f"{MTDome.MotionState(shutter_state.state)!r}. "
-                f"expected either {MTDome.MotionState.CLOSED!r}, "
-                f"{MTDome.MotionState.OPEN!r}"
+                f"Shutter door state is {shutter_state.state}. "
+                f"Expected either {[MTDome.MotionState.CLOSED, MTDome.MotionState.CLOSED]}, "
+                f"or {[MTDome.MotionState.OPEN, MTDome.MotionState.OPEN]}."
             )
 
     async def close_m1_cover(self) -> None:
@@ -1038,9 +1047,16 @@ class MTCS(BaseTCS):
         shutter_state = await self.rem.mtdome.evt_shutterMotion.aget(
             timeout=self.fast_timeout
         )
-        self.log.debug(f"Shutter state: {MTDome.MotionState(shutter_state.state)!r}")
+        shutter_state.state = [
+            MTDome.MotionState(value) for value in shutter_state.state
+        ]
+        self.log.debug(f"Shutter state: {shutter_state.state}")
 
-        if shutter_state.state == MTDome.MotionState.CLOSED or force:
+        if (
+            shutter_state.state
+            == [MTDome.MotionState.CLOSED, MTDome.MotionState.CLOSED]
+            or force
+        ):
             # Issue command only if mirror covers are deployed or if telescope
             # elevation is near horizon or if force = True
             cover_state = await self.rem.mtmount.evt_mirrorCoversMotionState.aget(
@@ -1058,7 +1074,7 @@ class MTCS(BaseTCS):
                 if force:
                     self.log.warning(
                         "Force-opening MTDome shutter under these conditions: "
-                        f"Shutter state: {MTDome.MotionState(shutter_state.state)!r}. "
+                        f"Shutter state: {shutter_state.state}. "
                         f"Mirror covers: {MTMount.DeployableMotionState(cover_state.state)!r}. "
                         f"Telescope elevation: {elevation.actualPosition} deg."
                     )
@@ -1079,28 +1095,25 @@ class MTCS(BaseTCS):
                 shutter_state = await self.rem.mtdome.evt_shutterMotion.aget(
                     timeout=self.fast_timeout
                 )
-                self.log.info(
-                    f"Shutter state: {MTDome.MotionState(shutter_state.state)!r}"
-                )
+                self.log.info(f"Shutter state: {shutter_state.state}")
 
             else:
                 raise RuntimeError(
                     "MTDome shutter will not be opened under these conditions: "
-                    f"Shutter state: {MTDome.MotionState(shutter_state.state)!r}. "
+                    f"Shutter state: {shutter_state.state}. "
                     f"Mirror covers: {MTMount.DeployableMotionState(cover_state.state)!r}. "
                     f"Telescope elevation: {elevation.actualPosition} deg. "
                     "If you want to force this operation, run open_dome_shutter(force=True)."
                 )
 
-        elif shutter_state.state == MTDome.MotionState.OPEN:
+        elif shutter_state.state == [MTDome.MotionState.OPEN, MTDome.MotionState.OPEN]:
             self.log.info("MTDome shutter door is already open. Ignoring.")
 
         else:
             raise RuntimeError(
-                f"Shutter door state is "
-                f"{MTDome.MotionState(shutter_state.state)!r}. "
-                f"expected either {MTDome.MotionState.CLOSED!r}, "
-                f"{MTDome.MotionState.OPEN!r}"
+                f"Shutter door state is {shutter_state.state}. "
+                f"Expected either {[MTDome.MotionState.CLOSED, MTDome.MotionState.CLOSED]}, "
+                f"or {[MTDome.MotionState.OPEN, MTDome.MotionState.OPEN]}."
             )
 
     async def open_m1_cover(self) -> None:
@@ -2927,7 +2940,9 @@ class MTCS(BaseTCS):
         try:
             await self.open_m1m3_booster_valve()
             yield
-        finally:
+        except Exception:
+            raise
+        else:
             await self.wait_m1m3_settle()
             await self.close_m1m3_booster_valve()
 
@@ -3116,6 +3131,7 @@ class MTCS(BaseTCS):
                 components_attr=self.components_attr,
                 readonly=False,
                 generics=["summaryState", "configurationsAvailable", "heartbeat"],
+                mtaos=["closedLoopState"],
                 mtptg=[
                     "azElTarget",
                     "raDecTarget",
@@ -3130,7 +3146,11 @@ class MTCS(BaseTCS):
                     "target",
                     "focusNameSelected",
                 ],
-                mtrotator=["rotation", "inPosition"],
+                mtrotator=[
+                    "rotation",
+                    "inPosition",
+                    "controllerState",
+                ],
                 mtmount=[
                     "azimuth",
                     "elevation",
@@ -3215,6 +3235,15 @@ class MTCS(BaseTCS):
                     "summaryState",
                     "configurationsAvailable",
                     "heartbeat",
+                ],
+            )
+
+            usages[self.valid_use_cases.AOS] = UsagesResources(
+                components_attr=["mtaos"],
+                readonly=False,
+                mtaos=[
+                    "degreeOfFreedom",
+                    "wavefrontError",
                 ],
             )
 

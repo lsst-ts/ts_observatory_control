@@ -22,6 +22,7 @@ __all__ = ["BaseCamera"]
 
 import abc
 import asyncio
+import enum
 import json
 import logging
 import typing
@@ -31,6 +32,11 @@ from lsst.ts import salobj
 
 from .remote_group import RemoteGroup
 from .utils import CameraExposure, ROISpec
+
+
+class CameraSubstate(enum.IntEnum):
+    IDLE = enum.auto()
+    BUSY = enum.auto()
 
 
 class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
@@ -1147,11 +1153,7 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
         roi_spec_dict = roi_spec.model_dump()
         roi = roi_spec_dict.pop("roi")
         roi_spec_dict.update(roi)
-        roi_spec_json = json.dumps(roi_spec_dict, separators=(",", ":"))
-        await self.camera.cmd_initGuiders.set_start(
-            roiSpec=roi_spec_json,
-            timeout=self.long_timeout,
-        )
+        self._roi_spec_json = json.dumps(roi_spec_dict, separators=(",", ":"))
 
     async def _handle_take_images(
         self, camera_exposure: CameraExposure
@@ -1176,6 +1178,18 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
 
         exp_ids = []
         for _ in range(camera_exposure.n):
+            if self._roi_spec_json is not None and camera_exposure.exp_time > 0:
+                try:
+                    await self.camera.cmd_initGuiders.set_start(
+                        roiSpec=self._roi_spec_json,
+                        timeout=self.long_timeout,
+                    )
+                except salobj.AckError as ack_error:
+                    if "not configured as a guider" in ack_error.ackcmd.result:
+                        self.log.warning(
+                            "Ignoring init guider failure; detectors not configured as guider."
+                        )
+
             exp_ids += await self._handle_snaps(camera_exposure)
 
         return exp_ids
@@ -1214,6 +1228,28 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
         ) * camera_exposure.n + self.long_long_timeout
 
         await self.wait_for_camera_readiness()
+        if hasattr(self.camera, "evt_ccsCommandState"):
+            self.log.info("Handling ccs command state.")
+            try:
+                ccs_command_state = await self.camera.evt_ccsCommandState.aget(
+                    timeout=self.fast_timeout
+                )
+                self.camera.evt_ccsCommandState.flush()
+                self.log.info(
+                    f"CCS Command State: {CameraSubstate(ccs_command_state.substate).name}."
+                )
+                while ccs_command_state.substate != CameraSubstate.IDLE:
+                    ccs_command_state = await self.camera.evt_ccsCommandState.next(
+                        flush=False, timeout=self.fast_timeout
+                    )
+                    self.log.info(
+                        f"CCS command state: {CameraSubstate(ccs_command_state.substate).name}"
+                    )
+
+            except asyncio.TimeoutError:
+                self.log.warning("Could not determine CCS Command State; ignoring.")
+        else:
+            self.log.info("Not handling CCS Command State.")
         await self.camera.cmd_takeImages.start(timeout=take_images_timeout)
 
         exp_ids: typing.List[int] = []

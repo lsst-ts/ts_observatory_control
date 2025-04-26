@@ -260,6 +260,7 @@ class LSSTCam(BaseCamera):
             and self.mtcs.check.mtrotator
         ):
             await self.mtcs.stop_tracking()
+            await self.mtcs.stop_rotator()
         else:
             self.log.warning(
                 f"Check on mtmount ({self.mtcs.check.mtmount}), "
@@ -364,7 +365,7 @@ class LSSTCam(BaseCamera):
             )
 
             usages[self.valid_use_cases.TakeImage] = UsagesResources(
-                components_attr=["mtcamera"],
+                components_attr=["mtcamera", "mtoods"],
                 readonly=False,
                 mtcamera=[
                     "takeImages",
@@ -373,11 +374,15 @@ class LSSTCam(BaseCamera):
                     "endSetFilter",
                     "startIntegration",
                     "availableFilters",
+                    "ccsCommandState",
+                ],
+                mtoods=[
+                    "imageInOODS",
                 ],
             )
 
             usages[self.valid_use_cases.TakeImageFull] = UsagesResources(
-                components_attr=["mtcamera", "mtheaderservice"],
+                components_attr=["mtcamera", "mtheaderservice", "mtoods"],
                 readonly=False,
                 mtcamera=[
                     "takeImages",
@@ -386,8 +391,12 @@ class LSSTCam(BaseCamera):
                     "endSetFilter",
                     "startIntegration",
                     "availableFilters",
+                    "ccsCommandState",
                 ],
                 mtheaderservice=["largeFileObjectAvailable"],
+                mtoods=[
+                    "imageInOODS",
+                ],
             )
 
             self._usages = usages
