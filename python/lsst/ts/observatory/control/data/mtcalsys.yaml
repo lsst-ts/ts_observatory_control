@@ -1,6 +1,40 @@
 # Configuration for calibration hardware setup
 # Created 2024-07-15
 
+cbp_g_leak:
+  mtcamera_filter: g_6
+  wavelength: 1100.0
+  wavelength_width: 200
+  wavelength_resolution: 10
+  exposure_times:
+    - 30.0
+  nburst: 5
+  use_cbpelectrometer: True
+  use_flatfieldelectrometer: False
+  laser_mode: 4
+  optical_configuration: F1 SCU
+  calib_type: CBP
+  electrometer_mode: 'CHARGE'
+  electrometer_integration_time: 0.001
+  electrometer_range: 0.000002
+
+cbp_none_leak:
+  mtcamera_filter: NONE
+  wavelength: 1100.0
+  wavelength_width: 200
+  wavelength_resolution: 10
+  exposure_times:
+    - 30.0
+  nburst: 5
+  use_cbpelectrometer: True
+  use_flatfieldelectrometer: False
+  laser_mode: 4
+  optical_configuration: F1 SCU
+  calib_type: CBP
+  electrometer_mode: 'CHARGE'
+  electrometer_integration_time: 0.001
+  electrometer_range: 0.000002
+
 whitelight_u_24_daily:
   mtcamera_filter: u_24
   led_name: 
@@ -199,7 +233,7 @@ whitelight_y_10_dark:
 scan_r:
   calib_type: Mono
   laser_mode: 1
-  optical_configuration: F1_SCU
+  optical_configuration: F1 SCU
   use_camera: True
   mtcamera_filter: r_57
   led_location: 174.91
@@ -216,7 +250,7 @@ laser_functional:
   use_camera: False
   optical_configuration: SCU
   wavelength: 500.0
-  use_electrometer: False
+  use_flatfieldelectrometer: False
   use_fiberspectrograph_red: False
   use_fiberspectrograph_blue: False
   exposure_times:
