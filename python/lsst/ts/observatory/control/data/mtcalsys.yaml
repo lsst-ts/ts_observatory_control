@@ -9,8 +9,8 @@ whitelight_u_24_daily:
   wavelength: 385.0
   led_location: 174.18
   led_focus: 9.42
-  use_fiberspectrograph_red: False
-  use_fiberspectrograph_blue: False
+  use_fiberspectrograph_red: True
+  use_fiberspectrograph_blue: True
   n_flat: 5
   exposure_times:
     - 15.0
@@ -24,8 +24,8 @@ whitelight_g_6_daily:
   wavelength: 480.0
   led_location: 5.62
   led_focus: 8.26
-  use_fiberspectrograph_red: False
-  use_fiberspectrograph_blue: False
+  use_fiberspectrograph_red: True
+  use_fiberspectrograph_blue: True
   n_flat: 5
   exposure_times:
     - 10.0
@@ -39,8 +39,8 @@ whitelight_r_57_daily:
   wavelength: 612.5
   led_location: 66.87
   led_focus: 7.52
-  use_fiberspectrograph_red: False
-  use_fiberspectrograph_blue: False
+  use_fiberspectrograph_red: True
+  use_fiberspectrograph_blue: True
   n_flat: 5
   exposure_times:
     - 10.0
@@ -54,8 +54,8 @@ whitelight_i_39_daily:
   wavelength: 755.0
   led_location: 233.83
   led_focus: 7.07
-  use_fiberspectrograph_red: False
-  use_fiberspectrograph_blue: False
+  use_fiberspectrograph_red: True
+  use_fiberspectrograph_blue: True
   n_flat: 5
   exposure_times:
     - 10.0
@@ -69,8 +69,8 @@ whitelight_i_39_sequencer:
   wavelength: 755.0
   led_location: 233.83
   led_focus: 7.07
-  use_fiberspectrograph_red: False
-  use_fiberspectrograph_blue: False
+  use_fiberspectrograph_red: True
+  use_fiberspectrograph_blue: True
   n_flat: 6
   exposure_times:
     - 20.0
@@ -88,8 +88,8 @@ whitelight_z_20_daily:
   wavelength: 895.0
   led_location: 295.504
   led_focus: 6.74
-  use_fiberspectrograph_red: False
-  use_fiberspectrograph_blue: False
+  use_fiberspectrograph_red: True
+  use_fiberspectrograph_blue: True
   n_flat: 5
   exposure_times:
     - 15.0
@@ -102,8 +102,8 @@ whitelight_y_10_daily:
   wavelength: 970.0
   led_location: 171.38
   led_focus: 11.85
-  use_fiberspectrograph_red: False
-  use_fiberspectrograph_blue: False
+  use_fiberspectrograph_red: True
+  use_fiberspectrograph_blue: True
   n_flat: 5
   exposure_times:
     - 20.0
@@ -116,8 +116,8 @@ whitelight_u_24_dark:
   wavelength: 385.0
   led_location: 174.18
   led_focus: 9.42
-  use_fiberspectrograph_red: False
-  use_fiberspectrograph_blue: False
+  use_fiberspectrograph_red: True
+  use_fiberspectrograph_blue: True
   n_flat: 20
   exposure_times:
     - 15.0
@@ -131,8 +131,8 @@ whitelight_g_6_dark:
   wavelength: 480.0
   led_location: 5.62
   led_focus: 8.26
-  use_fiberspectrograph_red: False
-  use_fiberspectrograph_blue: False
+  use_fiberspectrograph_red: True
+  use_fiberspectrograph_blue: True
   n_flat: 20
   exposure_times:
     - 10.0
@@ -146,8 +146,8 @@ whitelight_r_57_dark:
   wavelength: 612.5
   led_location: 66.87
   led_focus: 7.52
-  use_fiberspectrograph_red: False
-  use_fiberspectrograph_blue: False
+  use_fiberspectrograph_red: True
+  use_fiberspectrograph_blue: True
   n_flat: 20
   exposure_times:
     - 10.0
@@ -161,8 +161,8 @@ whitelight_i_39_dark:
   wavelength: 755.0
   led_location: 233.83
   led_focus: 7.07
-  use_fiberspectrograph_red: False
-  use_fiberspectrograph_blue: False
+  use_fiberspectrograph_red: True
+  use_fiberspectrograph_blue: True
   n_flat: 20
   exposure_times:
     - 10.0
@@ -176,8 +176,8 @@ whitelight_z_20_dark:
   wavelength: 895.0
   led_location: 295.504
   led_focus: 6.74
-  use_fiberspectrograph_red: False
-  use_fiberspectrograph_blue: False
+  use_fiberspectrograph_red: True
+  use_fiberspectrograph_blue: True
   n_flat: 20
   exposure_times:
     - 15.0
@@ -190,8 +190,8 @@ whitelight_y_10_dark:
   wavelength: 970.0
   led_location: 171.38
   led_focus: 11.85
-  use_fiberspectrograph_red: False
-  use_fiberspectrograph_blue: False
+  use_fiberspectrograph_red: True
+  use_fiberspectrograph_blue: True
   n_flat: 20
   exposure_times:
     - 20.0
