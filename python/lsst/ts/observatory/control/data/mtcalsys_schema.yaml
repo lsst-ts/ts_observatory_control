@@ -126,6 +126,10 @@ properties:
       +2.1e-6 Coulombs.
     type: number
     default: -1
+  n_flat:
+    description: Number of exposures per exposure_times listed
+    type: number
+    default: 1
   exposure_times:
     description: List of Camera exposure times, in secs.
     type: array
