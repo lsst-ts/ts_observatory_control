@@ -452,8 +452,8 @@ class MTCalsys(BaseCalsys):
 
         return (
             projector_location,
-            float(led_location.position),
-            float(led_focus.position),
+            float(led_location.position[0]),
+            float(led_focus.position[0]),
             0.0,
             str(led_state),
         )
