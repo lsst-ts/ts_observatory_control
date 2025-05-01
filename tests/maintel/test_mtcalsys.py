@@ -242,17 +242,17 @@ class TestMTCalsys(RemoteGroupAsyncMock):
 
         try:
             calibration_summary = await self.mtcalsys.run_calibration_sequence(
-                "whitelight_r_57_daily", exposure_metadata=dict()
+                "whitelight_u_24_daily", exposure_metadata=dict()
             )
         finally:
             self.mtcalsys.mtcamera = None
 
         config_data = self.mtcalsys.get_calibration_configuration(
-            "whitelight_r_57_daily"
+            "whitelight_u_24_daily"
         )
 
         assert "sequence_name" in calibration_summary
-        assert calibration_summary["sequence_name"] == "whitelight_r_57_daily"
+        assert calibration_summary["sequence_name"] == "whitelight_u_24_daily"
         assert "steps" in calibration_summary
         self.log.debug(f"number of steps: {len(calibration_summary['steps'])}")
         assert (
