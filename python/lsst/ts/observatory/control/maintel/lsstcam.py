@@ -281,7 +281,10 @@ class LSSTCam(BaseCamera):
             and self.mtcs.check.mtrotator
         ):
             await self.mtcs.stop_tracking()
-            await self.mtcs.stop_rotator()
+            try:
+                await self.mtcs.stop_rotator()
+            except Exception:
+                self.log.warning("Rotator did not reply to stop command, continuing.")
         else:
             self.log.warning(
                 f"Check on mtmount ({self.mtcs.check.mtmount}), "
