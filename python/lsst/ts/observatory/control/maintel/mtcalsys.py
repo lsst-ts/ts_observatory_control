@@ -35,7 +35,7 @@ from lsst.ts.xml.enums.TunableLaser import LaserDetailedState
 from ..base_calsys import BaseCalsys
 from ..remote_group import Usages
 from ..utils import CalibrationType
-from . import ComCam
+from . import LSSTCam
 
 
 class MTCalsysUsages(Usages):
@@ -126,7 +126,7 @@ class MTCalsys(BaseCalsys):
         domain: typing.Optional[salobj.Domain] = None,
         log: typing.Optional[logging.Logger] = None,
         intended_usage: typing.Optional[int] = None,
-        mtcamera: typing.Optional[ComCam] = None,
+        mtcamera: typing.Optional[LSSTCam] = None,
     ) -> None:
 
         self.electrometer_projector_index = 103
@@ -138,6 +138,15 @@ class MTCalsys(BaseCalsys):
         self.linearstage_led_focus_index = 101
         self.linearstage_laser_focus_index = 104
         self.linearstage_select_index = 103
+        self.npulse_lookup = [
+            ((None, 420), 2000),
+            ((420, 540), 40),
+            ((540, 570), 100),
+            ((570, 600), 400),
+            ((600, 770), 1000),
+            ((770, 1050), 400),
+            ((1050, None), 2000),
+        ]
 
         super().__init__(
             components=[
@@ -207,14 +216,14 @@ class MTCalsys(BaseCalsys):
         if calibration_type == CalibrationType.CBP:
             if config_data["use_cbp"]:
                 await self.setup_cbp(
-                    config_data["cbp_azimuth"],
-                    config_data["cbp_elevation"],
-                    config_data["cbp_mask"],
-                    config_data["cbp_focus"],
-                    config_data["cbp_rotation"],
+                    azimuth=config_data["cbp_azimuth"],
+                    elevation=config_data["cbp_elevation"],
+                    mask=config_data["cbp_mask"],
+                    focus=config_data["cbp_focus"],
+                    rotation=config_data["cbp_rotation"],
                 )
 
-            if config_data["use_cbpelectrometer"]:
+            if config_data["use_cbp_electrometer"]:
                 await self.setup_electrometers(
                     mode=str(config_data["electrometer_mode"]),
                     range=float(config_data["electrometer_range"]),
@@ -233,7 +242,7 @@ class MTCalsys(BaseCalsys):
 
         else:
 
-            if config_data["use_flatfieldelectrometer"]:
+            if config_data["use_flatfield_electrometer"]:
                 await self.setup_electrometers(
                     mode=str(config_data["electrometer_mode"]),
                     range=float(config_data["electrometer_range"]),
@@ -300,43 +309,50 @@ class MTCalsys(BaseCalsys):
         self,
         azimuth: float,
         elevation: float,
-        mask: int,
-        focus: float,
-        rotation: float,
+        mask: int | None = None,
+        focus: float | None = None,
+        rotation: float | None = None,
     ) -> None:
         """Perform all steps for preparing the CBP for measurements.
         Parameters
         ----------
-        az : `float`
+        azimuth : `float`
             Azimuth of CBP in degrees
-        el : `float`
+        elevation : `float`
             Elevation of CBP in degrees
         mask : `int`
             Mask number to use
         focus: `float`
             Focus position in um
-        rot: `int`
+        rotation: `int`
             Rotator position of mask in degrees
             Default 0
         """
 
+        self.log.info("Beginning CBP setup")
+
+        self.log.debug(f"Setting CBP az and el to {azimuth} and {elevation}")
         await self.rem.cbp.cmd_move.set_start(
             azimuth=azimuth,
             elevation=elevation,
             timeout=self.long_long_timeout,
         )
         if focus is not None:
+            self.log.debug(f"Setting focus to {focus}")
             await self.rem.cbp.cmd_setFocus.set_start(
                 focus=focus, timeout=self.long_long_timeout
             )
         if mask is not None:
+            self.log.debug(f"Setting mask to {mask}")
             await self.rem.cmd_changeMask.set_start(
                 mask=mask, timeout=self.long_long_timeout
             )
         if rotation is not None:
+            self.log.debug(f"Setting mask rotation to {rotation}")
             await self.rem.cmd_changeMaskRotation.set_start(
                 mask_rotation=rotation, timeout=self.long_long_timeout
             )
+        self.log.info("Done setting up CBP")
 
     async def park_projector(self) -> None:
         """Put the LEDProjector into a safe state and turn off all LEDs.
@@ -607,6 +623,27 @@ class MTCalsys(BaseCalsys):
                     "Tunable Laser did not stop propagating when commanded"
                 )
 
+    def get_npulse_for_wavelength(self, wavelength: float) -> int:
+        """Return npulse value for a given wavelength based on defined ranges.
+
+        Parameters
+        ----------
+        wavelength : float
+            The wavelength in nanometers.
+
+        Returns
+        -------
+        int
+            The corresponding npulse value.
+        """
+
+        for (low, high), npulse in self.npulse_lookup:
+            if (low is None or wavelength >= low) and (
+                high is None or wavelength < high
+            ):
+                return npulse
+        return 0
+
     async def take_bursts(
         self,
         nburst: int = 5,
@@ -629,7 +666,6 @@ class MTCalsys(BaseCalsys):
 
         """
         await asyncio.sleep(wait_time)
-        await asyncio.sleep(5)
         await asyncio.sleep(delay_before)
         for n in range(nburst):
             await asyncio.sleep(delay_before)
@@ -665,7 +701,7 @@ class MTCalsys(BaseCalsys):
         if self.mtcamera is None and config_data["use_camera"]:
             raise RuntimeError(
                 f"MTCamera is not defined but {sequence_name} requires it. "
-                "Make sure you are instantiating ComCam and passing it to MTCalsys."
+                "Make sure you are instantiating LSSTCam and passing it to MTCalsys."
             )
 
         if calibration_type == CalibrationType.WhiteLight:
@@ -750,7 +786,6 @@ class MTCalsys(BaseCalsys):
         )
 
         config_data = self.get_calibration_configuration(sequence_name)
-
         calibration_type = getattr(CalibrationType, str(config_data["calib_type"]))
 
         if calibration_type == CalibrationType.WhiteLight:
@@ -790,20 +825,7 @@ class MTCalsys(BaseCalsys):
                 calibration_type == CalibrationType.CBP
                 and int(config_data["laser_mode"]) == 4
             ):
-                if exposure.wavelength < 420:
-                    npulse = 2000
-                elif exposure.wavelength > 1050:
-                    npulse = 2000
-                elif exposure.wavelength < 540:
-                    npulse = 40
-                elif exposure.wavelength < 570:
-                    npulse = 100
-                elif exposure.wavelength < 600:
-                    npulse = 400
-                elif exposure.wavelength < 770:
-                    npulse = 1000
-                else:
-                    npulse = 400
+                npulse = self.get_npulse_for_wavelength(wavelength=exposure.wavelength)
 
                 await self.rem.tunablelaser.cmd_setBurstMode.set_start(
                     count=int(npulse)
@@ -905,7 +927,7 @@ class MTCalsys(BaseCalsys):
                         electrometer_integration_time=config_data[
                             "electrometer_integration_time"
                         ],
-                        use_electrometer=config_data["use_flatfieldelectrometer"],
+                        use_electrometer=config_data["use_flatfield_electrometer"],
                     )
                 )
                 fiberspectrograph_exptimes_red = (

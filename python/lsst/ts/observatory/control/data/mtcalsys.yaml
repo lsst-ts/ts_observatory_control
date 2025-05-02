@@ -9,8 +9,25 @@ cbp_g_leak:
   exposure_times:
     - 30.0
   nburst: 5
-  use_cbpelectrometer: True
-  use_flatfieldelectrometer: False
+  use_cbp_electrometer: True
+  use_flatfield_electrometer: False
+  laser_mode: 4
+  optical_configuration: F1 SCU
+  calib_type: CBP
+  electrometer_mode: 'CHARGE'
+  electrometer_integration_time: 0.001
+  electrometer_range: 0.000002
+
+cbp_g:
+  mtcamera_filter: g_6
+  wavelength: 475
+  wavelength_width: 250
+  wavelength_resolution: 10
+  exposure_times:
+    - 30.0
+  nburst: 5
+  use_cbp_electrometer: True
+  use_flatfield_electrometer: False
   laser_mode: 4
   optical_configuration: F1 SCU
   calib_type: CBP
@@ -26,8 +43,8 @@ cbp_none_leak:
   exposure_times:
     - 30.0
   nburst: 5
-  use_cbpelectrometer: True
-  use_flatfieldelectrometer: False
+  use_cbp_electrometer: True
+  use_flatfield_electrometer: False
   laser_mode: 4
   optical_configuration: F1 SCU
   calib_type: CBP
@@ -250,7 +267,7 @@ laser_functional:
   use_camera: False
   optical_configuration: SCU
   wavelength: 500.0
-  use_flatfieldelectrometer: False
+  use_flatfield_electrometer: False
   use_fiberspectrograph_red: False
   use_fiberspectrograph_blue: False
   exposure_times:
