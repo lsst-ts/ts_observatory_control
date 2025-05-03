@@ -578,11 +578,11 @@ class MTCalsys(BaseCalsys):
         """Start the propagation of the Tunable Laser"""
 
         laser_state = await self.rem.tunablelaser.evt_detailedState.next(
-            flush=True, timeout=self.long_timeout
+            flush=False, timeout=self.long_timeout
         )
-        self.log.debug(f"HERE: {laser_state.DetailedState}")
+        self.log.debug(f"HERE: {laser_state.detailedState}")
 
-        if laser_state.DetailedState not in {
+        if laser_state.detailedState not in {
             LaserDetailedState.PROPAGATING_CONTINUOUS_MODE,
             LaserDetailedState.PROPAGATING_BURST_MODE,
         }:
@@ -591,9 +591,9 @@ class MTCalsys(BaseCalsys):
                     timeout=self.laser_warmup
                 )
                 laser_state = await self.rem.tunablelaser.evt_detailedState.next(
-                    flush=True, timeout=self.long_timeout
+                    flush=False, timeout=self.long_timeout
                 )
-                self.log.info(f"Laser state: {laser_state.DetailedState}")
+                self.log.info(f"Laser state: {laser_state.detailedState}")
             except asyncio.TimeoutError:
                 raise RuntimeError(
                     "Tunable Laser did not start propagating when commanded"
@@ -603,10 +603,10 @@ class MTCalsys(BaseCalsys):
         """Stop the propagation of the Tunable Laser"""
 
         laser_state = await self.rem.tunablelaser.evt_detailedState.next(
-            flush=True, timeout=self.long_timeout
+            flush=False, timeout=self.long_timeout
         )
 
-        if laser_state.DetailedState not in {
+        if laser_state.detailedState not in {
             LaserDetailedState.NONPROPAGATING_CONTINUOUS_MODE,
             LaserDetailedState.NONPROPAGATING_BURST_MODE,
         }:
@@ -615,9 +615,9 @@ class MTCalsys(BaseCalsys):
                     timeout=self.laser_warmup
                 )
                 laser_state = await self.rem.tunablelaser.evt_detailedState.next(
-                    flush=True, timeout=self.long_timeout
+                    flush=False, timeout=self.long_timeout
                 )
-                self.log.info(f"Laser state: {laser_state.DetailedState}")
+                self.log.info(f"Laser state: {laser_state.detailedState}")
             except asyncio.TimeoutError:
                 raise RuntimeError(
                     "Tunable Laser did not stop propagating when commanded"
