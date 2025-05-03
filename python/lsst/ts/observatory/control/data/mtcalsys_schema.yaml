@@ -206,7 +206,7 @@ required:
 - calib_type
 - wavelength
 - use_camera
-- use_flatfieldelectrometer
+- use_flatfield_electrometer
 - use_fiberspectrograph_red
 - use_fiberspectrograph_blue
 - exposure_times

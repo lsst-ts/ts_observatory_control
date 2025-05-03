@@ -17,6 +17,7 @@ cbp_g_leak:
   electrometer_mode: 'CHARGE'
   electrometer_integration_time: 0.001
   electrometer_range: 0.000002
+  use_camera: True
 
 cbp_g:
   mtcamera_filter: g_6
