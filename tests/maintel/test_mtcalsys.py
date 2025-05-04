@@ -51,6 +51,8 @@ class TestMTCalsys(RemoteGroupAsyncMock):
         )
         self.mtcalsys.rem.tunablelaser.configure_mock()
 
+        self.mtcalsys.rem.cbp.configure_mock()
+
     async def setup_types(self) -> None:
         pass
 
