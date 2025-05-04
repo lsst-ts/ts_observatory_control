@@ -1055,7 +1055,7 @@ class MTCalsys(BaseCalsys):
                 mtcamera_exptime,
                 nflats=1,
                 filter=mtcamera_filter,
-                program=f"{sequence_name}_{wavelength}_laser_{laser_mode}",
+                note=f"{sequence_name}_{wavelength}_laser_{laser_mode}",
                 **exposure_metadata,
             )
         else:
