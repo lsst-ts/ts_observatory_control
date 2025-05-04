@@ -1078,7 +1078,6 @@ class MTCalsys(BaseCalsys):
                     nburst=nburst,
                     delay_before=delay_before,
                     delay_after=delay_after,
-                    wait_time=0,
                 )
                 try:
                     electrometer_exposure_task = asyncio.create_task(
