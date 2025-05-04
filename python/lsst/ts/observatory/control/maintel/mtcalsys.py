@@ -864,6 +864,8 @@ class MTCalsys(BaseCalsys):
                         electrometer_exposure_time=exposure.electrometer,
                         nburst=config_data["nburst"],
                         laser_mode=config_data["laser_mode"],
+                        sequence_name=sequence_name,
+                        wavelength=int(exposure.wavelength),
                     )
                 else:
                     exposure_info = await self._take_data(
@@ -1044,6 +1046,8 @@ class MTCalsys(BaseCalsys):
         calibration_type: CalibrationType = CalibrationType.WhiteLight,
         nburst: int = 5,
         laser_mode: int = 1,
+        sequence_name: str | None = None,
+        wavelength: int | None = None,
     ) -> dict:
 
         if self.mtcamera is not None:
@@ -1051,6 +1055,8 @@ class MTCalsys(BaseCalsys):
                 mtcamera_exptime,
                 nflats=1,
                 filter=mtcamera_filter,
+                program=sequence_name,
+                reason=f"cbp_{wavelength}_laser_{laser_mode}",
                 **exposure_metadata,
             )
         else:
