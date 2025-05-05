@@ -30,6 +30,7 @@ cbp_g:
   use_cbp_electrometer: True
   use_flatfield_electrometer: False
   laser_mode: 4
+  laser_wait_time: 10
   optical_configuration: F1 SCU
   calib_type: CBP
   electrometer_mode: 'CHARGE'

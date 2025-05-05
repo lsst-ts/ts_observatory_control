@@ -156,6 +156,12 @@ properties:
       type: number
   laser_mode:
     type: integer
+  laser_wait_time:
+    description: >-
+      Time to wait before starting laser bursts
+    type: number
+    minimum: 0
+    default: 10
   optical_configuration: 
     type: string
     enum: 
