@@ -858,6 +858,7 @@ class MTCalsys(BaseCalsys):
                         electrometer_exposure_time=exposure.electrometer,
                         nburst=config_data["nburst"],
                         laser_mode=config_data["laser_mode"],
+                        wait_time=config_data["laser_wait_time"],
                     )
                 else:
                     exposure_info = await self._take_data(
@@ -1038,6 +1039,7 @@ class MTCalsys(BaseCalsys):
         calibration_type: CalibrationType = CalibrationType.WhiteLight,
         nburst: int = 5,
         laser_mode: int = 1,
+        wait_time: int = 10,
     ) -> dict:
 
         if self.mtcamera is not None:
@@ -1072,7 +1074,7 @@ class MTCalsys(BaseCalsys):
                     nburst=nburst,
                     delay_before=delay_before,
                     delay_after=delay_after,
-                    wait_time=0,
+                    wait_time=wait_time,
                 )
                 try:
                     electrometer_exposure_task = asyncio.create_task(
