@@ -946,15 +946,18 @@ class MTCalsys(BaseCalsys):
                 )
 
                 for i, exptime in enumerate(config_data["exposure_times"]):
-                    exposures.append(
-                        MTCalsysExposure(
-                            wavelength=wavelength,
-                            camera=exptime,
-                            electrometer=electrometer_exptimes[i],
-                            fiberspectrograph_red=fiberspectrograph_exptimes_red[i],
-                            fiberspectrograph_blue=fiberspectrograph_exptimes_blue[i],
+                    for n in range(config_data["n_flat"]):
+                        exposures.append(
+                            MTCalsysExposure(
+                                wavelength=wavelength,
+                                camera=exptime,
+                                electrometer=electrometer_exptimes[i],
+                                fiberspectrograph_red=fiberspectrograph_exptimes_red[i],
+                                fiberspectrograph_blue=fiberspectrograph_exptimes_blue[
+                                    i
+                                ],
+                            )
                         )
-                    )
 
         return exposures
 
