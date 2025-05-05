@@ -219,6 +219,21 @@ whitelight_i_39_dark:
   exposure_times:
     - 10.0
 
+whitelight_pinhole_dark:
+  mtcamera_filter: ph_5
+  led_name:
+    - M730L5
+    - M810L3
+  dac_value: 0.8
+  wavelength: 755.0
+  led_location: 233.83
+  led_focus: 7.07
+  use_fiberspectrograph_red: False
+  use_fiberspectrograph_blue: False
+  n_flat: 1
+  exposure_times:
+    - 60.0
+
 whitelight_z_20_dark:
   mtcamera_filter: z_20
   led_name:
