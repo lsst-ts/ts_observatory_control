@@ -249,7 +249,7 @@ class MTCalsys(BaseCalsys):
                     integration_time=float(
                         config_data["electrometer_integration_time"]
                     ),
-                    electrometer_name=f"Electrometer_{self.electrometer_projector_index}",
+                    electrometer_name=f"electrometer_{self.electrometer_projector_index}",
                 )
 
             # Home all linear stages.
