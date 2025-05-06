@@ -130,8 +130,8 @@ class MTCalsys(BaseCalsys):
     ) -> None:
 
         self.electrometer_projector_index = 103
-        # self.electrometer_cbp_index = 102
-        # self.electrometer_cbpcal_index = 101
+        self.electrometer_cbp_index = 102
+        self.electrometer_cbpcal_index = 101
         self.fiberspectrograph_blue_index = 102
         self.fiberspectrograph_red_index = 101
         self.linearstage_led_select_index = 102
@@ -155,8 +155,8 @@ class MTCalsys(BaseCalsys):
                 "CBP",
                 f"FiberSpectrograph:{self.fiberspectrograph_blue_index}",
                 f"FiberSpectrograph:{self.fiberspectrograph_red_index}",
-                # f"Electrometer:{self.electrometer_cbp_index}",
-                # f"Electrometer:{self.electrometer_cbpcal_index}",
+                f"Electrometer:{self.electrometer_cbp_index}",
+                f"Electrometer:{self.electrometer_cbpcal_index}",
                 f"Electrometer:{self.electrometer_projector_index}",
                 f"LinearStage:{self.linearstage_led_select_index}",
                 f"LinearStage:{self.linearstage_led_focus_index}",
@@ -230,7 +230,7 @@ class MTCalsys(BaseCalsys):
                     integration_time=float(
                         config_data["electrometer_integration_time"]
                     ),
-                    # electrometer_name=f"electrometer_{self.electrometer_cbp_index}",
+                    electrometer_name=f"electrometer_{self.electrometer_cbp_index}",
                 )
 
             await self.setup_laser(
@@ -249,7 +249,7 @@ class MTCalsys(BaseCalsys):
                     integration_time=float(
                         config_data["electrometer_integration_time"]
                     ),
-                    electrometer_name=f"Electrometer:{self.electrometer_projector_index}",
+                    electrometer_name=f"Electrometer_{self.electrometer_projector_index}",
                 )
 
             # Home all linear stages.
@@ -344,12 +344,12 @@ class MTCalsys(BaseCalsys):
             )
         if mask is not None:
             self.log.debug(f"Setting mask to {mask}")
-            await self.rem.cmd_changeMask.set_start(
+            await self.rem.cbp.cmd_changeMask.set_start(
                 mask=mask, timeout=self.long_long_timeout
             )
         if rotation is not None:
             self.log.debug(f"Setting mask rotation to {rotation}")
-            await self.rem.cmd_changeMaskRotation.set_start(
+            await self.rem.cbp.cmd_changeMaskRotation.set_start(
                 mask_rotation=rotation, timeout=self.long_long_timeout
             )
         self.log.info("Done setting up CBP")
@@ -1205,8 +1205,7 @@ class MTCalsys(BaseCalsys):
         electrometer_exposures = list()
 
         if calibration_type == CalibrationType.CBP:
-            # electrometer = self.electrometer_cbp
-            electrometer = self.electrometer_flatfield
+            electrometer = self.electrometer_cbp
         else:
             electrometer = self.electrometer_flatfield
 
@@ -1295,13 +1294,13 @@ class MTCalsys(BaseCalsys):
     def electrometer_flatfield(self) -> salobj.Remote:
         return getattr(self.rem, f"electrometer_{self.electrometer_projector_index}")
 
-    # @property
-    # def electrometer_cbp(self) -> salobj.Remote:
-    # return getattr(self.rem, f"electrometer_{self.electrometer_cbp_index}")
+    @property
+    def electrometer_cbp(self) -> salobj.Remote:
+        return getattr(self.rem, f"electrometer_{self.electrometer_cbp_index}")
 
-    # @property
-    # def electrometer_cbpcal(self) -> salobj.Remote:
-    # return getattr(self.rem, f"electrometer_{self.electrometer_cbpca_index}")
+    @property
+    def electrometer_cbpcal(self) -> salobj.Remote:
+        return getattr(self.rem, f"electrometer_{self.electrometer_cbpcal_index}")
 
     @property
     def fiberspectrograph_red(self) -> salobj.Remote:

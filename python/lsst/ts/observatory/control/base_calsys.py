@@ -94,17 +94,17 @@ class BaseCalsys(RemoteGroup, metaclass=abc.ABCMeta):
         """
         electrometer_mode = getattr(UnitToRead, mode).value
 
-        # if electrometer_name is None:
+        if electrometer_name is None:
 
-        electrometers = [
-            getattr(self.rem, component_name)
-            for component_name in self.components_attr
-            if "electrometer" in component_name
-        ]
+            electrometers = [
+                getattr(self.rem, component_name)
+                for component_name in self.components_attr
+                if "electrometer" in component_name
+            ]
 
-        # else:
+        else:
 
-        # electrometers = [getattr(self.rem, electrometer_name)]
+            electrometers = [getattr(self.rem, electrometer_name)]
 
         for electrometer in electrometers:
             await electrometer.cmd_setMode.set_start(
