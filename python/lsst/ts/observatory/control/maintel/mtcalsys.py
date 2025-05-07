@@ -831,53 +831,53 @@ class MTCalsys(BaseCalsys):
                     count=int(npulse)
                 )
 
-            for exptime in config_data["exposure_times"]:
-                self.log.debug("Taking data sequence.")
+            # for exptime in config_data["exposure_times"]:
+            self.log.debug("Taking data sequence.")
 
-                if calibration_type == CalibrationType.Mono:
-                    await self.change_laser_wavelength(wavelength=exposure.wavelength)
-                    self.log.debug(
-                        "Taking data sequence without filter for monochromatic set."
-                    )
-                    exposure_info = await self._take_data(
-                        mtcamera_exptime=exposure.camera,
-                        mtcamera_filter="empty_1",
-                        exposure_metadata=exposure_metadata,
-                        calibration_type=calibration_type,
-                        fiber_spectrum_red_exposure_time=exposure.fiberspectrograph_red,
-                        fiber_spectrum_blue_exposure_time=exposure.fiberspectrograph_blue,
-                        electrometer_exposure_time=exposure.electrometer,
-                        nburst=config_data["nburst"],
-                        laser_mode=config_data["laser_mode"],
-                    )
-                    mtcamera_exposure_info.update(exposure_info)
-
-                elif calibration_type == CalibrationType.CBP:
-                    await self.change_laser_wavelength(wavelength=exposure.wavelength)
-                    exposure_info = await self._take_data(
-                        mtcamera_exptime=exposure.camera,
-                        mtcamera_filter=str(config_data["mtcamera_filter"]),
-                        exposure_metadata=exposure_metadata,
-                        calibration_type=calibration_type,
-                        fiber_spectrum_red_exposure_time=exposure.fiberspectrograph_red,
-                        fiber_spectrum_blue_exposure_time=exposure.fiberspectrograph_blue,
-                        electrometer_exposure_time=exposure.electrometer,
-                        nburst=config_data["nburst"],
-                        laser_mode=config_data["laser_mode"],
-                        sequence_name=sequence_name,
-                        wavelength=int(exposure.wavelength),
-                    )
-                else:
-                    exposure_info = await self._take_data(
-                        mtcamera_exptime=exposure.camera,
-                        mtcamera_filter=str(config_data["mtcamera_filter"]),
-                        exposure_metadata=exposure_metadata,
-                        calibration_type=calibration_type,
-                        fiber_spectrum_red_exposure_time=exposure.fiberspectrograph_red,
-                        fiber_spectrum_blue_exposure_time=exposure.fiberspectrograph_blue,
-                        electrometer_exposure_time=exposure.electrometer,
-                    )
+            if calibration_type == CalibrationType.Mono:
+                await self.change_laser_wavelength(wavelength=exposure.wavelength)
+                self.log.debug(
+                    "Taking data sequence without filter for monochromatic set."
+                )
+                exposure_info = await self._take_data(
+                    mtcamera_exptime=exposure.camera,
+                    mtcamera_filter="empty_1",
+                    exposure_metadata=exposure_metadata,
+                    calibration_type=calibration_type,
+                    fiber_spectrum_red_exposure_time=exposure.fiberspectrograph_red,
+                    fiber_spectrum_blue_exposure_time=exposure.fiberspectrograph_blue,
+                    electrometer_exposure_time=exposure.electrometer,
+                    nburst=config_data["nburst"],
+                    laser_mode=config_data["laser_mode"],
+                )
                 mtcamera_exposure_info.update(exposure_info)
+
+            elif calibration_type == CalibrationType.CBP:
+                await self.change_laser_wavelength(wavelength=exposure.wavelength)
+                exposure_info = await self._take_data(
+                    mtcamera_exptime=exposure.camera,
+                    mtcamera_filter=str(config_data["mtcamera_filter"]),
+                    exposure_metadata=exposure_metadata,
+                    calibration_type=calibration_type,
+                    fiber_spectrum_red_exposure_time=exposure.fiberspectrograph_red,
+                    fiber_spectrum_blue_exposure_time=exposure.fiberspectrograph_blue,
+                    electrometer_exposure_time=exposure.electrometer,
+                    nburst=config_data["nburst"],
+                    laser_mode=config_data["laser_mode"],
+                    sequence_name=sequence_name,
+                    wavelength=int(exposure.wavelength),
+                )
+            else:
+                exposure_info = await self._take_data(
+                    mtcamera_exptime=exposure.camera,
+                    mtcamera_filter=str(config_data["mtcamera_filter"]),
+                    exposure_metadata=exposure_metadata,
+                    calibration_type=calibration_type,
+                    fiber_spectrum_red_exposure_time=exposure.fiberspectrograph_red,
+                    fiber_spectrum_blue_exposure_time=exposure.fiberspectrograph_blue,
+                    electrometer_exposure_time=exposure.electrometer,
+                )
+            mtcamera_exposure_info.update(exposure_info)
 
             step = dict(
                 wavelength=exposure.wavelength,
