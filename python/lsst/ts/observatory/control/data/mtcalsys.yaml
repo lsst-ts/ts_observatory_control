@@ -407,163 +407,7 @@ whitelight_y_source:
   exposure_times:
     - 20.0
 
-ptc_test_exptime:
-  mtcamera_filter: i_39
-  led_name:
-    - M730L5
-    - M810L3
-  dac_value: 0.75
-  wavelength: 755.0
-  led_location: 233.83
-  led_focus: 7.07
-  use_fiberspectrograph_red: False
-  use_fiberspectrograph_blue: False
-  exposure_times:
-    - 1.0
-    - 2.0
-    - 5.0
-    - 10.0
-    - 20.0
-    - 30.0
-    - 50.0
-    - 60.0
-
-ptc_test_0:
-  mtcamera_filter: i_39
-  led_name:
-    - M730L5
-    - M810L3
-  dac_value: 0.0
-  wavelength: 755.0
-  led_location: 233.83
-  led_focus: 7.07
-  use_fiberspectrograph_red: False
-  use_fiberspectrograph_blue: False
-  use_camera: false
-  exposure_times:
-    - 30.0
-
-ptc_test_1:
-  mtcamera_filter: i_39
-  led_name:
-    - M730L5
-    - M810L3
-  dac_value: 0.01
-  wavelength: 755.0
-  led_location: 233.83
-  led_focus: 7.07
-  use_fiberspectrograph_red: False
-  use_fiberspectrograph_blue: False
-  use_camera: false
-  exposure_times:
-    - 30.0
-
-ptc_test_2:
-  mtcamera_filter: i_39
-  led_name:
-    - M730L5
-    - M810L3
-  dac_value: 0.05
-  wavelength: 755.0
-  led_location: 233.83
-  led_focus: 7.07
-  use_fiberspectrograph_red: False
-  use_fiberspectrograph_blue: False
-  use_camera: false
-  exposure_times:
-    - 30.0
-
-ptc_test_3:
-  mtcamera_filter: i_39
-  led_name:
-    - M730L5
-    - M810L3
-  dac_value: 0.1
-  wavelength: 755.0
-  led_location: 233.83
-  led_focus: 7.07
-  use_fiberspectrograph_red: False
-  use_fiberspectrograph_blue: False
-  use_camera: false
-  exposure_times:
-    - 30.0
-
-ptc_test_4:
-  mtcamera_filter: i_39
-  led_name:
-    - M730L5
-    - M810L3
-  dac_value: 0.2
-  wavelength: 755.0
-  led_location: 233.83
-  led_focus: 7.07
-  use_fiberspectrograph_red: False
-  use_fiberspectrograph_blue: False
-  use_camera: false
-  exposure_times:
-    - 30.0
-
-ptc_test_5:
-  mtcamera_filter: i_39
-  led_name:
-    - M730L5
-    - M810L3
-  dac_value: 0.5
-  wavelength: 755.0
-  led_location: 233.83
-  led_focus: 7.07
-  use_fiberspectrograph_red: False
-  use_fiberspectrograph_blue: False
-  use_camera: false
-  exposure_times:
-    - 30.0
-
-ptc_test_6:
-  mtcamera_filter: i_39
-  led_name:
-    - M730L5
-    - M810L3
-  dac_value: 0.6
-  wavelength: 755.0
-  led_location: 233.83
-  led_focus: 7.07
-  use_fiberspectrograph_red: False
-  use_fiberspectrograph_blue: False
-  use_camera: false
-  exposure_times:
-    - 30.0
-
-ptc_test_7:
-  mtcamera_filter: i_39
-  led_name:
-    - M730L5
-    - M810L3
-  dac_value: 0.75
-  wavelength: 755.0
-  led_location: 233.83
-  led_focus: 7.07
-  use_fiberspectrograph_red: False
-  use_fiberspectrograph_blue: False
-  use_camera: false
-  exposure_times:
-    - 30.0
-
-ptc_test_8:
-  mtcamera_filter: i_39
-  led_name:
-    - M730L5
-    - M810L3
-  dac_value: 0.9
-  wavelength: 755.0
-  led_location: 233.83
-  led_focus: 7.07
-  use_fiberspectrograph_red: False
-  use_fiberspectrograph_blue: False
-  use_camera: false
-  exposure_times:
-    - 30.0
-
-ptc_test_9:
+ptc_i_39:
   mtcamera_filter: i_39
   led_name:
     - M730L5
@@ -572,8 +416,118 @@ ptc_test_9:
   wavelength: 755.0
   led_location: 233.83
   led_focus: 7.07
+  use_camera: True
   use_fiberspectrograph_red: False
   use_fiberspectrograph_blue: False
-  use_camera: false
+  n_flat: 2
   exposure_times:
-    - 30.0
+   - 0.12
+   - 0.36
+   - 1.2
+   - 3.6
+   - 15.0
+   - 7.596
+   - 43.112
+   - 5.250
+   - 37.241
+   - 3.910
+   - 100.031
+   - 14.381
+   - 35.903
+   - 22.311
+   - 64.479
+   - 33.369
+   - 120.116
+   - 11.546
+   - 32.170
+   - 2.905
+   - 86.410
+   - 16.648
+   - 89.631
+   - 11.977
+   - 8.602
+   - 15.0
+   - 31.014
+   - 34.613
+   - 7.932
+   - 25.828
+   - 6.926
+   - 12.423
+   - 11.131
+   - 19.991
+   - 53.697
+   - 18.580
+   - 13.865
+   - 77.425
+   - 129.237
+   - 71.961
+   - 111.639
+   - 26.791
+   - 24.005
+   - 3.575
+   - 6.591
+   - 8.267
+   - 55.699
+   - 0.894
+   - 6.256
+   - 59.928
+   - 23.143
+   - 103.760
+   - 29.899
+   - 9.270
+   - 10.731
+   - 13.366
+   - 124.593
+   - 5.586
+   - 8.937
+   - 80.311
+   - 15.473
+   - 83.305
+   - 48.114
+   - 28.825
+   - 2.234
+   - 74.643
+   - 15.0
+   - 9.974
+   - 115.800
+   - 1.564
+   - 46.385
+   - 38.629
+   - 3.240
+   - 27.789
+   - 57.775
+   - 96.437
+   - 41.562
+   - 19.273
+   - 134.054
+   - 4.580
+   - 107.627
+   - 10.346
+   - 1.899
+   - 4.915
+   - 44.718
+   - 40.069
+   - 4.245
+   - 15.0
+   - 8.937
+   - 66.882
+   - 7.261
+   - 51.768
+   - 21.509
+   - 24.900
+   - 5.921
+   - 92.971
+   - 9.616
+   - 14.917
+   - 62.162
+   - 49.908
+   - 1.229
+   - 20.736
+   - 69.375
+   - 12.886
+   - 16.050
+   - 2.569
+   - 17.269
+   - 17.913
+   - 15.0
+   - 151.928
