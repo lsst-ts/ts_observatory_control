@@ -21,12 +21,12 @@ cbp_g_leak:
 
 cbp_u_leak:
   mtcamera_filter: u_24
-  wavelength: 1100.0
+  wavelength: 700.0
   wavelength_width: 200
   wavelength_resolution: 10
   exposure_times:
     - 30.0
-  nburst: 5
+  nburst: 7
   use_cbp_electrometer: True
   use_flatfield_electrometer: False
   laser_mode: 4
