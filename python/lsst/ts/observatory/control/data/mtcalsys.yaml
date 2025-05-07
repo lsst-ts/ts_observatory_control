@@ -135,7 +135,7 @@ whitelight_r_57_daily:
 whitelight_i_39_daily:
   mtcamera_filter: i_39
   led_name:
-    - M730L5
+    - M780LP1
     - M810L3
   dac_value: 0.8
   wavelength: 755.0
@@ -150,7 +150,7 @@ whitelight_i_39_daily:
 whitelight_i_39_sequencer:
   mtcamera_filter: i_39
   led_name:
-    - M730L5
+    - M780LP1
     - M810L3
   dac_value: 1.0
   wavelength: 755.0
@@ -242,7 +242,7 @@ whitelight_r_57_dark:
 whitelight_i_39_dark:
   mtcamera_filter: i_39
   led_name:
-    - M730L5
+    - M780LP1
     - M810L3
   dac_value: 0.8
   wavelength: 755.0
@@ -257,7 +257,7 @@ whitelight_i_39_dark:
 whitelight_pinhole_dark:
   mtcamera_filter: ph_5
   led_name:
-    - M730L5
+    - M780LP1
     - M810L3
   dac_value: 0.8
   wavelength: 755.0
@@ -368,7 +368,7 @@ whitelight_r_source:
 whitelight_i_source:
   mtcamera_filter: i_39
   led_name:
-    - M730L5
+    - M780LP1
     - M810L3
   dac_value: 0.75
   wavelength: 755.0
@@ -410,7 +410,7 @@ whitelight_y_source:
 ptc_i_39:
   mtcamera_filter: i_39
   led_name:
-    - M730L5
+    - M780LP1
     - M810L3
   dac_value: 1.0
   wavelength: 755.0
@@ -531,4 +531,4 @@ ptc_i_39:
     - 67.704
     - 50.453
     - 151.928
-    
+
