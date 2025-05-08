@@ -109,6 +109,8 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
 
         self.max_n_snaps_warning = 2
 
+        self._roi_spec_json: None | str = None
+
     async def take_bias(
         self,
         nbias: int,
