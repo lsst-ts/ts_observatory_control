@@ -211,7 +211,7 @@ class MTCalsys(BaseCalsys):
             axis=self.linearstage_axis, timeout=self.stage_homing_timeout
         )
         await self.linearstage_led_select.cmd_getHome.set_start(
-            axis=self.linearstage_axis, timeout=self.long_timeout
+            axis=self.linearstage_axis, timeout=self.stage_homing_timeout
         )
         led_focus_home = self.linearstage_led_focus.cmd_getHome.set_start(
             axis=self.linearstage_axis, timeout=self.stage_homing_timeout
