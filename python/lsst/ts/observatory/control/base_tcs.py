@@ -1315,6 +1315,18 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
             timeout=self.fast_timeout
         )
 
+        await self.wait_tracking_stopped()
+
+    async def wait_tracking_stopped(self) -> None:
+        """Task to wait until tracking has stopped.
+
+        Notes
+        -----
+        Concrete implementations should override this
+        method. By default it is a no-op.
+        """
+        pass
+
     async def check_tracking(
         self, track_duration: typing.Optional[float] = None
     ) -> None:
