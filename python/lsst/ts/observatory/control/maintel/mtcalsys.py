@@ -831,7 +831,6 @@ class MTCalsys(BaseCalsys):
                     count=int(npulse)
                 )
 
-            # for exptime in config_data["exposure_times"]:
             self.log.debug("Taking data sequence.")
 
             if calibration_type == CalibrationType.Mono:
@@ -842,7 +841,7 @@ class MTCalsys(BaseCalsys):
                 exposure_info = await self._take_data(
                     mtcamera_exptime=exposure.camera,
                     mtcamera_filter="empty_1",
-                    exposure_metadata=exposure_metadata,
+                    exposure_metadata=_exposure_metadata,
                     calibration_type=calibration_type,
                     fiber_spectrum_red_exposure_time=exposure.fiberspectrograph_red,
                     fiber_spectrum_blue_exposure_time=exposure.fiberspectrograph_blue,
@@ -857,7 +856,7 @@ class MTCalsys(BaseCalsys):
                 exposure_info = await self._take_data(
                     mtcamera_exptime=exposure.camera,
                     mtcamera_filter=str(config_data["mtcamera_filter"]),
-                    exposure_metadata=exposure_metadata,
+                    exposure_metadata=_exposure_metadata,
                     calibration_type=calibration_type,
                     fiber_spectrum_red_exposure_time=exposure.fiberspectrograph_red,
                     fiber_spectrum_blue_exposure_time=exposure.fiberspectrograph_blue,
@@ -871,7 +870,7 @@ class MTCalsys(BaseCalsys):
                 exposure_info = await self._take_data(
                     mtcamera_exptime=exposure.camera,
                     mtcamera_filter=str(config_data["mtcamera_filter"]),
-                    exposure_metadata=exposure_metadata,
+                    exposure_metadata=_exposure_metadata,
                     calibration_type=calibration_type,
                     fiber_spectrum_red_exposure_time=exposure.fiberspectrograph_red,
                     fiber_spectrum_blue_exposure_time=exposure.fiberspectrograph_blue,
