@@ -1301,6 +1301,33 @@ class MTCS(BaseTCS):
         self.rem.mtmount.evt_azimuthInPosition.flush()
         self.rem.mtrotator.evt_inPosition.flush()
 
+    async def _wait_mtrotator_stationary(self) -> None:
+        """Wait until the rotator reports as stationary."""
+
+        self.rem.mtrotator.evt_controllerState.flush()
+
+        mtrotator_state = MTRotator.EnabledSubstate(
+            (
+                await self.rem.mtrotator.evt_controllerState.aget(
+                    timeout=self.fast_timeout
+                )
+            ).enabledSubstate
+        )
+
+        while mtrotator_state != MTRotator.EnabledSubstate.STATIONARY:
+            self.log.debug(
+                f"MTRotator substate: {mtrotator_state.name}; "
+                "waiting until reported as STATIONARY."
+            )
+            mtrotator_state = MTRotator.EnabledSubstate(
+                (
+                    await self.rem.mtrotator.evt_controllerState.next(
+                        flush=False, timeout=self.long_timeout
+                    )
+                ).enabledSubstate
+            )
+        self.log.debug("Rotator stationary.")
+
     async def offset_done(self) -> None:
         """Wait for offset events."""
         await asyncio.gather(
@@ -2454,21 +2481,8 @@ class MTCS(BaseTCS):
         """Stop rotator movement and wait for controller to publish Stationary
         substate event."""
 
-        self.rem.mtrotator.evt_controllerState.flush()
-
         await self.rem.mtrotator.cmd_stop.start(timeout=self.long_timeout)
-
-        mtrotator_state = await self.rem.mtrotator.evt_controllerState.aget(
-            timeout=self.long_timeout
-        )
-
-        while mtrotator_state.enabledSubstate != MTRotator.EnabledSubstate.STATIONARY:
-            self.log.debug(
-                f"MTRotator substate: {MTRotator.EnabledSubstate(mtrotator_state.enabledSubstate)!r}"
-            )
-            mtrotator_state = await self.rem.mtrotator.evt_controllerState.next(
-                flush=False, timeout=self.long_timeout
-            )
+        await self._wait_mtrotator_stationary()
 
     async def move_m2_hexapod(
         self,
