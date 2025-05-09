@@ -452,8 +452,8 @@ class MTCalsys(BaseCalsys):
 
         return (
             projector_location,
-            float(led_location.position),
-            float(led_focus.position),
+            float(led_location.position[0]),
+            float(led_focus.position[0]),
             0.0,
             str(led_state),
         )
@@ -594,8 +594,10 @@ class MTCalsys(BaseCalsys):
                     dacValue=config_data.get("dac_value")
                 )
             )
+
+            led_names: typing.Iterable[str] = config_data.get("led_name", [])
             task_turn_led_on = self.rem.ledprojector.cmd_switchOff.set_start(
-                serialNumbers=",".join(str(config_data.get("led_name"))),
+                serialNumbers=",".join(led_names),
                 timeout=self.long_timeout,
             )
             await asyncio.gather(
@@ -656,39 +658,42 @@ class MTCalsys(BaseCalsys):
             wavelengths=calibration_wavelengths, config_data=config_data
         )
 
-        for exposure in exposure_table:
+        for i, exposure in enumerate(exposure_table):
             self.log.debug(
                 f"Performing {calibration_type.name} calibration with {exposure.wavelength=}."
             )
 
+            _exposure_metadata = exposure_metadata.copy()
+            if "group_id" in _exposure_metadata:
+                _exposure_metadata["group_id"] += f"#{i+1}"
+
             mtcamera_exposure_info: dict = dict()
 
-            for exptime in config_data["exposure_times"]:
-                self.log.debug("Taking data sequence.")
+            self.log.debug("Taking data sequence.")
+            exposure_info = await self._take_data(
+                mtcamera_exptime=exposure.camera,
+                mtcamera_filter=str(config_data["mtcamera_filter"]),
+                exposure_metadata=_exposure_metadata,
+                fiber_spectrum_red_exposure_time=exposure.fiberspectrograph_red,
+                fiber_spectrum_blue_exposure_time=exposure.fiberspectrograph_blue,
+                electrometer_exposure_time=exposure.electrometer,
+            )
+            mtcamera_exposure_info.update(exposure_info)
+
+            if calibration_type == CalibrationType.Mono:
+                await self.change_laser_wavelength(wavelength=exposure.wavelength)
+                self.log.debug(
+                    "Taking data sequence without filter for monochromatic set."
+                )
                 exposure_info = await self._take_data(
                     mtcamera_exptime=exposure.camera,
-                    mtcamera_filter=str(config_data["mtcamera_filter"]),
-                    exposure_metadata=exposure_metadata,
+                    mtcamera_filter="empty_1",
+                    exposure_metadata=_exposure_metadata,
                     fiber_spectrum_red_exposure_time=exposure.fiberspectrograph_red,
                     fiber_spectrum_blue_exposure_time=exposure.fiberspectrograph_blue,
                     electrometer_exposure_time=exposure.electrometer,
                 )
                 mtcamera_exposure_info.update(exposure_info)
-
-                if calibration_type == CalibrationType.Mono:
-                    await self.change_laser_wavelength(wavelength=exposure.wavelength)
-                    self.log.debug(
-                        "Taking data sequence without filter for monochromatic set."
-                    )
-                    exposure_info = await self._take_data(
-                        mtcamera_exptime=exposure.camera,
-                        mtcamera_filter="empty_1",
-                        exposure_metadata=exposure_metadata,
-                        fiber_spectrum_red_exposure_time=exposure.fiberspectrograph_red,
-                        fiber_spectrum_blue_exposure_time=exposure.fiberspectrograph_blue,
-                        electrometer_exposure_time=exposure.electrometer,
-                    )
-                    mtcamera_exposure_info.update(exposure_info)
 
             step = dict(
                 wavelength=exposure.wavelength,
@@ -741,15 +746,16 @@ class MTCalsys(BaseCalsys):
             )
 
             for i, exptime in enumerate(config_data["exposure_times"]):
-                exposures.append(
-                    MTCalsysExposure(
-                        wavelength=wavelength,
-                        camera=exptime,
-                        electrometer=electrometer_exptimes[i],
-                        fiberspectrograph_red=fiberspectrograph_exptimes_red[i],
-                        fiberspectrograph_blue=fiberspectrograph_exptimes_blue[i],
+                for n in range(config_data["n_flat"]):
+                    exposures.append(
+                        MTCalsysExposure(
+                            wavelength=wavelength,
+                            camera=exptime,
+                            electrometer=electrometer_exptimes[i],
+                            fiberspectrograph_red=fiberspectrograph_exptimes_red[i],
+                            fiberspectrograph_blue=fiberspectrograph_exptimes_blue[i],
+                        )
                     )
-                )
 
         return exposures
 
