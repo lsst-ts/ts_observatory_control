@@ -149,6 +149,9 @@ class MTCS(BaseTCS):
         self.tel_operate_mirror_covers_el = 70.0
         self.tel_operate_dome_shutter_el = 5.0
 
+        # Tolerance to the rotator position for move commands.
+        self.rotator_position_tolerance = 0.1
+
         self.dome_park_az = 285.0
         self.dome_park_el = 80.0
         self.dome_flat_az = 20.0
@@ -2525,6 +2528,32 @@ class MTCS(BaseTCS):
             function? Default True.
         """
 
+        rotator_position_tolerance = self.rotator_position_tolerance
+        try:
+            rotator_position_tolerance = (
+                await self.rem.mtrotator.evt_configuration.aget(
+                    timeout=self.fast_timeout
+                )
+            ).positionErrorThreshold
+        except asyncio.TimeoutError:
+            self.log.warning(
+                "Could not get rotator position error threshold. "
+                "Using default value of {self.rotator_position_tolerance}."
+            )
+
+        rotator_position = await self.rem.mtrotator.tel_rotation.aget(
+            timeout=self.fast_timeout
+        )
+
+        if abs(rotator_position.actualPosition - position) < rotator_position_tolerance:
+            self.log.warning(
+                f"Current rotator position ({rotator_position.actualPosition:.2f}) "
+                f"already within tolerance ({rotator_position_tolerance}) "
+                f"of desired position ({position}). "
+                "Nothing to do."
+            )
+            return
+
         await self.rem.mtrotator.cmd_move.set_start(
             position=position, timeout=self.long_timeout
         )
@@ -3180,7 +3209,12 @@ class MTCS(BaseTCS):
                     "target",
                     "timeAndDate",
                 ],
-                mtrotator=["rotation", "inPosition"],
+                mtrotator=[
+                    "configuration",
+                    "rotation",
+                    "inPosition",
+                    "controllerState",
+                ],
                 mtmount=[
                     "azimuth",
                     "elevation",
@@ -3224,6 +3258,7 @@ class MTCS(BaseTCS):
                     "focusNameSelected",
                 ],
                 mtrotator=[
+                    "configuration",
                     "rotation",
                     "inPosition",
                     "controllerState",
