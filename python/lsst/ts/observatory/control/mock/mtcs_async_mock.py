@@ -94,8 +94,14 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
         self._mtmount_evt_elevation_in_position = types.SimpleNamespace(
             inPosition=True,
         )
+        self._mtmount_evt_elevation_motion_state = types.SimpleNamespace(
+            state=xml.enums.MTMount.AxisMotionState.STOPPED
+        )
         self._mtmount_evt_azimuth_in_position = types.SimpleNamespace(
             inPosition=True,
+        )
+        self._mtmount_evt_azimuth_motion_state = types.SimpleNamespace(
+            state=xml.enums.MTMount.AxisMotionState.STOPPED
         )
 
         self._mtmount_evt_mirror_covers_motion_state = types.SimpleNamespace(
@@ -230,6 +236,10 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
             "tel_elevation.aget.side_effect": self.mtmount_tel_elevation_next,
             "evt_elevationInPosition.next.side_effect": self.mtmount_evt_elevation_in_position_next,
             "evt_azimuthInPosition.next.side_effect": self.mtmount_evt_azimuth_in_position_next,
+            "evt_elevationMotionState.next.side_effect": self.mtmount_evt_elevation_motion_state_next,
+            "evt_azimuthMotionState.next.side_effect": self.mtmount_evt_azimuth_motion_state_next,
+            "evt_elevationMotionState.aget.side_effect": self.mtmount_evt_elevation_motion_state_aget,
+            "evt_azimuthMotionState.aget.side_effect": self.mtmount_evt_azimuth_motion_state_aget,
             "evt_cameraCableWrapFollowing.aget.side_effect": self.mtmount_evt_cameraCableWrapFollowing,
             "cmd_enableCameraCableWrapFollowing.start.side_effect": self.mtmount_cmd_enable_ccw_following,
             "cmd_disableCameraCableWrapFollowing.start.side_effect": self.mtmount_cmd_disable_ccw_following,
@@ -444,10 +454,32 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
     ) -> types.SimpleNamespace:
         return self._mtmount_evt_elevation_in_position
 
+    async def mtmount_evt_elevation_motion_state_next(
+        self, *args: typing.Any, **kwargs: typing.Any
+    ) -> types.SimpleNamespace:
+        await asyncio.sleep(0.5)
+        return self._mtmount_evt_elevation_motion_state
+
+    async def mtmount_evt_elevation_motion_state_aget(
+        self, *args: typing.Any, **kwargs: typing.Any
+    ) -> types.SimpleNamespace:
+        return self._mtmount_evt_elevation_motion_state
+
     async def mtmount_evt_azimuth_in_position_next(
         self, *args: typing.Any, **kwargs: typing.Any
     ) -> types.SimpleNamespace:
         return self._mtmount_evt_azimuth_in_position
+
+    async def mtmount_evt_azimuth_motion_state_next(
+        self, *args: typing.Any, **kwargs: typing.Any
+    ) -> types.SimpleNamespace:
+        await asyncio.sleep(0.5)
+        return self._mtmount_evt_azimuth_motion_state
+
+    async def mtmount_evt_azimuth_motion_state_aget(
+        self, *args: typing.Any, **kwargs: typing.Any
+    ) -> types.SimpleNamespace:
+        return self._mtmount_evt_azimuth_motion_state
 
     async def mtmount_evt_cameraCableWrapFollowing(
         self, *args: typing.Any, **kwargs: typing.Any
