@@ -129,6 +129,9 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
         self._mtrotator_evt_controller_state = types.SimpleNamespace(
             enabledSubstate=xml.enums.MTRotator.EnabledSubstate.STATIONARY
         )
+        self._mtrotator_evt_configuration = types.SimpleNamespace(
+            positionErrorThreshold=0.1
+        )
 
         # MTDome data
         self._mtdome_tel_azimuth = types.SimpleNamespace(
@@ -265,6 +268,7 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
             "tel_rotation.aget.side_effect": self.mtrotator_tel_rotation_next,
             "evt_inPosition.next.side_effect": self.mtrotator_evt_in_position_next,
             "evt_inPosition.aget.side_effect": self.mtrotator_evt_in_position_next,
+            "evt_configuration.aget.side_effect": self.mtrotator_evt_configuration_aget,
             "cmd_move.set_start.side_effect": self.mtrotator_cmd_move,
             "cmd_stop.start.side_effect": self.mtrotator_cmd_stop,
             "evt_controllerState.next.side_effect": self.mtrotator_evt_controller_state_next,
@@ -600,6 +604,11 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
     ) -> types.SimpleNamespace:
         await asyncio.sleep(self.heartbeat_time)
         return self._mtrotator_evt_in_position
+
+    async def mtrotator_evt_configuration_aget(
+        self, *args: typing.Any, **kwargs: typing.Any
+    ) -> types.SimpleNamespace:
+        return self._mtrotator_evt_configuration
 
     async def mtrotator_evt_controller_state_next(
         self, *args: typing.Any, **kwargs: typing.Any
