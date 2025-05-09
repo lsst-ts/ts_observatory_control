@@ -1301,6 +1301,67 @@ class MTCS(BaseTCS):
         self.rem.mtmount.evt_azimuthInPosition.flush()
         self.rem.mtrotator.evt_inPosition.flush()
 
+    async def wait_tracking_stopped(self) -> None:
+        """Wait until the mount and rotator reports that they
+        have stopped tracking."""
+        await asyncio.gather(
+            self._wait_mtmount_azimuth_tracking_stopped(),
+            self._wait_mtmount_elevation_tracking_stopped(),
+            self._wait_mtrotator_stationary(),
+        )
+
+    async def _wait_mtmount_azimuth_tracking_stopped(self) -> None:
+        """Wait until the mount reports that tracking stopped."""
+
+        self.rem.mtmount.evt_azimuthMotionState.flush()
+        azimuth_motion_state = MTMount.AxisMotionState(
+            (
+                await self.rem.mtmount.evt_azimuthMotionState.aget(
+                    timeout=self.fast_timeout
+                )
+            ).state
+        )
+
+        while azimuth_motion_state != MTMount.AxisMotionState.STOPPED:
+            self.log.debug(
+                f"Current azimuth motion state {azimuth_motion_state.name}; "
+                "waiting until reported as STOPPED."
+            )
+            azimuth_motion_state = MTMount.AxisMotionState(
+                (
+                    await self.rem.mtmount.evt_azimuthMotionState.next(
+                        flush=False, timeout=self.long_timeout
+                    )
+                ).state
+            )
+
+        self.log.debug("Azimuth axis stopped.")
+
+    async def _wait_mtmount_elevation_tracking_stopped(self) -> None:
+        """Wait until the mount reports that tracking stopped."""
+        self.rem.mtmount.evt_elevationMotionState.flush()
+        elevation_motion_state = MTMount.AxisMotionState(
+            (
+                await self.rem.mtmount.evt_elevationMotionState.aget(
+                    timeout=self.fast_timeout
+                )
+            ).state
+        )
+
+        while elevation_motion_state != MTMount.AxisMotionState.STOPPED:
+            self.log.debug(
+                f"Current elevation motion state {elevation_motion_state.name}; "
+                "waiting until reported as STOPPED."
+            )
+            elevation_motion_state = MTMount.AxisMotionState(
+                (
+                    await self.rem.mtmount.evt_elevationMotionState.next(
+                        flush=False, timeout=self.long_timeout
+                    )
+                ).state
+            )
+        self.log.debug("Elevation axis stopped.")
+
     async def _wait_mtrotator_stationary(self) -> None:
         """Wait until the rotator reports as stationary."""
 
@@ -3124,7 +3185,9 @@ class MTCS(BaseTCS):
                     "azimuth",
                     "elevation",
                     "elevationInPosition",
+                    "elevationMotionState",
                     "azimuthInPosition",
+                    "azimuthMotionState",
                     "cameraCableWrapFollowing",
                     "mirrorCoversMotionState",
                     "mirrorCoversSystemState",
@@ -3169,7 +3232,9 @@ class MTCS(BaseTCS):
                     "azimuth",
                     "elevation",
                     "elevationInPosition",
+                    "elevationMotionState",
                     "azimuthInPosition",
+                    "azimuthMotionState",
                     "cameraCableWrapFollowing",
                     "mirrorCoversMotionState",
                 ],
