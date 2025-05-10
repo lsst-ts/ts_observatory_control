@@ -2554,9 +2554,34 @@ class MTCS(BaseTCS):
             )
             return
 
-        await self.rem.mtrotator.cmd_move.set_start(
-            position=position, timeout=self.long_timeout
-        )
+        ntries = 2
+        for i in range(ntries):
+            try:
+                await self.rem.mtrotator.evt_heartbeat.next(
+                    flush=True, timeout=self.fast_timeout
+                )
+            except asyncio.TimeoutError:
+                self.log.warning(
+                    "Could not get a heartbeat from the rotator. Move command will probably fail!"
+                )
+
+            await self.rem.mtrotator.cmd_move.set_start(
+                position=position, timeout=self.long_timeout
+            )
+
+            try:
+                await self._wait_mtrotator_moving_point_to_point()
+            except asyncio.TimeoutError:
+                self.log.warning(
+                    "Expected rotator to start moving; but it remained stationary. "
+                    f"Attempt {i+1} of {ntries}."
+                )
+            else:
+                break
+        else:
+            raise RuntimeError(
+                "Rotator did not report as moving after {ntries} attempts."
+            )
 
         if wait_for_in_position:
             await self._handle_in_position(
@@ -2566,6 +2591,33 @@ class MTCS(BaseTCS):
             )
         else:
             self.log.warning("Not waiting for rotator to reach desired position.")
+
+    async def _wait_mtrotator_moving_point_to_point(self) -> None:
+        """Wait until the rotator reports as moving point to point."""
+
+        self.rem.mtrotator.evt_controllerState.flush()
+
+        mtrotator_state = MTRotator.EnabledSubstate(
+            (
+                await self.rem.mtrotator.evt_controllerState.aget(
+                    timeout=self.fast_timeout
+                )
+            ).enabledSubstate
+        )
+
+        while mtrotator_state != MTRotator.EnabledSubstate.MOVING_POINT_TO_POINT:
+            self.log.debug(
+                f"MTRotator substate: {mtrotator_state.name}; "
+                " waiting until reported as MOVING_POINT_TO_POINT."
+            )
+            mtrotator_state = MTRotator.EnabledSubstate(
+                (
+                    await self.rem.mtrotator.evt_controllerState.next(
+                        flush=False, timeout=self.fast_timeout
+                    )
+                ).enabledSubstate
+            )
+        self.log.debug("Rotator moving.")
 
     async def stop_rotator(self) -> None:
         """Stop rotator movement and wait for controller to publish Stationary
