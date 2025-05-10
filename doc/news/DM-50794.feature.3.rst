@@ -1,0 +1,6 @@
+Refactored ``MTCS.move_rotator`` to make it more resilient.
+    
+The method will first wait for a heartbeat from the ``MTRotator`` before sending the move command.
+Then, after sending the move command, it will wait until the rotator reports as moving.
+If the rotator does not start to move it will try again.
+If it fails for a second time, then an exception is raised.
