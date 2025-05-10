@@ -1,0 +1,1 @@
+Implement new ``MTCS.wait_tracking_stopped`` method that will wait for the elevation and azimuth axis of the telescope to report as stopped and for the rotator to report as stationary.
