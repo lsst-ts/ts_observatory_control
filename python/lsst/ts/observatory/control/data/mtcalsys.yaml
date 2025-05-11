@@ -88,6 +88,23 @@ cbp_none_leak:
   electrometer_integration_time: 0.001
   electrometer_range: 0.000002
 
+cbp_none_all:
+  mtcamera_filter: NONE
+  wavelength: 770
+  wavelength_width: 940
+  wavelength_resolution: 20
+  exposure_times:
+    - 30.0
+  nburst: 5
+  use_cbp_electrometer: True
+  use_flatfield_electrometer: False
+  laser_mode: 4
+  optical_configuration: F1 SCU
+  calib_type: CBP
+  electrometer_mode: 'CHARGE'
+  electrometer_integration_time: 0.001
+  electrometer_range: 0.000002
+
 whitelight_u_24_daily:
   mtcamera_filter: u_24
   led_name: 
