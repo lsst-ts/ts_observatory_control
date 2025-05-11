@@ -567,6 +567,9 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
 
     async def _mtrotator_move(self, position: float) -> None:
         self._mtrotator_evt_in_position.inPosition = False
+        self._mtrotator_evt_controller_state.enabledSubstate = (
+            xml.enums.MTRotator.EnabledSubstate.MOVING_POINT_TO_POINT
+        )
 
         position_vector = (
             np.arange(self._mtrotator_tel_rotation.actualPosition, position, 0.5)
@@ -580,6 +583,9 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
 
         self._mtrotator_tel_rotation.actualPosition = position
         self._mtrotator_evt_in_position.inPosition = True
+        self._mtrotator_evt_controller_state.enabledSubstate = (
+            xml.enums.MTRotator.EnabledSubstate.STATIONARY
+        )
 
     async def mtrotator_cmd_stop(self, *args: typing.Any, **kwargs: typing.Any) -> None:
         asyncio.create_task(self._mtrotator_stop())
