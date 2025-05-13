@@ -5,12 +5,13 @@ type: object
 properties:
   calib_type:
     description: >-
-      Type of flat field calibration. There are two types, `Whitelight` for
-      broad spectrum light and `Mono` for monochromatic.
+      Type of flat field calibration. There are three types, `Whitelight` for
+      broad spectrum light, `Mono` for monochromatic flats, and `CBP` for CBP.
     type: string
     enum:
       - Mono
       - WhiteLight
+      - CBP
     default: WhiteLight
   use_camera:
     description: Indicates whether the operation requires a camera.
@@ -40,6 +41,11 @@ properties:
     description: Level of LED brightness (0-1.0)
     type: number
     default: 1.0
+  set_wavelength_range:
+    description: >-
+      If true, set the wavelength range, otherwise, provide wavelength list.
+    type: boolean
+    default: true
   wavelength:
     description: >-
       Center wavelength value in nm, used for configuring the Tunable Laser
@@ -58,6 +64,11 @@ properties:
       defined by `wavelength_width` and is centered around the `wavelength`
       attribute.
     type: number
+  wavelength_list:
+    description: >-
+      Optional. When using a monochromatic light source, it defines a list of wavelengths to scan.
+    type: array
+    default: [450]
   led_location:
     description: >-
       Absolute distance to move the horizontal linear stage between LED
@@ -70,8 +81,20 @@ properties:
       focus the laser light from the fiber.
     type: number
     default: 15.380
-  use_electrometer:
-    description: Identifies if the electrometer will be used in the exposure.
+  use_cbp:
+    description: Identifies if the CBP will be used.
+    type: boolean
+    default: false
+  use_cbp_electrometer:
+    description: Identifies if the cbp electrometer will be used in the exposure.
+    type: boolean
+    default: false
+  use_cbpcal_electrometer:
+    description: Identifies if the cbpcal electrometer will be used in the exposure.
+    type: boolean
+    default: false
+  use_flatfield_electrometer:
+    description: Identifies if the flat field electrometer will be used in the exposure.
     type: boolean
     default: true
   use_fiberspectrograph_red:
@@ -126,6 +149,10 @@ properties:
       +2.1e-6 Coulombs.
     type: number
     default: -1
+  n_flat:
+    description: Number of exposures per exposure_times listed
+    type: number
+    default: 1
   exposure_times:
     description: List of Camera exposure times, in secs.
     type: array
@@ -133,20 +160,59 @@ properties:
       type: number
   laser_mode:
     type: integer
+  laser_wait_time:
+    description: >-
+      Time to wait before starting laser bursts
+    type: number
+    minimum: 0
+    default: 10
   optical_configuration: 
     type: string
     enum: 
       - SCU
-      - NO_SCU
-      - F1_SCU
-      - F2_SCU
-      - F2_NO_SCU
-      - F1_NO_SCU
+      - NO SCU
+      - F1 SCU
+      - F2 SCU
+      - F2 NO SCU
+      - F1 NO SCU
+  nburst:
+      type: integer
+      default: 5
+  cbp_elevation:
+    description: CBP elevation in degrees.
+    type: number
+    default: 0
+    minimum: -69
+    maximum: 45
+  cbp_azimuth:
+    description: CBP azimuth in degrees.
+    type: number
+    default: 0
+    minimum: -45
+    maximum: 45
+  cbp_mask:
+    description: CBP mask.
+    type: integer
+    default: 3
+    minimum: 1
+    maximum: 5
+  cbp_rotation:
+    description: CBP mask rotator angle in degrees.
+    type: number
+    default: 0
+    minimum: -120
+    maximum: 120
+  cbp_focus:
+    description: CBP focus position in um.
+    type: number
+    default: 6000
+    minimum: 0
+    maximum: 13000  
 required:
 - calib_type
 - wavelength
 - use_camera
-- use_electrometer
+- use_flatfield_electrometer
 - use_fiberspectrograph_red
 - use_fiberspectrograph_blue
 - exposure_times
