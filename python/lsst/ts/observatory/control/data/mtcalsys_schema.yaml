@@ -6,7 +6,7 @@ properties:
   calib_type:
     description: >-
       Type of flat field calibration. There are three types, `Whitelight` for
-      broad spectrum light, `Mono` for monochromatic flats, and CBP for CBP.
+      broad spectrum light, `Mono` for monochromatic flats, and `CBP` for CBP.
     type: string
     enum:
       - Mono

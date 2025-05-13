@@ -79,7 +79,7 @@ class BaseCalsys(RemoteGroup, metaclass=abc.ABCMeta):
         mode: str,
         range: float,
         integration_time: float,
-        electrometer_name: str | None = None,
+        electrometer_names: list | None = None,
     ) -> None:
         """Setup all electrometers.
 
@@ -94,7 +94,7 @@ class BaseCalsys(RemoteGroup, metaclass=abc.ABCMeta):
         """
         electrometer_mode = getattr(UnitToRead, mode).value
 
-        if electrometer_name is None:
+        if electrometer_names is None:
 
             electrometers = [
                 getattr(self.rem, component_name)
@@ -104,7 +104,7 @@ class BaseCalsys(RemoteGroup, metaclass=abc.ABCMeta):
 
         else:
 
-            electrometers = [getattr(self.rem, electrometer_name)]
+            electrometers = [getattr(self.rem, name) for name in electrometer_names]
 
         for electrometer in electrometers:
             await electrometer.cmd_setMode.set_start(
