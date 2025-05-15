@@ -457,7 +457,7 @@ ptc_i_39_100:
   led_name:
     - M730L5
     - M810L3
-  dac_value: 0.9
+  dac_value: 0.8
   wavelength: 755.0
   led_location: 233.83
   led_focus: 7.07
@@ -581,7 +581,7 @@ ptc_i_39_200:
   led_name:
     - M730L5
     - M810L3
-  dac_value: 0.9
+  dac_value: 0.8
   wavelength: 755.0
   led_location: 233.83
   led_focus: 7.07
