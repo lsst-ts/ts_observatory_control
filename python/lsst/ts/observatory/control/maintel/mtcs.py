@@ -589,9 +589,9 @@ class MTCS(BaseTCS):
             Message indicating the component is in position.
         """
 
-        following_error_threshold = (
+        tracking_success_position_threshold = (
             await self.rem.mtrotator.evt_configuration.aget(timeout=timeout)
-        ).followingErrorThreshold
+        ).trackingSuccessPositionThreshold
         target_position = (
             await self.rem.mtrotator.evt_target.aget(timeout=timeout)
         ).position
@@ -608,11 +608,15 @@ class MTCS(BaseTCS):
             unreliable_in_position=True,
         )
 
-        while abs(target_position - current_position) > following_error_threshold:
+        while (
+            abs(target_position - current_position)
+            > tracking_success_position_threshold
+        ):
 
             self.log.debug(
                 f"Current rotator position ({current_position:.2f}) "
-                f"not in target position ({target_position:.2f}) range ({following_error_threshold:.2f}). "
+                f"not in target position ({target_position:.2f}) range "
+                f"({tracking_success_position_threshold:.2f}). "
                 "Continuing to wait for in position."
             )
 
