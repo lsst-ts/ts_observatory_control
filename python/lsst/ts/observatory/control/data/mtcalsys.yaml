@@ -453,6 +453,7 @@ whitelight_i_39_M810L3:
     - 10.0
 
 whitelight_g_6_M455L4:
+  mtcamera_filter: g_6
   led_name:
     - M455L4
   dac_value: 1.0
@@ -467,6 +468,7 @@ whitelight_g_6_M455L4:
     - 10.0
 
 whitelight_g_6_M505L4:
+  mtcamera_filter: g_6
   led_name:
     - M505L4
   dac_value: 1.0
@@ -481,6 +483,7 @@ whitelight_g_6_M505L4:
     - 10.0
 
 whitelight_r_57_M565L3:
+  mtcamera_filter: r_57
   led_name:
     - M565L3
   dac_value: 0.78
@@ -495,6 +498,7 @@ whitelight_r_57_M565L3:
     - 10.0
 
 whitelight_r_57_M660L4:
+  mtcamera_filter: r_57
   led_name:
     - M660L4
   dac_value: 0.78
@@ -509,6 +513,7 @@ whitelight_r_57_M660L4:
     - 10.0
 
 whitelight_z_20_M850L3:
+  mtcamera_filter: z_20
   led_name:
     - M850L3
   dac_value: 0.65
@@ -523,6 +528,7 @@ whitelight_z_20_M850L3:
     - 10.0
 
 whitelight_z_20_M940L3:
+  mtcamera_filter: z_20
   led_name:
     - M940L3
   dac_value: 0.65
