@@ -510,7 +510,7 @@ whitelight_r_57_M660L4:
   use_fiberspectrograph_blue: False
   n_flat: 20
   exposure_times:
-    - 20.0
+    - 10.0
 
 whitelight_z_20_M850L3:
   mtcamera_filter: z_20
