@@ -132,6 +132,7 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
         )
         self._mtrotator_evt_configuration = types.SimpleNamespace(
             positionErrorThreshold=0.1,
+            trackingSuccessPositionThreshold=0.003,
             followingErrorThreshold=0.2,
         )
 
