@@ -522,7 +522,7 @@ whitelight_z_20_M850L3:
   exposure_times:
     - 10.0
 
-whitelight_z_M940L3:
+whitelight_z_20_M940L3:
   led_name:
     - M940L3
   dac_value: 0.65
