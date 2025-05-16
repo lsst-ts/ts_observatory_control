@@ -452,6 +452,33 @@ whitelight_i_39_M810L3:
   exposure_times:
     - 10.0
 
+whitelight_g_6_M455L4:
+  led_name:
+    - M455L4
+  dac_value: 1.0
+  wavelength: 455.0
+  led_location: 5.62
+  led_focus: 8.26
+  use_camera: False
+  use_fiberspectrograph_red: False
+  use_fiberspectrograph_blue: False
+  n_flat: 20
+  exposure_times:
+    - 10.0
+
+whitelight_g_6_M505L4:
+  led_name:
+    - M505L4
+  dac_value: 1.0
+  wavelength: 505.0
+  led_location: 5.62
+  led_focus: 8.26
+  use_camera: False
+  use_fiberspectrograph_red: False
+  use_fiberspectrograph_blue: False
+  exposure_times:
+    - 10.0
+
 ptc_i_39_100:
   mtcamera_filter: i_39
   led_name:
