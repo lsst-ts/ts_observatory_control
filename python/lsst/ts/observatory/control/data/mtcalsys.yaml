@@ -476,6 +476,35 @@ whitelight_g_6_M505L4:
   use_camera: False
   use_fiberspectrograph_red: False
   use_fiberspectrograph_blue: False
+  n_flat: 20
+  exposure_times:
+    - 10.0
+
+whitelight_r_57_M565L3:
+  led_name:
+    - M565L3
+  dac_value: 0.78
+  wavelength: 565.0
+  led_location: 66.87
+  led_focus: 7.52
+  use_camera: False
+  use_fiberspectrograph_red: False
+  use_fiberspectrograph_blue: False
+  n_flat: 20
+  exposure_times:
+    - 10.0
+
+whitelight_r_57_M660L4:
+  led_name:
+    - M660L4
+  dac_value: 0.78
+  wavelength: 660.0
+  led_location: 66.87
+  led_focus: 7.52
+  use_camera: False
+  use_fiberspectrograph_red: False
+  use_fiberspectrograph_blue: False
+  n_flat: 20
   exposure_times:
     - 10.0
 
