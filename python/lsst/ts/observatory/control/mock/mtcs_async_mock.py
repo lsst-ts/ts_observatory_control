@@ -126,11 +126,13 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
             actualPosition=0.0,
         )
         self._mtrotator_evt_in_position = types.SimpleNamespace(inPosition=True)
+        self._mtrotator_evt_target = types.SimpleNamespace(position=0)
         self._mtrotator_evt_controller_state = types.SimpleNamespace(
             enabledSubstate=xml.enums.MTRotator.EnabledSubstate.STATIONARY
         )
         self._mtrotator_evt_configuration = types.SimpleNamespace(
-            positionErrorThreshold=0.1
+            positionErrorThreshold=0.1,
+            followingErrorThreshold=0.2,
         )
 
         # MTDome data
@@ -269,6 +271,7 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
             "evt_inPosition.next.side_effect": self.mtrotator_evt_in_position_next,
             "evt_inPosition.aget.side_effect": self.mtrotator_evt_in_position_next,
             "evt_configuration.aget.side_effect": self.mtrotator_evt_configuration_aget,
+            "evt_target.aget.side_effect": self.mtrotator_evt_target_aget,
             "cmd_move.set_start.side_effect": self.mtrotator_cmd_move,
             "cmd_stop.start.side_effect": self.mtrotator_cmd_stop,
             "evt_controllerState.next.side_effect": self.mtrotator_evt_controller_state_next,
@@ -567,6 +570,7 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
 
     async def _mtrotator_move(self, position: float) -> None:
         self._mtrotator_evt_in_position.inPosition = False
+        self._mtrotator_evt_target.position = position
         self._mtrotator_evt_controller_state.enabledSubstate = (
             xml.enums.MTRotator.EnabledSubstate.MOVING_POINT_TO_POINT
         )
@@ -615,6 +619,11 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
         self, *args: typing.Any, **kwargs: typing.Any
     ) -> types.SimpleNamespace:
         return self._mtrotator_evt_configuration
+
+    async def mtrotator_evt_target_aget(
+        self, *args: typing.Any, **kwargs: typing.Any
+    ) -> types.SimpleNamespace:
+        return self._mtrotator_evt_target
 
     async def mtrotator_evt_controller_state_next(
         self, *args: typing.Any, **kwargs: typing.Any
