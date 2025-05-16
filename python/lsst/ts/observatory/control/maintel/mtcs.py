@@ -588,7 +588,18 @@ class MTCS(BaseTCS):
         `str`
             Message indicating the component is in position.
         """
-        return await self._handle_in_position(
+
+        following_error_threshold = (
+            await self.rem.mtrotator.evt_configuration.aget(timeout=timeout)
+        ).followingErrorThreshold
+        target_position = (
+            await self.rem.mtrotator.evt_target.aget(timeout=timeout)
+        ).position
+        current_position = (
+            await self.rem.mtrotator.tel_rotation.aget(timeout=timeout)
+        ).actualPosition
+
+        in_position_result = await self._handle_in_position(
             self.rem.mtrotator.evt_inPosition,
             timeout=timeout,
             settle_time=2.0,
@@ -596,6 +607,31 @@ class MTCS(BaseTCS):
             race_condition_timeout=self.mtrotator_race_condition_timeout,
             unreliable_in_position=True,
         )
+
+        while abs(target_position - current_position) > following_error_threshold:
+
+            self.log.debug(
+                f"Current rotator position ({current_position:.2f}) "
+                f"not in target position ({target_position:.2f}) range ({following_error_threshold:.2f}). "
+                "Continuing to wait for in position."
+            )
+
+            in_position_result = await self._handle_in_position(
+                self.rem.mtrotator.evt_inPosition,
+                timeout=timeout,
+                settle_time=2.0,
+                component_name="MTRotator",
+                race_condition_timeout=self.mtrotator_race_condition_timeout,
+                unreliable_in_position=True,
+            )
+            target_position = (
+                await self.rem.mtrotator.evt_target.aget(timeout=timeout)
+            ).position
+            current_position = (
+                await self.rem.mtrotator.tel_rotation.aget(timeout=timeout)
+            ).actualPosition
+
+        return in_position_result
 
     async def dome_az_in_position(self) -> str:
         """Wait for `_dome_az_in_position` event to be set and return a string
@@ -3265,6 +3301,7 @@ class MTCS(BaseTCS):
                     "rotation",
                     "inPosition",
                     "controllerState",
+                    "target",
                 ],
                 mtmount=[
                     "azimuth",
@@ -3313,6 +3350,7 @@ class MTCS(BaseTCS):
                     "rotation",
                     "inPosition",
                     "controllerState",
+                    "target",
                 ],
                 mtmount=[
                     "azimuth",
