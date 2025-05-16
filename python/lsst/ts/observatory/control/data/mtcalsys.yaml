@@ -465,7 +465,7 @@ whitelight_g_6_M455L4:
   use_fiberspectrograph_blue: False
   n_flat: 20
   exposure_times:
-    - 20.0
+    - 9.0
 
 whitelight_g_6_M505L4:
   mtcamera_filter: g_6
@@ -480,7 +480,7 @@ whitelight_g_6_M505L4:
   use_fiberspectrograph_blue: False
   n_flat: 20
   exposure_times:
-    - 20.0
+    - 9.0
 
 whitelight_r_57_M565L3:
   mtcamera_filter: r_57
