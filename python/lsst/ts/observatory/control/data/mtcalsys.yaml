@@ -465,7 +465,7 @@ whitelight_g_6_M455L4:
   use_fiberspectrograph_blue: False
   n_flat: 20
   exposure_times:
-    - 10.0
+    - 20.0
 
 whitelight_g_6_M505L4:
   mtcamera_filter: g_6
@@ -480,7 +480,7 @@ whitelight_g_6_M505L4:
   use_fiberspectrograph_blue: False
   n_flat: 20
   exposure_times:
-    - 10.0
+    - 20.0
 
 whitelight_r_57_M565L3:
   mtcamera_filter: r_57
@@ -516,7 +516,7 @@ whitelight_z_20_M850L3:
   mtcamera_filter: z_20
   led_name:
     - M850L3
-  dac_value: 0.65
+  dac_value: 1.0
   wavelength: 850.0
   led_location: 295.504
   led_focus: 6.74
@@ -525,13 +525,13 @@ whitelight_z_20_M850L3:
   use_fiberspectrograph_blue: False
   n_flat: 20
   exposure_times:
-    - 10.0
+    - 20.0
 
 whitelight_z_20_M940L3:
   mtcamera_filter: z_20
   led_name:
     - M940L3
-  dac_value: 0.65
+  dac_value: 1.0
   wavelength: 940.0
   led_location: 295.504
   led_focus: 6.74
@@ -540,7 +540,7 @@ whitelight_z_20_M940L3:
   use_fiberspectrograph_blue: False
   n_flat: 20
   exposure_times:
-    - 10.0
+    - 20.0
 
 ptc_i_39_100:
   mtcamera_filter: i_39
