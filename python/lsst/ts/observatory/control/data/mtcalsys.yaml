@@ -119,6 +119,7 @@ cbp_r_2nm:
   electrometer_mode: 'CHARGE'
   electrometer_integration_time: 0.001
   electrometer_range: 0.000002
+  set_wavelength_range: False
 
 whitelight_u_24_daily:
   mtcamera_filter: u_24
