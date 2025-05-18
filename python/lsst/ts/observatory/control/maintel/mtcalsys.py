@@ -1235,6 +1235,7 @@ class MTCalsys(BaseCalsys):
                     "is in enabled state and continuing."
                 )
                 await salobj.set_summary_state(electrometer, salobj.State.ENABLED)
+
         return electrometer_exposures
 
     async def take_fiber_spectrum(

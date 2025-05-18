@@ -121,6 +121,22 @@ cbp_r_2nm:
   electrometer_range: 0.000002
   set_wavelength_range: False
 
+cbp_z_2nm:
+  mtcamera_filter: z_20
+  wavelength_list: [800, 802, 804, 806, 808, 810, 812, 814, 816, 818, 820, 822, 824, 826, 828, 830, 835, 840, 845, 850, 855, 860, 865, 870, 875, 880, 885, 890, 895, 900, 905, 910, 912, 914, 916, 918, 920, 922, 924, 926, 928, 930, 932, 934, 936, 938, 940]
+  exposure_times:
+    - 30.0
+  nburst: 5
+  use_cbp_electrometer: True
+  use_flatfield_electrometer: False
+  laser_mode: 4
+  optical_configuration: F1 SCU
+  calib_type: CBP
+  electrometer_mode: 'CHARGE'
+  electrometer_integration_time: 0.001
+  electrometer_range: 0.000002
+  set_wavelength_range: False
+
 whitelight_u_24_daily:
   mtcamera_filter: u_24
   led_name: 
