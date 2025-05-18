@@ -555,6 +555,7 @@ whitelight_z_20_M850L3:
   use_camera: False
   use_fiberspectrograph_red: False
   use_fiberspectrograph_blue: False
+  use_flatfield_electrometer: False 
   n_flat: 1
   exposure_times:
     - 9.0
@@ -570,6 +571,7 @@ whitelight_z_20_M940L3:
   use_camera: False
   use_fiberspectrograph_red: False
   use_fiberspectrograph_blue: False
+  use_flatfield_electrometer: False
   n_flat: 1
   exposure_times:
     - 20.0
@@ -584,6 +586,7 @@ whitelight_y_10_single:
   led_focus: 11.85
   use_fiberspectrograph_red: False
   use_fiberspectrograph_blue: False
+  use_flatfield_electrometer: False
   n_flat: 1
   exposure_times:
     - 20.0
