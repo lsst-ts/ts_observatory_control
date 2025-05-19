@@ -139,7 +139,7 @@ cbp_r_2nm:
 
 cbp_r_2nm_remainder:
   mtcamera_filter: r_57
-  wavelength_list: [660, 665, 670, 675, 677, 679, 681, 683, 685, 687, 689, 691, 693, 695, 697, 699, 701, 703, 705]
+  wavelength_list: [695, 697, 699, 701, 703, 705]
   exposure_times:
     - 30.0
   nburst: 5
