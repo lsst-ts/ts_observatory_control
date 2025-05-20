@@ -1,0 +1,1 @@
+Copied all single LED sequences and made option with no filter
