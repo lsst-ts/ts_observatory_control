@@ -589,6 +589,15 @@ class MTCS(BaseTCS):
             Message indicating the component is in position.
         """
 
+        in_position_result = await self._handle_in_position(
+            self.rem.mtrotator.evt_inPosition,
+            timeout=timeout,
+            settle_time=2.0,
+            component_name="MTRotator",
+            race_condition_timeout=self.mtrotator_race_condition_timeout,
+            unreliable_in_position=True,
+        )
+
         tracking_success_position_threshold = (
             await self.rem.mtrotator.evt_configuration.aget(timeout=timeout)
         ).trackingSuccessPositionThreshold
@@ -598,15 +607,6 @@ class MTCS(BaseTCS):
         current_position = (
             await self.rem.mtrotator.tel_rotation.aget(timeout=timeout)
         ).actualPosition
-
-        in_position_result = await self._handle_in_position(
-            self.rem.mtrotator.evt_inPosition,
-            timeout=timeout,
-            settle_time=2.0,
-            component_name="MTRotator",
-            race_condition_timeout=self.mtrotator_race_condition_timeout,
-            unreliable_in_position=True,
-        )
 
         while (
             abs(target_position - current_position)
