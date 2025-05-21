@@ -149,6 +149,9 @@ class MTCS(BaseTCS):
         self.tel_operate_mirror_covers_el = 70.0
         self.tel_operate_dome_shutter_el = 5.0
 
+        # Tolerance to the rotator position for move commands.
+        self.rotator_position_tolerance = 0.1
+
         self.dome_park_az = 285.0
         self.dome_park_el = 80.0
         self.dome_flat_az = 20.0
@@ -1301,6 +1304,94 @@ class MTCS(BaseTCS):
         self.rem.mtmount.evt_azimuthInPosition.flush()
         self.rem.mtrotator.evt_inPosition.flush()
 
+    async def wait_tracking_stopped(self) -> None:
+        """Wait until the mount and rotator reports that they
+        have stopped tracking."""
+        await asyncio.gather(
+            self._wait_mtmount_azimuth_tracking_stopped(),
+            self._wait_mtmount_elevation_tracking_stopped(),
+            self._wait_mtrotator_stationary(),
+        )
+
+    async def _wait_mtmount_azimuth_tracking_stopped(self) -> None:
+        """Wait until the mount reports that tracking stopped."""
+
+        self.rem.mtmount.evt_azimuthMotionState.flush()
+        azimuth_motion_state = MTMount.AxisMotionState(
+            (
+                await self.rem.mtmount.evt_azimuthMotionState.aget(
+                    timeout=self.fast_timeout
+                )
+            ).state
+        )
+
+        while azimuth_motion_state != MTMount.AxisMotionState.STOPPED:
+            self.log.debug(
+                f"Current azimuth motion state {azimuth_motion_state.name}; "
+                "waiting until reported as STOPPED."
+            )
+            azimuth_motion_state = MTMount.AxisMotionState(
+                (
+                    await self.rem.mtmount.evt_azimuthMotionState.next(
+                        flush=False, timeout=self.long_timeout
+                    )
+                ).state
+            )
+
+        self.log.debug("Azimuth axis stopped.")
+
+    async def _wait_mtmount_elevation_tracking_stopped(self) -> None:
+        """Wait until the mount reports that tracking stopped."""
+        self.rem.mtmount.evt_elevationMotionState.flush()
+        elevation_motion_state = MTMount.AxisMotionState(
+            (
+                await self.rem.mtmount.evt_elevationMotionState.aget(
+                    timeout=self.fast_timeout
+                )
+            ).state
+        )
+
+        while elevation_motion_state != MTMount.AxisMotionState.STOPPED:
+            self.log.debug(
+                f"Current elevation motion state {elevation_motion_state.name}; "
+                "waiting until reported as STOPPED."
+            )
+            elevation_motion_state = MTMount.AxisMotionState(
+                (
+                    await self.rem.mtmount.evt_elevationMotionState.next(
+                        flush=False, timeout=self.long_timeout
+                    )
+                ).state
+            )
+        self.log.debug("Elevation axis stopped.")
+
+    async def _wait_mtrotator_stationary(self) -> None:
+        """Wait until the rotator reports as stationary."""
+
+        self.rem.mtrotator.evt_controllerState.flush()
+
+        mtrotator_state = MTRotator.EnabledSubstate(
+            (
+                await self.rem.mtrotator.evt_controllerState.aget(
+                    timeout=self.fast_timeout
+                )
+            ).enabledSubstate
+        )
+
+        while mtrotator_state != MTRotator.EnabledSubstate.STATIONARY:
+            self.log.debug(
+                f"MTRotator substate: {mtrotator_state.name}; "
+                "waiting until reported as STATIONARY."
+            )
+            mtrotator_state = MTRotator.EnabledSubstate(
+                (
+                    await self.rem.mtrotator.evt_controllerState.next(
+                        flush=False, timeout=self.long_timeout
+                    )
+                ).enabledSubstate
+            )
+        self.log.debug("Rotator stationary.")
+
     async def offset_done(self) -> None:
         """Wait for offset events."""
         await asyncio.gather(
@@ -2437,9 +2528,60 @@ class MTCS(BaseTCS):
             function? Default True.
         """
 
-        await self.rem.mtrotator.cmd_move.set_start(
-            position=position, timeout=self.long_timeout
+        rotator_position_tolerance = self.rotator_position_tolerance
+        try:
+            rotator_position_tolerance = (
+                await self.rem.mtrotator.evt_configuration.aget(
+                    timeout=self.fast_timeout
+                )
+            ).positionErrorThreshold
+        except asyncio.TimeoutError:
+            self.log.warning(
+                "Could not get rotator position error threshold. "
+                "Using default value of {self.rotator_position_tolerance}."
+            )
+
+        rotator_position = await self.rem.mtrotator.tel_rotation.aget(
+            timeout=self.fast_timeout
         )
+
+        if abs(rotator_position.actualPosition - position) < rotator_position_tolerance:
+            self.log.warning(
+                f"Current rotator position ({rotator_position.actualPosition:.2f}) "
+                f"already within tolerance ({rotator_position_tolerance}) "
+                f"of desired position ({position}). "
+                "Nothing to do."
+            )
+            return
+
+        ntries = 2
+        for i in range(ntries):
+            try:
+                await self.rem.mtrotator.evt_heartbeat.next(
+                    flush=True, timeout=self.fast_timeout
+                )
+            except asyncio.TimeoutError:
+                self.log.warning(
+                    "Could not get a heartbeat from the rotator. Move command will probably fail!"
+                )
+
+            await self.rem.mtrotator.cmd_move.set_start(
+                position=position, timeout=self.long_timeout
+            )
+
+            try:
+                await self._wait_mtrotator_moving_point_to_point()
+            except asyncio.TimeoutError:
+                self.log.warning(
+                    "Expected rotator to start moving; but it remained stationary. "
+                    f"Attempt {i+1} of {ntries}."
+                )
+            else:
+                break
+        else:
+            raise RuntimeError(
+                "Rotator did not report as moving after {ntries} attempts."
+            )
 
         if wait_for_in_position:
             await self._handle_in_position(
@@ -2450,25 +2592,39 @@ class MTCS(BaseTCS):
         else:
             self.log.warning("Not waiting for rotator to reach desired position.")
 
+    async def _wait_mtrotator_moving_point_to_point(self) -> None:
+        """Wait until the rotator reports as moving point to point."""
+
+        self.rem.mtrotator.evt_controllerState.flush()
+
+        mtrotator_state = MTRotator.EnabledSubstate(
+            (
+                await self.rem.mtrotator.evt_controllerState.aget(
+                    timeout=self.fast_timeout
+                )
+            ).enabledSubstate
+        )
+
+        while mtrotator_state != MTRotator.EnabledSubstate.MOVING_POINT_TO_POINT:
+            self.log.debug(
+                f"MTRotator substate: {mtrotator_state.name}; "
+                " waiting until reported as MOVING_POINT_TO_POINT."
+            )
+            mtrotator_state = MTRotator.EnabledSubstate(
+                (
+                    await self.rem.mtrotator.evt_controllerState.next(
+                        flush=False, timeout=self.fast_timeout
+                    )
+                ).enabledSubstate
+            )
+        self.log.debug("Rotator moving.")
+
     async def stop_rotator(self) -> None:
         """Stop rotator movement and wait for controller to publish Stationary
         substate event."""
 
-        self.rem.mtrotator.evt_controllerState.flush()
-
         await self.rem.mtrotator.cmd_stop.start(timeout=self.long_timeout)
-
-        mtrotator_state = await self.rem.mtrotator.evt_controllerState.aget(
-            timeout=self.long_timeout
-        )
-
-        while mtrotator_state.enabledSubstate != MTRotator.EnabledSubstate.STATIONARY:
-            self.log.debug(
-                f"MTRotator substate: {MTRotator.EnabledSubstate(mtrotator_state.enabledSubstate)!r}"
-            )
-            mtrotator_state = await self.rem.mtrotator.evt_controllerState.next(
-                flush=False, timeout=self.long_timeout
-            )
+        await self._wait_mtrotator_stationary()
 
     async def move_m2_hexapod(
         self,
@@ -3105,12 +3261,19 @@ class MTCS(BaseTCS):
                     "target",
                     "timeAndDate",
                 ],
-                mtrotator=["rotation", "inPosition"],
+                mtrotator=[
+                    "configuration",
+                    "rotation",
+                    "inPosition",
+                    "controllerState",
+                ],
                 mtmount=[
                     "azimuth",
                     "elevation",
                     "elevationInPosition",
+                    "elevationMotionState",
                     "azimuthInPosition",
+                    "azimuthMotionState",
                     "cameraCableWrapFollowing",
                     "mirrorCoversMotionState",
                     "mirrorCoversSystemState",
@@ -3147,6 +3310,7 @@ class MTCS(BaseTCS):
                     "focusNameSelected",
                 ],
                 mtrotator=[
+                    "configuration",
                     "rotation",
                     "inPosition",
                     "controllerState",
@@ -3155,7 +3319,9 @@ class MTCS(BaseTCS):
                     "azimuth",
                     "elevation",
                     "elevationInPosition",
+                    "elevationMotionState",
                     "azimuthInPosition",
+                    "azimuthMotionState",
                     "cameraCableWrapFollowing",
                     "mirrorCoversMotionState",
                 ],

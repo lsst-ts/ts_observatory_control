@@ -2326,7 +2326,7 @@ class TestMTCS(MTCSAsyncMock):
         )
 
         self.mtcs.rem.mtrotator.evt_controllerState.aget.assert_awaited_with(
-            timeout=self.mtcs.long_timeout
+            timeout=self.mtcs.fast_timeout
         )
 
         self.mtcs.rem.mtrotator.evt_controllerState.next.assert_awaited_with(

@@ -94,8 +94,14 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
         self._mtmount_evt_elevation_in_position = types.SimpleNamespace(
             inPosition=True,
         )
+        self._mtmount_evt_elevation_motion_state = types.SimpleNamespace(
+            state=xml.enums.MTMount.AxisMotionState.STOPPED
+        )
         self._mtmount_evt_azimuth_in_position = types.SimpleNamespace(
             inPosition=True,
+        )
+        self._mtmount_evt_azimuth_motion_state = types.SimpleNamespace(
+            state=xml.enums.MTMount.AxisMotionState.STOPPED
         )
 
         self._mtmount_evt_mirror_covers_motion_state = types.SimpleNamespace(
@@ -122,6 +128,9 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
         self._mtrotator_evt_in_position = types.SimpleNamespace(inPosition=True)
         self._mtrotator_evt_controller_state = types.SimpleNamespace(
             enabledSubstate=xml.enums.MTRotator.EnabledSubstate.STATIONARY
+        )
+        self._mtrotator_evt_configuration = types.SimpleNamespace(
+            positionErrorThreshold=0.1
         )
 
         # MTDome data
@@ -230,6 +239,10 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
             "tel_elevation.aget.side_effect": self.mtmount_tel_elevation_next,
             "evt_elevationInPosition.next.side_effect": self.mtmount_evt_elevation_in_position_next,
             "evt_azimuthInPosition.next.side_effect": self.mtmount_evt_azimuth_in_position_next,
+            "evt_elevationMotionState.next.side_effect": self.mtmount_evt_elevation_motion_state_next,
+            "evt_azimuthMotionState.next.side_effect": self.mtmount_evt_azimuth_motion_state_next,
+            "evt_elevationMotionState.aget.side_effect": self.mtmount_evt_elevation_motion_state_aget,
+            "evt_azimuthMotionState.aget.side_effect": self.mtmount_evt_azimuth_motion_state_aget,
             "evt_cameraCableWrapFollowing.aget.side_effect": self.mtmount_evt_cameraCableWrapFollowing,
             "cmd_enableCameraCableWrapFollowing.start.side_effect": self.mtmount_cmd_enable_ccw_following,
             "cmd_disableCameraCableWrapFollowing.start.side_effect": self.mtmount_cmd_disable_ccw_following,
@@ -255,6 +268,7 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
             "tel_rotation.aget.side_effect": self.mtrotator_tel_rotation_next,
             "evt_inPosition.next.side_effect": self.mtrotator_evt_in_position_next,
             "evt_inPosition.aget.side_effect": self.mtrotator_evt_in_position_next,
+            "evt_configuration.aget.side_effect": self.mtrotator_evt_configuration_aget,
             "cmd_move.set_start.side_effect": self.mtrotator_cmd_move,
             "cmd_stop.start.side_effect": self.mtrotator_cmd_stop,
             "evt_controllerState.next.side_effect": self.mtrotator_evt_controller_state_next,
@@ -444,10 +458,32 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
     ) -> types.SimpleNamespace:
         return self._mtmount_evt_elevation_in_position
 
+    async def mtmount_evt_elevation_motion_state_next(
+        self, *args: typing.Any, **kwargs: typing.Any
+    ) -> types.SimpleNamespace:
+        await asyncio.sleep(0.5)
+        return self._mtmount_evt_elevation_motion_state
+
+    async def mtmount_evt_elevation_motion_state_aget(
+        self, *args: typing.Any, **kwargs: typing.Any
+    ) -> types.SimpleNamespace:
+        return self._mtmount_evt_elevation_motion_state
+
     async def mtmount_evt_azimuth_in_position_next(
         self, *args: typing.Any, **kwargs: typing.Any
     ) -> types.SimpleNamespace:
         return self._mtmount_evt_azimuth_in_position
+
+    async def mtmount_evt_azimuth_motion_state_next(
+        self, *args: typing.Any, **kwargs: typing.Any
+    ) -> types.SimpleNamespace:
+        await asyncio.sleep(0.5)
+        return self._mtmount_evt_azimuth_motion_state
+
+    async def mtmount_evt_azimuth_motion_state_aget(
+        self, *args: typing.Any, **kwargs: typing.Any
+    ) -> types.SimpleNamespace:
+        return self._mtmount_evt_azimuth_motion_state
 
     async def mtmount_evt_cameraCableWrapFollowing(
         self, *args: typing.Any, **kwargs: typing.Any
@@ -531,6 +567,9 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
 
     async def _mtrotator_move(self, position: float) -> None:
         self._mtrotator_evt_in_position.inPosition = False
+        self._mtrotator_evt_controller_state.enabledSubstate = (
+            xml.enums.MTRotator.EnabledSubstate.MOVING_POINT_TO_POINT
+        )
 
         position_vector = (
             np.arange(self._mtrotator_tel_rotation.actualPosition, position, 0.5)
@@ -544,6 +583,9 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
 
         self._mtrotator_tel_rotation.actualPosition = position
         self._mtrotator_evt_in_position.inPosition = True
+        self._mtrotator_evt_controller_state.enabledSubstate = (
+            xml.enums.MTRotator.EnabledSubstate.STATIONARY
+        )
 
     async def mtrotator_cmd_stop(self, *args: typing.Any, **kwargs: typing.Any) -> None:
         asyncio.create_task(self._mtrotator_stop())
@@ -568,6 +610,11 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
     ) -> types.SimpleNamespace:
         await asyncio.sleep(self.heartbeat_time)
         return self._mtrotator_evt_in_position
+
+    async def mtrotator_evt_configuration_aget(
+        self, *args: typing.Any, **kwargs: typing.Any
+    ) -> types.SimpleNamespace:
+        return self._mtrotator_evt_configuration
 
     async def mtrotator_evt_controller_state_next(
         self, *args: typing.Any, **kwargs: typing.Any
