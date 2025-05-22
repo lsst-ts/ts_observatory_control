@@ -249,7 +249,7 @@ whitelight_y_10:
   dac_value: 1.0
   wavelength: 970.0
   led_location: 171.38
-  led_focus: 11.85
+  led_focus: 6.61
   exposure_times:
     - 20.0
 
@@ -345,7 +345,7 @@ whitelight_y_source:
   dac_value: 1.0
   wavelength: 970.0
   led_location: 171.38
-  led_focus: 11.85
+  led_focus: 6.61
   use_camera: False
   exposure_times:
     - 20.0
