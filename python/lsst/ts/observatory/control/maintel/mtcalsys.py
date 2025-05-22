@@ -35,7 +35,7 @@ from lsst.ts.xml.enums.TunableLaser import LaserDetailedState
 from ..base_calsys import BaseCalsys
 from ..remote_group import Usages
 from ..utils import CalibrationType
-from . import ComCam
+from . import LSSTCam
 
 
 class MTCalsysUsages(Usages):
@@ -126,23 +126,38 @@ class MTCalsys(BaseCalsys):
         domain: typing.Optional[salobj.Domain] = None,
         log: typing.Optional[logging.Logger] = None,
         intended_usage: typing.Optional[int] = None,
-        mtcamera: typing.Optional[ComCam] = None,
+        mtcamera: typing.Optional[LSSTCam] = None,
     ) -> None:
 
         self.electrometer_projector_index = 103
+        self.electrometer_cbp_index = 102
+        self.electrometer_cbpcal_index = 101
         self.fiberspectrograph_blue_index = 102
         self.fiberspectrograph_red_index = 101
         self.linearstage_led_select_index = 102
         self.linearstage_led_focus_index = 101
         self.linearstage_laser_focus_index = 104
         self.linearstage_select_index = 103
+        self.npulse_lookup = [
+            ((None, 420), 2000),
+            ((420, 540), 40),
+            ((540, 570), 100),
+            ((570, 600), 400),
+            ((600, 650), 500),
+            ((650, 770), 1000),
+            ((770, 1050), 400),
+            ((1050, None), 2000),
+        ]
 
         super().__init__(
             components=[
                 "TunableLaser",
                 "LEDProjector",
+                "CBP",
                 f"FiberSpectrograph:{self.fiberspectrograph_blue_index}",
                 f"FiberSpectrograph:{self.fiberspectrograph_red_index}",
+                f"Electrometer:{self.electrometer_cbp_index}",
+                f"Electrometer:{self.electrometer_cbpcal_index}",
                 f"Electrometer:{self.electrometer_projector_index}",
                 f"LinearStage:{self.linearstage_led_select_index}",
                 f"LinearStage:{self.linearstage_led_focus_index}",
@@ -195,67 +210,152 @@ class MTCalsys(BaseCalsys):
             in the configuration.yaml files
 
         """
-        config_data = self.get_calibration_configuration(sequence_name)
+        self.config_data = self.get_calibration_configuration(sequence_name)
 
-        calibration_type = getattr(CalibrationType, str(config_data["calib_type"]))
+        calibration_type = getattr(CalibrationType, str(self.config_data["calib_type"]))
 
-        if config_data["use_electrometer"]:
-            await self.setup_electrometers(
-                mode=str(config_data["electrometer_mode"]),
-                range=float(config_data["electrometer_range"]),
-                integration_time=float(config_data["electrometer_integration_time"]),
-            )
+        if calibration_type == CalibrationType.CBP:
+            if self.config_data["use_cbp"]:
+                await self.setup_cbp(
+                    azimuth=self.config_data["cbp_azimuth"],
+                    elevation=self.config_data["cbp_elevation"],
+                    mask=self.config_data["cbp_mask"],
+                    focus=self.config_data["cbp_focus"],
+                    rotation=self.config_data["cbp_rotation"],
+                )
 
-        # Home all linear stages.
-        await self.linearstage_projector_select.cmd_getHome.set_start(
-            axis=self.linearstage_axis, timeout=self.stage_homing_timeout
-        )
-        await self.linearstage_led_select.cmd_getHome.set_start(
-            axis=self.linearstage_axis, timeout=self.stage_homing_timeout
-        )
-        led_focus_home = self.linearstage_led_focus.cmd_getHome.set_start(
-            axis=self.linearstage_axis, timeout=self.stage_homing_timeout
-        )
+            if self.config_data["use_cbp_electrometer"]:
+                await self.setup_electrometers(
+                    mode=str(self.config_data["electrometer_mode"]),
+                    range=float(self.config_data["electrometer_range"]),
+                    integration_time=float(
+                        self.config_data["electrometer_integration_time"]
+                    ),
+                    electrometer_names=[f"electrometer_{self.electrometer_cbp_index}"],
+                )
 
-        # TO-DO: DM-50505, add laser_focus when stage is repaired.
-
-        await asyncio.gather(
-            led_focus_home,
-        )
-
-        # Move LED Select stage to a safe position
-        self.log.debug("Moving LED select stage to safe position.")
-        await self.linearstage_led_select.cmd_moveAbsolute.set_start(
-            distance=self.led_rest_position,
-            axis=self.linearstage_axis,
-            timeout=self.long_timeout,
-        )
-
-        if calibration_type == CalibrationType.WhiteLight:
-            self.log.debug("Moving vertical projector selection stage to LED position")
-            await self.linearstage_projector_select.cmd_moveAbsolute.set_start(
-                distance=self.linearstage_projector_locations["led"],
-                axis=self.linearstage_axis,
-                timeout=self.long_timeout,
-            )
-            await self.rem.ledprojector.cmd_adjustAllDACPower.set_start(
-                dacValue=config_data.get("dac_value")
-            )
-        else:
-            self.log.debug(
-                "Moving vertical projector selection stage to Laser position"
-            )
-            await self.linearstage_projector_select.cmd_moveAbsolute.set_start(
-                distance=self.linearstage_projector_locations["laser"],
-                axis=self.linearstage_axis,
-                timeout=self.long_timeout,
-            )
             await self.setup_laser(
-                config_data["laser_mode"],
-                config_data["wavelength"],
-                config_data["optical_configuration"],
+                self.config_data["laser_mode"],
+                self.config_data["wavelength"],
+                self.config_data["optical_configuration"],
             )
             await self.laser_start_propagate()
+
+        else:
+
+            if self.config_data["use_flatfield_electrometer"]:
+                await self.setup_electrometers(
+                    mode=str(self.config_data["electrometer_mode"]),
+                    range=float(self.config_data["electrometer_range"]),
+                    integration_time=float(
+                        self.config_data["electrometer_integration_time"]
+                    ),
+                    electrometer_names=[
+                        f"Electrometer:{self.electrometer_projector_index}"
+                    ],
+                )
+
+            # Home all linear stages.
+            await self.linearstage_projector_select.cmd_getHome.set_start(
+                axis=self.linearstage_axis, timeout=self.stage_homing_timeout
+            )
+            await self.linearstage_led_select.cmd_getHome.set_start(
+                axis=self.linearstage_axis, timeout=self.long_timeout
+            )
+            led_focus_home = self.linearstage_led_focus.cmd_getHome.set_start(
+                axis=self.linearstage_axis, timeout=self.stage_homing_timeout
+            )
+
+            # TO-DO: DM-50505, add laser_focus when stage is repaired.
+
+            await asyncio.gather(
+                led_focus_home,
+            )
+
+            # Move LED Select stage to a safe position
+            self.log.debug("Moving LED select stage to safe position.")
+            await self.linearstage_led_select.cmd_moveAbsolute.set_start(
+                distance=self.led_rest_position,
+                axis=self.linearstage_axis,
+                timeout=self.long_timeout,
+            )
+
+            if calibration_type == CalibrationType.WhiteLight:
+                self.log.debug(
+                    "Moving vertical projector selection stage to LED position"
+                )
+                await self.linearstage_projector_select.cmd_moveAbsolute.set_start(
+                    distance=self.linearstage_projector_locations["led"],
+                    axis=self.linearstage_axis,
+                    timeout=self.long_timeout,
+                )
+                await self.rem.ledprojector.cmd_adjustAllDACPower.set_start(
+                    dacValue=self.config_data.get("dac_value")
+                )
+            else:
+                self.log.debug(
+                    "Moving vertical projector selection stage to Laser position"
+                )
+                await self.linearstage_projector_select.cmd_moveAbsolute.set_start(
+                    distance=self.linearstage_projector_locations["laser"],
+                    axis=self.linearstage_axis,
+                    timeout=self.long_timeout,
+                )
+                await self.setup_laser(
+                    self.config_data["laser_mode"],
+                    self.config_data["wavelength"],
+                    self.config_data["optical_configuration"],
+                )
+                await self.laser_start_propagate()
+
+    async def setup_cbp(
+        self,
+        azimuth: float,
+        elevation: float,
+        mask: int | None = None,
+        focus: float | None = None,
+        rotation: float | None = None,
+    ) -> None:
+        """Perform all steps for preparing the CBP for measurements.
+        Parameters
+        ----------
+        azimuth : `float`
+            Azimuth of CBP in degrees
+        elevation : `float`
+            Elevation of CBP in degrees
+        mask : `int`
+            Mask number to use
+        focus: `float`
+            Focus position in um
+        rotation: `int`
+            Rotator position of mask in degrees
+            Default 0
+        """
+
+        self.log.info("Beginning CBP setup")
+
+        self.log.debug(f"Setting CBP az and el to {azimuth} and {elevation}")
+        await self.rem.cbp.cmd_move.set_start(
+            azimuth=azimuth,
+            elevation=elevation,
+            timeout=self.long_long_timeout,
+        )
+        if focus is not None:
+            self.log.debug(f"Setting focus to {focus}")
+            await self.rem.cbp.cmd_setFocus.set_start(
+                focus=focus, timeout=self.long_long_timeout
+            )
+        if mask is not None:
+            self.log.debug(f"Setting mask to {mask}")
+            await self.rem.cbp.cmd_changeMask.set_start(
+                mask=mask, timeout=self.long_long_timeout
+            )
+        if rotation is not None:
+            self.log.debug(f"Setting mask rotation to {rotation}")
+            await self.rem.cbp.cmd_changeMaskRotation.set_start(
+                mask_rotation=rotation, timeout=self.long_long_timeout
+            )
+        self.log.info("Done setting up CBP")
 
     async def park_projector(self) -> None:
         """Put the LEDProjector into a safe state and turn off all LEDs.
@@ -481,11 +581,11 @@ class MTCalsys(BaseCalsys):
         """Start the propagation of the Tunable Laser"""
 
         laser_state = await self.rem.tunablelaser.evt_detailedState.next(
-            flush=True, timeout=self.long_timeout
+            flush=False, timeout=self.long_timeout
         )
-        self.log.debug(f"HERE: {laser_state.DetailedState}")
+        self.log.debug(f"HERE: {laser_state.detailedState}")
 
-        if laser_state.DetailedState not in {
+        if laser_state.detailedState not in {
             LaserDetailedState.PROPAGATING_CONTINUOUS_MODE,
             LaserDetailedState.PROPAGATING_BURST_MODE,
         }:
@@ -494,9 +594,9 @@ class MTCalsys(BaseCalsys):
                     timeout=self.laser_warmup
                 )
                 laser_state = await self.rem.tunablelaser.evt_detailedState.next(
-                    flush=True, timeout=self.long_timeout
+                    flush=False, timeout=self.long_timeout
                 )
-                self.log.info(f"Laser state: {laser_state.DetailedState}")
+                self.log.info(f"Laser state: {laser_state.detailedState}")
             except asyncio.TimeoutError:
                 raise RuntimeError(
                     "Tunable Laser did not start propagating when commanded"
@@ -506,10 +606,10 @@ class MTCalsys(BaseCalsys):
         """Stop the propagation of the Tunable Laser"""
 
         laser_state = await self.rem.tunablelaser.evt_detailedState.next(
-            flush=True, timeout=self.long_timeout
+            flush=False, timeout=self.long_timeout
         )
 
-        if laser_state.DetailedState not in {
+        if laser_state.detailedState not in {
             LaserDetailedState.NONPROPAGATING_CONTINUOUS_MODE,
             LaserDetailedState.NONPROPAGATING_BURST_MODE,
         }:
@@ -518,13 +618,63 @@ class MTCalsys(BaseCalsys):
                     timeout=self.laser_warmup
                 )
                 laser_state = await self.rem.tunablelaser.evt_detailedState.next(
-                    flush=True, timeout=self.long_timeout
+                    flush=False, timeout=self.long_timeout
                 )
-                self.log.info(f"Laser state: {laser_state.DetailedState}")
+                self.log.info(f"Laser state: {laser_state.detailedState}")
             except asyncio.TimeoutError:
                 raise RuntimeError(
                     "Tunable Laser did not stop propagating when commanded"
                 )
+
+    def get_npulse_for_wavelength(self, wavelength: float) -> int:
+        """Return npulse value for a given wavelength based on defined ranges.
+
+        Parameters
+        ----------
+        wavelength : float
+            The wavelength in nanometers.
+
+        Returns
+        -------
+        int
+            The corresponding npulse value.
+        """
+
+        for (low, high), npulse in self.npulse_lookup:
+            if (low is None or wavelength >= low) and (
+                high is None or wavelength < high
+            ):
+                return npulse
+        return 0
+
+    async def take_bursts(
+        self,
+        nburst: int = 5,
+        delay_before: float = 5,
+        delay_after: float = 5,
+        wait_time: float = 10,
+    ) -> None:
+        """Take pulsed bursts with the laser
+
+        Parameters
+        ----------
+        nburst : 'int`
+            number of bursts
+        delay_before : 'float`
+            delay before pulse
+        delay_after : 'float`
+            delay after pulse
+        wait_time : 'float`
+            wait time before pulse train
+
+        """
+        await asyncio.sleep(wait_time)
+        await asyncio.sleep(delay_before)
+        for n in range(nburst):
+            await asyncio.sleep(delay_before)
+            await self.rem.tunablelaser.cmd_triggerBurst.start()
+            await asyncio.sleep(delay_after)
+        await asyncio.sleep(delay_after)
 
     async def prepare_for_flat(self, sequence_name: str) -> None:
         """Configure the ATMonochromator according to the flat parameters
@@ -554,7 +704,7 @@ class MTCalsys(BaseCalsys):
         if self.mtcamera is None and config_data["use_camera"]:
             raise RuntimeError(
                 f"MTCamera is not defined but {sequence_name} requires it. "
-                "Make sure you are instantiating ComCam and passing it to MTCalsys."
+                "Make sure you are instantiating LSSTCam and passing it to MTCalsys."
             )
 
         if calibration_type == CalibrationType.WhiteLight:
@@ -636,59 +786,99 @@ class MTCalsys(BaseCalsys):
             sequence_name=sequence_name,
         )
 
-        config_data = self.get_calibration_configuration(sequence_name)
+        self.config_data = self.get_calibration_configuration(sequence_name)
+        calibration_type = getattr(CalibrationType, str(self.config_data["calib_type"]))
 
-        calibration_type = getattr(CalibrationType, str(config_data["calib_type"]))
         if calibration_type == CalibrationType.WhiteLight:
-            calibration_wavelengths = np.array([float(config_data["wavelength"])])
+            calibration_wavelengths = np.array([float(self.config_data["wavelength"])])
         else:
-            wavelength = float(config_data["wavelength"])
-            wavelength_width = float(config_data["wavelength_width"])
-            wavelength_resolution = float(config_data["wavelength_resolution"])
-            wavelength_start = wavelength - wavelength_width / 2.0
-            wavelength_end = wavelength + wavelength_width / 2.0
 
-            calibration_wavelengths = np.arange(
-                wavelength_start, wavelength_end, wavelength_resolution
-            )
+            if self.config_data["set_wavelength_range"]:
+                wavelength = float(self.config_data["wavelength"])
+                wavelength_width = float(self.config_data["wavelength_width"])
+                wavelength_resolution = float(self.config_data["wavelength_resolution"])
+                wavelength_start = wavelength - wavelength_width / 2.0
+                wavelength_end = wavelength + wavelength_width / 2.0
+
+                calibration_wavelengths = np.arange(
+                    wavelength_start, wavelength_end, wavelength_resolution
+                )
+
+            else:
+                calibration_wavelengths = self.config_data["wavelength_list"]
 
         exposure_table = await self.calculate_optimized_exposure_times(
-            wavelengths=calibration_wavelengths, config_data=config_data
+            wavelengths=calibration_wavelengths, config_data=self.config_data
         )
 
-        for exposure in exposure_table:
+        for i, exposure in enumerate(exposure_table):
             self.log.debug(
                 f"Performing {calibration_type.name} calibration with {exposure.wavelength=}."
             )
 
+            _exposure_metadata = exposure_metadata.copy()
+            if "group_id" in _exposure_metadata:
+                _exposure_metadata["group_id"] += f"#{i+1}"
+
             mtcamera_exposure_info: dict = dict()
 
-            for exptime in config_data["exposure_times"]:
-                self.log.debug("Taking data sequence.")
+            if (
+                calibration_type == CalibrationType.CBP
+                and int(self.config_data["laser_mode"]) == 4
+            ):
+                npulse = self.get_npulse_for_wavelength(wavelength=exposure.wavelength)
+
+                await self.rem.tunablelaser.cmd_setBurstMode.set_start(
+                    count=int(npulse)
+                )
+
+            self.log.debug("Taking data sequence.")
+
+            if calibration_type == CalibrationType.Mono:
+                await self.change_laser_wavelength(wavelength=exposure.wavelength)
+                self.log.debug(
+                    "Taking data sequence without filter for monochromatic set."
+                )
                 exposure_info = await self._take_data(
                     mtcamera_exptime=exposure.camera,
-                    mtcamera_filter=str(config_data["mtcamera_filter"]),
+                    mtcamera_filter="empty_1",
                     exposure_metadata=exposure_metadata,
+                    calibration_type=calibration_type,
+                    fiber_spectrum_red_exposure_time=exposure.fiberspectrograph_red,
+                    fiber_spectrum_blue_exposure_time=exposure.fiberspectrograph_blue,
+                    electrometer_exposure_time=exposure.electrometer,
+                    nburst=self.config_data["nburst"],
+                    laser_mode=self.config_data["laser_mode"],
+                )
+                mtcamera_exposure_info.update(exposure_info)
+
+            elif calibration_type == CalibrationType.CBP:
+                await self.change_laser_wavelength(wavelength=exposure.wavelength)
+                exposure_info = await self._take_data(
+                    mtcamera_exptime=exposure.camera,
+                    mtcamera_filter=str(self.config_data["mtcamera_filter"]),
+                    exposure_metadata=exposure_metadata,
+                    calibration_type=calibration_type,
+                    fiber_spectrum_red_exposure_time=exposure.fiberspectrograph_red,
+                    fiber_spectrum_blue_exposure_time=exposure.fiberspectrograph_blue,
+                    electrometer_exposure_time=exposure.electrometer,
+                    nburst=self.config_data["nburst"],
+                    laser_mode=self.config_data["laser_mode"],
+                    wait_time=self.config_data["laser_wait_time"],
+                )
+            elif calibration_type == CalibrationType.WhiteLight:
+                exposure_info = await self._take_data(
+                    mtcamera_exptime=exposure.camera,
+                    mtcamera_filter=str(self.config_data["mtcamera_filter"]),
+                    exposure_metadata=exposure_metadata,
+                    calibration_type=calibration_type,
                     fiber_spectrum_red_exposure_time=exposure.fiberspectrograph_red,
                     fiber_spectrum_blue_exposure_time=exposure.fiberspectrograph_blue,
                     electrometer_exposure_time=exposure.electrometer,
                 )
-                mtcamera_exposure_info.update(exposure_info)
-
-                if calibration_type == CalibrationType.Mono:
-                    await self.change_laser_wavelength(wavelength=exposure.wavelength)
-                    self.log.debug(
-                        "Taking data sequence without filter for monochromatic set."
-                    )
-                    exposure_info = await self._take_data(
-                        mtcamera_exptime=exposure.camera,
-                        mtcamera_filter="empty_1",
-                        exposure_metadata=exposure_metadata,
-                        fiber_spectrum_red_exposure_time=exposure.fiberspectrograph_red,
-                        fiber_spectrum_blue_exposure_time=exposure.fiberspectrograph_blue,
-                        electrometer_exposure_time=exposure.electrometer,
-                    )
-                    mtcamera_exposure_info.update(exposure_info)
+            else:
+                self.log.warning("Calibration type not in CBP, Mono, or WhiteLight.")
+            mtcamera_exposure_info.update(exposure_info)
 
             step = dict(
                 wavelength=exposure.wavelength,
@@ -725,7 +915,8 @@ class MTCalsys(BaseCalsys):
                 electrometer_integration_time=config_data[
                     "electrometer_integration_time"
                 ],
-                use_electrometer=config_data["use_electrometer"],
+                use_electrometer=config_data["use_flatfield_electrometer"]
+                or config_data["use_cbp_electrometer"],
             )
             fiberspectrograph_exptimes_red = (
                 await self._calculate_fiberspectrograph_exposure_times(
@@ -836,6 +1027,12 @@ class MTCalsys(BaseCalsys):
         fiber_spectrum_red_exposure_time: float | None,
         fiber_spectrum_blue_exposure_time: float | None,
         electrometer_exposure_time: float | None,
+        delay_before: float = 1,
+        delay_after: float = 1,
+        calibration_type: CalibrationType = CalibrationType.WhiteLight,
+        nburst: int = 5,
+        laser_mode: int = 1,
+        wait_time: int = 10,
     ) -> dict:
 
         if self.mtcamera is not None:
@@ -857,57 +1054,113 @@ class MTCalsys(BaseCalsys):
                 "No Group ID for Electrometer/Fiber Spectrograph exposures. Continuing."
             )
 
-        fiber_spectrum_red_exposure_coroutine = self.take_fiber_spectrum(
-            fiberspectrograph_color="red",
-            exposure_time=fiber_spectrum_red_exposure_time,
-            exposures_done=exposures_done,
-            group_id=group_id,
-        )
-
-        fiber_spectrum_blue_exposure_coroutine = self.take_fiber_spectrum(
-            fiberspectrograph_color="blue",
-            exposure_time=fiber_spectrum_blue_exposure_time,
-            exposures_done=exposures_done,
-            group_id=group_id,
-        )
         electrometer_exposure_coroutine = self.take_electrometer_scan(
             exposure_time=electrometer_exposure_time,
             exposures_done=exposures_done,
             group_id=group_id,
         )
-        try:
-            fiber_spectrum_red_exposure_task = asyncio.create_task(
-                fiber_spectrum_red_exposure_coroutine
-            )
-            fiber_spectrum_blue_exposure_task = asyncio.create_task(
-                fiber_spectrum_blue_exposure_coroutine
-            )
-            electrometer_exposure_task = asyncio.create_task(
-                electrometer_exposure_coroutine
-            )
-            if self.mtcamera is not None:
-                mtcamera_exposure_id = await mtcamera_exposure_task
+
+        if calibration_type == CalibrationType.CBP:
+            if laser_mode == 4:
+                laser_burst_coroutine = self.take_bursts(
+                    nburst=nburst,
+                    delay_before=delay_before,
+                    delay_after=delay_after,
+                    wait_time=wait_time,
+                )
+                try:
+                    electrometer_exposure_task = asyncio.create_task(
+                        electrometer_exposure_coroutine
+                    )
+                    laser_burst_task = asyncio.create_task(laser_burst_coroutine)
+                    if self.mtcamera is not None:
+                        mtcamera_exposure_id = await mtcamera_exposure_task
+                    else:
+                        mtcamera_exposure_id = [0]
+                finally:
+                    exposures_done.set_result(True)
+                    (electrometer_exposure_result, laser_burst_result) = (
+                        await asyncio.gather(
+                            electrometer_exposure_task,
+                            laser_burst_task,
+                        )
+                    )
+
+                return {
+                    mtcamera_exposure_id[0]: dict(
+                        electrometer_exposure_result=electrometer_exposure_result,
+                    )
+                }
             else:
-                mtcamera_exposure_id = [0]
-        finally:
-            exposures_done.set_result(True)
-            (
-                fiber_spectrum_red_exposure_result,
-                fiber_spectrum_blue_exposure_result,
-                electrometer_exposure_result,
-            ) = await asyncio.gather(
-                fiber_spectrum_red_exposure_task,
-                fiber_spectrum_blue_exposure_task,
-                electrometer_exposure_task,
+                try:
+                    electrometer_exposure_task = asyncio.create_task(
+                        electrometer_exposure_coroutine
+                    )
+                    if self.mtcamera is not None:
+                        mtcamera_exposure_id = await mtcamera_exposure_task
+                    else:
+                        mtcamera_exposure_id = [0]
+                finally:
+                    exposures_done.set_result(True)
+                    (electrometer_exposure_result,) = await asyncio.gather(
+                        electrometer_exposure_task,
+                    )
+
+                return {
+                    mtcamera_exposure_id[0]: dict(
+                        electrometer_exposure_result=electrometer_exposure_result,
+                    )
+                }
+
+        else:
+
+            fiber_spectrum_red_exposure_coroutine = self.take_fiber_spectrum(
+                fiberspectrograph_color="red",
+                exposure_time=fiber_spectrum_red_exposure_time,
+                exposures_done=exposures_done,
+                group_id=group_id,
             )
 
-        return {
-            mtcamera_exposure_id[0]: dict(
-                fiber_spectrum_red_exposure_result=fiber_spectrum_red_exposure_result,
-                fiber_spectrum_blue_exposure_result=fiber_spectrum_blue_exposure_result,
-                electrometer_exposure_result=electrometer_exposure_result,
+            fiber_spectrum_blue_exposure_coroutine = self.take_fiber_spectrum(
+                fiberspectrograph_color="blue",
+                exposure_time=fiber_spectrum_blue_exposure_time,
+                exposures_done=exposures_done,
+                group_id=group_id,
             )
-        }
+
+            try:
+                fiber_spectrum_red_exposure_task = asyncio.create_task(
+                    fiber_spectrum_red_exposure_coroutine
+                )
+                fiber_spectrum_blue_exposure_task = asyncio.create_task(
+                    fiber_spectrum_blue_exposure_coroutine
+                )
+                electrometer_exposure_task = asyncio.create_task(
+                    electrometer_exposure_coroutine
+                )
+                if self.mtcamera is not None:
+                    mtcamera_exposure_id = await mtcamera_exposure_task
+                else:
+                    mtcamera_exposure_id = [0]
+            finally:
+                exposures_done.set_result(True)
+                (
+                    fiber_spectrum_red_exposure_result,
+                    fiber_spectrum_blue_exposure_result,
+                    electrometer_exposure_result,
+                ) = await asyncio.gather(
+                    fiber_spectrum_red_exposure_task,
+                    fiber_spectrum_blue_exposure_task,
+                    electrometer_exposure_task,
+                )
+
+            return {
+                mtcamera_exposure_id[0]: dict(
+                    fiber_spectrum_red_exposure_result=fiber_spectrum_red_exposure_result,
+                    fiber_spectrum_blue_exposure_result=fiber_spectrum_blue_exposure_result,
+                    electrometer_exposure_result=electrometer_exposure_result,
+                )
+            }
 
     async def take_electrometer_scan(
         self,
@@ -932,11 +1185,16 @@ class MTCalsys(BaseCalsys):
 
         electrometer_exposures = list()
 
+        if self.config_data["use_cbp_electrometer"]:
+            electrometer = self.electrometer_cbp
+        else:
+            electrometer = self.electrometer_flatfield
+
         if exposure_time is not None:
-            self.electrometer.evt_largeFileObjectAvailable.flush()
+            electrometer.evt_largeFileObjectAvailable.flush()
 
             try:
-                await self.electrometer.cmd_startScanDt.set_start(
+                await electrometer.cmd_startScanDt.set_start(
                     scanDuration=exposure_time,
                     groupId=group_id,
                     timeout=exposure_time + self.long_timeout,
@@ -946,7 +1204,7 @@ class MTCalsys(BaseCalsys):
 
             # Make sure that a new lfo was created
             try:
-                lfo = await self.electrometer.evt_largeFileObjectAvailable.next(
+                lfo = await electrometer.evt_largeFileObjectAvailable.next(
                     timeout=self.long_timeout, flush=False
                 )
                 electrometer_exposures.append(lfo.url)
@@ -957,7 +1215,8 @@ class MTCalsys(BaseCalsys):
                     "Time out waiting for electrometer data. Making sure electrometer "
                     "is in enabled state and continuing."
                 )
-                await salobj.set_summary_state(self.electrometer, salobj.State.ENABLED)
+                await salobj.set_summary_state(electrometer, salobj.State.ENABLED)
+
         return electrometer_exposures
 
     async def take_fiber_spectrum(
@@ -1014,8 +1273,16 @@ class MTCalsys(BaseCalsys):
         return fiber_spectrum_exposures
 
     @property
-    def electrometer(self) -> salobj.Remote:
+    def electrometer_flatfield(self) -> salobj.Remote:
         return getattr(self.rem, f"electrometer_{self.electrometer_projector_index}")
+
+    @property
+    def electrometer_cbp(self) -> salobj.Remote:
+        return getattr(self.rem, f"electrometer_{self.electrometer_cbp_index}")
+
+    @property
+    def electrometer_cbpcal(self) -> salobj.Remote:
+        return getattr(self.rem, f"electrometer_{self.electrometer_cbpcal_index}")
 
     @property
     def fiberspectrograph_red(self) -> salobj.Remote:
