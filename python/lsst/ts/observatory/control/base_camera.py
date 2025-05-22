@@ -970,7 +970,7 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
         if imgtype not in ["BIAS", "DARK"]:
             await self.setup_instrument(**kwargs)
 
-        tcs_ready_imgtypes = ["OBJECT", "ENGTEST", "ACQ", "CWFS"]
+        tcs_ready_imgtypes = ["OBJECT", "ACQ", "CWFS"]
         if imgtype in tcs_ready_imgtypes and self.ready_to_take_data is not None:
             self.log.debug(f"imagetype: {imgtype}, wait for TCS to be ready.")
             try:
