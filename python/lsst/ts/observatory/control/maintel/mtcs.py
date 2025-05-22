@@ -600,7 +600,7 @@ class MTCS(BaseTCS):
 
         tracking_success_position_threshold = (
             await self.rem.mtrotator.evt_configuration.aget(timeout=timeout)
-        ).trackingSuccessPositionThreshold
+        ).followingErrorThreshold
         target_position = (
             await self.rem.mtrotator.evt_target.aget(timeout=timeout)
         ).position
