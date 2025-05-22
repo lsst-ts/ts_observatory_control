@@ -167,3 +167,101 @@ whitelight_y_source:
   use_camera: False
   exposure_times:
     - 20.0
+
+ptc_daily_monday:
+  mtcamera_filter: i_39
+  led_name:
+    - M730L5
+    - M810L3
+  dac_value: 0.75
+  wavelength: 755.0
+  led_location: 233.83
+  led_focus: 7.07
+  use_camera: False
+  n_flat: 2
+  exposure_times:
+    - 10.0
+
+ptc_daily_tuesday:
+  mtcamera_filter: i_39
+  led_name:
+    - M730L5
+    - M810L3
+  dac_value: 0.75
+  wavelength: 755.0
+  led_location: 233.83
+  led_focus: 7.07
+  use_camera: False
+  n_flat: 2
+  exposure_times:
+    - 10.0
+
+ptc_daily_wednesday:
+  mtcamera_filter: i_39
+  led_name:
+    - M730L5
+    - M810L3
+  dac_value: 0.75
+  wavelength: 755.0
+  led_location: 233.83
+  led_focus: 7.07
+  use_camera: False
+  n_flat: 2
+  exposure_times:
+    - 10.0
+
+ptc_daily_thursday:
+  mtcamera_filter: i_39
+  led_name:
+    - M730L5
+    - M810L3
+  dac_value: 0.75
+  wavelength: 755.0
+  led_location: 233.83
+  led_focus: 7.07
+  use_camera: False
+  n_flat: 2
+  exposure_times:
+    - 10.0
+
+ptc_daily_friday:
+  mtcamera_filter: i_39
+  led_name:
+    - M730L5
+    - M810L3
+  dac_value: 0.75
+  wavelength: 755.0
+  led_location: 233.83
+  led_focus: 7.07
+  use_camera: False
+  n_flat: 2
+  exposure_times:
+    - 10.0
+
+ptc_daily_saturday:
+  mtcamera_filter: i_39
+  led_name:
+    - M730L5
+    - M810L3
+  dac_value: 0.75
+  wavelength: 755.0
+  led_location: 233.83
+  led_focus: 7.07
+  use_camera: False
+  n_flat: 2
+  exposure_times:
+    - 10.0
+
+ptc_daily_sunday:
+  mtcamera_filter: i_39
+  led_name:
+    - M730L5
+    - M810L3
+  dac_value: 0.75
+  wavelength: 755.0
+  led_location: 233.83
+  led_focus: 7.07
+  use_camera: False
+  n_flat: 2
+  exposure_times:
+    - 10.0
