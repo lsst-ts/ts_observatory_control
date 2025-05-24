@@ -385,21 +385,6 @@ whitelight_i_39_dark:
   exposure_times:
     - 10.0
 
-whitelight_i_39_gain_100:
-  mtcamera_filter: i_39
-  led_name:
-    - M730L5
-    - M810L3
-  dac_value: 0.8
-  wavelength: 755.0
-  led_location: 233.83
-  led_focus: 7.07
-  use_fiberspectrograph_red: False
-  use_fiberspectrograph_blue: False
-  n_flat: 100
-  exposure_times:
-    - 10.0
-
 whitelight_pinhole_dark:
   mtcamera_filter: ph_5
   led_name:
@@ -444,6 +429,42 @@ whitelight_y_10_dark:
   exposure_times:
     - 20.0
 
+scan_u_init:
+  calib_type: Mono
+  laser_mode: 1
+  optical_configuration: F1 SCU
+  use_camera: True
+  mtcamera_filter: u_24
+  wavelength: 350.0
+  wavelength_width: 100.0
+  wavelength_resolution: 25.0
+  exposure_times:
+    - 15.0
+
+scan_g_init:
+  calib_type: Mono
+  laser_mode: 1
+  optical_configuration: F1 SCU
+  use_camera: True
+  mtcamera_filter: g_6
+  wavelength: 480.
+  wavelength_width: 200
+  wavelength_resolution: 25.0
+  exposure_times:
+    - 15.0
+
+scan_r_init:
+  calib_type: Mono
+  laser_mode: 1
+  optical_configuration: F1 SCU
+  use_camera: True
+  mtcamera_filter: r_57
+  wavelength: 625.0
+  wavelength_width: 250
+  wavelength_resolution: 25.0
+  exposure_times:
+    - 15.0
+
 scan_r:
   calib_type: Mono
   laser_mode: 1
@@ -469,6 +490,42 @@ scan_g:
   wavelength_resolution: 25.0
   use_fiberspectrograph_red: False
   use_fiberspectrograph_blue: False
+  exposure_times:
+    - 15.0
+
+scan_i_init:
+  calib_type: Mono
+  laser_mode: 1
+  optical_configuration: F1 SCU
+  use_camera: True
+  mtcamera_filter: i_39
+  wavelength: 730.0
+  wavelength_width: 250
+  wavelength_resolution: 25.0
+  exposure_times:
+    - 15.0
+
+scan_z_init:
+  calib_type: Mono
+  laser_mode: 1
+  optical_configuration: F1 SCU
+  use_camera: True
+  mtcamera_filter: z_20
+  wavelength: 880.0
+  wavelength_width: 250
+  wavelength_resolution: 25.0
+  exposure_times:
+    - 15.0
+
+scan_y_init:
+  calib_type: Mono
+  laser_mode: 1
+  optical_configuration: F1 SCU
+  use_camera: True
+  mtcamera_filter: y_10
+  wavelength: 970.0
+  wavelength_width: 250
+  wavelength_resolution: 25.0
   exposure_times:
     - 15.0
 
@@ -879,13 +936,13 @@ whitelight_i_39_gain_100:
   led_name:
     - M730L5
     - M810L3
-  dac_value: 0.8
+  dac_value: 0.75
   wavelength: 755.0
   led_location: 233.83
   led_focus: 7.07
   use_fiberspectrograph_red: False
   use_fiberspectrograph_blue: False
-  n_flat: 100
+  n_flat: 215
   exposure_times:
     - 10.0
 
@@ -951,7 +1008,7 @@ ptc_i_39_100_c:
   led_name:
     - M730L5
     - M810L3
-  dac_value: 0.5
+  dac_value: 0.8
   wavelength: 755.0
   led_location: 233.83
   led_focus: 7.07
