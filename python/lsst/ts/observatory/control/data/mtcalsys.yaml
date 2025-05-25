@@ -253,14 +253,72 @@ whitelight_y_10:
   exposure_times:
     - 20.0
 
-scan_r:
+scan_u_init:
+  calib_type: Mono
+  laser_mode: 1
+  optical_configuration: F1 SCU
+  use_camera: True
+  mtcamera_filter: u_24
+  wavelength: 625.0
+  wavelength_width: 250
+  wavelength_resolution: 5.0
+  exposure_times:
+    - 15.0
+
+scan_g_init:
+  calib_type: Mono
+  laser_mode: 1
+  optical_configuration: F1 SCU
+  use_camera: True
+  mtcamera_filter: g_6
+  wavelength: 625.0
+  wavelength_width: 250
+  wavelength_resolution: 5.0
+  exposure_times:
+    - 15.0
+
+scan_r_init:
   calib_type: Mono
   laser_mode: 1
   optical_configuration: F1 SCU
   use_camera: True
   mtcamera_filter: r_57
-  led_location: 174.91
-  led_focus: 15.380
+  wavelength: 625.0
+  wavelength_width: 250
+  wavelength_resolution: 5.0
+  exposure_times:
+    - 15.0
+
+scan_i_init:
+  calib_type: Mono
+  laser_mode: 1
+  optical_configuration: F1 SCU
+  use_camera: True
+  mtcamera_filter: i_39
+  wavelength: 625.0
+  wavelength_width: 250
+  wavelength_resolution: 5.0
+  exposure_times:
+    - 15.0
+
+scan_z_init:
+  calib_type: Mono
+  laser_mode: 1
+  optical_configuration: F1 SCU
+  use_camera: True
+  mtcamera_filter: z_20
+  wavelength: 625.0
+  wavelength_width: 250
+  wavelength_resolution: 5.0
+  exposure_times:
+    - 15.0
+
+scan_y_init:
+  calib_type: Mono
+  laser_mode: 1
+  optical_configuration: F1 SCU
+  use_camera: True
+  mtcamera_filter: y_10
   wavelength: 625.0
   wavelength_width: 250
   wavelength_resolution: 5.0
