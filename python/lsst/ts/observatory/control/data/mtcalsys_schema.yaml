@@ -112,6 +112,7 @@ properties:
   electrometer_integration_time:
     description: >-
       Integration time in seconds (166.67e-6 to 200e-3) for each sample.
+      May 24, 2025: This has been changed to be NPLC values rather than seconds
 
       The integration time (measurement speed) of the analog to digital (A/D)
       converter, the period of time the input signal is measured (also known as
@@ -122,7 +123,7 @@ properties:
       (default) integration = 1PLC; High Accuracy integration=10PLC. Here the
       integration is set in seconds.
     type: number
-    default: 0.1
+    default: 5 
   electrometer_mode:
     description: >-
       Set electrometer to use different modes. The units recorded will be Amps
@@ -148,7 +149,7 @@ properties:
       from 0 to 21e-3 Amps, Resistance from 0 to 100e18 Ohms, Charge from 0 to
       +2.1e-6 Coulombs.
     type: number
-    default: -1
+    default: 0.0000002
   n_flat:
     description: Number of exposures per exposure_times listed
     type: number
