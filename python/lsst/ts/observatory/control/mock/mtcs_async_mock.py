@@ -275,6 +275,8 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
             "cmd_stop.start.side_effect": self.mtrotator_cmd_stop,
             "evt_controllerState.next.side_effect": self.mtrotator_evt_controller_state_next,
             "evt_controllerState.aget.side_effect": self.mtrotator_evt_controller_state_next,
+            "evt_configuration.aget.side_effect": self.mtrotator_evt_configuration_aget,
+            "evt_target.aget.side_effect": self.mtrotator_evt_target_aget,
         }
         self.mtcs.rem.mtrotator.configure_mock(**mtrotator_mocks)
 
@@ -428,7 +430,6 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
         self.mtcs.rem.mthexapod_2.configure_mock(**hexapod_2_mocks)
 
     async def setup_mtaos(self) -> None:
-
         offset_dof_field_info = self.get_sample("MTAOS", "cmd_offsetDOF")
         mtaos_mocks = {
             "cmd_offsetDOF.DataType.return_value": types.SimpleNamespace(
@@ -615,6 +616,16 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
     ) -> types.SimpleNamespace:
         await asyncio.sleep(self.heartbeat_time)
         return self._mtrotator_evt_controller_state
+
+    async def mtrotator_evt_configuration_aget(
+        self, *args: typing.Any, **kwargs: typing.Any
+    ) -> types.SimpleNamespace:
+        return self._mtrotator_evt_configuration
+
+    async def mtrotator_evt_target_aget(
+        self, *args: typing.Any, **kwargs: typing.Any
+    ) -> types.SimpleNamespace:
+        return self._mtrotator_evt_target
 
     async def mtdome_tel_azimuth_next(
         self, *args: typing.Any, **kwargs: typing.Any
