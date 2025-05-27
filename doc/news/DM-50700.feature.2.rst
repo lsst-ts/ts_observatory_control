@@ -1,0 +1,1 @@
+- Update `mock/mtcs_async_mock.py` to mock the rotator target event and to add the ``followingErrorThreshold`` field to the ``configuration`` event, needed to mock handling the rotator position.

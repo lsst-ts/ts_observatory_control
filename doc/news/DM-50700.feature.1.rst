@@ -1,0 +1,3 @@
+- In `maintel/mtcs.py`, update ``MTCS.wait_for_rotator_inposition`` to handle a condition where the rotator reports as being in position while still being far from the target position.
+
+ This happens because the rotator is able to precisely follow the trajectory demand so, in sense, it is in position, but because it is far from the target demand it is not actually where we expect it to be.
