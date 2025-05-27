@@ -1,0 +1,1 @@
+Changed default values for electrometer integration time and range to be more precise for PTC curves.
