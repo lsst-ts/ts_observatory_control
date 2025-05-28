@@ -569,7 +569,12 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
         await asyncio.sleep(self.heartbeat_time)
 
     async def _mtrotator_move(self, position: float) -> None:
+
         self._mtrotator_evt_in_position.inPosition = False
+
+        self._mtrotator_evt_controller_state.enabledSubstate = (
+            xml.enums.MTRotator.EnabledSubstate.MOVING_POINT_TO_POINT
+        )
 
         position_vector = (
             np.arange(self._mtrotator_tel_rotation.actualPosition, position, 0.5)
