@@ -210,45 +210,45 @@ class MTCalsys(BaseCalsys):
             in the configuration.yaml files
 
         """
-        self.config_data = self.get_calibration_configuration(sequence_name)
+        config_data = self.get_calibration_configuration(sequence_name)
 
-        calibration_type = getattr(CalibrationType, str(self.config_data["calib_type"]))
+        calibration_type = getattr(CalibrationType, str(config_data["calib_type"]))
 
         if calibration_type == CalibrationType.CBP:
-            if self.config_data["use_cbp"]:
+            if config_data["use_cbp"]:
                 await self.setup_cbp(
-                    azimuth=self.config_data["cbp_azimuth"],
-                    elevation=self.config_data["cbp_elevation"],
-                    mask=self.config_data["cbp_mask"],
-                    focus=self.config_data["cbp_focus"],
-                    rotation=self.config_data["cbp_rotation"],
+                    azimuth=config_data["cbp_azimuth"],
+                    elevation=config_data["cbp_elevation"],
+                    mask=config_data["cbp_mask"],
+                    focus=config_data["cbp_focus"],
+                    rotation=config_data["cbp_rotation"],
                 )
 
-            if self.config_data["use_cbp_electrometer"]:
+            if config_data["use_cbp_electrometer"]:
                 await self.setup_electrometers(
-                    mode=str(self.config_data["electrometer_mode"]),
-                    range=float(self.config_data["electrometer_range"]),
+                    mode=str(config_data["electrometer_mode"]),
+                    range=float(config_data["electrometer_range"]),
                     integration_time=float(
-                        self.config_data["electrometer_integration_time"]
+                        config_data["electrometer_integration_time"]
                     ),
                     electrometer_names=[f"electrometer_{self.electrometer_cbp_index}"],
                 )
 
             await self.setup_laser(
-                self.config_data["laser_mode"],
-                self.config_data["wavelength"],
-                self.config_data["optical_configuration"],
+                config_data["laser_mode"],
+                config_data["wavelength"],
+                config_data["optical_configuration"],
             )
             await self.laser_start_propagate()
 
         else:
 
-            if self.config_data["use_flatfield_electrometer"]:
+            if config_data["use_flatfield_electrometer"]:
                 await self.setup_electrometers(
-                    mode=str(self.config_data["electrometer_mode"]),
-                    range=float(self.config_data["electrometer_range"]),
+                    mode=str(config_data["electrometer_mode"]),
+                    range=float(config_data["electrometer_range"]),
                     integration_time=float(
-                        self.config_data["electrometer_integration_time"]
+                        config_data["electrometer_integration_time"]
                     ),
                     electrometer_names=[
                         f"Electrometer:{self.electrometer_projector_index}"
@@ -290,7 +290,7 @@ class MTCalsys(BaseCalsys):
                     timeout=self.long_timeout,
                 )
                 await self.rem.ledprojector.cmd_adjustAllDACPower.set_start(
-                    dacValue=self.config_data.get("dac_value")
+                    dacValue=config_data.get("dac_value")
                 )
             else:
                 self.log.debug(
@@ -302,9 +302,9 @@ class MTCalsys(BaseCalsys):
                     timeout=self.long_timeout,
                 )
                 await self.setup_laser(
-                    self.config_data["laser_mode"],
-                    self.config_data["wavelength"],
-                    self.config_data["optical_configuration"],
+                    config_data["laser_mode"],
+                    config_data["wavelength"],
+                    config_data["optical_configuration"],
                 )
                 await self.laser_start_propagate()
 
@@ -552,8 +552,8 @@ class MTCalsys(BaseCalsys):
 
         return (
             projector_location,
-            float(led_location.position),
-            float(led_focus.position),
+            float(led_location.position[0]),
+            float(led_focus.position[0]),
             0.0,
             str(led_state),
         )
@@ -744,8 +744,10 @@ class MTCalsys(BaseCalsys):
                     dacValue=config_data.get("dac_value")
                 )
             )
+
+            led_names: typing.Iterable[str] = config_data.get("led_name", [])
             task_turn_led_on = self.rem.ledprojector.cmd_switchOff.set_start(
-                serialNumbers=",".join(str(config_data.get("led_name"))),
+                serialNumbers=",".join(led_names),
                 timeout=self.long_timeout,
             )
             await asyncio.gather(
@@ -786,17 +788,17 @@ class MTCalsys(BaseCalsys):
             sequence_name=sequence_name,
         )
 
-        self.config_data = self.get_calibration_configuration(sequence_name)
-        calibration_type = getattr(CalibrationType, str(self.config_data["calib_type"]))
+        config_data = self.get_calibration_configuration(sequence_name)
+        calibration_type = getattr(CalibrationType, str(config_data["calib_type"]))
 
         if calibration_type == CalibrationType.WhiteLight:
-            calibration_wavelengths = np.array([float(self.config_data["wavelength"])])
+            calibration_wavelengths = np.array([float(config_data["wavelength"])])
         else:
 
-            if self.config_data["set_wavelength_range"]:
-                wavelength = float(self.config_data["wavelength"])
-                wavelength_width = float(self.config_data["wavelength_width"])
-                wavelength_resolution = float(self.config_data["wavelength_resolution"])
+            if config_data["set_wavelength_range"]:
+                wavelength = float(config_data["wavelength"])
+                wavelength_width = float(config_data["wavelength_width"])
+                wavelength_resolution = float(config_data["wavelength_resolution"])
                 wavelength_start = wavelength - wavelength_width / 2.0
                 wavelength_end = wavelength + wavelength_width / 2.0
 
@@ -805,10 +807,10 @@ class MTCalsys(BaseCalsys):
                 )
 
             else:
-                calibration_wavelengths = self.config_data["wavelength_list"]
+                calibration_wavelengths = config_data["wavelength_list"]
 
         exposure_table = await self.calculate_optimized_exposure_times(
-            wavelengths=calibration_wavelengths, config_data=self.config_data
+            wavelengths=calibration_wavelengths, config_data=config_data
         )
 
         for i, exposure in enumerate(exposure_table):
@@ -824,7 +826,7 @@ class MTCalsys(BaseCalsys):
 
             if (
                 calibration_type == CalibrationType.CBP
-                and int(self.config_data["laser_mode"]) == 4
+                and int(config_data["laser_mode"]) == 4
             ):
                 npulse = self.get_npulse_for_wavelength(wavelength=exposure.wavelength)
 
@@ -833,51 +835,48 @@ class MTCalsys(BaseCalsys):
                 )
 
             self.log.debug("Taking data sequence.")
-
             if calibration_type == CalibrationType.Mono:
                 await self.change_laser_wavelength(wavelength=exposure.wavelength)
-                self.log.debug(
-                    "Taking data sequence without filter for monochromatic set."
-                )
                 exposure_info = await self._take_data(
                     mtcamera_exptime=exposure.camera,
-                    mtcamera_filter="empty_1",
-                    exposure_metadata=exposure_metadata,
+                    mtcamera_filter=str(config_data["mtcamera_filter"]),
+                    exposure_metadata=_exposure_metadata,
                     calibration_type=calibration_type,
                     fiber_spectrum_red_exposure_time=exposure.fiberspectrograph_red,
                     fiber_spectrum_blue_exposure_time=exposure.fiberspectrograph_blue,
                     electrometer_exposure_time=exposure.electrometer,
-                    nburst=self.config_data["nburst"],
-                    laser_mode=self.config_data["laser_mode"],
+                    nburst=config_data["nburst"],
+                    laser_mode=config_data["laser_mode"],
                 )
-                mtcamera_exposure_info.update(exposure_info)
 
             elif calibration_type == CalibrationType.CBP:
                 await self.change_laser_wavelength(wavelength=exposure.wavelength)
                 exposure_info = await self._take_data(
                     mtcamera_exptime=exposure.camera,
-                    mtcamera_filter=str(self.config_data["mtcamera_filter"]),
-                    exposure_metadata=exposure_metadata,
+                    mtcamera_filter=str(config_data["mtcamera_filter"]),
+                    exposure_metadata=_exposure_metadata,
                     calibration_type=calibration_type,
                     fiber_spectrum_red_exposure_time=exposure.fiberspectrograph_red,
                     fiber_spectrum_blue_exposure_time=exposure.fiberspectrograph_blue,
                     electrometer_exposure_time=exposure.electrometer,
-                    nburst=self.config_data["nburst"],
-                    laser_mode=self.config_data["laser_mode"],
-                    wait_time=self.config_data["laser_wait_time"],
-                )
-            elif calibration_type == CalibrationType.WhiteLight:
-                exposure_info = await self._take_data(
-                    mtcamera_exptime=exposure.camera,
-                    mtcamera_filter=str(self.config_data["mtcamera_filter"]),
-                    exposure_metadata=exposure_metadata,
-                    calibration_type=calibration_type,
-                    fiber_spectrum_red_exposure_time=exposure.fiberspectrograph_red,
-                    fiber_spectrum_blue_exposure_time=exposure.fiberspectrograph_blue,
-                    electrometer_exposure_time=exposure.electrometer,
+                    nburst=config_data["nburst"],
+                    laser_mode=config_data["laser_mode"],
+                    sequence_name=sequence_name,
+                    wavelength=int(exposure.wavelength),
+                    wait_time=config_data["laser_wait_time"],
                 )
             else:
-                self.log.warning("Calibration type not in CBP, Mono, or WhiteLight.")
+                self.log.info("Calibration Type is WhiteLight")
+                exposure_info = await self._take_data(
+                    mtcamera_exptime=exposure.camera,
+                    mtcamera_filter=str(config_data["mtcamera_filter"]),
+                    calibration_type=calibration_type,
+                    exposure_metadata=_exposure_metadata,
+                    fiber_spectrum_red_exposure_time=exposure.fiberspectrograph_red,
+                    fiber_spectrum_blue_exposure_time=exposure.fiberspectrograph_blue,
+                    electrometer_exposure_time=exposure.electrometer,
+                )
+
             mtcamera_exposure_info.update(exposure_info)
 
             step = dict(
@@ -910,6 +909,7 @@ class MTCalsys(BaseCalsys):
         """
         exposures: list[MTCalsysExposure] = []
         for wavelength in wavelengths:
+
             electrometer_exptimes = await self._calculate_electrometer_exposure_times(
                 exptimes=config_data["exposure_times"],
                 electrometer_integration_time=config_data[
@@ -932,15 +932,16 @@ class MTCalsys(BaseCalsys):
             )
 
             for i, exptime in enumerate(config_data["exposure_times"]):
-                exposures.append(
-                    MTCalsysExposure(
-                        wavelength=wavelength,
-                        camera=exptime,
-                        electrometer=electrometer_exptimes[i],
-                        fiberspectrograph_red=fiberspectrograph_exptimes_red[i],
-                        fiberspectrograph_blue=fiberspectrograph_exptimes_blue[i],
+                for n in range(config_data["n_flat"]):
+                    exposures.append(
+                        MTCalsysExposure(
+                            wavelength=wavelength,
+                            camera=exptime,
+                            electrometer=electrometer_exptimes[i],
+                            fiberspectrograph_red=fiberspectrograph_exptimes_red[i],
+                            fiberspectrograph_blue=fiberspectrograph_exptimes_blue[i],
+                        )
                     )
-                )
 
         return exposures
 
@@ -1032,6 +1033,8 @@ class MTCalsys(BaseCalsys):
         calibration_type: CalibrationType = CalibrationType.WhiteLight,
         nburst: int = 5,
         laser_mode: int = 1,
+        sequence_name: str | None = None,
+        wavelength: int | None = None,
         wait_time: int = 10,
     ) -> dict:
 
@@ -1058,6 +1061,7 @@ class MTCalsys(BaseCalsys):
             exposure_time=electrometer_exposure_time,
             exposures_done=exposures_done,
             group_id=group_id,
+            calibration_type=calibration_type,
         )
 
         if calibration_type == CalibrationType.CBP:
@@ -1167,6 +1171,7 @@ class MTCalsys(BaseCalsys):
         exposure_time: float | None,
         group_id: str,
         exposures_done: asyncio.Future,
+        calibration_type: CalibrationType = CalibrationType.WhiteLight,
     ) -> list[str]:
         """Perform an electrometer scan for the specified duration.
 
@@ -1185,7 +1190,7 @@ class MTCalsys(BaseCalsys):
 
         electrometer_exposures = list()
 
-        if self.config_data["use_cbp_electrometer"]:
+        if calibration_type == CalibrationType.CBP:
             electrometer = self.electrometer_cbp
         else:
             electrometer = self.electrometer_flatfield
