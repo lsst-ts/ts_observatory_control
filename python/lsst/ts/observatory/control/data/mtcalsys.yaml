@@ -429,14 +429,72 @@ whitelight_y_10_dark:
   exposure_times:
     - 20.0
 
-scan_r:
+scan_u_init:
+  calib_type: Mono
+  laser_mode: 1
+  optical_configuration: F1 SCU
+  use_camera: True
+  mtcamera_filter: u_24
+  wavelength: 625.0
+  wavelength_width: 250
+  wavelength_resolution: 5.0
+  exposure_times:
+    - 15.0
+
+scan_g_init:
+  calib_type: Mono
+  laser_mode: 1
+  optical_configuration: F1 SCU
+  use_camera: True
+  mtcamera_filter: g_6
+  wavelength: 625.0
+  wavelength_width: 250
+  wavelength_resolution: 5.0
+  exposure_times:
+    - 15.0
+
+scan_r_init:
   calib_type: Mono
   laser_mode: 1
   optical_configuration: F1 SCU
   use_camera: True
   mtcamera_filter: r_57
-  led_location: 174.91
-  led_focus: 15.380
+  wavelength: 625.0
+  wavelength_width: 250
+  wavelength_resolution: 5.0
+  exposure_times:
+    - 15.0
+
+scan_i_init:
+  calib_type: Mono
+  laser_mode: 1
+  optical_configuration: F1 SCU
+  use_camera: True
+  mtcamera_filter: i_39
+  wavelength: 625.0
+  wavelength_width: 250
+  wavelength_resolution: 5.0
+  exposure_times:
+    - 15.0
+
+scan_z_init:
+  calib_type: Mono
+  laser_mode: 1
+  optical_configuration: F1 SCU
+  use_camera: True
+  mtcamera_filter: z_20
+  wavelength: 625.0
+  wavelength_width: 250
+  wavelength_resolution: 5.0
+  exposure_times:
+    - 15.0
+
+scan_y_init:
+  calib_type: Mono
+  laser_mode: 1
+  optical_configuration: F1 SCU
+  use_camera: True
+  mtcamera_filter: y_10
   wavelength: 625.0
   wavelength_width: 250
   wavelength_resolution: 5.0
@@ -829,6 +887,130 @@ whitelight_empty_M970L4:
   n_flat: 1
   exposure_times:
     - 20.0
+
+whitelight_i_39_gain_100:
+  mtcamera_filter: i_39
+  led_name:
+    - M730L5
+    - M810L3
+  dac_value: 0.75
+  wavelength: 755.0
+  led_location: 233.83
+  led_focus: 7.07
+  n_flat: 100
+  exposure_times:
+    - 10.0
+
+whitelight_i_39_gain_600:
+  mtcamera_filter: i_39
+  led_name:
+    - M730L5
+    - M810L3
+  dac_value: 0.75
+  wavelength: 755.0
+  led_location: 233.83
+  led_focus: 7.07
+  n_flat: 600
+  exposure_times:
+    - 10.0
+
+ptc_i_39_100_a:
+  mtcamera_filter: i_39
+  led_name:
+    - M730L5
+    - M810L3
+  dac_value: 0.1
+  wavelength: 755.0
+  led_location: 233.83
+  led_focus: 7.07
+  use_camera: True
+  use_fiberspectrograph_red: False
+  use_fiberspectrograph_blue: False
+  n_flat: 2
+  exposure_times:
+    - 1.0
+    - 2.0
+    - 5.0
+    - 10.0
+    - 30.0
+    - 60.0
+    - 90.0
+
+ptc_i_39_100_b:
+  mtcamera_filter: i_39
+  led_name:
+    - M730L5
+    - M810L3
+  dac_value: 0.2
+  wavelength: 755.0
+  led_location: 233.83
+  led_focus: 7.07
+  use_camera: True
+  use_fiberspectrograph_red: False
+  use_fiberspectrograph_blue: False
+  n_flat: 2
+  exposure_times:
+    - 1.0
+    - 2.0
+    - 5.0
+    - 10.0
+    - 30.0
+    - 60.0
+    - 90.0
+
+ptc_i_39_100_c:
+  mtcamera_filter: i_39
+  led_name:
+    - M730L5
+    - M810L3
+  dac_value: 0.8
+  wavelength: 755.0
+  led_location: 233.83
+  led_focus: 7.07
+  use_camera: True
+  use_fiberspectrograph_red: False
+  use_fiberspectrograph_blue: False
+  n_flat: 2
+  exposure_times:
+    - 1.0
+    - 10.0
+    - 30.0
+    - 65.0
+    - 90.0
+
+ptc_i_39_100_d:
+  mtcamera_filter: i_39
+  led_name:
+    - M730L5
+    - M810L3
+  dac_value: 0.8
+  wavelength: 755.0
+  led_location: 233.83
+  led_focus: 7.07
+  use_camera: True
+  use_fiberspectrograph_red: False
+  use_fiberspectrograph_blue: False
+  n_flat: 2
+  exposure_times:
+    - 1.0
+    - 30.0
+    - 65.0
+
+ptc_daily:
+  mtcamera_filter: i_39
+  led_name:
+    - M730L5
+    - M810L3
+  dac_value: 0.5
+  wavelength: 755.0
+  led_location: 233.83
+  led_focus: 7.07
+  use_camera: True
+  use_fiberspectrograph_red: False
+  use_fiberspectrograph_blue: False
+  n_flat: 2
+  exposure_times:
+    - 15.0
 
 ptc_i_39_100:
   mtcamera_filter: i_39
