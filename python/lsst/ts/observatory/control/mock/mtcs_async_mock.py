@@ -155,7 +155,7 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
 
         # MTM1M3 data
         self._mtm1m3_evt_detailed_state = types.SimpleNamespace(
-            detailedState=xml.enums.MTM1M3.DetailedState.PARKED
+            detailedState=xml.enums.MTM1M3.DetailedStates.PARKED
         )
         self._mtm1m3_evt_applied_balance_forces = types.SimpleNamespace(
             forceMagnitude=0.0
@@ -805,7 +805,7 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
         if (
             raise_m1m3
             and self._mtm1m3_evt_detailed_state.detailedState
-            == xml.enums.MTM1M3.DetailedState.PARKED
+            == xml.enums.MTM1M3.DetailedStates.PARKED
         ):
             self._mtm1m3_raise_task = asyncio.create_task(self.execute_raise_m1m3())
         else:
@@ -822,7 +822,7 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
         # since it could change considerably from what the m1m3 actually does.
         asyncio.create_task(
             self._set_m1m3_detailed_state(
-                xml.enums.MTM1M3.DetailedState.PARKEDENGINEERING
+                xml.enums.MTM1M3.DetailedStates.PARKEDENGINEERING
             )
         )
 
@@ -844,7 +844,7 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
         # simply put m1m3 in PARKED state, regardless of which engineering
         # state it was before.
         asyncio.create_task(
-            self._set_m1m3_detailed_state(xml.enums.MTM1M3.DetailedState.PARKED)
+            self._set_m1m3_detailed_state(xml.enums.MTM1M3.DetailedStates.PARKED)
         )
 
     async def mtm1m3_cmd_test_hardpoint(
@@ -876,8 +876,8 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
         self, *args: typing.Any, **kwargs: typing.Any
     ) -> None:
         if self._mtm1m3_evt_detailed_state.detailedState in {
-            xml.enums.MTM1M3.DetailedState.RAISINGENGINEERING,
-            xml.enums.MTM1M3.DetailedState.RAISING,
+            xml.enums.MTM1M3.DetailedStates.RAISINGENGINEERING,
+            xml.enums.MTM1M3.DetailedStates.RAISING,
         }:
             self._mtm1m3_abort_raise_task = asyncio.create_task(
                 self.execute_abort_raise_m1m3()
@@ -888,12 +888,12 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
     async def execute_raise_m1m3(self) -> None:
         self.log.debug("Start raising M1M3...")
         self._mtm1m3_evt_detailed_state.detailedState = (
-            xml.enums.MTM1M3.DetailedState.RAISING
+            xml.enums.MTM1M3.DetailedStates.RAISING
         )
         await asyncio.sleep(self.execute_raise_lower_m1m3_time)
         self.log.debug("Done raising M1M3...")
         self._mtm1m3_evt_detailed_state.detailedState = (
-            xml.enums.MTM1M3.DetailedState.ACTIVE
+            xml.enums.MTM1M3.DetailedStates.ACTIVE
         )
 
     async def mtm1m3_cmd_lower_m1m3(
@@ -904,7 +904,7 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
         if (
             lower_m1m3
             and self._mtm1m3_evt_detailed_state.detailedState
-            == xml.enums.MTM1M3.DetailedState.ACTIVE
+            == xml.enums.MTM1M3.DetailedStates.ACTIVE
         ):
             self._mtm1m3_lower_task = asyncio.create_task(self.execute_lower_m1m3())
         else:
@@ -915,12 +915,12 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
     async def execute_lower_m1m3(self) -> None:
         self.log.debug("Start lowering M1M3...")
         self._mtm1m3_evt_detailed_state.detailedState = (
-            xml.enums.MTM1M3.DetailedState.LOWERING
+            xml.enums.MTM1M3.DetailedStates.LOWERING
         )
         await asyncio.sleep(self.execute_raise_lower_m1m3_time)
         self.log.debug("Done lowering M1M3...")
         self._mtm1m3_evt_detailed_state.detailedState = (
-            xml.enums.MTM1M3.DetailedState.PARKED
+            xml.enums.MTM1M3.DetailedStates.PARKED
         )
 
     async def execute_abort_raise_m1m3(self) -> None:
@@ -930,12 +930,12 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
 
         self.log.debug("Set m1m3 detailed state to lowering...")
         self._mtm1m3_evt_detailed_state.detailedState = (
-            xml.enums.MTM1M3.DetailedState.LOWERING
+            xml.enums.MTM1M3.DetailedStates.LOWERING
         )
         await asyncio.sleep(self.execute_raise_lower_m1m3_time)
         self.log.debug("M1M3 raise task done, set detailed state to parked...")
         self._mtm1m3_evt_detailed_state.detailedState = (
-            xml.enums.MTM1M3.DetailedState.PARKED
+            xml.enums.MTM1M3.DetailedStates.PARKED
         )
 
     async def mtm1m3_cmd_enable_hardpoint_corrections(
@@ -959,7 +959,7 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
             )
 
     async def _set_m1m3_detailed_state(
-        self, detailed_state: xml.enums.MTM1M3.DetailedState
+        self, detailed_state: xml.enums.MTM1M3.DetailedStates
     ) -> None:
         self.log.debug(
             f"M1M3 detailed state: {self._mtm1m3_evt_detailed_state.detailedState!r} -> {detailed_state!r}"

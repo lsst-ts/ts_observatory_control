@@ -27,7 +27,7 @@ import typing
 
 import jsonschema
 import yaml
-from lsst.ts import idl, salobj
+from lsst.ts import salobj, xml
 
 from .remote_group import RemoteGroup
 
@@ -37,7 +37,7 @@ class ScriptQueue(RemoteGroup):
 
     Parameters
     ----------
-    queue_index : `idl.enums.ScriptQueue.SalIndex`
+    queue_index : `xml.enums.ScriptQueue.SalIndex`
         Script queue index enumeration.
     domain : `salobj.Domain`
         Domain for remotes. If `None`, creates a domain.
@@ -55,7 +55,7 @@ class ScriptQueue(RemoteGroup):
 
     def __init__(
         self,
-        queue_index: idl.enums.ScriptQueue.SalIndex,
+        queue_index: xml.enums.ScriptQueue.SalIndex,
         domain: typing.Union[salobj.Domain, str] | None = None,
         log: logging.Logger | None = None,
         intended_usage: int | None = None,
@@ -171,7 +171,7 @@ class ScriptQueue(RemoteGroup):
             path=script,
             config=yaml.safe_dump(config),
             descr=description,
-            location=idl.enums.ScriptQueue.Location.LAST,
+            location=xml.enums.ScriptQueue.Location.LAST,
             logLevel=log_level,
             pauseCheckpoint=pause_checkpoint,
             timeout=self.long_timeout,

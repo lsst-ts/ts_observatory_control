@@ -29,7 +29,7 @@ import numpy as np
 from astropy.coordinates import EarthLocation
 from astropy.time import Time
 from lsst.ts import salobj
-from lsst.ts.idl.enums import ATMCS, ATDome, ATPneumatics, ATPtg
+from lsst.ts.xml.enums import ATMCS, ATDome, ATPneumatics, ATPtg
 
 from .base_group_mock import BaseGroupMock
 

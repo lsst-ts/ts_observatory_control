@@ -29,8 +29,8 @@ import numpy as np
 from astropy.coordinates import ICRS, AltAz, Angle, EarthLocation
 from astropy.time import Time
 from lsst.ts import salobj
-from lsst.ts.idl.enums import MTMount, MTPtg
 from lsst.ts.utils import angle_diff, current_tai
+from lsst.ts.xml.enums import MTMount, MTPtg
 
 from .base_group_mock import BaseGroupMock
 from .m1m3_topic_samples import get_m1m3_topic_samples_data

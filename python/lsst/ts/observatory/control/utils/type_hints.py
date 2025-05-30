@@ -30,7 +30,7 @@ __all__ = [
 
 import typing
 
-from lsst.ts.idl.enums import ATPtg, MTPtg
+from lsst.ts.xml.enums import ATPtg, MTPtg
 
 RotModeType = typing.Union[ATPtg.RotMode, MTPtg.RotMode]
 CoordFrameType = typing.Union[ATPtg.CoordFrame, MTPtg.CoordFrame]

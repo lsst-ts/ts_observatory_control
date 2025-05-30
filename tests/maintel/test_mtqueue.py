@@ -21,9 +21,9 @@
 
 import unittest
 
-from lsst.ts.idl.enums.ScriptQueue import SalIndex
 from lsst.ts.observatory.control import Usages
 from lsst.ts.observatory.control.maintel import MTQueue
+from lsst.ts.xml.enums.ScriptQueue import SalIndex
 
 HB_TIMEOUT = 5  # Heartbeat timeout (sec)
 MAKE_TIMEOUT = 60  # Timeout for make_script (sec)

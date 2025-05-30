@@ -39,10 +39,6 @@ from ..base_tcs import BaseTCS
 from ..constants import mtcs_constants
 from ..remote_group import Usages, UsagesResources
 
-if not hasattr(MTM1M3, "DetailedState"):
-    # Compatibility with ts-idl 4.7
-    MTM1M3.DetailedState = MTM1M3.DetailedStates
-
 
 class MTCSUsages(Usages):
     """MTCS usages definition.
@@ -1422,12 +1418,12 @@ class MTCS(BaseTCS):
         await self._execute_m1m3_detailed_state_change(
             execute_command=self._handle_raise_m1m3,
             initial_detailed_states={
-                MTM1M3.DetailedState.PARKED,
-                MTM1M3.DetailedState.PARKEDENGINEERING,
+                MTM1M3.DetailedStates.PARKED,
+                MTM1M3.DetailedStates.PARKEDENGINEERING,
             },
             final_detailed_states={
-                MTM1M3.DetailedState.ACTIVE,
-                MTM1M3.DetailedState.ACTIVEENGINEERING,
+                MTM1M3.DetailedStates.ACTIVE,
+                MTM1M3.DetailedStates.ACTIVEENGINEERING,
             },
         )
 
@@ -1436,12 +1432,12 @@ class MTCS(BaseTCS):
         await self._execute_m1m3_detailed_state_change(
             execute_command=self._handle_lower_m1m3,
             initial_detailed_states={
-                MTM1M3.DetailedState.ACTIVE,
-                MTM1M3.DetailedState.ACTIVEENGINEERING,
+                MTM1M3.DetailedStates.ACTIVE,
+                MTM1M3.DetailedStates.ACTIVEENGINEERING,
             },
             final_detailed_states={
-                MTM1M3.DetailedState.PARKED,
-                MTM1M3.DetailedState.PARKEDENGINEERING,
+                MTM1M3.DetailedStates.PARKED,
+                MTM1M3.DetailedStates.PARKEDENGINEERING,
             },
         )
 
@@ -1450,21 +1446,21 @@ class MTCS(BaseTCS):
         await self._execute_m1m3_detailed_state_change(
             execute_command=self._handle_abort_raise_m1m3,
             initial_detailed_states={
-                MTM1M3.DetailedState.RAISING,
-                MTM1M3.DetailedState.RAISINGENGINEERING,
+                MTM1M3.DetailedStates.RAISING,
+                MTM1M3.DetailedStates.RAISINGENGINEERING,
             },
             final_detailed_states={
-                MTM1M3.DetailedState.PARKED,
-                MTM1M3.DetailedState.PARKEDENGINEERING,
+                MTM1M3.DetailedStates.PARKED,
+                MTM1M3.DetailedStates.PARKEDENGINEERING,
             },
         )
 
     async def assert_m1m3_detailed_state(
-        self, detailed_states: set[MTM1M3.DetailedState]
+        self, detailed_states: set[MTM1M3.DetailedStates]
     ) -> None:
         """Assert that M1M3 detailed state is one of the input set."""
 
-        m1m3_detailed_state = MTM1M3.DetailedState(
+        m1m3_detailed_state = MTM1M3.DetailedStates(
             (
                 await self.rem.mtm1m3.evt_detailedState.aget(timeout=self.fast_timeout)
             ).detailedState
@@ -1489,9 +1485,9 @@ class MTCS(BaseTCS):
         execute_command : awaitable
             An awaitable object (coroutine or task) that will cause m1m3
             detailed state to change.
-        initial_detailed_states : `set` of `MTM1M3.DetailedState`
+        initial_detailed_states : `set` of `MTM1M3.DetailedStates`
             The expected initial detailed state.
-        final_detailed_states : `set` of `MTM1M3.DetailedState`
+        final_detailed_states : `set` of `MTM1M3.DetailedStates`
             The expected final detailed state.
         """
         m1m3_detailed_state = await self.rem.mtm1m3.evt_detailedState.aget(
@@ -1509,7 +1505,7 @@ class MTCS(BaseTCS):
             )
         else:
             raise RuntimeError(
-                f"M1M3 detailed state is {MTM1M3.DetailedState(m1m3_detailed_state.detailedState)!r}, "
+                f"M1M3 detailed state is {MTM1M3.DetailedStates(m1m3_detailed_state.detailedState)!r}, "
                 f"expected {initial_detailed_states!r}. "
                 "Cannot execute command."
             )
@@ -1534,11 +1530,11 @@ class MTCS(BaseTCS):
 
         await self._handle_m1m3_detailed_state(
             expected_m1m3_detailed_state={
-                MTM1M3.DetailedState.ACTIVE,
-                MTM1M3.DetailedState.ACTIVEENGINEERING,
+                MTM1M3.DetailedStates.ACTIVE,
+                MTM1M3.DetailedStates.ACTIVEENGINEERING,
             },
             unexpected_m1m3_detailed_states={
-                MTM1M3.DetailedState.LOWERING,
+                MTM1M3.DetailedStates.LOWERING,
             },
         )
 
@@ -1561,8 +1557,8 @@ class MTCS(BaseTCS):
 
         await self._handle_m1m3_detailed_state(
             expected_m1m3_detailed_state={
-                MTM1M3.DetailedState.PARKED,
-                MTM1M3.DetailedState.PARKEDENGINEERING,
+                MTM1M3.DetailedStates.PARKED,
+                MTM1M3.DetailedStates.PARKEDENGINEERING,
             },
             unexpected_m1m3_detailed_states=set(),
         )
@@ -1573,8 +1569,8 @@ class MTCS(BaseTCS):
 
         await self._handle_m1m3_detailed_state(
             expected_m1m3_detailed_state={
-                MTM1M3.DetailedState.PARKED,
-                MTM1M3.DetailedState.PARKEDENGINEERING,
+                MTM1M3.DetailedStates.PARKED,
+                MTM1M3.DetailedStates.PARKEDENGINEERING,
             },
             unexpected_m1m3_detailed_states=set(),
         )
@@ -1588,9 +1584,9 @@ class MTCS(BaseTCS):
 
         Parameters
         ----------
-        expected_m1m3_detailed_state : `set` of `MTM1M3.DetailedState`
+        expected_m1m3_detailed_state : `set` of `MTM1M3.DetailedStates`
             Expected m1m3 detailed state.
-        unexpected_m1m3_detailed_states : `set` of `MTM1M3.DetailedState`
+        unexpected_m1m3_detailed_states : `set` of `MTM1M3.DetailedStates`
             List of unexpected detailed state. If M1M3 transition to any of
             these states, raise an exception.
         """
@@ -1619,9 +1615,9 @@ class MTCS(BaseTCS):
 
         Parameters
         ----------
-        expected_m1m3_detailed_state : `set`[ `MTM1M3.DetailedState` ]
+        expected_m1m3_detailed_state : `set`[ `MTM1M3.DetailedStates` ]
             Expected m1m3 detailed state.
-        unexpected_m1m3_detailed_states : `set`[ `MTM1M3.DetailedState` ]
+        unexpected_m1m3_detailed_states : `set`[ `MTM1M3.DetailedStates` ]
             List of unexpected detailed state. If M1M3 transition to any of
             these states, raise an exception.
         timeout : `float`
@@ -1995,7 +1991,7 @@ class MTCS(BaseTCS):
             m1m3_engineering_states = self.m1m3_engineering_states
             expected_states = {
                 detailed_state
-                for detailed_state in MTM1M3.DetailedState
+                for detailed_state in MTM1M3.DetailedStates
                 if detailed_state not in m1m3_engineering_states
             }
             await self._wait_for_mtm1m3_detailed_state(
@@ -3162,17 +3158,17 @@ class MTCS(BaseTCS):
         self.log.info(f"M1M3 {setting_key} setting updated successfully.")
 
     @property
-    def m1m3_engineering_states(self) -> set[MTM1M3.DetailedState]:
+    def m1m3_engineering_states(self) -> set[MTM1M3.DetailedStates]:
         """M1M3 engineering states.
 
         Returns
         -------
-        `set`[ `MTM1M3.DetailedState` ]
+        `set`[ `MTM1M3.DetailedStates` ]
             Set with the M1M3 detailed states.
         """
         return {
             detailed_state
-            for detailed_state in MTM1M3.DetailedState
+            for detailed_state in MTM1M3.DetailedStates
             if "ENGINEERING" in detailed_state.name
         }
 
