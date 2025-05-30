@@ -251,7 +251,7 @@ class MTCalsys(BaseCalsys):
                         config_data["electrometer_integration_time"]
                     ),
                     electrometer_names=[
-                        f"Electrometer:{self.electrometer_projector_index}"
+                        f"electrometer_{self.electrometer_projector_index}"
                     ],
                 )
 
