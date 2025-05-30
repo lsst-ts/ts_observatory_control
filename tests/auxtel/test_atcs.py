@@ -32,9 +32,9 @@ import pytest
 from astropy.coordinates import Angle
 from astroquery.simbad import Simbad
 from lsst.ts import salobj
-from lsst.ts.idl.enums import ATDome, ATPneumatics
 from lsst.ts.observatory.control.mock.atcs_async_mock import ATCSAsyncMock
 from lsst.ts.observatory.control.utils import RotType
+from lsst.ts.xml.enums import ATDome, ATPneumatics
 
 
 class TestATTCS(ATCSAsyncMock):
