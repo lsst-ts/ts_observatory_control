@@ -27,9 +27,9 @@ import unittest.mock
 
 import numpy as np
 from lsst.ts import salobj, utils
-from lsst.ts.idl.enums import ATMCS, ATDome, ATPneumatics, ATPtg
 from lsst.ts.observatory.control.auxtel.atcs import ATCS, ATCSUsages
 from lsst.ts.observatory.control.mock import RemoteGroupAsyncMock
+from lsst.ts.xml.enums import ATMCS, ATDome, ATPneumatics, ATPtg
 
 
 class ATCSAsyncMock(RemoteGroupAsyncMock):

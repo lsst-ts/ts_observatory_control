@@ -25,7 +25,7 @@ import logging
 import typing
 
 from lsst.ts import salobj
-from lsst.ts.idl.enums.ScriptQueue import SalIndex
+from lsst.ts.xml.enums.ScriptQueue import SalIndex
 
 from ..script_queue import ScriptQueue
 
