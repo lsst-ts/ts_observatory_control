@@ -548,7 +548,7 @@ whitelight_u_24_M385L3:
   led_focus: 9.42
   use_fiberspectrograph_red: False
   use_fiberspectrograph_blue: False
-  n_flat: 20
+  n_flat: 1
   exposure_times:
     - 15.0
 
@@ -694,7 +694,7 @@ whitelight_empty_M385L3:
   led_focus: 9.42
   use_fiberspectrograph_red: False
   use_fiberspectrograph_blue: False
-  n_flat: 20
+  n_flat: 1
   exposure_times:
     - 15.0
 
