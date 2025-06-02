@@ -2679,3 +2679,20 @@ class TestMTCS(MTCSAsyncMock):
 
         self.mtcs.rem.mtm1m3.cmd_enterEngineering.start.assert_awaited_once()
         self.mtcs.rem.mtm1m3.cmd_exitEngineering.start.assert_awaited_once()
+
+    async def test_disable_aos_closed_loop(self) -> None:
+        await self.mtcs.disable_aos_closed_loop()
+        self.mtcs.rem.mtaos.cmd_stopClosedLoop.start.assert_awaited_once()
+
+    async def test_enable_aos_closed_loop(self) -> None:
+        config = {
+            "truncation_index": 5,
+            "comp_dof_idx": {
+                "m2HexPos": [0, 1, 2, 3, 4],
+            },
+        }
+
+        await self.mtcs.enable_aos_closed_loop(config)
+        self.mtcs.rem.mtaos.cmd_startClosedLoop.set_start.assert_awaited_once_with(
+            config=config, timeout=self.mtcs.aos_closed_loop_timeout
+        )

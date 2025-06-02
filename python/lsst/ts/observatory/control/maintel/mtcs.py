@@ -32,7 +32,7 @@ import numpy as np
 from astropy.coordinates import Angle
 from lsst.ts import salobj, utils
 from lsst.ts.utils import angle_diff
-from lsst.ts.xml.enums import MTM1M3, MTM2, MTDome, MTMount, MTPtg, MTRotator
+from lsst.ts.xml.enums import MTAOS, MTM1M3, MTM2, MTDome, MTMount, MTPtg, MTRotator
 from lsst.ts.xml.tables.m1m3 import FATable, ForceActuatorData, force_actuator_from_id
 
 from ..base_tcs import BaseTCS
@@ -189,6 +189,9 @@ class MTCS(BaseTCS):
 
         # Mirror covers operation timeout, in seconds.
         self.mirror_covers_timeout = 120.0
+
+        # AOS enable / disable closed loop timeout, in seconds.
+        self.aos_closed_loop_timeout = 100.0
 
         try:
             self._create_asyncio_events()
@@ -3392,6 +3395,55 @@ class MTCS(BaseTCS):
         )
 
         self.log.info(f"M1M3 {setting_key} setting updated successfully.")
+
+    async def disable_aos_closed_loop(self) -> None:
+        self.rem.mtaos.evt_closedLoopState.flush()
+        await self.rem.mtaos.cmd_stopClosedLoop.start(
+            timeout=self.aos_closed_loop_timeout
+        )
+
+        closed_loop_state = await self.rem.mtaos.evt_closedLoopState.aget(
+            timeout=self.long_long_timeout
+        )
+
+        while closed_loop_state.state != MTAOS.ClosedLoopState.IDLE:
+            self.log.debug(
+                f"Closed loop state: {MTAOS.ClosedLoopState(closed_loop_state.state).name}."
+            )
+
+            closed_loop_state = await self.rem.mtaos.evt_closedLoopState.next(
+                flush=False, timeout=self.long_long_timeout
+            )
+        self.log.info(
+            f"Closed loop state: {MTAOS.ClosedLoopState(closed_loop_state.state).name}."
+        )
+
+    async def enable_aos_closed_loop(self, config: dict) -> None:
+        self.rem.mtaos.evt_closedLoopState.flush()
+
+        await self.rem.mtaos.cmd_startClosedLoop.set_start(
+            config=config, timeout=self.aos_closed_loop_timeout
+        )
+
+        self.log.info("Waiting for closed loop to be ready.")
+        closed_loop_state = await self.rem.mtaos.evt_closedLoopState.aget(
+            timeout=self.long_long_timeout
+        )
+
+        while closed_loop_state.state != MTAOS.ClosedLoopState.WAITING_IMAGE:
+            if closed_loop_state.state == MTAOS.ClosedLoopState.ERROR:
+                raise RuntimeError("Closed loop in Error state.")
+            else:
+                self.log.info(
+                    f"closed loop state: {MTAOS.ClosedLoopState(closed_loop_state.state).name}."
+                )
+
+            closed_loop_state = await self.rem.mtaos.evt_closedLoopState.next(
+                flush=False, timeout=self.long_long_timeout
+            )
+        self.log.info(
+            f"Closed loop state: {MTAOS.ClosedLoopState(closed_loop_state.state).name}."
+        )
 
     @property
     def m1m3_engineering_states(self) -> set[MTM1M3.DetailedStates]:
