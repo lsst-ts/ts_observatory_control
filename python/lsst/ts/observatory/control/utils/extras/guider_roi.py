@@ -59,8 +59,7 @@ except ImportError as e:
     print(f"Cannot import required libraries. GuiderROIs will not work. {e}")
     warnings.warn("Cannot import required libraries. GuiderROIs will not work.")
 
-# Try to import BestEffortIsr separately - it's optional for basic
-# functionality
+# Try to import BestEffortIsr separately
 try:
     from lsst.summit.utils import BestEffortIsr
 except ImportError as e:
@@ -71,38 +70,6 @@ except ImportError as e:
         warnings.warn(
             "BestEffortIsr not available. You must provide a butler when initializing GuiderROIs."
         )
-
-
-def get_monster_catalog_loader_from_butler(
-    butler: typing.Any,
-    catalog_name: str = "monster_guide_catalog",
-    **kwargs: typing.Any,
-) -> typing.Any:
-    """Get Monster guide catalog data from a Butler.
-
-    Parameters
-    ----------
-    butler : `lsst.daf.butler.Butler`
-        Butler instance to query.
-    catalog_name : `str`
-        Name of the Monster guide catalog dataset.
-    **kwargs : `dict`
-        Additional kwargs for queryDatasets.
-
-    Returns
-    -------
-    catalog_refs : `list`
-        List of dataset references for the catalog.
-    """
-    try:
-        catalog_refs = butler.registry.queryDatasets(
-            catalog_name,
-            **kwargs,
-        ).expanded()
-        return list(catalog_refs)
-    except Exception as e:
-        warnings.warn(f"Could not query Monster guide catalog: {e}")
-        return []
 
 
 def get_vignetting_data_from_butler(
@@ -133,7 +100,6 @@ def get_vignetting_data_from_butler(
             ref = next(iter(vignetting_refs))
             data = butler.get(ref)
 
-            # Validate required columns exist
             if data is not None:
                 required_keys = ["theta", "vignetting"]
                 missing_keys = [key for key in required_keys if key not in data]
@@ -146,7 +112,7 @@ def get_vignetting_data_from_butler(
             return data
     except Exception as e:
         if isinstance(e, ValueError):
-            raise  # Re-raise ValueError for missing columns
+            raise
         warnings.warn(f"Could not get vignetting data from butler: {e}")
     return None
 
@@ -296,7 +262,6 @@ class GuiderROIs:
 
         for hp_idx in hp_indices:
             try:
-                # This is what we SHOULD be able to do once structure is known
                 dataId = {"healpix": hp_idx}
                 table = self.butler.get(self.catalog_name, dataId=dataId)
                 tables.append(table)
