@@ -670,6 +670,21 @@ whitelight_z_20_M940L3:
   exposure_times:
     - 20.0
 
+whitelight_y_10_M940L3:
+  mtcamera_filter: y_10
+  led_name:
+    - M940L3
+  dac_value: 1.0
+  wavelength: 940.0
+  led_location: 295.432
+  led_focus: 6.66
+  use_camera: False
+  use_fiberspectrograph_red: False
+  use_fiberspectrograph_blue: False
+  n_flat: 1
+  exposure_times:
+    - 20.0
+
 whitelight_y_10_M970L4:
   mtcamera_filter: y_10
   led_name:
