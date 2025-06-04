@@ -186,6 +186,88 @@ class MTCalsys(BaseCalsys):
             fiberspectrograph=0.0,
         )
 
+    def get_calibration_configuration(self, name: str) -> dict[str, typing.Any]:
+        """
+        Return the calibration configuration for a given configuration name,
+        with optional post-processing to generate exposure times from a
+        constrained random distribution if specified.
+
+        This method extends the base implementation by checking if the
+        configuration includes the `constrained_random_exposure_times` block.
+        If present, it uses the provided `bin_edges` and `samples_per_bin` to
+        generate a list of uniformly distributed random exposure times, and
+        overwrites the `exposure_times` field with the generated values.
+
+        Parameters
+        ----------
+        name : str
+            Name of the calibration configuration to retrieve.
+
+        Returns
+        -------
+        dict[str, Any]
+            The full calibration configuration dictionary, with
+            `exposure_times` updated if `constrained_random_exposure_times`
+            was specified.
+        """
+
+        config = super().get_calibration_configuration(name)
+
+        random_exptimes = config.get("constrained_random_exposure_times")
+        if random_exptimes is not None:
+            bin_edges = random_exptimes["bin_edges"]
+            samples_per_bin = random_exptimes["samples_per_bin"]
+            config["exposure_times"] = self.generate_random_exposure_times(
+                samples_per_bin, bin_edges
+            )
+
+        return config
+
+    def generate_random_exposure_times(
+        self, samples_per_bin: int, bin_edges: list[float]
+    ) -> list[float]:
+        """
+        Generate a list of random exposure times based on bin edges and the
+        number of samples per bin.
+
+        Parameters
+        ----------
+        samples_per_bin : int
+            The number of random samples to generate within each bin.
+        bin_edges : list of float
+            List of bin edges. Must contain at least two values to define one
+            bin.
+
+        Returns
+        -------
+        exposure_times : `list`
+            A list of random exposure times, rounded to 1 decimal place.
+            The length of the list will be: (len(bin_edges) - 1) *
+            samples_per_bin.
+
+        Raises
+        ------
+        ValueError
+            If fewer than two bin edges are provided.
+        """
+        bin_edges = np.array(bin_edges, dtype=float)
+
+        if len(bin_edges) < 2:
+            raise ValueError("At least two bin edges are required to define one bin.")
+
+        samples = [
+            np.random.uniform(
+                low=bin_edges[i], high=bin_edges[i + 1], size=samples_per_bin
+            )
+            for i in range(len(bin_edges) - 1)
+        ]
+
+        exposure_times = np.concatenate(samples)
+        exposure_times = np.round(exposure_times, 1)
+        np.random.shuffle(exposure_times)
+
+        return exposure_times.tolist()
+
     async def is_ready_for_flats(self) -> bool:
         """Designates if the calibration hardware is in a state
         to take flats.
