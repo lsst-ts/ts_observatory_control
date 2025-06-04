@@ -1,0 +1,1 @@
+In mtcalsys.yaml, Increase number of u band pulses for cbp_u_2nm config.
