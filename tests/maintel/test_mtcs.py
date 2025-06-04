@@ -845,6 +845,27 @@ class TestMTCS(MTCSAsyncMock):
 
         assert self.mtcs.rem.mtdome.evt_azMotion.inPosition
 
+    async def test_slew_dome_to_with_mtdometrajectory_ignored_and_following_enabled(
+        self,
+    ) -> None:
+        az = 90.0
+        await self.mtcs.enable()
+        await self.mtcs.assert_all_enabled()
+        # Simulate mtdometrajectory ignored
+        self.mtcs.check.mtdometrajectory = False
+
+        # Patch check_dome_following to simulate dome following enabled
+        async def always_true() -> bool:
+            return True
+
+        self.mtcs.check_dome_following = always_true
+
+        with pytest.raises(RuntimeError) as excinfo:
+            await self.mtcs.slew_dome_to(az=az)
+        assert "is ignored" in str(
+            excinfo.value
+        ) and "dome following is enabled" in str(excinfo.value)
+
     async def test_close_dome_when_m1_cover_deployed_and_wrong_el(self) -> None:
         self._mtmount_evt_mirror_covers_motion_state.state = (
             MTMount.DeployableMotionState.DEPLOYED
