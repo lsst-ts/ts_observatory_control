@@ -1761,9 +1761,12 @@ class MTCS(BaseTCS):
             }
 
         while True:
+            await self.rem.mtm1m3.evt_heartbeat.next(
+                flush=True, timeout=self.fast_timeout
+            )
             bump_test_status = (
-                await self.rem.mtm1m3.evt_forceActuatorBumpTestStatus.next(
-                    flush=False, timeout=self.long_timeout
+                await self.rem.mtm1m3.evt_forceActuatorBumpTestStatus.aget(
+                    timeout=self.long_timeout
                 )
             )
 
