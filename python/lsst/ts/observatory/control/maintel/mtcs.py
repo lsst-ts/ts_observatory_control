@@ -2317,16 +2317,9 @@ class MTCS(BaseTCS):
     async def stop_m1m3_bump_test(self) -> None:
         """Stop bump test."""
 
-        status = await self.rem.mtm1m3.evt_forceActuatorBumpTestStatus.aget(
-            timeout=self.fast_timeout
+        await self.rem.mtm1m3.cmd_killForceActuatorBumpTest.start(
+            timeout=self.long_timeout,
         )
-
-        if status.actuatorId > 0:
-            await self.rem.mtm1m3.cmd_killForceActuatorBumpTest.start(
-                timeout=self.long_timeout
-            )
-        else:
-            self.log.info("M1M3 bump test is not running.")
 
     async def get_m1m3_bump_test_status(
         self, actuator_id: int
