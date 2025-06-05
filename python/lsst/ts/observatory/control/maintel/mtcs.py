@@ -3560,6 +3560,7 @@ class MTCS(BaseTCS):
                     "mirrorCoversMotionState",
                 ],
                 mtdome=["azimuth", "lightWindScreen", "azMotion", "shutterMotion"],
+                mtdometrajectory=["followingMode"],
                 mtm1m3=[
                     "boosterValveStatus",
                     "forceActuatorState",
