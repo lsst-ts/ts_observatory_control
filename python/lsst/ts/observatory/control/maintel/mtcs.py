@@ -1803,13 +1803,19 @@ class MTCS(BaseTCS):
                     f"{primary_status!r}[{primary}], {secondary_status!r}[{secondary}]"
                 )
                 return
-            elif primary and primary_status in FAILED_STATES:
+            elif primary and not secondary and primary_status in FAILED_STATES:
                 raise RuntimeError(
                     f"Primary bump test failed for actuator {actuator_id} with status {primary_status!r}."
                 )
             elif secondary and secondary_status in FAILED_STATES:
+                primary_report = (
+                    f"Primary bump test failed for actuator {actuator_id} with status {primary_status!r}. "
+                    if primary and primary_status in FAILED_STATES
+                    else ""
+                )
                 raise RuntimeError(
-                    f"Secondary bump test failed for actuator {actuator_id} with status {secondary_status!r}."
+                    f"{primary_report}Secondary bump test failed for "
+                    f"actuator {actuator_id} with status {secondary_status!r}."
                 )
             else:
                 self.log.debug(
