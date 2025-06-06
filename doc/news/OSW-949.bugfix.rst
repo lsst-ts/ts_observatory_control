@@ -1,0 +1,1 @@
+Fixed an issue with ``MTCS._wait_bump_test_ok`` that would cause it to exit prematurely if it was running primary and secondary tests and the primary test failed.
