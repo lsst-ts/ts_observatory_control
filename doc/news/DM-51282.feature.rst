@@ -1,0 +1,6 @@
+Change the way that exposure time lists are generated for PTC curves in mtcalsys.py
+- In ``mtcalsys_schema.yaml``, add new configurable option for ``constrained_random_exposure_times``.
+    Allow user to set provide either ``constrained_random_exposure_times`` or ``exposure_times``.
+- In ``mtcalsys.py``, add method to generate random set of exposure times and overwrite the empty exposure_times when provided. 
+- Modified calculate_optimized_exposure_times to read in the random exposure times with dac values.
+- Wrote a new test case for PTC curves.
