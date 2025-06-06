@@ -23,8 +23,7 @@
 
 This module implements guider ROI selection functionality based on the
 original algorithm developed by Aaron Roodman. The implementation has been
-adapted for integration with ts_observatory_control while maintaining
-the core algorithmic approach.
+adapted for integration with ts_observatory_control.
 
 Original algorithm credit: Aaron Roodman
 """
@@ -39,6 +38,10 @@ import typing
 import warnings
 
 import numpy as np
+
+DEFAULT_CATALOG_DATASET_NAME = "monster_guide_catalog"
+DEFAULT_VIGNETTING_DATASET_NAME = "vignetting_correction"
+DEFAULT_COLLECTION_NAME = "guider_roi_data"
 
 DM_STACK_AVAILABLE = True
 BEST_EFFORT_ISR_AVAILABLE = True
@@ -73,7 +76,9 @@ except ImportError as e:
 
 
 def get_vignetting_data_from_butler(
-    butler: typing.Any, vignetting_dataset: str = "vignetting_correction"
+    butler: typing.Any,
+    vignetting_dataset: str = DEFAULT_VIGNETTING_DATASET_NAME,
+    collection: str = DEFAULT_COLLECTION_NAME,
 ) -> typing.Optional[typing.Any]:
     """Get vignetting correction data from Butler.
 
@@ -83,6 +88,8 @@ def get_vignetting_data_from_butler(
         Butler instance to query.
     vignetting_dataset : `str`
         Name of the vignetting dataset.
+    collection : `str`
+        Collection name to query.
 
     Returns
     -------
@@ -95,7 +102,9 @@ def get_vignetting_data_from_butler(
         If vignetting data is found but required columns are missing.
     """
     try:
-        vignetting_refs = butler.registry.queryDatasets(vignetting_dataset)
+        vignetting_refs = butler.registry.queryDatasets(
+            vignetting_dataset, collections=[collection]
+        )
         if vignetting_refs:
             ref = next(iter(vignetting_refs))
             data = butler.get(ref)
@@ -121,9 +130,7 @@ class GuiderROIs:
     """GuiderROIs definition.
 
     This class provides code to select Guider ROIs for LSSTCam based on the
-    original algorithm developed by Aaron Roodman. The implementation includes
-    improvements for integration with the LSST DM stack and
-    ts_observatory_control.
+    original algorithm developed by Aaron Roodman.
 
     Original algorithm credit: Aaron Roodman
 
@@ -137,8 +144,9 @@ class GuiderROIs:
     def __init__(
         self,
         butler: typing.Optional[typing.Any] = None,
-        catalog_name: str = "monster_guide_catalog",
-        vignetting_dataset: str = "vignetting_correction",
+        catalog_name: str = DEFAULT_CATALOG_DATASET_NAME,
+        vignetting_dataset: str = DEFAULT_VIGNETTING_DATASET_NAME,
+        collection: str = DEFAULT_COLLECTION_NAME,
     ) -> None:
         """Initialize GuiderROIs.
 
@@ -152,6 +160,8 @@ class GuiderROIs:
             Name of the Monster guide catalog dataset in butler.
         vignetting_dataset : `str`, optional
             Name of the vignetting correction dataset in butler.
+        collection : `str`, optional
+            Collection name for data queries.
 
         Raises
         ------
@@ -180,6 +190,7 @@ class GuiderROIs:
 
         self.catalog_name = catalog_name
         self.vignetting_dataset = vignetting_dataset
+        self.collection = collection
 
         # Constants
         self.ccd_diag = 0.15852  # Guider CCD diagonal radius in Degrees
@@ -204,7 +215,7 @@ class GuiderROIs:
             If vignetting data is missing required columns.
         """
         vignetting_data = get_vignetting_data_from_butler(
-            self.butler, self.vignetting_dataset
+            self.butler, self.vignetting_dataset, self.collection
         )
 
         if vignetting_data is None:
@@ -255,18 +266,48 @@ class GuiderROIs:
 
         Notes
         -----
-        This is an interim implementation that attempts to get available
-        catalog data from Butler. Exact dataset structure is TBD.
+        This method works with the merged catalog approach where all
+        HEALPix catalogs are stored in a single dataset with healpix_id
+        as a column.
         """
-        tables = []
+        tables: typing.List[Table] = []
 
-        for hp_idx in hp_indices:
-            try:
-                dataId = {"healpix": hp_idx}
-                table = self.butler.get(self.catalog_name, dataId=dataId)
-                tables.append(table)
-            except Exception as e:
-                warnings.warn(f"Could not load catalog for HEALPix {hp_idx}: {e}")
+        # for hp_idx in hp_indices:
+        #    try:
+        #        dataId = {"healpix": hp_idx}
+        #        table = self.butler.get(self.catalog_name, dataId=dataId)
+        #        tables.append(table)
+        #    except Exception as e:
+        #        warnings.warn(f"Could not load catalog
+        #                        for HEALPix {hp_idx}: {e}")
+
+        try:
+            # Get the full merged catalog
+            catalog_refs = list(
+                self.butler.registry.queryDatasets(
+                    self.catalog_name, collections=[self.collection]
+                )
+            )
+            if not catalog_refs:
+                warnings.warn(
+                    f"No catalog datasets found for {self.catalog_name} in collection {self.collection}"
+                )
+                return tables
+
+            full_catalog = self.butler.get(catalog_refs[0])
+
+            # Filter by requested HEALPix indices
+            for hp_idx in hp_indices:
+                mask = full_catalog["healpix_id"] == hp_idx
+                hp_catalog = full_catalog[mask]
+
+                if len(hp_catalog) > 0:
+                    tables.append(hp_catalog)
+                else:
+                    warnings.warn(f"No stars found for HEALPix {hp_idx}")
+
+        except Exception as e:
+            warnings.warn(f"Could not load catalog data: {e}")
 
         return tables
 
@@ -369,6 +410,8 @@ class GuiderROIs:
 
         # loop over detectors, getting the optimal guider star in each
         first = True
+        cat_all = Table()  # Initialize empty table
+
         for idet, wcs in cam_wcs.items():
             ra_ccd, dec_ccd = cam_radec[idet]
             detector = self.camera[idet]
@@ -454,19 +497,24 @@ class GuiderROIs:
 
             for arow in cat_select2:
                 ampName, ampX, ampY = lct.ccdPixelToAmpPixel(arow["ccdx"], arow["ccdy"])
-
+                # TBD: This is not the same as the original algorithm
+                #      but the logic should be the same
                 if idet in self.bad_guideramps:
-                    if ampName in self.bad_guideramps[idet]:
+                    if ampName == self.bad_guideramps[idet]:
                         ampOk.append(False)
                     else:
                         ampOk.append(True)
                 else:
                     ampOk.append(True)
 
-                ccdNames.append(detName)
-                ampNames.append(ampName)
-                ampXs.append(ampX)
-                ampYs.append(ampY)
+            # TBD: Notice this group is not indented
+            # TBD: I believe it should have been indented
+            #      (be in the for loop)
+            #      at least for ampName, ampX, ampY
+            ccdNames.append(detName)
+            ampNames.append(ampName)
+            ampXs.append(ampX)
+            ampYs.append(ampY)
 
             # add info on star position to the catalog
             cat_select2["ccdName"] = ccdNames
@@ -540,6 +588,8 @@ class GuiderROIs:
             # Gaia magnitudes
             if band in self.filters:
                 themag = f"mag_{band}"
+                # TBD: This check was not in the original al  algorithm
+                #      but should add stability to the code
                 if themag in cat_select3.colnames:
                     magok = ~np.isnan(cat_select3[themag])
                     if len(cat_select3[magok]) > 0:
@@ -550,6 +600,8 @@ class GuiderROIs:
                         mags = cat_select3["gaia_G"] + cat_select3["delta_mag"]
                         ibrightest = np.argmin(mags)
                 else:
+                    # TBD: This is not in the original algorithm
+                    #      should fail gracefully?
                     # Fall back to Gaia G
                     mags = cat_select3["gaia_G"] + cat_select3["delta_mag"]
                     ibrightest = np.argmin(mags)
@@ -565,11 +617,17 @@ class GuiderROIs:
             else:
                 cat_all = vstack([cat_thestar, cat_all])
 
-        if first:  # No stars found for any detector
-            raise RuntimeError("No suitable guide stars found for any detector")
-
         # build the configuration string for the ROIs from the catalog with
         # all stars
+
+        # Check if any guide stars were found
+        if len(cat_all) == 0:
+            raise RuntimeError(
+                f"No suitable guide stars found for the given pointing. "
+                f"Boresight: RA={boresight_RA:.6f}°, Dec={boresight_DEC:.6f}°. "
+                f"This may be due to limited catalog coverage or overly restrictive selection criteria."
+            )
+
         config_text = f"""
 roi_spec:
  common:
@@ -579,8 +637,8 @@ roi_spec:
 
         for arow in cat_all:
             ccdname = arow["ccdName"]
-            ccd_guider_name = ccdname[0:3]
-            +ccdname[4:]  # remove the underscore
+            # Remove underscore from CCD name
+            ccd_guider_name = ccdname[0:3] + ccdname[4:]
             ampname = arow["ampNameLL"]
             amp_guider_name = ampname[1:]  # remove the C in Cxy
             start_col = int(arow["ampxLL"])
