@@ -97,6 +97,7 @@ class MTCalsysExposure:
     fiberspectrograph_red: float | None
     fiberspectrograph_blue: float | None
     electrometer: float | None
+    dacValue: float | None
 
 
 class MTCalsys(BaseCalsys):
@@ -905,7 +906,8 @@ class MTCalsys(BaseCalsys):
         -------
         exposure_list : `list`[ATCalsysExposure|MTCalsysExposure]
             List of exposure information, includes wavelength
-            and camera, fiberspectrograph and electrometer exposure times.
+            and camera, fiberspectrograph and electrometer exposure times,
+            and LED dac value.
         """
         exposures: list[MTCalsysExposure] = []
         for wavelength in wavelengths:
@@ -932,11 +934,20 @@ class MTCalsys(BaseCalsys):
             )
 
             for i, exptime in enumerate(config_data["exposure_times"]):
+                dac = config_data["dac_value"]
+                if config_data["ptc"]:
+                    if exptime < 1.0:
+                        dac = 0.15
+                        exptime = exptime + 10.0
+                    elif exptime > 30.0:
+                        dac = 0.8
+                        exptime = exptime + 40.0
                 for n in range(config_data["n_flat"]):
                     exposures.append(
                         MTCalsysExposure(
                             wavelength=wavelength,
                             camera=exptime,
+                            dacValue=dac,
                             electrometer=electrometer_exptimes[i],
                             fiberspectrograph_red=fiberspectrograph_exptimes_red[i],
                             fiberspectrograph_blue=fiberspectrograph_exptimes_blue[i],
