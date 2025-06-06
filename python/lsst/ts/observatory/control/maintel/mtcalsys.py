@@ -868,6 +868,9 @@ class MTCalsys(BaseCalsys):
                 )
             else:
                 self.log.info("Calibration Type is WhiteLight")
+                await self.rem.ledprojector.cmd_adjustAllDACPower.set_start(
+                    dacValue=exposure.dacValue
+                )
                 exposure_info = await self._take_data(
                     mtcamera_exptime=exposure.camera,
                     mtcamera_filter=str(config_data["mtcamera_filter"]),
@@ -882,6 +885,7 @@ class MTCalsys(BaseCalsys):
 
             step = dict(
                 wavelength=exposure.wavelength,
+                dacValue=exposure.dacValue,
                 mtcamera_exposure_info=mtcamera_exposure_info,
             )
 
@@ -912,45 +916,51 @@ class MTCalsys(BaseCalsys):
         exposures: list[MTCalsysExposure] = []
         for wavelength in wavelengths:
 
-            electrometer_exptimes = await self._calculate_electrometer_exposure_times(
-                exptimes=config_data["exposure_times"],
-                electrometer_integration_time=config_data[
-                    "electrometer_integration_time"
-                ],
-                use_electrometer=config_data["use_flatfield_electrometer"]
-                or config_data["use_cbp_electrometer"],
-            )
-            fiberspectrograph_exptimes_red = (
-                await self._calculate_fiberspectrograph_exposure_times(
-                    exptimes=config_data["exposure_times"],
-                    use_fiberspectrograph=config_data["use_fiberspectrograph_red"],
-                )
-            )
-            fiberspectrograph_exptimes_blue = (
-                await self._calculate_fiberspectrograph_exposure_times(
-                    exptimes=config_data["exposure_times"],
-                    use_fiberspectrograph=config_data["use_fiberspectrograph_blue"],
-                )
-            )
-
-            for i, exptime in enumerate(config_data["exposure_times"]):
+            for exptime in config_data["exposure_times"]:
                 dac = config_data["dac_value"]
                 if config_data["ptc"]:
                     if exptime < 1.0:
                         dac = 0.15
-                        exptime = exptime + 10.0
+                        exptime = exptime * 100.0
                     elif exptime > 30.0:
                         dac = 0.8
-                        exptime = exptime + 40.0
+                        exptime = exptime - 40.0
+                if exptime < 1.0:
+                    exptime = 1.0
+
+                electrometer_exptime = (
+                    await self._calculate_electrometer_exposure_times(
+                        exptimes=[exptime],
+                        electrometer_integration_time=config_data[
+                            "electrometer_integration_time"
+                        ],
+                        use_electrometer=config_data["use_flatfield_electrometer"]
+                        or config_data["use_cbp_electrometer"],
+                    )
+                )
+
+                fiberspectrograph_exptime_red = (
+                    await self._calculate_fiberspectrograph_exposure_times(
+                        exptimes=[exptime],
+                        use_fiberspectrograph=config_data["use_fiberspectrograph_red"],
+                    )
+                )
+
+                fiberspectrograph_exptime_blue = (
+                    await self._calculate_fiberspectrograph_exposure_times(
+                        exptimes=[exptime],
+                        use_fiberspectrograph=config_data["use_fiberspectrograph_blue"],
+                    )
+                )
                 for n in range(config_data["n_flat"]):
                     exposures.append(
                         MTCalsysExposure(
                             wavelength=wavelength,
                             camera=exptime,
                             dacValue=dac,
-                            electrometer=electrometer_exptimes[i],
-                            fiberspectrograph_red=fiberspectrograph_exptimes_red[i],
-                            fiberspectrograph_blue=fiberspectrograph_exptimes_blue[i],
+                            electrometer=electrometer_exptime[0],
+                            fiberspectrograph_red=fiberspectrograph_exptime_red[0],
+                            fiberspectrograph_blue=fiberspectrograph_exptime_blue[0],
                         )
                     )
 
