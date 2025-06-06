@@ -1919,26 +1919,11 @@ class TestMTCS(MTCSAsyncMock):
         assert secondary_status == MTM1M3.BumpTest.FAILED_TESTEDPOSITIVE_OVERSHOOT
 
     async def test_stop_m1m3_bump_test_running(self) -> None:
-        self._mtm1m3_evt_force_actuator_bump_test_status.actuatorId = 102
-
         await self.mtcs.stop_m1m3_bump_test()
 
-        self.mtcs.rem.mtm1m3.evt_forceActuatorBumpTestStatus.aget.assert_awaited_with(
-            timeout=self.mtcs.fast_timeout
-        )
         self.mtcs.rem.mtm1m3.cmd_killForceActuatorBumpTest.start.assert_awaited_with(
             timeout=self.mtcs.long_timeout
         )
-
-    async def test_stop_m1m3_bump_test_not_running(self) -> None:
-        self._mtm1m3_evt_force_actuator_bump_test_status.actuatorId = -1
-
-        await self.mtcs.stop_m1m3_bump_test()
-
-        self.mtcs.rem.mtm1m3.evt_forceActuatorBumpTestStatus.aget.assert_awaited_with(
-            timeout=self.mtcs.fast_timeout
-        )
-        self.mtcs.rem.mtm1m3.cmd_killForceActuatorBumpTest.start.assert_not_awaited()
 
     async def test_run_m1m3_actuator_bump_bad_secondary_index(self) -> None:
         primary_index = self.mtcs.get_m1m3_actuator_ids()
