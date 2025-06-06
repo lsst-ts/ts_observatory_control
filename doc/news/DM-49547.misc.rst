@@ -1,2 +1,0 @@
-The bump test logic for both M1M3 and M2 has been updated to support detailed failure statuses (e.g., `FAILED_TIMEOUT`, `FAILED_TESTEDPOSITIVE_OVERSHOOT`, etc.) introduced in the updated XML enumeration.
-Backward compatibility with the previous single `FAILED` logic has been preserved to ensure seamless integration.

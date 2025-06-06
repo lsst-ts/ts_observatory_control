@@ -1,1 +1,0 @@
-Updated the locations for the LED stages.

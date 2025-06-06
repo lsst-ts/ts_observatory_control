@@ -8,6 +8,115 @@ Version History
 
 .. towncrier release notes start
 
+v0.42.0 (2025-06-06)
+====================
+
+New Features
+------------
+
+- Add CBP and CBP electrometers to MTCalsys. (`DM-47497 <https://rubinobs.atlassian.net/browse/DM-47497>`_)
+- Add option to specify wavelengths with nonlinear spacing. (`DM-47497 <https://rubinobs.atlassian.net/browse/DM-47497>`_)
+- Adding function to read out the location of all linear stages for the Calibration Projector in MTCalsys (`DM-49065 <https://rubinobs.atlassian.net/browse/DM-49065>`_)
+- Add mechanism in the ``LSSTCam`` class to handle filter changes. (`DM-49278 <https://rubinobs.atlassian.net/browse/DM-49278>`_)
+- Added a function to park the LED Projector. (`DM-49346 <https://rubinobs.atlassian.net/browse/DM-49346>`_)
+- added homing to the setup_calsys and turned off LEDs in the prepare_for_flat (`DM-49346 <https://rubinobs.atlassian.net/browse/DM-49346>`_)
+- Updated the indices for the linear stages and fibers spectrographs (`DM-49346 <https://rubinobs.atlassian.net/browse/DM-49346>`_)
+- Add azMotion to Slew usages in ``MTCS`` class. (`DM-49414 <https://rubinobs.atlassian.net/browse/DM-49414>`_)
+- In MTCS ``slew_dome_to`` method, increase timeout. (`DM-49414 <https://rubinobs.atlassian.net/browse/DM-49414>`_)
+- Add open and close MTDome shutter door implementations in ``MTCS`` class. (`DM-49506 <https://rubinobs.atlassian.net/browse/DM-49506>`_)
+- Updated the name of the LED in the i-band (`DM-49553 <https://rubinobs.atlassian.net/browse/DM-49553>`_)
+- Updated the locations for the LED stages. (`DM-49553 <https://rubinobs.atlassian.net/browse/DM-49553>`_)
+- In mtcalsys.py:
+  - Add axis to linearstage cmd_getHome calls.
+  - Replace start with set_start to getHome commands.
+  - Set led_focus_axis and linearstage_axis to 0 instead of 1.
+  - Add index 0 to position calls.
+  - Added details to projector status info.
+  - Reformat input str to turn_led_on.
+  - Move calls to instatiate electrometer and fiberspec with no spectrographs.
+  - Swapped spectrograph indices.
+  - Add call to setup electrometer.
+  - Switch idx for led and laser focus.
+  - Updated _take_data method for case with no camera.
+  - Update unit tests. (`DM-49954 <https://rubinobs.atlassian.net/browse/DM-49954>`_)
+- In maintel/lsstcam.py:
+  - Update LSSTCam to add imageInOODS event to TakeImage and TakeImageFull usages.
+  - Add ccsCommandState event to the set of camera events to take image.
+  - Update _setup_mtcs_for_filter_change to also stop the rotator after stop tracking.
+  - Update _setup_mtcs_for_filter_change to only move the rotator if it is not close to zero.
+  - Update unit tests. (`DM-49954 <https://rubinobs.atlassian.net/browse/DM-49954>`_)
+- In maintel/mtcs.py:
+  - Add new AOS usage to the MTCS class.
+  - Update the m1m3_booster_valve async context manager to only clear the slew flag if the operation succeed.
+  - Use new unreliable in position feature to handle rotator in position event.
+  - Refactor dome shutter operations methods.
+  - Add mtaos closedLoopState event to the slew usage.
+  - Add controllerState to the list of events for the Slew usage.
+  - Update unit tests to accommodate changes. (`DM-49954 <https://rubinobs.atlassian.net/browse/DM-49954>`_)
+- In mtcalsys.yaml, update sequence names with LSSTCam filters names. (`DM-49954 <https://rubinobs.atlassian.net/browse/DM-49954>`_)
+- In base_camera.py:
+  - Revert commit to refactor how start/end integration works.
+  - Handle ccs command state for the camera.
+  - Only run initGuider if exposure is larger than zero.
+  - Skip error in initGuider if the error indicates it is not configured as guider.
+  - Add _roi_spec_json attribute.
+  - Update unit tests to accommodate changes. (`DM-49954 <https://rubinobs.atlassian.net/browse/DM-49954>`_)
+- Added dacValue = 1.0 for all LEDs in setup_calsys (`DM-50224 <https://rubinobs.atlassian.net/browse/DM-50224>`_)
+- Updated mtcalsys.yaml with dac values and new exposure times based on experience (`DM-50282 <https://rubinobs.atlassian.net/browse/DM-50282>`_)
+- Added adjustdacValue in setup_calsys and prepare_for_flats, pulling from the configuration file (`DM-50282 <https://rubinobs.atlassian.net/browse/DM-50282>`_)
+- In `maintel/lsstcam.py`:
+  - Replace a log warning with an exception to prevent filter change if not configured to manage the operation.
+  - Adds an exception handling for a stop rotator command.
+    This ensures that even if the rotator does not respond to the stop command, the `setup_filter` method will log a warning and continue execution.
+  - Update LSSTCam to add a default ROI spec, which will be used in any take image if the user does not provide an override. (`DM-50398 <https://rubinobs.atlassian.net/browse/DM-50398>`_)
+- In `base_camera.py`, add back an attribute for storing Region of Interest (ROI) specification.
+  This attribute will hold the configuration for the region of interest, allowing for better management of camera settings. (`DM-50398 <https://rubinobs.atlassian.net/browse/DM-50398>`_)
+- Collating a bunch of run branch commits. (`DM-50749 <https://rubinobs.atlassian.net/browse/DM-50749>`_)
+- Added new ``wait_tracking_stopped`` method that is awaited after sending the ``stopTracking`` command to the pointing component in ``BaseTCS.stop_tracking``. (`DM-50794 <https://rubinobs.atlassian.net/browse/DM-50794>`_)
+- Refactored ``MTCS.move_rotator`` to make it more resilient.
+    
+  The method will first wait for a heartbeat from the ``MTRotator`` before sending the move command.
+  Then, after sending the move command, it will wait until the rotator reports as moving.
+  If the rotator does not start to move it will try again.
+  If it fails for a second time, then an exception is raised. (`DM-50794 <https://rubinobs.atlassian.net/browse/DM-50794>`_)
+- Implement new ``MTCS.wait_tracking_stopped`` method that will wait for the elevation and azimuth axis of the telescope to report as stopped and for the rotator to report as stationary. (`DM-50794 <https://rubinobs.atlassian.net/browse/DM-50794>`_)
+- Refactored the ``MTCS.stop_rotator`` method to extract the logic that waits for the rotator to be stationary into a separate method. (`DM-50794 <https://rubinobs.atlassian.net/browse/DM-50794>`_)
+- Updated ``MTCS.wait_dor_rotator_inposition`` to handle a condition where the rotator reports as being in position while still beig far from the target position. (`DM-50986 <https://rubinobs.atlassian.net/browse/DM-50986>`_)
+- In mtcalsys.yaml, Increase number of u band pulses for cbp_u_2nm config. (`DM-50986 <https://rubinobs.atlassian.net/browse/DM-50986>`_)
+- Changed default values for electrometer integration time and range to be more precise for PTC curves. (`DM-51043 <https://rubinobs.atlassian.net/browse/DM-51043>`_)
+- Added led focus locations for individual LEDs (`DM-51046 <https://rubinobs.atlassian.net/browse/DM-51046>`_)
+
+
+Bug Fixes
+---------
+
+- * Fixed incompatibilities with SIMBAD response. (`DM-49566 <https://rubinobs.atlassian.net/browse/DM-49566>`_)
+- In mtcs.py fix flush keyword typo in wait_for_dome_state method. (`DM-49683 <https://rubinobs.atlassian.net/browse/DM-49683>`_)
+- Temporary fix for LED ON/OFF swap in LEDProjector until permanent fix is made (`DM-50204 <https://rubinobs.atlassian.net/browse/DM-50204>`_)
+- Fixed the way serial numbers of LEDs are called by ledprojector. (`DM-50204 <https://rubinobs.atlassian.net/browse/DM-50204>`_)
+- Changed LED rest position (`DM-50224 <https://rubinobs.atlassian.net/browse/DM-50224>`_)
+- increased timeout for homing stages (`DM-50224 <https://rubinobs.atlassian.net/browse/DM-50224>`_)
+- Had to add mtcamera_filter to mtcamera_filter (`DM-50224 <https://rubinobs.atlassian.net/browse/DM-50224>`_, `DM-50224 <https://rubinobs.atlassian.net/browse/DM-50224>`_)
+- Added axis to every move command for LinearStages (`DM-50280 <https://rubinobs.atlassian.net/browse/DM-50280>`_)
+- Added groupId to the Electrometer and FiberSpectrograph exposures (`DM-50396 <https://rubinobs.atlassian.net/browse/DM-50396>`_)
+- Increased timeout for linearstage_led_select to getHome from 20 seconds to 60 seconds (stage_home_timeout.) (`DM-50809 <https://rubinobs.atlassian.net/browse/DM-50809>`_)
+- In mtcalsys.py, fix typo in electrometer name. (`DM-50986 <https://rubinobs.atlassian.net/browse/DM-50986>`_)
+- Changed the led focus location for y-band LED (`DM-51046 <https://rubinobs.atlassian.net/browse/DM-51046>`_)
+
+
+API Removal or Deprecation
+--------------------------
+
+- Remove dependencies on ``lsst.ts.idl`` and use ``lsst.ts.xml`` instead. (`DM-50775 <https://rubinobs.atlassian.net/browse/DM-50775>`_)
+
+
+Other Changes and Additions
+---------------------------
+
+- The bump test logic for both M1M3 and M2 has been updated to support detailed failure statuses (e.g., `FAILED_TIMEOUT`, `FAILED_TESTEDPOSITIVE_OVERSHOOT`, etc.) introduced in the updated XML enumeration.
+  Backward compatibility with the previous single `FAILED` logic has been preserved to ensure seamless integration. (`DM-49547 <https://rubinobs.atlassian.net/browse/DM-49547>`_)
+
+
 v0.41.1 (2025-03-17)
 ====================
 

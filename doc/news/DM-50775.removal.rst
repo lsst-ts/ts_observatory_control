@@ -1,1 +1,0 @@
-Remove dependencies on ``lsst.ts.idl`` and use ``lsst.ts.xml`` instead.

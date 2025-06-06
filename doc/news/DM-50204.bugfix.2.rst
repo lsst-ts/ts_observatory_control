@@ -1,1 +1,0 @@
-Temporary fix for LED ON/OFF swap in LEDProjector until permanent fix is made

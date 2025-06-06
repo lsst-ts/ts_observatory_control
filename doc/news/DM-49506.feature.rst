@@ -1,1 +1,0 @@
-Add open and close MTDome shutter door implementations in ``MTCS`` class.

@@ -1,1 +1,0 @@
- * Fixed incompatibilities with SIMBAD response.

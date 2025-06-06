@@ -1,2 +1,0 @@
-In `base_camera.py`, add back an attribute for storing Region of Interest (ROI) specification.
-This attribute will hold the configuration for the region of interest, allowing for better management of camera settings.

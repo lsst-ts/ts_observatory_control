@@ -1,6 +1,0 @@
-In maintel/lsstcam.py:
-- Update LSSTCam to add imageInOODS event to TakeImage and TakeImageFull usages.
-- Add ccsCommandState event to the set of camera events to take image.
-- Update _setup_mtcs_for_filter_change to also stop the rotator after stop tracking.
-- Update _setup_mtcs_for_filter_change to only move the rotator if it is not close to zero.
-- Update unit tests.
