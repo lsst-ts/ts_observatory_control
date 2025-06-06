@@ -1,1 +1,0 @@
-Added groupId to the Electrometer and FiberSpectrograph exposures

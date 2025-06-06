@@ -1,1 +1,0 @@
-Refactored the ``MTCS.stop_rotator`` method to extract the logic that waits for the rotator to be stationary into a separate method.

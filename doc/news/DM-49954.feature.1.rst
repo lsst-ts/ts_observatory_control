@@ -1,8 +1,0 @@
-In maintel/mtcs.py:
-- Add new AOS usage to the MTCS class.
-- Update the m1m3_booster_valve async context manager to only clear the slew flag if the operation succeed.
-- Use new unreliable in position feature to handle rotator in position event.
-- Refactor dome shutter operations methods.
-- Add mtaos closedLoopState event to the slew usage.
-- Add controllerState to the list of events for the Slew usage.
-- Update unit tests to accommodate changes.

@@ -1,1 +1,0 @@
-increased timeout for homing stages
