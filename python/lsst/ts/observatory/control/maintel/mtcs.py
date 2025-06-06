@@ -39,10 +39,6 @@ from ..base_tcs import BaseTCS
 from ..constants import mtcs_constants
 from ..remote_group import Usages, UsagesResources
 
-if not hasattr(MTM1M3, "DetailedState"):
-    # Compatibility with ts-idl 4.7
-    MTM1M3.DetailedState = MTM1M3.DetailedStates
-
 
 class MTCSUsages(Usages):
     """MTCS usages definition.
@@ -64,6 +60,7 @@ class MTCSUsages(Usages):
     Shutdown = 1 << 5
     PrepareForFlatfield = 1 << 6
     DryTest = 1 << 7
+    AOS = 1 << 8
 
     def __iter__(self) -> typing.Iterator[int]:
         return iter(
@@ -77,6 +74,7 @@ class MTCSUsages(Usages):
                 self.Shutdown,
                 self.PrepareForFlatfield,
                 self.DryTest,
+                self.AOS,
             ]
         )
 
@@ -145,6 +143,10 @@ class MTCS(BaseTCS):
         self.tel_flat_az = 205.7
         self.tel_settle_time = 3.0
         self.tel_operate_mirror_covers_el = 70.0
+        self.tel_operate_dome_shutter_el = 5.0
+
+        # Tolerance to the rotator position for move commands.
+        self.rotator_position_tolerance = 0.1
 
         self.dome_park_az = 285.0
         self.dome_park_el = 80.0
@@ -156,6 +158,7 @@ class MTCS(BaseTCS):
         # TODO (DM-45609): This is an initial guess for the time it takes the
         #  dome to park. It might need updating.
         self.park_dome_timeout = 600
+        self.move_dome_timeout = 600
 
         self._dome_az_in_position: typing.Union[None, asyncio.Event] = None
         self._dome_el_in_positio: typing.Union[None, asyncio.Event] = None
@@ -581,13 +584,54 @@ class MTCS(BaseTCS):
         `str`
             Message indicating the component is in position.
         """
-        return await self._handle_in_position(
+
+        in_position_result = await self._handle_in_position(
             self.rem.mtrotator.evt_inPosition,
             timeout=timeout,
-            settle_time=0.0,
+            settle_time=2.0,
             component_name="MTRotator",
             race_condition_timeout=self.mtrotator_race_condition_timeout,
+            unreliable_in_position=True,
         )
+
+        tracking_success_position_threshold = (
+            await self.rem.mtrotator.evt_configuration.aget(timeout=timeout)
+        ).followingErrorThreshold
+        target_position = (
+            await self.rem.mtrotator.evt_target.aget(timeout=timeout)
+        ).position
+        current_position = (
+            await self.rem.mtrotator.tel_rotation.aget(timeout=timeout)
+        ).actualPosition
+
+        while (
+            abs(target_position - current_position)
+            > tracking_success_position_threshold
+        ):
+
+            self.log.debug(
+                f"Current rotator position ({current_position:.2f}) "
+                f"not in target position ({target_position:.2f}) range "
+                f"({tracking_success_position_threshold:.2f}). "
+                "Continuing to wait for in position."
+            )
+
+            in_position_result = await self._handle_in_position(
+                self.rem.mtrotator.evt_inPosition,
+                timeout=timeout,
+                settle_time=2.0,
+                component_name="MTRotator",
+                race_condition_timeout=self.mtrotator_race_condition_timeout,
+                unreliable_in_position=True,
+            )
+            target_position = (
+                await self.rem.mtrotator.evt_target.aget(timeout=timeout)
+            ).position
+            current_position = (
+                await self.rem.mtrotator.tel_rotation.aget(timeout=timeout)
+            ).actualPosition
+
+        return in_position_result
 
     async def dome_az_in_position(self) -> str:
         """Wait for `_dome_az_in_position` event to be set and return a string
@@ -641,7 +685,7 @@ class MTCS(BaseTCS):
 
         while not dome_ready(az_motion):
             az_motion = await self.rem.mtdome.evt_azMotion.next(
-                Flush=False, timeout=timeout
+                flush=False, timeout=timeout
             )
 
             if az_motion.state in bad_states:
@@ -782,14 +826,101 @@ class MTCS(BaseTCS):
         # Wait for MT Dome to reach final position
         await self._handle_in_position(
             self.rem.mtdome.evt_azMotion,
-            timeout=self.fast_timeout,
+            timeout=self.move_dome_timeout,
             settle_time=self.tel_settle_time,
             component_name="MTDome",
         )
 
-    async def close_dome(self) -> None:
-        # TODO: Implement (DM-21336).
-        raise NotImplementedError("# TODO: Implement (DM-21336).")
+    async def close_dome(self, force: bool = False) -> None:
+        """Method to close dome shutter.
+
+        Warnings
+        --------
+        The dome shutter should not be closed when the mirror covers are
+        retracted. This method will check if the covers are deployed or if the
+        telescope is in a safe elevation to continue.
+
+        Raises
+        ------
+        RuntimeError
+            If shutter motion state is neither OPEN nor CLOSED.
+            If mirror covers are RETRACTED and telescope elevation is not in
+            safe range unless force=True.
+        """
+        self.rem.mtdome.evt_shutterMotion.flush()
+        shutter_state = await self.rem.mtdome.evt_shutterMotion.aget(
+            timeout=self.fast_timeout
+        )
+        shutter_state.state = [
+            MTDome.MotionState(value) for value in shutter_state.state
+        ]
+        self.log.debug(f"Shutter state: {shutter_state.state}")
+
+        if (
+            shutter_state.state == [MTDome.MotionState.OPEN, MTDome.MotionState.OPEN]
+            or force
+        ):
+            # Issue command only if mirror covers are deployed or if telescope
+            # elevation is near horizon or if force = True
+            cover_state = await self.rem.mtmount.evt_mirrorCoversMotionState.aget(
+                timeout=self.fast_timeout
+            )
+            elevation = await self.rem.mtmount.tel_elevation.aget(
+                timeout=self.fast_timeout
+            )
+
+            if (
+                cover_state.state == MTMount.DeployableMotionState.DEPLOYED
+                or elevation.actualPosition <= self.tel_operate_dome_shutter_el
+                or force
+            ):
+                if force:
+                    self.log.warning(
+                        "Force-closing MTDome shutter under these conditions: "
+                        f"Shutter state: {shutter_state.state}. "
+                        f"Mirror covers: {MTMount.DeployableMotionState(cover_state.state)!r}. "
+                        f"Telescope elevation: {elevation.actualPosition} deg."
+                    )
+                else:
+                    self.log.info("Closing MTDome shutter.")
+
+                await self.rem.mtdome.cmd_closeShutter.start(
+                    timeout=self.open_dome_shutter_time
+                )
+
+                # Wait for MT Dome shutter door to reach final position
+                await self._handle_in_position(
+                    self.rem.mtdome.evt_shutterMotion,
+                    timeout=self.open_dome_shutter_time,
+                    component_name="MTDome shutter door",
+                )
+
+                shutter_state = await self.rem.mtdome.evt_shutterMotion.aget(
+                    timeout=self.fast_timeout
+                )
+                self.log.info(f"Shutter state: {shutter_state.state}")
+
+            else:
+                raise RuntimeError(
+                    "MTDome shutter will not be closed under these conditions: "
+                    f"Shutter state: {shutter_state.state}. "
+                    f"Mirror covers: {MTMount.DeployableMotionState(cover_state.state)!r}. "
+                    f"Telescope elevation: {elevation.actualPosition} deg. "
+                    "If you want to force this operation, run close_dome(force=True)."
+                )
+
+        elif shutter_state.state == [
+            MTDome.MotionState.CLOSED,
+            MTDome.MotionState.CLOSED,
+        ]:
+            self.log.info("MTDome shutter door is already closed. Ignoring.")
+
+        else:
+            raise RuntimeError(
+                f"Shutter door state is {shutter_state.state}. "
+                f"Expected either {[MTDome.MotionState.CLOSED, MTDome.MotionState.CLOSED]}, "
+                f"or {[MTDome.MotionState.OPEN, MTDome.MotionState.OPEN]}."
+            )
 
     async def close_m1_cover(self) -> None:
         """Method to close mirror covers.
@@ -833,7 +964,6 @@ class MTCS(BaseTCS):
                     timeout=self.long_long_timeout
                 )
             except salobj.AckError as ack:
-
                 self.log.error(
                     f"Closing mirror cover command failed with {ack.ack!r}::{ack.error}. "
                     "Checking state of the system."
@@ -936,9 +1066,94 @@ class MTCS(BaseTCS):
         azimuth = await self.rem.mtdome.tel_azimuth.aget(timeout=self.fast_timeout)
         self.log.debug(f"{azimuth.positionActual=}, {azimuth.positionCommanded=}")
 
-    async def open_dome_shutter(self) -> None:
-        # TODO: Implement (DM-21336).
-        raise NotImplementedError("# TODO: Implement (DM-21336).")
+    async def open_dome_shutter(self, force: bool = False) -> None:
+        """Method to open dome shutter.
+
+        Warnings
+        --------
+        The dome shutter should not be opened when the mirror covers are
+        retracted. This method will check if the covers are deployed or if the
+        telescope is in a safe elevation to continue.
+
+        Raises
+        ------
+        RuntimeError
+            If shutter motion state is neither OPEN nor CLOSED.
+            If mirror covers are RETRACTED and telescope elevation is not in
+            safe range unless force=True.
+        """
+        self.rem.mtdome.evt_shutterMotion.flush()
+        shutter_state = await self.rem.mtdome.evt_shutterMotion.aget(
+            timeout=self.fast_timeout
+        )
+        shutter_state.state = [
+            MTDome.MotionState(value) for value in shutter_state.state
+        ]
+        self.log.debug(f"Shutter state: {shutter_state.state}")
+
+        if (
+            shutter_state.state
+            == [MTDome.MotionState.CLOSED, MTDome.MotionState.CLOSED]
+            or force
+        ):
+            # Issue command only if mirror covers are deployed or if telescope
+            # elevation is near horizon or if force = True
+            cover_state = await self.rem.mtmount.evt_mirrorCoversMotionState.aget(
+                timeout=self.fast_timeout
+            )
+            elevation = await self.rem.mtmount.tel_elevation.aget(
+                timeout=self.fast_timeout
+            )
+
+            if (
+                cover_state.state == MTMount.DeployableMotionState.DEPLOYED
+                or elevation.actualPosition <= self.tel_operate_dome_shutter_el
+                or force
+            ):
+                if force:
+                    self.log.warning(
+                        "Force-opening MTDome shutter under these conditions: "
+                        f"Shutter state: {shutter_state.state}. "
+                        f"Mirror covers: {MTMount.DeployableMotionState(cover_state.state)!r}. "
+                        f"Telescope elevation: {elevation.actualPosition} deg."
+                    )
+                else:
+                    self.log.info("Opening MTDome shutter.")
+
+                await self.rem.mtdome.cmd_openShutter.start(
+                    timeout=self.open_dome_shutter_time
+                )
+
+                # Wait for MT Dome shutter door to reach final position
+                await self._handle_in_position(
+                    self.rem.mtdome.evt_shutterMotion,
+                    timeout=self.open_dome_shutter_time,
+                    component_name="MTDome shutter door",
+                )
+
+                shutter_state = await self.rem.mtdome.evt_shutterMotion.aget(
+                    timeout=self.fast_timeout
+                )
+                self.log.info(f"Shutter state: {shutter_state.state}")
+
+            else:
+                raise RuntimeError(
+                    "MTDome shutter will not be opened under these conditions: "
+                    f"Shutter state: {shutter_state.state}. "
+                    f"Mirror covers: {MTMount.DeployableMotionState(cover_state.state)!r}. "
+                    f"Telescope elevation: {elevation.actualPosition} deg. "
+                    "If you want to force this operation, run open_dome_shutter(force=True)."
+                )
+
+        elif shutter_state.state == [MTDome.MotionState.OPEN, MTDome.MotionState.OPEN]:
+            self.log.info("MTDome shutter door is already open. Ignoring.")
+
+        else:
+            raise RuntimeError(
+                f"Shutter door state is {shutter_state.state}. "
+                f"Expected either {[MTDome.MotionState.CLOSED, MTDome.MotionState.CLOSED]}, "
+                f"or {[MTDome.MotionState.OPEN, MTDome.MotionState.OPEN]}."
+            )
 
     async def open_m1_cover(self) -> None:
         """Method to open mirror covers.
@@ -1125,6 +1340,94 @@ class MTCS(BaseTCS):
         self.rem.mtmount.evt_azimuthInPosition.flush()
         self.rem.mtrotator.evt_inPosition.flush()
 
+    async def wait_tracking_stopped(self) -> None:
+        """Wait until the mount and rotator reports that they
+        have stopped tracking."""
+        await asyncio.gather(
+            self._wait_mtmount_azimuth_tracking_stopped(),
+            self._wait_mtmount_elevation_tracking_stopped(),
+            self._wait_mtrotator_stationary(),
+        )
+
+    async def _wait_mtmount_azimuth_tracking_stopped(self) -> None:
+        """Wait until the mount reports that tracking stopped."""
+
+        self.rem.mtmount.evt_azimuthMotionState.flush()
+        azimuth_motion_state = MTMount.AxisMotionState(
+            (
+                await self.rem.mtmount.evt_azimuthMotionState.aget(
+                    timeout=self.fast_timeout
+                )
+            ).state
+        )
+
+        while azimuth_motion_state != MTMount.AxisMotionState.STOPPED:
+            self.log.debug(
+                f"Current azimuth motion state {azimuth_motion_state.name}; "
+                "waiting until reported as STOPPED."
+            )
+            azimuth_motion_state = MTMount.AxisMotionState(
+                (
+                    await self.rem.mtmount.evt_azimuthMotionState.next(
+                        flush=False, timeout=self.long_timeout
+                    )
+                ).state
+            )
+
+        self.log.debug("Azimuth axis stopped.")
+
+    async def _wait_mtmount_elevation_tracking_stopped(self) -> None:
+        """Wait until the mount reports that tracking stopped."""
+        self.rem.mtmount.evt_elevationMotionState.flush()
+        elevation_motion_state = MTMount.AxisMotionState(
+            (
+                await self.rem.mtmount.evt_elevationMotionState.aget(
+                    timeout=self.fast_timeout
+                )
+            ).state
+        )
+
+        while elevation_motion_state != MTMount.AxisMotionState.STOPPED:
+            self.log.debug(
+                f"Current elevation motion state {elevation_motion_state.name}; "
+                "waiting until reported as STOPPED."
+            )
+            elevation_motion_state = MTMount.AxisMotionState(
+                (
+                    await self.rem.mtmount.evt_elevationMotionState.next(
+                        flush=False, timeout=self.long_timeout
+                    )
+                ).state
+            )
+        self.log.debug("Elevation axis stopped.")
+
+    async def _wait_mtrotator_stationary(self) -> None:
+        """Wait until the rotator reports as stationary."""
+
+        self.rem.mtrotator.evt_controllerState.flush()
+
+        mtrotator_state = MTRotator.EnabledSubstate(
+            (
+                await self.rem.mtrotator.evt_controllerState.aget(
+                    timeout=self.fast_timeout
+                )
+            ).enabledSubstate
+        )
+
+        while mtrotator_state != MTRotator.EnabledSubstate.STATIONARY:
+            self.log.debug(
+                f"MTRotator substate: {mtrotator_state.name}; "
+                "waiting until reported as STATIONARY."
+            )
+            mtrotator_state = MTRotator.EnabledSubstate(
+                (
+                    await self.rem.mtrotator.evt_controllerState.next(
+                        flush=False, timeout=self.long_timeout
+                    )
+                ).enabledSubstate
+            )
+        self.log.debug("Rotator stationary.")
+
     async def offset_done(self) -> None:
         """Wait for offset events."""
         await asyncio.gather(
@@ -1155,12 +1458,12 @@ class MTCS(BaseTCS):
         await self._execute_m1m3_detailed_state_change(
             execute_command=self._handle_raise_m1m3,
             initial_detailed_states={
-                MTM1M3.DetailedState.PARKED,
-                MTM1M3.DetailedState.PARKEDENGINEERING,
+                MTM1M3.DetailedStates.PARKED,
+                MTM1M3.DetailedStates.PARKEDENGINEERING,
             },
             final_detailed_states={
-                MTM1M3.DetailedState.ACTIVE,
-                MTM1M3.DetailedState.ACTIVEENGINEERING,
+                MTM1M3.DetailedStates.ACTIVE,
+                MTM1M3.DetailedStates.ACTIVEENGINEERING,
             },
         )
 
@@ -1169,12 +1472,12 @@ class MTCS(BaseTCS):
         await self._execute_m1m3_detailed_state_change(
             execute_command=self._handle_lower_m1m3,
             initial_detailed_states={
-                MTM1M3.DetailedState.ACTIVE,
-                MTM1M3.DetailedState.ACTIVEENGINEERING,
+                MTM1M3.DetailedStates.ACTIVE,
+                MTM1M3.DetailedStates.ACTIVEENGINEERING,
             },
             final_detailed_states={
-                MTM1M3.DetailedState.PARKED,
-                MTM1M3.DetailedState.PARKEDENGINEERING,
+                MTM1M3.DetailedStates.PARKED,
+                MTM1M3.DetailedStates.PARKEDENGINEERING,
             },
         )
 
@@ -1183,21 +1486,21 @@ class MTCS(BaseTCS):
         await self._execute_m1m3_detailed_state_change(
             execute_command=self._handle_abort_raise_m1m3,
             initial_detailed_states={
-                MTM1M3.DetailedState.RAISING,
-                MTM1M3.DetailedState.RAISINGENGINEERING,
+                MTM1M3.DetailedStates.RAISING,
+                MTM1M3.DetailedStates.RAISINGENGINEERING,
             },
             final_detailed_states={
-                MTM1M3.DetailedState.PARKED,
-                MTM1M3.DetailedState.PARKEDENGINEERING,
+                MTM1M3.DetailedStates.PARKED,
+                MTM1M3.DetailedStates.PARKEDENGINEERING,
             },
         )
 
     async def assert_m1m3_detailed_state(
-        self, detailed_states: set[MTM1M3.DetailedState]
+        self, detailed_states: set[MTM1M3.DetailedStates]
     ) -> None:
         """Assert that M1M3 detailed state is one of the input set."""
 
-        m1m3_detailed_state = MTM1M3.DetailedState(
+        m1m3_detailed_state = MTM1M3.DetailedStates(
             (
                 await self.rem.mtm1m3.evt_detailedState.aget(timeout=self.fast_timeout)
             ).detailedState
@@ -1222,9 +1525,9 @@ class MTCS(BaseTCS):
         execute_command : awaitable
             An awaitable object (coroutine or task) that will cause m1m3
             detailed state to change.
-        initial_detailed_states : `set` of `MTM1M3.DetailedState`
+        initial_detailed_states : `set` of `MTM1M3.DetailedStates`
             The expected initial detailed state.
-        final_detailed_states : `set` of `MTM1M3.DetailedState`
+        final_detailed_states : `set` of `MTM1M3.DetailedStates`
             The expected final detailed state.
         """
         m1m3_detailed_state = await self.rem.mtm1m3.evt_detailedState.aget(
@@ -1242,7 +1545,7 @@ class MTCS(BaseTCS):
             )
         else:
             raise RuntimeError(
-                f"M1M3 detailed state is {MTM1M3.DetailedState(m1m3_detailed_state.detailedState)!r}, "
+                f"M1M3 detailed state is {MTM1M3.DetailedStates(m1m3_detailed_state.detailedState)!r}, "
                 f"expected {initial_detailed_states!r}. "
                 "Cannot execute command."
             )
@@ -1267,11 +1570,11 @@ class MTCS(BaseTCS):
 
         await self._handle_m1m3_detailed_state(
             expected_m1m3_detailed_state={
-                MTM1M3.DetailedState.ACTIVE,
-                MTM1M3.DetailedState.ACTIVEENGINEERING,
+                MTM1M3.DetailedStates.ACTIVE,
+                MTM1M3.DetailedStates.ACTIVEENGINEERING,
             },
             unexpected_m1m3_detailed_states={
-                MTM1M3.DetailedState.LOWERING,
+                MTM1M3.DetailedStates.LOWERING,
             },
         )
 
@@ -1294,8 +1597,8 @@ class MTCS(BaseTCS):
 
         await self._handle_m1m3_detailed_state(
             expected_m1m3_detailed_state={
-                MTM1M3.DetailedState.PARKED,
-                MTM1M3.DetailedState.PARKEDENGINEERING,
+                MTM1M3.DetailedStates.PARKED,
+                MTM1M3.DetailedStates.PARKEDENGINEERING,
             },
             unexpected_m1m3_detailed_states=set(),
         )
@@ -1306,8 +1609,8 @@ class MTCS(BaseTCS):
 
         await self._handle_m1m3_detailed_state(
             expected_m1m3_detailed_state={
-                MTM1M3.DetailedState.PARKED,
-                MTM1M3.DetailedState.PARKEDENGINEERING,
+                MTM1M3.DetailedStates.PARKED,
+                MTM1M3.DetailedStates.PARKEDENGINEERING,
             },
             unexpected_m1m3_detailed_states=set(),
         )
@@ -1321,9 +1624,9 @@ class MTCS(BaseTCS):
 
         Parameters
         ----------
-        expected_m1m3_detailed_state : `set` of `MTM1M3.DetailedState`
+        expected_m1m3_detailed_state : `set` of `MTM1M3.DetailedStates`
             Expected m1m3 detailed state.
-        unexpected_m1m3_detailed_states : `set` of `MTM1M3.DetailedState`
+        unexpected_m1m3_detailed_states : `set` of `MTM1M3.DetailedStates`
             List of unexpected detailed state. If M1M3 transition to any of
             these states, raise an exception.
         """
@@ -1352,9 +1655,9 @@ class MTCS(BaseTCS):
 
         Parameters
         ----------
-        expected_m1m3_detailed_state : `set`[ `MTM1M3.DetailedState` ]
+        expected_m1m3_detailed_state : `set`[ `MTM1M3.DetailedStates` ]
             Expected m1m3 detailed state.
-        unexpected_m1m3_detailed_states : `set`[ `MTM1M3.DetailedState` ]
+        unexpected_m1m3_detailed_states : `set`[ `MTM1M3.DetailedStates` ]
             List of unexpected detailed state. If M1M3 transition to any of
             these states, raise an exception.
         timeout : `float`
@@ -1442,6 +1745,21 @@ class MTCS(BaseTCS):
             Wait for secondary (xy-axis) test to finish.
         """
 
+        # Determine failure states based on the XML version
+        if hasattr(MTM1M3.BumpTest, "FAILED"):
+            # Old XML version
+            FAILED_STATES = {MTM1M3.BumpTest.FAILED}
+        else:
+            # New XML version with granular failure states
+            FAILED_STATES = {
+                MTM1M3.BumpTest.FAILED_TIMEOUT,
+                MTM1M3.BumpTest.FAILED_TESTEDPOSITIVE_OVERSHOOT,
+                MTM1M3.BumpTest.FAILED_TESTEDPOSITIVE_UNDERSHOOT,
+                MTM1M3.BumpTest.FAILED_TESTEDNEGATIVE_OVERSHOOT,
+                MTM1M3.BumpTest.FAILED_TESTEDNEGATIVE_UNDERSHOOT,
+                MTM1M3.BumpTest.FAILED_NONTESTEDPROBLEM,
+            }
+
         while True:
             bump_test_status = (
                 await self.rem.mtm1m3.evt_forceActuatorBumpTestStatus.next(
@@ -1467,13 +1785,13 @@ class MTCS(BaseTCS):
                     f"{primary_status!r}[{primary}], {secondary_status!r}[{secondary}]"
                 )
                 return
-            elif primary and primary_status == MTM1M3.BumpTest.FAILED:
+            elif primary and primary_status in FAILED_STATES:
                 raise RuntimeError(
-                    f"Primary bump test failed for actuator {actuator_id}."
+                    f"Primary bump test failed for actuator {actuator_id} with status {primary_status!r}."
                 )
-            elif secondary and secondary_status == MTM1M3.BumpTest.FAILED:
+            elif secondary and secondary_status in FAILED_STATES:
                 raise RuntimeError(
-                    f"Secondary bump test failed for actuator {actuator_id}."
+                    f"Secondary bump test failed for actuator {actuator_id} with status {secondary_status!r}."
                 )
             else:
                 self.log.debug(
@@ -1495,6 +1813,21 @@ class MTCS(BaseTCS):
             If the bump test failed.
         """
 
+        # Determine failure states based on the XML version
+        if hasattr(MTM2.BumpTest, "FAILED"):
+            # Old XML version
+            FAILED_STATES = {MTM2.BumpTest.FAILED}
+        else:
+            # New XML version with granular failure states
+            FAILED_STATES = {
+                MTM2.BumpTest.FAILED_TIMEOUT,
+                MTM2.BumpTest.FAILED_TESTEDPOSITIVE_OVERSHOOT,
+                MTM2.BumpTest.FAILED_TESTEDPOSITIVE_UNDERSHOOT,
+                MTM2.BumpTest.FAILED_TESTEDNEGATIVE_OVERSHOOT,
+                MTM2.BumpTest.FAILED_TESTEDNEGATIVE_UNDERSHOOT,
+                MTM2.BumpTest.FAILED_NONTESTEDPROBLEM,
+            }
+
         while True:
             bump_test_status = await self.rem.mtm2.evt_actuatorBumpTestStatus.next(
                 flush=False, timeout=self.long_timeout
@@ -1506,8 +1839,10 @@ class MTCS(BaseTCS):
             if bump_test_status.status == MTM2.BumpTest.PASSED:
                 self.log.info(f"Bump test for actuator {actuator} passed.")
                 return
-            elif bump_test_status.status == MTM2.BumpTest.FAILED:
-                raise RuntimeError(f"Bump test for actuator {actuator} failed.")
+            elif bump_test_status.status in FAILED_STATES:
+                raise RuntimeError(
+                    f"Bump test for actuator {actuator} failed with status {bump_test_status.status!r}."
+                )
             else:
                 self.log.info(
                     f"Actuator {actuator} bump test status: {bump_test_status.status}"
@@ -1696,7 +2031,7 @@ class MTCS(BaseTCS):
             m1m3_engineering_states = self.m1m3_engineering_states
             expected_states = {
                 detailed_state
-                for detailed_state in MTM1M3.DetailedState
+                for detailed_state in MTM1M3.DetailedStates
                 if detailed_state not in m1m3_engineering_states
             }
             await self._wait_for_mtm1m3_detailed_state(
@@ -2229,9 +2564,60 @@ class MTCS(BaseTCS):
             function? Default True.
         """
 
-        await self.rem.mtrotator.cmd_move.set_start(
-            position=position, timeout=self.long_timeout
+        rotator_position_tolerance = self.rotator_position_tolerance
+        try:
+            rotator_position_tolerance = (
+                await self.rem.mtrotator.evt_configuration.aget(
+                    timeout=self.fast_timeout
+                )
+            ).positionErrorThreshold
+        except asyncio.TimeoutError:
+            self.log.warning(
+                "Could not get rotator position error threshold. "
+                "Using default value of {self.rotator_position_tolerance}."
+            )
+
+        rotator_position = await self.rem.mtrotator.tel_rotation.aget(
+            timeout=self.fast_timeout
         )
+
+        if abs(rotator_position.actualPosition - position) < rotator_position_tolerance:
+            self.log.warning(
+                f"Current rotator position ({rotator_position.actualPosition:.2f}) "
+                f"already within tolerance ({rotator_position_tolerance}) "
+                f"of desired position ({position}). "
+                "Nothing to do."
+            )
+            return
+
+        ntries = 2
+        for i in range(ntries):
+            try:
+                await self.rem.mtrotator.evt_heartbeat.next(
+                    flush=True, timeout=self.fast_timeout
+                )
+            except asyncio.TimeoutError:
+                self.log.warning(
+                    "Could not get a heartbeat from the rotator. Move command will probably fail!"
+                )
+
+            await self.rem.mtrotator.cmd_move.set_start(
+                position=position, timeout=self.long_timeout
+            )
+
+            try:
+                await self._wait_mtrotator_moving_point_to_point()
+            except asyncio.TimeoutError:
+                self.log.warning(
+                    "Expected rotator to start moving; but it remained stationary. "
+                    f"Attempt {i+1} of {ntries}."
+                )
+            else:
+                break
+        else:
+            raise RuntimeError(
+                "Rotator did not report as moving after {ntries} attempts."
+            )
 
         if wait_for_in_position:
             await self._handle_in_position(
@@ -2242,25 +2628,39 @@ class MTCS(BaseTCS):
         else:
             self.log.warning("Not waiting for rotator to reach desired position.")
 
+    async def _wait_mtrotator_moving_point_to_point(self) -> None:
+        """Wait until the rotator reports as moving point to point."""
+
+        self.rem.mtrotator.evt_controllerState.flush()
+
+        mtrotator_state = MTRotator.EnabledSubstate(
+            (
+                await self.rem.mtrotator.evt_controllerState.aget(
+                    timeout=self.fast_timeout
+                )
+            ).enabledSubstate
+        )
+
+        while mtrotator_state != MTRotator.EnabledSubstate.MOVING_POINT_TO_POINT:
+            self.log.debug(
+                f"MTRotator substate: {mtrotator_state.name}; "
+                " waiting until reported as MOVING_POINT_TO_POINT."
+            )
+            mtrotator_state = MTRotator.EnabledSubstate(
+                (
+                    await self.rem.mtrotator.evt_controllerState.next(
+                        flush=False, timeout=self.fast_timeout
+                    )
+                ).enabledSubstate
+            )
+        self.log.debug("Rotator moving.")
+
     async def stop_rotator(self) -> None:
         """Stop rotator movement and wait for controller to publish Stationary
         substate event."""
 
-        self.rem.mtrotator.evt_controllerState.flush()
-
         await self.rem.mtrotator.cmd_stop.start(timeout=self.long_timeout)
-
-        mtrotator_state = await self.rem.mtrotator.evt_controllerState.aget(
-            timeout=self.long_timeout
-        )
-
-        while mtrotator_state.enabledSubstate != MTRotator.EnabledSubstate.STATIONARY:
-            self.log.debug(
-                f"MTRotator substate: {MTRotator.EnabledSubstate(mtrotator_state.enabledSubstate)!r}"
-            )
-            mtrotator_state = await self.rem.mtrotator.evt_controllerState.next(
-                flush=False, timeout=self.long_timeout
-            )
+        await self._wait_mtrotator_stationary()
 
     async def move_m2_hexapod(
         self,
@@ -2732,7 +3132,9 @@ class MTCS(BaseTCS):
         try:
             await self.open_m1m3_booster_valve()
             yield
-        finally:
+        except Exception:
+            raise
+        else:
             await self.wait_m1m3_settle()
             await self.close_m1m3_booster_valve()
 
@@ -2796,17 +3198,17 @@ class MTCS(BaseTCS):
         self.log.info(f"M1M3 {setting_key} setting updated successfully.")
 
     @property
-    def m1m3_engineering_states(self) -> set[MTM1M3.DetailedState]:
+    def m1m3_engineering_states(self) -> set[MTM1M3.DetailedStates]:
         """M1M3 engineering states.
 
         Returns
         -------
-        `set`[ `MTM1M3.DetailedState` ]
+        `set`[ `MTM1M3.DetailedStates` ]
             Set with the M1M3 detailed states.
         """
         return {
             detailed_state
-            for detailed_state in MTM1M3.DetailedState
+            for detailed_state in MTM1M3.DetailedStates
             if "ENGINEERING" in detailed_state.name
         }
 
@@ -2895,12 +3297,20 @@ class MTCS(BaseTCS):
                     "target",
                     "timeAndDate",
                 ],
-                mtrotator=["rotation", "inPosition"],
+                mtrotator=[
+                    "configuration",
+                    "rotation",
+                    "inPosition",
+                    "controllerState",
+                    "target",
+                ],
                 mtmount=[
                     "azimuth",
                     "elevation",
                     "elevationInPosition",
+                    "elevationMotionState",
                     "azimuthInPosition",
+                    "azimuthMotionState",
                     "cameraCableWrapFollowing",
                     "mirrorCoversMotionState",
                     "mirrorCoversSystemState",
@@ -2912,7 +3322,7 @@ class MTCS(BaseTCS):
                     "detailedState",
                     "forceControllerState",
                 ],
-                mtdome=["azimuth", "lightWindScreen"],
+                mtdome=["azimuth", "lightWindScreen", "azMotion"],
                 mthexapod_1=["compensationMode"],
                 mthexapod_2=["compensationMode"],
             )
@@ -2921,6 +3331,7 @@ class MTCS(BaseTCS):
                 components_attr=self.components_attr,
                 readonly=False,
                 generics=["summaryState", "configurationsAvailable", "heartbeat"],
+                mtaos=["closedLoopState"],
                 mtptg=[
                     "azElTarget",
                     "raDecTarget",
@@ -2935,15 +3346,24 @@ class MTCS(BaseTCS):
                     "target",
                     "focusNameSelected",
                 ],
-                mtrotator=["rotation", "inPosition"],
+                mtrotator=[
+                    "configuration",
+                    "rotation",
+                    "inPosition",
+                    "controllerState",
+                    "target",
+                ],
                 mtmount=[
                     "azimuth",
                     "elevation",
                     "elevationInPosition",
+                    "elevationMotionState",
                     "azimuthInPosition",
+                    "azimuthMotionState",
                     "cameraCableWrapFollowing",
+                    "mirrorCoversMotionState",
                 ],
-                mtdome=["azimuth", "lightWindScreen"],
+                mtdome=["azimuth", "lightWindScreen", "azMotion", "shutterMotion"],
                 mtm1m3=[
                     "boosterValveStatus",
                     "forceActuatorState",
@@ -3019,6 +3439,15 @@ class MTCS(BaseTCS):
                     "summaryState",
                     "configurationsAvailable",
                     "heartbeat",
+                ],
+            )
+
+            usages[self.valid_use_cases.AOS] = UsagesResources(
+                components_attr=["mtaos"],
+                readonly=False,
+                mtaos=[
+                    "degreeOfFreedom",
+                    "wavefrontError",
                 ],
             )
 

@@ -25,6 +25,7 @@ import unittest.mock
 
 import numpy as np
 from lsst.ts.observatory.control.maintel.comcam import ComCam, ComCamUsages
+from lsst.ts.observatory.control.maintel.lsstcam import LSSTCam, LSSTCamUsages
 from lsst.ts.observatory.control.maintel.mtcalsys import MTCalsys, MTCalsysUsages
 from lsst.ts.observatory.control.mock import RemoteGroupAsyncMock
 from lsst.ts.utils import index_generator
@@ -43,12 +44,14 @@ class TestMTCalsys(RemoteGroupAsyncMock):
                 "evt_largeFileObjectAvailable.next.side_effect": self.mock_electrometer_lfoa
             }
         )
-        self.mtcalsys.rem.fiberspectrograph_1.configure_mock(
+        self.mtcalsys.rem.fiberspectrograph_101.configure_mock(
             **{
                 "evt_largeFileObjectAvailable.next.side_effect": self.mock_fiberspectrograph_lfoa
             }
         )
         self.mtcalsys.rem.tunablelaser.configure_mock()
+
+        self.mtcalsys.rem.cbp.configure_mock()
 
     async def setup_types(self) -> None:
         pass
@@ -87,11 +90,13 @@ class TestMTCalsys(RemoteGroupAsyncMock):
     def test_load_calibration_config_file(self) -> None:
         self.mtcalsys.load_calibration_config_file()
 
-        assert "whitelight_r" in self.mtcalsys.get_configuration_options()
+        assert "whitelight_r_57_daily" in self.mtcalsys.get_configuration_options()
 
     async def test_setup_electrometers(self) -> None:
 
-        config_data = self.mtcalsys.get_calibration_configuration("whitelight_r")
+        config_data = self.mtcalsys.get_calibration_configuration(
+            "whitelight_r_57_daily"
+        )
 
         await self.mtcalsys.setup_electrometers(
             mode=str(config_data["electrometer_mode"]),
@@ -99,10 +104,10 @@ class TestMTCalsys(RemoteGroupAsyncMock):
             integration_time=float(config_data["electrometer_integration_time"]),
         )
 
-        self.mtcalsys.electrometer.cmd_performZeroCalib.start.assert_awaited_with(
+        self.mtcalsys.electrometer_flatfield.cmd_performZeroCalib.start.assert_awaited_with(
             timeout=self.mtcalsys.long_timeout
         )
-        self.mtcalsys.electrometer.cmd_setDigitalFilter.set_start.assert_awaited_with(
+        self.mtcalsys.electrometer_flatfield.cmd_setDigitalFilter.set_start.assert_awaited_with(
             activateFilter=False,
             activateAvgFilter=False,
             activateMedFilter=False,
@@ -128,6 +133,17 @@ class TestMTCalsys(RemoteGroupAsyncMock):
             timeout=self.mtcalsys.long_timeout,
         )
 
+    async def test_setup_cbp(self) -> None:
+        azimuth = 0
+        elevation = 0
+        rotation = 9
+
+        await self.mtcalsys.setup_cbp(
+            azimuth=azimuth,
+            elevation=elevation,
+            rotation=rotation,
+        )
+
     async def test_laser_start_propagation(self) -> None:
         await self.mtcalsys.laser_start_propagate()
 
@@ -140,6 +156,14 @@ class TestMTCalsys(RemoteGroupAsyncMock):
 
         self.mtcalsys.rem.tunablelaser.cmd_stopPropagateLaser.start.assert_awaited_with(
             timeout=self.mtcalsys.laser_warmup
+        )
+
+    async def test_park_projector(self) -> None:
+        await self.mtcalsys.park_projector()
+
+        # TO-DO (DM-50206): Swap On/Off
+        self.mtcalsys.rem.ledprojector.cmd_switchAllOn.start.assert_awaited_with(
+            timeout=self.mtcalsys.long_timeout
         )
 
     async def test_prepare_for_whitelight_flat(self) -> None:
@@ -158,11 +182,18 @@ class TestMTCalsys(RemoteGroupAsyncMock):
         )
 
         self.mtcalsys.mtcamera = mock_comcam
-
+        self.mtcalsys.linearstage_projector_select.tel_position.position = (
+            unittest.mock.Mock(return_value=9.96)
+        )
         try:
-            await self.mtcalsys.prepare_for_flat("whitelight_r")
+            await self.mtcalsys.prepare_for_flat("whitelight_r_57_daily")
         finally:
             self.mtcalsys.mtcamera = None
+
+    async def test_get_projector_setup(self) -> None:
+        output = await self.mtcalsys.get_projector_setup()
+
+        assert output[0] == "misaligned"
 
     async def mock_aget_start_integration(
         self, timeout: float
@@ -219,58 +250,41 @@ class TestMTCalsys(RemoteGroupAsyncMock):
         mock_comcam = ComCam(
             "FakeDomain", log=self.log, intended_usage=ComCamUsages.DryTest
         )
-        mock_comcam.rem.cccamera = unittest.mock.AsyncMock()
-        mock_comcam.rem.cccamera.evt_startIntegration.aget.configure_mock(
-            side_effect=self.mock_aget_start_integration
-        )
-        mock_comcam.rem.cccamera.evt_startIntegration.next.configure_mock(
-            side_effect=self.mock_start_integration
-        )
-        mock_comcam.rem.cccamera.evt_endReadout.next.configure_mock(
-            side_effect=self.mock_end_readout
-        )
+        mock_comcam.take_flats = unittest.mock.AsyncMock()
+
         self.mtcalsys.mtcamera = mock_comcam
 
         try:
             calibration_summary = await self.mtcalsys.run_calibration_sequence(
-                "whitelight_r", exposure_metadata=dict()
+                "whitelight_u_24_daily", exposure_metadata=dict()
             )
         finally:
             self.mtcalsys.mtcamera = None
 
-        config_data = self.mtcalsys.get_calibration_configuration("whitelight_r")
+        config_data = self.mtcalsys.get_calibration_configuration(
+            "whitelight_u_24_daily"
+        )
 
         assert "sequence_name" in calibration_summary
-        assert calibration_summary["sequence_name"] == "whitelight_r"
+        assert calibration_summary["sequence_name"] == "whitelight_u_24_daily"
         assert "steps" in calibration_summary
         self.log.debug(f"number of steps: {len(calibration_summary['steps'])}")
-        assert len(calibration_summary["steps"]) == len(config_data["exposure_times"])
+        assert (
+            len(calibration_summary["steps"])
+            == len(config_data["exposure_times"]) * config_data["n_flat"]
+        )
         for mtcamera_exposure_info in calibration_summary["steps"][0][
             "mtcamera_exposure_info"
         ].values():
             assert len(mtcamera_exposure_info["electrometer_exposure_result"]) >= 1
-            assert (
-                len(mtcamera_exposure_info["fiber_spectrum_red_exposure_result"]) >= 1
-            )
-            assert (
-                len(mtcamera_exposure_info["fiber_spectrum_blue_exposure_result"]) >= 1
-            )
 
     async def test_run_calibration_sequence_mono(self) -> None:
 
         mock_comcam = ComCam(
             "FakeDomain", log=self.log, intended_usage=ComCamUsages.DryTest
         )
-        mock_comcam.rem.cccamera = unittest.mock.AsyncMock()
-        mock_comcam.rem.cccamera.evt_startIntegration.aget.configure_mock(
-            side_effect=self.mock_aget_start_integration
-        )
-        mock_comcam.rem.cccamera.evt_startIntegration.next.configure_mock(
-            side_effect=self.mock_start_integration
-        )
-        mock_comcam.rem.cccamera.evt_endReadout.next.configure_mock(
-            side_effect=self.mock_end_readout
-        )
+        mock_comcam.take_flats = unittest.mock.AsyncMock()
+
         self.mtcalsys.mtcamera = mock_comcam
 
         try:
@@ -301,20 +315,61 @@ class TestMTCalsys(RemoteGroupAsyncMock):
         assert calibration_summary["sequence_name"] == "scan_r"
         assert "steps" in calibration_summary
         assert len(calibration_summary["steps"]) == 50
-        assert (
-            len(calibration_summary["steps"][0]["mtcamera_exposure_info"])
-            == len(config_data["exposure_times"]) * 2
+        assert len(calibration_summary["steps"][0]["mtcamera_exposure_info"]) == len(
+            config_data["exposure_times"]
         )
         for mtcamera_exposure_info in calibration_summary["steps"][0][
             "mtcamera_exposure_info"
         ].values():
             assert len(mtcamera_exposure_info["electrometer_exposure_result"]) >= 1
-            assert (
-                len(mtcamera_exposure_info["fiber_spectrum_red_exposure_result"]) >= 1
+        self.mtcalsys.change_laser_wavelength(
+            wavelength=expected_change_wavelegths_calls
+        )
+
+    async def test_run_calibration_sequence_cbp(self) -> None:
+
+        mock_LSSTcam = LSSTCam(
+            "FakeDomain", log=self.log, intended_usage=LSSTCamUsages.DryTest
+        )
+        mock_LSSTcam.take_flats = unittest.mock.AsyncMock()
+
+        self.mtcalsys.mtcamera = mock_LSSTcam
+
+        try:
+            calibration_summary = await self.mtcalsys.run_calibration_sequence(
+                "cbp_g_leak", exposure_metadata=dict()
             )
-            assert (
-                len(mtcamera_exposure_info["fiber_spectrum_blue_exposure_result"]) >= 1
+        finally:
+            self.mtcalsys.mtcamera = None
+
+        config_data = self.mtcalsys.get_calibration_configuration("cbp_g_leak")
+        wavelength = float(config_data["wavelength"])
+        wavelength_width = float(config_data["wavelength_width"])
+        wavelength_resolution = float(config_data["wavelength_resolution"])
+        wavelength_start = wavelength - wavelength_width / 2.0
+        wavelength_end = wavelength + wavelength_width / 2.0
+
+        calibration_wavelengths = np.arange(
+            wavelength_start, wavelength_end, wavelength_resolution
+        )
+        expected_change_wavelegths_calls = [
+            unittest.mock.call(
+                wavelength=wavelength, timeout=self.mtcalsys.long_long_timeout
             )
+            for wavelength in calibration_wavelengths
+        ]
+
+        assert "sequence_name" in calibration_summary
+        assert calibration_summary["sequence_name"] == "cbp_g_leak"
+        assert "steps" in calibration_summary
+        assert len(calibration_summary["steps"]) == 20
+        assert len(calibration_summary["steps"][0]["mtcamera_exposure_info"]) == len(
+            config_data["exposure_times"]
+        )
+        for mtcamera_exposure_info in calibration_summary["steps"][0][
+            "mtcamera_exposure_info"
+        ].values():
+            assert len(mtcamera_exposure_info["electrometer_exposure_result"]) >= 1
         self.mtcalsys.change_laser_wavelength(
             wavelength=expected_change_wavelegths_calls
         )

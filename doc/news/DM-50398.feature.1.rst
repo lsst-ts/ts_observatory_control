@@ -1,0 +1,5 @@
+In `maintel/lsstcam.py`:
+- Replace a log warning with an exception to prevent filter change if not configured to manage the operation.
+- Adds an exception handling for a stop rotator command.
+  This ensures that even if the rotator does not respond to the stop command, the `setup_filter` method will log a warning and continue execution.
+- Update LSSTCam to add a default ROI spec, which will be used in any take image if the user does not provide an override.

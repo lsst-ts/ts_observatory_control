@@ -199,14 +199,17 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
                 )
 
             # Get RA and DEC keyword from table
-            ra_key = "RA" if "RA" in object_table.columns else "ra"
+            (ra_key, ra_coordinates) = (
+                ("RA", u.hourangle) if "RA" in object_table.columns else ("ra", u.deg)
+            )
             dec_key = "DEC" if "DEC" in object_table.columns else "dec"
 
-            ra = Angle(object_table[0][ra_key], unit=u.hourangle)
+            ra = Angle(object_table[0][ra_key], unit=ra_coordinates)
             dec = Angle(object_table[0][dec_key], unit=u.deg)
+
             radec_icrs = ICRS(
-                ra=Angle(round(ra.value, 8), unit=u.hourangle),
-                dec=Angle(round(dec.value, 8), unit=u.deg),
+                ra=ra.to(u.hourangle),
+                dec=dec,
             )
 
             self.object_list_add(name, radec_icrs)
@@ -1312,6 +1315,18 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
             timeout=self.fast_timeout
         )
 
+        await self.wait_tracking_stopped()
+
+    async def wait_tracking_stopped(self) -> None:
+        """Task to wait until tracking has stopped.
+
+        Notes
+        -----
+        Concrete implementations should override this
+        method. By default it is a no-op.
+        """
+        pass
+
     async def check_tracking(
         self, track_duration: typing.Optional[float] = None
     ) -> None:
@@ -1717,7 +1732,16 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
 
         result_table.sort("V")
 
-        target_ident_id = str(result_table["id"][0])
+        if "id" in result_table.colnames:
+            target_ident_id = str(result_table["id"][0])
+        elif "main_id" in result_table.colnames:
+            target_ident_id = str(result_table["main_id"][0])
+        elif "ident.id" in result_table.colnames:
+            target_ident_id = str(result_table["ident.id"][0])
+        else:
+            raise KeyError(
+                f"No suitable identifier column found in Simbad search for {radec}"
+            )
 
         radec_icrs = ICRS(
             ra=Angle(result_table[0]["ra"], unit=u.deg),
@@ -1920,6 +1944,7 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
         settle_time: float = 5.0,
         component_name: str = "",
         race_condition_timeout: float = 5.0,
+        unreliable_in_position: bool = False,
     ) -> str:
         """Handle inPosition event.
 
@@ -1975,7 +2000,26 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
 
         while not in_position.inPosition:
             in_position = await in_position_event.next(flush=False, timeout=timeout)
-            self.log.info(f"{component_name} in position: {in_position.inPosition}.")
+            if unreliable_in_position:
+                self.log.info(
+                    f"Handling unreliable in position event for {component_name}: {in_position.inPosition}."
+                )
+                try:
+                    in_position = await in_position_event.next(
+                        flush=False, timeout=settle_time
+                    )
+                    self.log.info(
+                        f"Got {in_position.inPosition} while handling unreliable "
+                        f"in position for {component_name}."
+                    )
+                except asyncio.TimeoutError:
+                    self.log.debug(
+                        "No new in position event while handling unreliable in position."
+                    )
+            else:
+                self.log.info(
+                    f"{component_name} in position: {in_position.inPosition}."
+                )
 
         self.log.debug(
             f"{component_name} in position {in_position.inPosition}. "

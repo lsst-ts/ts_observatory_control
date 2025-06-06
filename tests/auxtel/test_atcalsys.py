@@ -204,8 +204,8 @@ class TestATCalsys(RemoteGroupAsyncMock):
     async def mock_start_integration(
         self, flush: bool, timeout: float
     ) -> types.SimpleNamespace:
-
         self.log.debug(f"Calling mock start integration: {self.current_image_index=}.")
+
         return types.SimpleNamespace(
             imageName=f"A_B_20240523_{self.current_image_index:04d}", exposureTime=1.0
         )
@@ -244,17 +244,7 @@ class TestATCalsys(RemoteGroupAsyncMock):
         mock_latiss = LATISS(
             "FakeDomain", log=self.log, intended_usage=LATISSUsages.DryTest
         )
-        mock_latiss.rem.atcamera = unittest.mock.AsyncMock()
-        mock_latiss.rem.atcamera.evt_startIntegration.aget.configure_mock(
-            side_effect=self.mock_aget_start_integration
-        )
-        mock_latiss.rem.atcamera.evt_startIntegration.next.configure_mock(
-            side_effect=self.mock_start_integration
-        )
-        mock_latiss.rem.atspectrograph = unittest.mock.AsyncMock()
-        mock_latiss.rem.atcamera.evt_endReadout.next.configure_mock(
-            side_effect=self.mock_end_readout
-        )
+        mock_latiss.take_flats = unittest.mock.AsyncMock()
         self.atcalsys.latiss = mock_latiss
 
         try:
@@ -282,17 +272,7 @@ class TestATCalsys(RemoteGroupAsyncMock):
         mock_latiss = LATISS(
             "FakeDomain", log=self.log, intended_usage=LATISSUsages.DryTest
         )
-        mock_latiss.rem.atcamera = unittest.mock.AsyncMock()
-        mock_latiss.rem.atcamera.evt_startIntegration.aget.configure_mock(
-            side_effect=self.mock_aget_start_integration
-        )
-        mock_latiss.rem.atcamera.evt_startIntegration.next.configure_mock(
-            side_effect=self.mock_start_integration
-        )
-        mock_latiss.rem.atcamera.evt_endReadout.next.configure_mock(
-            side_effect=self.mock_end_readout
-        )
-        mock_latiss.rem.atspectrograph = unittest.mock.AsyncMock()
+        mock_latiss.take_flats = unittest.mock.AsyncMock()
         self.atcalsys.latiss = mock_latiss
 
         try:
@@ -323,9 +303,8 @@ class TestATCalsys(RemoteGroupAsyncMock):
         assert calibration_summary["sequence_name"] == "scan_r"
         assert "steps" in calibration_summary
         assert len(calibration_summary["steps"]) == 51
-        assert (
-            len(calibration_summary["steps"][0]["latiss_exposure_info"])
-            == len(config_data["exposure_times"]) * 2
+        assert len(calibration_summary["steps"][0]["latiss_exposure_info"]) == len(
+            config_data["exposure_times"]
         )
         for latiss_exposure_info in calibration_summary["steps"][0][
             "latiss_exposure_info"

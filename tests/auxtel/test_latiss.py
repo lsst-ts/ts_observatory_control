@@ -41,6 +41,8 @@ class TestLATISS(BaseCameraAsyncMock):
             intended_usage=LATISSUsages.DryTest,
         )
 
+        cls.latiss._roi_spec_json = None
+
         return super().setUpClass()
 
     @property

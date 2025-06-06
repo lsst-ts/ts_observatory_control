@@ -1,0 +1,1 @@
+Updated ``MTCS.wait_dor_rotator_inposition`` to handle a condition where the rotator reports as being in position while still beig far from the target position.

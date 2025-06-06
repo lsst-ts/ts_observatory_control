@@ -1,0 +1,1 @@
+Add mechanism in the ``LSSTCam`` class to handle filter changes.

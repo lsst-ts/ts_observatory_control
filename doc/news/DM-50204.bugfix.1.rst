@@ -1,0 +1,1 @@
+Fixed the way serial numbers of LEDs are called by ledprojector.

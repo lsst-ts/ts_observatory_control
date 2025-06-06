@@ -75,7 +75,11 @@ class BaseCalsys(RemoteGroup, metaclass=abc.ABCMeta):
         self.calibration_config: dict[str, dict[str, typing.Any]] = dict()
 
     async def setup_electrometers(
-        self, mode: str, range: float, integration_time: float
+        self,
+        mode: str,
+        range: float,
+        integration_time: float,
+        electrometer_names: list | None = None,
     ) -> None:
         """Setup all electrometers.
 
@@ -90,11 +94,19 @@ class BaseCalsys(RemoteGroup, metaclass=abc.ABCMeta):
         """
         electrometer_mode = getattr(UnitToRead, mode).value
 
-        for electrometer in [
-            getattr(self.rem, component_name)
-            for component_name in self.components_attr
-            if "electrometer" in component_name
-        ]:
+        if electrometer_names is None:
+
+            electrometers = [
+                getattr(self.rem, component_name)
+                for component_name in self.components_attr
+                if "electrometer" in component_name
+            ]
+
+        else:
+
+            electrometers = [getattr(self.rem, name) for name in electrometer_names]
+
+        for electrometer in electrometers:
             await electrometer.cmd_setMode.set_start(
                 mode=electrometer_mode,
                 timeout=self.long_timeout,
