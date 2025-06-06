@@ -435,11 +435,25 @@ scan_r:
   optical_configuration: F1 SCU
   use_camera: True
   mtcamera_filter: r_57
-  led_location: 174.91
-  led_focus: 15.380
   wavelength: 625.0
   wavelength_width: 250
   wavelength_resolution: 5.0
+  use_fiberspectrograph_red: False
+  use_fiberspectrograph_blue: False
+  exposure_times:
+    - 15.0
+
+scan_g:
+  calib_type: Mono
+  laser_mode: 1
+  optical_configuration: F1 SCU
+  use_camera: True
+  mtcamera_filter: g_6
+  wavelength: 480.0
+  wavelength_width: 200
+  wavelength_resolution: 25.0
+  use_fiberspectrograph_red: False
+  use_fiberspectrograph_blue: False
   exposure_times:
     - 15.0
 
