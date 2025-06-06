@@ -1,0 +1,4 @@
+In MTCalSys, add new feature to generate a random set of exposure times given bin_edges and n_samples. 
+- In ``mtcalsys_schema.yaml``, add new configurable option for ``constrained_random_exposure_times``.
+    Allow user to set provide either ``constrained_random_exposure_times`` or ``exposure_times``.
+- In ``mtcalsys.py``, add method to generate random set of exposure times and overwrite the empty exposure_times when provided. 
