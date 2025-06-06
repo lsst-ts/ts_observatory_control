@@ -826,7 +826,7 @@ class MTCalsys(BaseCalsys):
 
             else:
                 calibration_wavelengths = config_data["wavelength_list"]
-
+        self.log.debug(f"HERRE Config Data: {config_data}")
         exposure_table = await self.calculate_optimized_exposure_times(
             wavelengths=calibration_wavelengths, config_data=config_data
         )
@@ -963,6 +963,10 @@ class MTCalsys(BaseCalsys):
                 raise ValueError(
                     "At least two bin edges are required to define one bin."
                 )
+            # temp code
+            if random_seed == 12345:
+                random_seed = np.random.randint(10000, 100000)
+                self.log.info(f"Random seed used: {random_seed}")
             rng = np.random.RandomState(seed=random_seed)
             samples = rng.uniform(low=bin_[0], high=bin_[1], size=samples_per_bin[i])
             samples = np.round(samples, 1)
@@ -1042,9 +1046,12 @@ class MTCalsys(BaseCalsys):
 
         exptimes = config_data["exposure_times"]
         if config_data.get("ptc_dac_values") is not None:
+            self.log.debug(f"using ptc dac values: {config_data['ptc_dac_values']}")
             levels = config_data["ptc_dac_values"]
         else:
             levels = [config_data["dac_value"]] * len(exptimes)
+
+        self.log.debug(f"dacLevels: {levels}")
 
         for wavelength in wavelengths:
 
