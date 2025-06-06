@@ -969,6 +969,28 @@ ptc_i_39_100_d:
     - 30.0
     - 65.0
 
+ptc_i_39_100_e:
+  mtcamera_filter: i_39
+  led_name:
+    - M730L5
+    - M810L3
+  dac_value: 0.15
+  wavelength: 755.0
+  led_location: 233.83
+  led_focus: 7.07
+  use_camera: True
+  use_fiberspectrograph_red: False
+  use_fiberspectrograph_blue: False
+  n_flat: 2
+  exposure_times:
+    - 1.0
+    - 2.0
+    - 5.0
+    - 10.0
+    - 30.0
+    - 60.0
+    - 90.0
+
 ptc_daily:
   mtcamera_filter: i_39
   led_name:
