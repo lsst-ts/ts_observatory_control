@@ -1,0 +1,1 @@
+Fixed ``MTCS.stop_m1m3_bump_test``. The methos now receives no parameter and stops all running bump tests.
