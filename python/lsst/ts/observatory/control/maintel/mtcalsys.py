@@ -1081,6 +1081,7 @@ class MTCalsys(BaseCalsys):
             exposures_done=exposures_done,
             group_id=group_id,
             calibration_type=calibration_type,
+            sequence_name=sequence_name,
         )
 
         if calibration_type == CalibrationType.CBP:
@@ -1188,6 +1189,7 @@ class MTCalsys(BaseCalsys):
     async def take_electrometer_scan(
         self,
         exposure_time: float | None,
+        sequence_name: str | None,
         group_id: str,
         exposures_done: asyncio.Future,
         calibration_type: CalibrationType = CalibrationType.WhiteLight,
@@ -1239,7 +1241,26 @@ class MTCalsys(BaseCalsys):
                     "Time out waiting for electrometer data. Making sure electrometer "
                     "is in enabled state and continuing."
                 )
+                await salobj.set_summary_state(electrometer, salobj.State.STANDBY)
                 await salobj.set_summary_state(electrometer, salobj.State.ENABLED)
+                if sequence_name is not None:
+                    config_data = self.get_calibration_configuration(sequence_name)
+                    if config_data["use_flatfield_electrometer"]:
+                        electrometer_name = (
+                            f"electrometer_{self.electrometer_projector_index}"
+                        )
+                    elif config_data["use_cbp_electrometer"]:
+                        electrometer_name = (
+                            f"electrometer_{self.electrometer_cbp_index}"
+                        )
+                    await self.setup_electrometers(
+                        mode=str(config_data["electrometer_mode"]),
+                        range=float(config_data["electrometer_range"]),
+                        integration_time=float(
+                            config_data["electrometer_integration_time"]
+                        ),
+                        electrometer_names=[electrometer_name],
+                    )
 
         return electrometer_exposures
 
