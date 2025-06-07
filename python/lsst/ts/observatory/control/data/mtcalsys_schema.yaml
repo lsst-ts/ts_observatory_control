@@ -159,6 +159,27 @@ properties:
     type: array
     items:
       type: number
+  constrained_random_exposure_times:
+    description: >-
+      Generate a list of random exposure times defined by two parameters,
+      the bin_edges and samples_per_bin. This will result in an exposure_time 
+      array of length n(bin_edges) - 1 x samples_per_bin. Useful for generating
+      random samples used for PTC curves. 
+    oneOf:
+      - type: "null"
+      - type: "object"
+        required:
+          - bin_edges
+          - samples_per_bin
+        properties:
+          bin_edges:
+            type: array
+            items:
+              type: number
+            minItems: 2
+          samples_per_bin:
+            type: integer
+            minimum: 1
   laser_mode:
     type: integer
   laser_wait_time:
@@ -216,5 +237,16 @@ required:
 - use_flatfield_electrometer
 - use_fiberspectrograph_red
 - use_fiberspectrograph_blue
-- exposure_times
+oneOf:
+  - properties:
+      exposure_times: {}
+    required: [exposure_times]
+    not:
+      required: [constrained_random_exposure_times]
+  - properties:
+      constrained_random_exposure_times: {}
+    required: [constrained_random_exposure_times]
+    not:
+      required: [exposure_times]
+
 additionalProperties: false
