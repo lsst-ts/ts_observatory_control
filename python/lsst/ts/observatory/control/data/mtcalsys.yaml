@@ -683,7 +683,7 @@ whitelight_y_10_M940L3:
   use_fiberspectrograph_blue: False
   n_flat: 1
   exposure_times:
-    - 20.0
+    - 10.0
 
 whitelight_y_10_M970L4:
   mtcamera_filter: y_10
@@ -829,7 +829,7 @@ whitelight_empty_M940L3:
   use_fiberspectrograph_blue: False
   n_flat: 1
   exposure_times:
-    - 20.0
+    - 10.0
 
 whitelight_empty_M970L4:
   mtcamera_filter: NONE
