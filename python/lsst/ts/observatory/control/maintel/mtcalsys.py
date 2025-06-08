@@ -1248,6 +1248,7 @@ class MTCalsys(BaseCalsys):
                     scanDuration=exposure_time,
                     groupId=group_id,
                     timeout=exposure_time + self.long_timeout,
+                    wait_done=False,
                 )
             except salobj.AckTimeoutError:
                 self.log.exception("Timed out waiting for the command ack. Continuing.")
