@@ -30,6 +30,7 @@ from lsst.ts import salobj, utils
 
 # TODO: (DM-46168) Revert workaround for TunableLaser XML changes
 from lsst.ts.observatory.control.utils.enums import LaserOpticalConfiguration
+from lsst.ts.xml.enums.Electrometer import DetailedState as ElectrometerDetailedState
 from lsst.ts.xml.enums.TunableLaser import LaserDetailedState
 
 from ..base_calsys import BaseCalsys
@@ -1075,6 +1076,29 @@ class MTCalsys(BaseCalsys):
             self.log.warning(
                 "No Group ID for Electrometer/Fiber Spectrograph exposures. Continuing."
             )
+
+        if calibration_type == CalibrationType.CBP:
+            electrometer = self.electrometer_cbp
+        else:
+            electrometer = self.electrometer_flatfield
+
+        electrometer.evt_detailedState.flush()
+        electrometer_detailed_state = ElectrometerDetailedState(
+            (
+                await electrometer.evt_detailedState.aget(timeout=self.fast_timeout)
+            ).detailedState
+        )
+
+        self.log.debug(f"{electrometer_detailed_state=}")
+        while electrometer_detailed_state != ElectrometerDetailedState.NOTREADINGSTATE:
+            electrometer_detailed_state = ElectrometerDetailedState(
+                (
+                    await electrometer.evt_detailedState.next(
+                        timeout=self.long_timeout, flush=False
+                    )
+                ).detailedState
+            )
+            self.log.debug(f"{electrometer_detailed_state=}")
 
         electrometer_exposure_coroutine = self.take_electrometer_scan(
             exposure_time=electrometer_exposure_time,
