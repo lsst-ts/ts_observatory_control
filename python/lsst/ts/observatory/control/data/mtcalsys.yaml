@@ -218,7 +218,6 @@ cbp_y_2nm:
   electrometer_range: 0.000002
   set_wavelength_range: False
 
-
 whitelight_u_24_daily:
   mtcamera_filter: u_24
   led_name: 
@@ -432,84 +431,98 @@ whitelight_y_10_dark:
 scan_u_init:
   calib_type: Mono
   laser_mode: 1
-  optical_configuration: F1 SCU
+  optical_configuration: F2 SCU
   use_camera: True
   mtcamera_filter: u_24
   wavelength: 350.0
   wavelength_width: 100.0
   wavelength_resolution: 25.0
+  use_fiberspectrograph_red: False
+  use_fiberspectrograph_blue: False
   exposure_times:
     - 15.0
 
 scan_g_init:
   calib_type: Mono
   laser_mode: 1
-  optical_configuration: F1 SCU
+  optical_configuration: F2 SCU
   use_camera: True
   mtcamera_filter: g_6
   wavelength: 480.
   wavelength_width: 200
   wavelength_resolution: 25.0
+  use_fiberspectrograph_red: False
+  use_fiberspectrograph_blue: False
   exposure_times:
     - 15.0
 
 scan_r_init:
   calib_type: Mono
   laser_mode: 1
-  optical_configuration: F1 SCU
+  optical_configuration: F2 SCU
   use_camera: True
   mtcamera_filter: r_57
   wavelength: 625.0
   wavelength_width: 250
   wavelength_resolution: 25.0
+  use_fiberspectrograph_red: False
+  use_fiberspectrograph_blue: False
   exposure_times:
     - 15.0
 
 scan_r:
   calib_type: Mono
   laser_mode: 1
-  optical_configuration: F1 SCU
+  optical_configuration: F2 SCU
   use_camera: True
   mtcamera_filter: r_57
   wavelength: 625.0
   wavelength_width: 250
   wavelength_resolution: 5.0
+  use_fiberspectrograph_red: False
+  use_fiberspectrograph_blue: False
   exposure_times:
     - 15.0
 
 scan_i_init:
   calib_type: Mono
   laser_mode: 1
-  optical_configuration: F1 SCU
+  optical_configuration: F2 SCU
   use_camera: True
   mtcamera_filter: i_39
   wavelength: 730.0
   wavelength_width: 250
   wavelength_resolution: 25.0
+  use_fiberspectrograph_red: False
+  use_fiberspectrograph_blue: False
   exposure_times:
     - 15.0
 
 scan_z_init:
   calib_type: Mono
   laser_mode: 1
-  optical_configuration: F1 SCU
+  optical_configuration: F2 SCU
   use_camera: True
   mtcamera_filter: z_20
   wavelength: 880.0
   wavelength_width: 250
   wavelength_resolution: 25.0
+  use_fiberspectrograph_red: False
+  use_fiberspectrograph_blue: False
   exposure_times:
     - 15.0
 
 scan_y_init:
   calib_type: Mono
   laser_mode: 1
-  optical_configuration: F1 SCU
+  optical_configuration: F2 SCU
   use_camera: True
   mtcamera_filter: y_10
   wavelength: 970.0
   wavelength_width: 250
   wavelength_resolution: 25.0
+  use_fiberspectrograph_red: False
+  use_fiberspectrograph_blue: False
   exposure_times:
     - 15.0
 
