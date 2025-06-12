@@ -1091,6 +1091,7 @@ ptc_i_39_100:
   led_location: 233.83
   led_focus: 7.07
   use_camera: True
+  use_flatfield_electrometer: False
   use_fiberspectrograph_red: False
   use_fiberspectrograph_blue: False
   ptc: true
