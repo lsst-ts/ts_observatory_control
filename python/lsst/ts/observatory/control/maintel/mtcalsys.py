@@ -1252,7 +1252,6 @@ class MTCalsys(BaseCalsys):
                 )
             except salobj.AckTimeoutError:
                 self.log.exception("Timed out waiting for the command ack. Continuing.")
-            return electrometer_exposures
 
             # Make sure that a new lfo was created
             try:
