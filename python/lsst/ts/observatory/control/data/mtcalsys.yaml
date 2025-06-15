@@ -1220,7 +1220,6 @@ ptc_i_39_500:
   ptc: true
   n_flat: 2
   exposure_times:
-    - 69.378
     - 71.145
     - 25.167
     - 18.000
