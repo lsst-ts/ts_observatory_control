@@ -1073,6 +1073,7 @@ ptc_daily:
   use_camera: True
   use_fiberspectrograph_red: False
   use_fiberspectrograph_blue: False
+  ptc: true
   n_flat: 2
   exposure_times:
     - 0.1
