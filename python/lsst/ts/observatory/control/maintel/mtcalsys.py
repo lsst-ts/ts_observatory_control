@@ -1241,6 +1241,7 @@ class MTCalsys(BaseCalsys):
             electrometer = self.electrometer_flatfield
 
         if exposure_time is not None:
+            self.log.debug(f"Taking Electrometer exposure time: {exposure_time}")
             electrometer.evt_largeFileObjectAvailable.flush()
 
             try:
