@@ -1070,7 +1070,7 @@ ptc_daily:
   wavelength: 755.0
   led_location: 233.83
   led_focus: 7.07
-  use_camera: True
+  use_camera: False
   use_fiberspectrograph_red: False
   use_fiberspectrograph_blue: False
   ptc: true
@@ -1080,8 +1080,9 @@ ptc_daily:
     - 0.5
     - 1.0
     - 10.0
+    - 15.0
     - 30.0
-    - 40.0
+    - 45.0
     - 60.0
 
 ptc_i_39_100:
