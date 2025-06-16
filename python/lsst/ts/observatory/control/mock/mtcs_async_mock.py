@@ -154,8 +154,12 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
         )
 
         self._mtdome_evt_shutter_motion = types.SimpleNamespace(
-            state=MTDome.MotionState.UNDETERMINED, inPosition=False
+            state=[MTDome.MotionState.UNDETERMINED, MTDome.MotionState.UNDETERMINED],
+            inPosition=[False, False],
         )
+
+        # MTDomeTrajectory data
+        self._mtdometrajectory_dome_following = types.SimpleNamespace(enabled=False)
 
         # MTM1M3 data
         self._mtm1m3_evt_detailed_state = types.SimpleNamespace(
@@ -305,6 +309,15 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
         }
 
         self.mtcs.rem.mtdome.configure_mock(**mtdome_mocks)
+
+    async def setup_mtdometrajectory(self) -> None:
+        """Augment MTDomeTrajectory mock."""
+        mtdometrajectory_mocks = {
+            "evt_followingMode.aget.side_effect": self.mtdometrajectory_following_mode,
+            "cmd_setFollowingMode.set_start.side_effect": self.mtdometrajectory_cmd_set_following_mode,
+        }
+
+        self.mtcs.rem.mtdometrajectory.configure_mock(**mtdometrajectory_mocks)
 
     async def setup_mtm1m3(self) -> None:
         """Augment MTM1M3."""
@@ -732,11 +745,13 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
     ) -> None:
         self.log.debug("Dome openShutter command executed")
         self._mtdome_evt_shutter_motion = types.SimpleNamespace(
-            state=MTDome.MotionState.OPENING, inPosition=False
+            state=[MTDome.MotionState.OPENING, MTDome.MotionState.OPEN],
+            inPosition=[False, False],
         )
         await asyncio.sleep(self.heartbeat_time)
         self._mtdome_evt_shutter_motion = types.SimpleNamespace(
-            state=MTDome.MotionState.OPEN, inPosition=True
+            state=[MTDome.MotionState.OPEN, MTDome.MotionState.OPEN],
+            inPosition=[True, True],
         )
 
     async def mtdome_cmd_close_shutter(
@@ -749,12 +764,32 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
     ) -> None:
         self.log.debug("Dome closeShutter command executed")
         self._mtdome_evt_shutter_motion = types.SimpleNamespace(
-            state=MTDome.MotionState.CLOSING, inPosition=False
+            state=[MTDome.MotionState.CLOSING, MTDome.MotionState.CLOSING],
+            inPosition=[False, False],
         )
         await asyncio.sleep(self.heartbeat_time)
         self._mtdome_evt_shutter_motion = types.SimpleNamespace(
-            state=MTDome.MotionState.CLOSED, inPosition=True
+            state=[MTDome.MotionState.CLOSED, MTDome.MotionState.CLOSED],
+            inPosition=[True, True],
         )
+
+    async def mtdometrajectory_following_mode(
+        self, *args: typing.Any, **kwargs: typing.Any
+    ) -> types.SimpleNamespace:
+        self.log.debug(
+            "Retrieving mtdometrajectory dome following mode: "
+            f"{self._mtdometrajectory_dome_following}"
+        )
+        return self._mtdometrajectory_dome_following
+
+    async def mtdometrajectory_cmd_set_following_mode(
+        self, enable: bool, *args: typing.Any, **kwargs: typing.Any
+    ) -> None:
+        self.log.debug(
+            "Updating mtdometrajectory following: "
+            f"{self._mtdometrajectory_dome_following.enabled} -> {enable}"
+        )
+        self._mtdometrajectory_dome_following.enabled = enable
 
     async def mtm1m3_evt_detailed_state(
         self, *args: typing.Any, **kwargs: typing.Any
@@ -836,15 +871,24 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
     async def mtm1m3_cmd_enter_engineering(
         self, *args: typing.Any, **kwargs: typing.Any
     ) -> None:
-        # This is a very simple mock of the enter engineering command. I
-        # imagine the actual command only works from certain detailed states
-        # but I don't think it is worth trying to do anything more elaborate
-        # since it could change considerably from what the m1m3 actually does.
-        asyncio.create_task(
-            self._set_m1m3_detailed_state(
-                xml.enums.MTM1M3.DetailedStates.PARKEDENGINEERING
+        # Toggle to the corresponding ENGINEERING state, preserving base state.
+        current = self._mtm1m3_evt_detailed_state.detailedState
+        if current == xml.enums.MTM1M3.DetailedStates.PARKED:
+            target = xml.enums.MTM1M3.DetailedStates.PARKEDENGINEERING
+        elif current == xml.enums.MTM1M3.DetailedStates.ACTIVE:
+            target = xml.enums.MTM1M3.DetailedStates.ACTIVEENGINEERING
+        elif current in (
+            xml.enums.MTM1M3.DetailedStates.PARKEDENGINEERING,
+            xml.enums.MTM1M3.DetailedStates.ACTIVEENGINEERING,
+        ):
+            # Already in non-engineering mode, so target = current.
+            target = current
+        else:
+            # For other states, raise to fail fast and catch test bugs.
+            raise RuntimeError(
+                f"Cannot enter engineering mode from current state: {current!r}"
             )
-        )
+        asyncio.create_task(self._set_m1m3_detailed_state(target))
 
         # TODO (DM-39458): Remove this workaround.
         # While running this command at the summit/production environment we
@@ -860,12 +904,26 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
     async def mtm1m3_cmd_exit_engineering(
         self, *args: typing.Any, **kwargs: typing.Any
     ) -> None:
-        # This is a very simple mock of the exit engineering command. It will
-        # simply put m1m3 in PARKED state, regardless of which engineering
-        # state it was before.
-        asyncio.create_task(
-            self._set_m1m3_detailed_state(xml.enums.MTM1M3.DetailedStates.PARKED)
-        )
+        # Toggle to the corresponding non-ENGINEERING state,
+        # preserving base state.
+        current = self._mtm1m3_evt_detailed_state.detailedState
+        if current == xml.enums.MTM1M3.DetailedStates.PARKEDENGINEERING:
+            target = xml.enums.MTM1M3.DetailedStates.PARKED
+        elif current == xml.enums.MTM1M3.DetailedStates.ACTIVEENGINEERING:
+            target = xml.enums.MTM1M3.DetailedStates.ACTIVE
+        elif current in (
+            xml.enums.MTM1M3.DetailedStates.PARKED,
+            xml.enums.MTM1M3.DetailedStates.ACTIVE,
+        ):
+            # Already in non-engineering mode, so target = current.
+            target = current
+        else:
+            # For other states, raise to fail fast and catch test bugs.
+            raise RuntimeError(
+                f"Cannot exit engineering mode from current state: {current!r}"
+            )
+
+        asyncio.create_task(self._set_m1m3_detailed_state(target))
 
     async def mtm1m3_cmd_test_hardpoint(
         self, *args: typing.Any, **kwargs: typing.Any
