@@ -1,0 +1,1 @@
+In ``data/mtcalsys.yaml, update n_flat and reduce exp_times for whitelight_u band sequences.
