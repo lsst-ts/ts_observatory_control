@@ -210,10 +210,7 @@ properties:
     minimum: 0
     maximum: 13000  
 required:
-- calib_type
 - wavelength
-- use_camera
-- use_flatfield_electrometer
 - use_fiberspectrograph_red
 - use_fiberspectrograph_blue
 - exposure_times

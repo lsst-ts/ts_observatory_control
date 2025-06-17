@@ -817,7 +817,23 @@ class MTCS(BaseTCS):
         check : `types.SimpleNamespace` or `None`
             Override `self.check` for defining which resources are used.
 
+        Raises
+        ------
+        RuntimeError
+            If the `mtdometrajectory` is ignored while the dome following is
+            enabled. This is to prevent conflicts between the dome trajectory
+            and the dome following features, which could result in unexpected
+            behavior while slewing the dome.
         """
+        if not getattr(self.check, self.dome_trajectory_name):
+            if await self.check_dome_following():
+                raise RuntimeError(
+                    f"Cannot proceed: '{self.dome_trajectory_name}' is ignored "
+                    f"while dome following is enabled. Either disable dome following "
+                    f"before running this operation, or remove '{self.dome_trajectory_name}' "
+                    f"from the ignore list."
+                )
+
         self.log.info(f"Slewing MT dome to position az = {az}.")
         await self.assert_all_enabled()
 
@@ -3544,6 +3560,7 @@ class MTCS(BaseTCS):
                     "mirrorCoversMotionState",
                 ],
                 mtdome=["azimuth", "lightWindScreen", "azMotion", "shutterMotion"],
+                mtdometrajectory=["followingMode"],
                 mtm1m3=[
                     "boosterValveStatus",
                     "forceActuatorState",
