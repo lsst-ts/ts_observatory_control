@@ -238,6 +238,8 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
         await self.setup_mthexapod_1()
         await self.setup_mthexapod_2()
         await self.setup_mtaos()
+        await self.setup_mtdometrajectory()
+        await self.setup_mtptg()
 
     async def setup_mtmount(self) -> None:
         """Augment MTMount."""
@@ -464,6 +466,32 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
         }
 
         self.mtcs.rem.mtaos.configure_mock(**mtaos_mocks)
+
+    async def setup_mtptg(self) -> None:
+        """Augment MTPTG."""
+        mtptg_mocks = {
+            "cmd_azElTarget.set.side_effect": lambda *args, **kwargs: self.mtptg_cmd_az_el_target(
+                *args, **kwargs
+            ),
+        }
+        self.mtcs.rem.mtptg.configure_mock(**mtptg_mocks)
+
+    def mtptg_cmd_az_el_target(
+        self,
+        *,
+        azDegs: typing.Optional[float] = None,
+        elDegs: typing.Optional[float] = None,
+        rotPA: typing.Optional[float] = None,
+        **kwargs: typing.Any,
+    ) -> None:
+        """Simulate slewing the telescope by updating az/el/rot positions."""
+        if azDegs is not None:
+            self._mtmount_tel_azimuth.actualPosition = azDegs
+        if elDegs is not None:
+            self._mtmount_tel_elevation.actualPosition = elDegs
+        if rotPA is not None:
+            self._mtrotator_tel_rotation.actualPosition = rotPA
+            self._mtrotator_evt_target.position = rotPA
 
     async def mtmount_evt_target_next(
         self, *args: typing.Any, **kwargs: typing.Any
