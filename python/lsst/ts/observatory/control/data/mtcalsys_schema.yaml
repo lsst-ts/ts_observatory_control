@@ -209,6 +209,10 @@ properties:
     default: 6000
     minimum: 0
     maximum: 13000  
+  ptc:
+     description: Identify if a whitelight flat sequence is a PTC curve
+     type: boolean
+     default: false
 required:
 - wavelength
 - use_fiberspectrograph_red
