@@ -3697,6 +3697,9 @@ class MTCS(BaseTCS):
                 mtaos=[
                     "degreeOfFreedom",
                     "wavefrontError",
+                    "startClosedLoop",
+                    "stopClosedLoop",
+                    "closedLoopState",
                 ],
             )
 
