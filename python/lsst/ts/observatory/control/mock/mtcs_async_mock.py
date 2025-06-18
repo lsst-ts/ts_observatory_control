@@ -220,6 +220,11 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
             useVelocityForces=False,
         )
 
+        # MTAOS
+        self._mtaos_evt_closed_loop_state = types.SimpleNamespace(
+            state=xml.enums.MTAOS.ClosedLoopState.IDLE
+        )
+
     async def setup_mocks(self) -> None:
         await self.setup_mtmount()
         await self.setup_mtrotator()
@@ -439,6 +444,10 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
                 value=np.zeros(offset_dof_field_info.value.count)
             ),
             "cmd_offsetDOF.start.side_effect": self.mtaos_cmd_offset_dof,
+            "cmd_stopClosedLoop.start.side_effect": self.mtaos_cmd_stop_closed_loop,
+            "cmd_startClosedLoop.set_start.side_effect": self.mtaos_cmd_start_closed_loop,
+            "evt_closedLoopState.aget.side_effect": self.mtaos_evt_closed_loop_state,
+            "evt_closedLoopState.next.side_effect": self.mtaos_evt_closed_loop_state,
         }
 
         self.mtcs.rem.mtaos.configure_mock(**mtaos_mocks)
@@ -1245,6 +1254,40 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
             sync=True,
             timeout=kwargs["timeout"],
         )
+
+    async def mtaos_cmd_stop_closed_loop(
+        self, *args: typing.Any, **kwargs: typing.Any
+    ) -> None:
+        asyncio.create_task(self._mtaos_stop_closed_loop())
+
+    async def _mtaos_stop_closed_loop(self) -> None:
+        self.log.info("Disabling MTAOS closed loop.")
+        self._mtaos_evt_closed_loop_state.state = (
+            xml.enums.MTAOS.ClosedLoopState.WAITING_IMAGE
+        )
+        await asyncio.sleep(self.heartbeat_time * 3)
+        self._mtaos_evt_closed_loop_state.state = xml.enums.MTAOS.ClosedLoopState.IDLE
+        self.log.info("MTAOS closed loop disabled.")
+
+    async def mtaos_cmd_start_closed_loop(
+        self, *args: typing.Any, **kwargs: typing.Any
+    ) -> None:
+        asyncio.create_task(self._mtaos_start_closed_loop())
+
+    async def _mtaos_start_closed_loop(self) -> None:
+        self.log.info("Enabling MTAOS closed loop.")
+        self._mtaos_evt_closed_loop_state.state = xml.enums.MTAOS.ClosedLoopState.IDLE
+        await asyncio.sleep(self.heartbeat_time * 3)
+        self._mtaos_evt_closed_loop_state.state = (
+            xml.enums.MTAOS.ClosedLoopState.WAITING_IMAGE
+        )
+        self.log.info("MTAOS closed loop enabled.")
+
+    async def mtaos_evt_closed_loop_state(
+        self, *args: typing.Any, **kwargs: typing.Any
+    ) -> types.SimpleNamespace:
+        await asyncio.sleep(self.heartbeat_time)
+        return self._mtaos_evt_closed_loop_state
 
     async def mthexapod_2_cmd_offset(
         self, *args: typing.Any, **kwargs: typing.Any
