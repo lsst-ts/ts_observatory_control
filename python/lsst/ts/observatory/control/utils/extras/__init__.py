@@ -20,3 +20,4 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 from .dm_target_catalog import *
+from .guider_roi import *
