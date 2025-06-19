@@ -277,6 +277,21 @@ whitelight_i_39_daily:
   exposure_times:
     - 10.0
 
+whitelight_i_39_quicktest:
+  mtcamera_filter: i_39
+  led_name:
+    - M730L5
+    - M810L3
+  dac_value: 0.5
+  wavelength: 755.0
+  led_location: 233.83
+  led_focus: 7.07
+  use_fiberspectrograph_red: False
+  use_fiberspectrograph_blue: False
+  n_flat: 2
+  exposure_times:
+    - 10.0
+
 whitelight_i_39_sequencer:
   mtcamera_filter: i_39
   led_name:
