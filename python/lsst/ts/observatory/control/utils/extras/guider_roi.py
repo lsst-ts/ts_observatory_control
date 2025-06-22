@@ -29,11 +29,14 @@ Original algorithm credit: Aaron Roodman
 """
 
 __all__ = [
+    "BASIC_DEPS_AVAILABLE",
     "DM_STACK_AVAILABLE",
     "BEST_EFFORT_ISR_AVAILABLE",
     "GuiderROIs",
 ]
 
+import math
+import os
 import typing
 import warnings
 
@@ -43,36 +46,44 @@ DEFAULT_CATALOG_DATASET_NAME = "monster_guide_catalog"
 DEFAULT_VIGNETTING_DATASET_NAME = "vignetting_correction"
 DEFAULT_COLLECTION_NAME = "guider_roi_data"
 
-DM_STACK_AVAILABLE = True
-BEST_EFFORT_ISR_AVAILABLE = True
 try:
     import healpy as hp
-    import lsst.geom as geom
     from astropy.coordinates import angular_separation
     from astropy.table import Table, vstack
+    from scipy.interpolate import make_interp_spline
+
+    BASIC_DEPS_AVAILABLE = True
+except ImportError as e:
+    BASIC_DEPS_AVAILABLE = False
+    print(f"Cannot import basic required libraries. GuiderROIs will not work. {e}")
+    warnings.warn(
+        "Cannot import basic required libraries (healpy, astropy, scipy). "
+        "GuiderROIs will not work."
+    )
+
+# DM Stack imports (includes Butler)
+DM_STACK_AVAILABLE = True
+try:
+    # Core DM stack imports
+    import lsst.geom as geom
     from lsst.afw import cameraGeom
+    from lsst.daf.butler import Butler
+    from lsst.daf.butler._exceptions import DatasetNotFoundError
     from lsst.geom import Angle, Extent2I, SpherePoint
     from lsst.obs.base import createInitialSkyWcsFromBoresight
     from lsst.obs.lsst import LsstCam
     from lsst.obs.lsst.cameraTransforms import LsstCameraTransforms
-    from scipy.interpolate import make_interp_spline
-except ImportError as e:
+except ImportError:
     DM_STACK_AVAILABLE = False
-    BEST_EFFORT_ISR_AVAILABLE = False
-    print(f"Cannot import required libraries. GuiderROIs will not work. {e}")
-    warnings.warn("Cannot import required libraries. GuiderROIs will not work.")
+    print("DM Stack not available. GuiderROIs will work in file-based mode only.")
 
-# Try to import BestEffortIsr separately
+# BestEffortIsr (optional for summit environment?)
+BEST_EFFORT_ISR_AVAILABLE = True
 try:
     from lsst.summit.utils import BestEffortIsr
-except ImportError as e:
+except ImportError:
     BEST_EFFORT_ISR_AVAILABLE = False
-    BestEffortIsr = None  # Make it available for mocking in tests
-    if DM_STACK_AVAILABLE:
-        print(f"BestEffortIsr not available but core DM stack is available. {e}")
-        warnings.warn(
-            "BestEffortIsr not available. You must provide a butler when initializing GuiderROIs."
-        )
+    BestEffortIsr = None
 
 
 def get_vignetting_data_from_butler(
@@ -101,6 +112,9 @@ def get_vignetting_data_from_butler(
     ValueError
         If vignetting data is found but required columns are missing.
     """
+    if not DM_STACK_AVAILABLE:
+        return None
+
     try:
         vignetting_refs = butler.registry.queryDatasets(
             vignetting_dataset, collections=[collection]
@@ -130,79 +144,175 @@ class GuiderROIs:
     """GuiderROIs definition.
 
     This class provides code to select Guider ROIs for LSSTCam based on the
-    original algorithm developed by Aaron Roodman.
+    original algorithm developed by Aaron Roodman. It can work with or without
+    the DM stack
 
     Original algorithm credit: Aaron Roodman
 
     Notes
     -----
-    The class depends on the LSST DM stack and vignetting correction data.
-    It will fail during initialization if the DM stack is not available or
-    if the required vignetting data cannot be found in the butler.
+    The class can operate in three modes:
+    1. Full DM stack mode with butler
+    2. File-based only mode (minimal dependencies - healpy, astropy, scipy)
+    3. Summit environment mode (DM stack + BestEffortIsr convenience)
     """
 
     def __init__(
         self,
         butler: typing.Optional[typing.Any] = None,
+        butler_config: typing.Optional[typing.Union[str, typing.Any]] = None,
         catalog_name: str = DEFAULT_CATALOG_DATASET_NAME,
         vignetting_dataset: str = DEFAULT_VIGNETTING_DATASET_NAME,
         collection: str = DEFAULT_COLLECTION_NAME,
+        catalog_path: typing.Optional[str] = None,
+        vignetting_file: typing.Optional[str] = None,
+        nside: int = 32,
     ) -> None:
         """Initialize GuiderROIs.
 
         Parameters
         ----------
         butler : `lsst.daf.butler.Butler`, optional
-            Butler instance to use for data access. If None, will create
-            a BestEffortIsr butler (requires lsst.summit.utils to be
-            available).
+            Butler instance to use for data access. If None, will try to create
+            from butler_config (if DM stack available), or use BestEffortIsr
+            butler (if available), otherwise will use file-based mode.
+        butler_config : `str` or `lsst.daf.butler.ButlerConfig`, optional
+            Butler configuration (repo path or config object) to create Butler
+            from. Only used if butler is None and DM stack is available.
+            If string, treated as repository path.
         catalog_name : `str`, optional
-            Name of the Monster guide catalog dataset in butler.
+            Name of the HEALPix catalog dataset in butler.
         vignetting_dataset : `str`, optional
             Name of the vignetting correction dataset in butler.
         collection : `str`, optional
             Collection name for data queries.
+        catalog_path : `str`, optional
+            Path to catalog files (used when DM stack/butler is not available).
+            Should contain HEALPix-indexed CSV files.
+        vignetting_file : `str`, optional
+            Path to vignetting correction file (used when DM stack/butler is
+            not available). Should be an NPZ file with 'theta' and 'vignetting'
+            arrays.
+        nside : `int`, optional
+            HEALPix nside parameter (default: 32). Must match the nside used
+            in the Butler repository.
 
         Raises
         ------
         RuntimeError
-            If DM stack is not available, if vignetting data is not found,
-            or if butler is None and BestEffortIsr is not available.
+            If basic dependencies are not available or if neither DM stack
+            (for Butler functionality) nor file paths are provided.
         ValueError
-            If vignetting data is missing required columns ('theta',
-            'vignetting').
+            If vignetting data is missing required columns or if nside is
+            invalid.
+
+        Notes
+        -----
+        Operating modes:
+        1. **DM stack mode**: Full functionality with Butler
+        2. **Summit mode**: DM stack + BestEffortIsr convenience (automatic
+           Butler)
+        3. **File mode**: Minimal dependencies, requires catalog_path and
+           vignetting_file
         """
-        if not DM_STACK_AVAILABLE:
-            raise RuntimeError("DM stack not available. Cannot initialize GuiderROIs.")
+        if not BASIC_DEPS_AVAILABLE:
+            raise RuntimeError(
+                "Basic dependencies (healpy, astropy, scipy) not available. "
+                "Cannot initialize GuiderROIs."
+            )
 
-        # Set up butler
-        if butler is None:
-            if not BEST_EFFORT_ISR_AVAILABLE or BestEffortIsr is None:
-                raise RuntimeError(
-                    "BestEffortIsr is not available and no butler was provided. "
-                    "Please provide a butler instance or install lsst.summit.utils."
-                )
-            self.best_effort_isr = BestEffortIsr()
-            self.butler = self.best_effort_isr.butler
-        else:
-            self.butler = butler
-            self.best_effort_isr = None
+        # Validate nside parameter
+        if nside <= 0 or (nside & (nside - 1)) != 0:
+            raise ValueError(f"nside must be a power of 2, got {nside}")
 
+        # Store configuration
         self.catalog_name = catalog_name
         self.vignetting_dataset = vignetting_dataset
         self.collection = collection
+        self.catalog_path = catalog_path
+        self.vignetting_file = vignetting_file
+
+        # HEALPix configuration
+        self.nside = nside
+        self.healpix_level = int(math.log2(nside))  # Calculate level from nside
+        self.healpix_dim = f"healpix{self.healpix_level}"
+        self.npix = hp.nside2npix(nside)
+
+        # Set up butler (optional)
+        self.butler = None
+        self.best_effort_isr = None
+        self._setup_butler(butler, butler_config)
 
         # Constants
         self.ccd_diag = 0.15852  # Guider CCD diagonal radius in Degrees
-        res = 5
-        self.nside = 2**res
-        self.npix = 12 * self.nside**2
         self.bad_guideramps = {193: "C1", 198: "C1", 201: "C0"}
         self.filters = ["u", "g", "r", "i", "z", "y"]
-        self.camera = LsstCam.getCamera()
+
+        # Initialize camera (optional, requires DM stack)
+        self.camera = None
+        if DM_STACK_AVAILABLE:
+            self.camera = LsstCam.getCamera()
 
         # Initialize vignetting correction
         self._init_vignetting_correction()
+
+    def _setup_butler(
+        self,
+        butler: typing.Optional[typing.Any],
+        butler_config: typing.Optional[typing.Union[str, typing.Any]] = None,
+    ) -> None:
+        """Set up butler for data access."""
+
+        if butler is not None:
+            self.butler = butler
+            return
+
+        # Create Butler from provided config (requires DM stack)
+        if DM_STACK_AVAILABLE and butler_config is not None:
+            try:
+                if isinstance(butler_config, str):
+                    # Assume it's a repository path
+                    self.butler = Butler.from_config(butler_config)
+                else:
+                    # Assume it's a ButlerConfig object
+                    self.butler = Butler.from_config(butler_config)
+                return
+            except Exception as e:
+                warnings.warn(f"Failed to create Butler from config: {e}")
+
+        # Fall back to BestEffortIsr (summit environment convenience)
+        if BEST_EFFORT_ISR_AVAILABLE and BestEffortIsr is not None:
+            try:
+                self.best_effort_isr = BestEffortIsr()
+                if self.best_effort_isr is not None:
+                    self.butler = self.best_effort_isr.butler
+                return
+            except Exception as e:
+                warnings.warn(f"Failed to create BestEffortIsr butler: {e}")
+
+        # No butler available - will use file-based mode
+        self.butler = None
+
+        # Provide helpful feedback about the mode
+        mode_info = []
+        if DM_STACK_AVAILABLE:
+            mode_info.append("DM stack available")
+            if butler_config is None:
+                mode_info.append("no butler_config provided")
+        else:
+            mode_info.append("DM stack not available")
+
+        if BEST_EFFORT_ISR_AVAILABLE:
+            mode_info.append("BestEffortIsr available but failed to initialize")
+        else:
+            mode_info.append("BestEffortIsr not available")
+
+        warnings.warn(
+            f"No butler available ({', '.join(mode_info)}). "
+            "GuiderROIs will operate in file-based mode. "
+            "To use Butler functionality, provide either a butler instance or "
+            "butler_config parameter if DM stack is available."
+        )
 
     def _init_vignetting_correction(self) -> None:
         """Initialize vignetting correction spline.
@@ -210,18 +320,28 @@ class GuiderROIs:
         Raises
         ------
         RuntimeError
-            If vignetting data is not available or invalid.
+            If vignetting data is not available from any source.
         ValueError
             If vignetting data is missing required columns.
         """
-        vignetting_data = get_vignetting_data_from_butler(
-            self.butler, self.vignetting_dataset, self.collection
-        )
+        vignetting_data = None
+
+        # Try to get vignetting data from butler first
+        if self.butler is not None:
+            vignetting_data = get_vignetting_data_from_butler(
+                self.butler, self.vignetting_dataset, self.collection
+            )
+
+        # Fall back to file-based approach
+        if vignetting_data is None:
+            vignetting_data = self._load_vignetting_from_file()
 
         if vignetting_data is None:
             raise RuntimeError(
-                f"Vignetting correction data '{self.vignetting_dataset}' not found in butler. "
-                "Cannot initialize GuiderROIs without vignetting correction data."
+                "Vignetting correction data not available from butler or file. "
+                "Cannot initialize GuiderROIs without vignetting correction data. "
+                "Please provide vignetting_file parameter or ensure butler has "
+                "the data."
             )
 
         try:
@@ -231,6 +351,42 @@ class GuiderROIs:
             )
         except Exception as e:
             raise RuntimeError(f"Failed to create vignetting correction spline: {e}")
+
+    def _load_vignetting_from_file(
+        self,
+    ) -> typing.Optional[typing.Dict[str, np.ndarray]]:
+        """Load vignetting data from file.
+
+        Returns
+        -------
+        vignetting_data : `dict` or `None`
+            Dictionary with 'theta' and 'vignetting' arrays, or None if not
+            found.
+        """
+        if self.vignetting_file is None:
+            # Try default locations
+            default_files = [
+                "vignetting_vs_angle.npz",
+                os.path.join(os.path.dirname(__file__), "vignetting_vs_angle.npz"),
+                os.path.join(os.getcwd(), "vignetting_vs_angle.npz"),
+            ]
+
+            for default_file in default_files:
+                if os.path.exists(default_file):
+                    self.vignetting_file = default_file
+                    break
+
+        if self.vignetting_file is None or not os.path.exists(self.vignetting_file):
+            return None
+
+        try:
+            vigdata = np.load(self.vignetting_file)
+            return {"theta": vigdata["theta"], "vignetting": vigdata["vignetting"]}
+        except Exception as e:
+            warnings.warn(
+                f"Failed to load vignetting data from {self.vignetting_file}: {e}"
+            )
+            return None
 
     def vignetting_correction(self, angle: float) -> float:
         """Calculate vignetting correction.
@@ -252,7 +408,7 @@ class GuiderROIs:
     def _get_catalog_data_for_healpix(
         self, hp_indices: typing.List[int]
     ) -> typing.List[Table]:
-        """Get catalog data for given HEALPix indices from butler.
+        """Get catalog data for given HEALPix indices using HEALPix dimensions.
 
         Parameters
         ----------
@@ -263,51 +419,117 @@ class GuiderROIs:
         -------
         tables : `list` of `astropy.table.Table`
             Catalog tables for the requested indices.
-
-        Notes
-        -----
-        This method works with the merged catalog approach where all
-        HEALPix catalogs are stored in a single dataset with healpix_id
-        as a column.
         """
         tables: typing.List[Table] = []
 
-        # for hp_idx in hp_indices:
-        #    try:
-        #        dataId = {"healpix": hp_idx}
-        #        table = self.butler.get(self.catalog_name, dataId=dataId)
-        #        tables.append(table)
-        #    except Exception as e:
-        #        warnings.warn(f"Could not load catalog
-        #                        for HEALPix {hp_idx}: {e}")
+        # Try butler approach first
+        if self.butler is not None:
+            tables = self._get_catalog_data_from_butler(hp_indices)
+
+        # Fall back to file-based approach
+        if not tables:
+            tables = self._get_catalog_data_from_files(hp_indices)
+
+        return tables
+
+    def _get_catalog_data_from_butler(
+        self, hp_indices: typing.List[int]
+    ) -> typing.List[Table]:
+        """Get catalog data from butler using HEALPix dimensions."""
+        tables: typing.List[Table] = []
+
+        if not DM_STACK_AVAILABLE:
+            warnings.warn(
+                "DM stack (including Butler) not available for catalog data access"
+            )
+            return tables
+
+        if self.butler is None:
+            return tables
 
         try:
-            # Get the full merged catalog
-            catalog_refs = list(
-                self.butler.registry.queryDatasets(
-                    self.catalog_name, collections=[self.collection]
-                )
-            )
-            if not catalog_refs:
-                warnings.warn(
-                    f"No catalog datasets found for {self.catalog_name} in collection {self.collection}"
-                )
-                return tables
-
-            full_catalog = self.butler.get(catalog_refs[0])
-
-            # Filter by requested HEALPix indices
+            # Query each HEALPix pixel individually
             for hp_idx in hp_indices:
-                mask = full_catalog["healpix_id"] == hp_idx
-                hp_catalog = full_catalog[mask]
+                try:
+                    # Create data ID for HEALPix dimension
+                    dataId = {self.healpix_dim: int(hp_idx)}
 
-                if len(hp_catalog) > 0:
-                    tables.append(hp_catalog)
-                else:
-                    warnings.warn(f"No stars found for HEALPix {hp_idx}")
+                    # Query datasets for this specific HEALPix pixel
+                    datasets = list(
+                        self.butler.registry.queryDatasets(
+                            self.catalog_name,
+                            collections=[self.collection],
+                            where=f"{self.healpix_dim} = pixel_id",
+                            bind={"pixel_id": int(hp_idx)},
+                        )
+                    )
+
+                    if datasets:
+                        # Get the catalog for this pixel
+                        catalog = self.butler.get(datasets[0])
+                        if len(catalog) > 0:
+                            tables.append(catalog)
+                    else:
+                        # Try direct get approach as fallback
+                        try:
+                            catalog = self.butler.get(
+                                self.catalog_name,
+                                dataId=dataId,
+                                collections=self.collection,
+                            )
+                            if len(catalog) > 0:
+                                tables.append(catalog)
+                        except (DatasetNotFoundError, Exception):
+                            warnings.warn(
+                                f"No catalog data found for HEALPix pixel {hp_idx}"
+                            )
+
+                except Exception as e:
+                    warnings.warn(f"Could not load catalog for HEALPix {hp_idx}: {e}")
+                    continue
 
         except Exception as e:
-            warnings.warn(f"Could not load catalog data: {e}")
+            warnings.warn(f"Could not load catalog data from butler: {e}")
+
+        return tables
+
+    def _get_catalog_data_from_files(
+        self, hp_indices: typing.List[int]
+    ) -> typing.List[Table]:
+        """Get catalog data from CSV files."""
+        tables: typing.List[Table] = []
+
+        if self.catalog_path is None:
+            # Try default locations
+            default_paths = [
+                "Monster_guide",
+                os.path.join(os.path.dirname(__file__), "Monster_guide"),
+                os.path.join(os.getcwd(), "Monster_guide"),
+                "/home/s/shuang92/rubin-user/Monster_guide",  # Legacy path
+            ]
+
+            for default_path in default_paths:
+                if os.path.exists(default_path):
+                    self.catalog_path = default_path
+                    break
+
+        if self.catalog_path is None or not os.path.exists(self.catalog_path):
+            warnings.warn(
+                f"Catalog path not found: {self.catalog_path}. "
+                "Please provide catalog_path parameter."
+            )
+            return tables
+
+        for hp_idx in hp_indices:
+            try:
+                catalog_file = os.path.join(self.catalog_path, f"{hp_idx}.csv")
+                if os.path.exists(catalog_file):
+                    table = Table.read(catalog_file)
+                    tables.append(table)
+                else:
+                    warnings.warn(f"Catalog file not found: {catalog_file}")
+            except Exception as e:
+                warnings.warn(f"Could not load catalog for HEALPix {hp_idx}: {e}")
 
         return tables
 
@@ -364,10 +586,17 @@ class GuiderROIs:
         Raises
         ------
         RuntimeError
-            If DM stack is not available or no suitable guide stars found.
+            If DM stack is not available when needed or no suitable guide
+            stars found.
         """
         if not DM_STACK_AVAILABLE:
-            raise RuntimeError("DM stack not available.")
+            raise RuntimeError(
+                "DM stack not available. Cannot perform ROI selection without "
+                "lsst.geom, lsst.afw.cameraGeom, and related modules."
+            )
+
+        if self.camera is None:
+            raise RuntimeError("Camera object not available.")
 
         # make DM objects
         boresight_radec = SpherePoint(boresight_RA, boresight_DEC, geom.degrees)
@@ -421,14 +650,16 @@ class GuiderROIs:
             ccd_nx, ccd_ny = ccd_bbox.getDimensions()
             ccd_bbox.grow(-Extent2I(npix_edge, npix_edge))
 
-            # query the Monster-based Guider star catalog via butler
+            # query the Monster-based Guider star catalog using HEALPix
             hp_ind = hp.ang2pix(self.nside, ra_ccd, dec_ccd, lonlat=True)
 
             # Get neighboring pixels for catalog query
             try:
+                # should only need at most 4 tiles, but for simplicity
+                # using 9 Tables
                 SW, W, NW, N, NE, E, SE, S = hp.get_all_neighbours(self.nside, hp_ind)
 
-                # Get catalog data from butler
+                # Get catalog data using HEALPix dimensions
                 catalog_indices = [hp_ind, E, W, S, N, SW, SE, NW, NE]
                 tables = self._get_catalog_data_for_healpix(catalog_indices)
 
@@ -588,7 +819,7 @@ class GuiderROIs:
             # Gaia magnitudes
             if band in self.filters:
                 themag = f"mag_{band}"
-                # TBD: This check was not in the original al  algorithm
+                # TBD: This check was not in the original algorithm
                 #      but should add stability to the code
                 if themag in cat_select3.colnames:
                     magok = ~np.isnan(cat_select3[themag])
@@ -625,7 +856,8 @@ class GuiderROIs:
             raise RuntimeError(
                 f"No suitable guide stars found for the given pointing. "
                 f"Boresight: RA={boresight_RA:.6f}°, Dec={boresight_DEC:.6f}°. "
-                f"This may be due to limited catalog coverage or overly restrictive selection criteria."
+                f"This may be due to limited catalog coverage or overly "
+                f"restrictive selection criteria."
             )
 
         config_text = f"""
