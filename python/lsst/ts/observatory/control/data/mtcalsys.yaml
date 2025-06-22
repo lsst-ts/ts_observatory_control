@@ -938,6 +938,8 @@ whitelight_i_39_gain_100:
   led_location: 233.83
   led_focus: 7.07
   n_flat: 215
+  use_fiberspectrograph_red: False
+  use_fiberspectrograph_blue: False
   exposure_times:
     - 10.0
 
@@ -951,6 +953,8 @@ whitelight_i_39_gain_600:
   led_location: 233.83
   led_focus: 7.07
   n_flat: 600
+  use_fiberspectrograph_red: False
+  use_fiberspectrograph_blue: False
   exposure_times:
     - 10.0
 
