@@ -219,6 +219,19 @@ class GuiderROIs:
         self.catalog_name = catalog_name
         self.vignetting_dataset = vignetting_dataset
         self.collection = collection
+        self.catalog_path = catalog_path
+        self.vignetting_file = vignetting_file
+
+        # HEALPix configuration
+        self.nside = nside
+        self.healpix_level = int(math.log2(nside))  # Calculate level from nside
+        self.healpix_dim = f"healpix{self.healpix_level}"
+        self.npix = hp.nside2npix(nside)
+
+        # Set up butler (optional)
+        self.butler = None
+        self.best_effort_isr = None
+        self._setup_butler(butler, butler_config)
 
         # Butler via BestEffortIsr only
         self.best_effort_isr: "BestEffortIsrType | None" = BestEffortIsr()
@@ -310,6 +323,42 @@ class GuiderROIs:
             )
         except Exception as e:
             raise RuntimeError("Failed to create vignetting correction spline.") from e
+
+    def _load_vignetting_from_file(
+        self,
+    ) -> typing.Optional[typing.Dict[str, np.ndarray]]:
+        """Load vignetting data from file.
+
+        Returns
+        -------
+        vignetting_data : `dict` or `None`
+            Dictionary with 'theta' and 'vignetting' arrays, or None if not
+            found.
+        """
+        if self.vignetting_file is None:
+            # Try default locations
+            default_files = [
+                "vignetting_vs_angle.npz",
+                os.path.join(os.path.dirname(__file__), "vignetting_vs_angle.npz"),
+                os.path.join(os.getcwd(), "vignetting_vs_angle.npz"),
+            ]
+
+            for default_file in default_files:
+                if os.path.exists(default_file):
+                    self.vignetting_file = default_file
+                    break
+
+        if self.vignetting_file is None or not os.path.exists(self.vignetting_file):
+            return None
+
+        try:
+            vigdata = np.load(self.vignetting_file)
+            return {"theta": vigdata["theta"], "vignetting": vigdata["vignetting"]}
+        except Exception as e:
+            warnings.warn(
+                f"Failed to load vignetting data from {self.vignetting_file}: {e}"
+            )
+            return None
 
     def vignetting_correction(self, angle: float) -> float:
         """Calculate vignetting correction.
