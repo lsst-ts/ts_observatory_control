@@ -955,6 +955,7 @@ whitelight_i_39_gain_100:
   n_flat: 215
   use_fiberspectrograph_red: False
   use_fiberspectrograph_blue: False
+  use_flatfield_electrometer: False
   exposure_times:
     - 10.0
 
