@@ -1119,6 +1119,7 @@ ptc_i_39_100:
   use_camera: True
   use_fiberspectrograph_red: False
   use_fiberspectrograph_blue: False
+  use_flatfield_electrometer: False
   n_flat: 2
   ptc: True
   exposure_times:
