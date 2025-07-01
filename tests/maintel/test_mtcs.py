@@ -31,7 +31,7 @@ from astropy.coordinates import Angle
 from lsst.ts import utils, xml
 from lsst.ts.observatory.control.mock.mtcs_async_mock import MTCSAsyncMock
 from lsst.ts.observatory.control.utils import RotType
-from lsst.ts.xml.enums import MTM1M3, MTM2, MTDome, MTMount
+from lsst.ts.xml.enums import MTM1M3, MTM2, MTDome, MTMount, MTRotator
 
 
 class TestMTCS(MTCSAsyncMock):
@@ -1061,13 +1061,16 @@ class TestMTCS(MTCSAsyncMock):
         await self.mtcs.assert_all_enabled()
         await self.mtcs.close_m1_cover()
 
-        assert not await self.mtcs.in_m1_cover_operational_range()
         self.mtcs.rem.mtptg.cmd_azElTarget.set.assert_called_with(
             targetName="Mirror covers operation",
             azDegs=self._mtmount_tel_azimuth.actualPosition,
             elDegs=self.mtcs.tel_operate_mirror_covers_el,
             rotPA=self._mtrotator_tel_rotation.actualPosition,
         )
+
+        # After close_m1_cover, it is now in operational range
+        assert await self.mtcs.in_m1_cover_operational_range()
+
         self.mtcs.rem.mtmount.cmd_closeMirrorCovers.start.assert_awaited_with(
             timeout=self.mtcs.long_long_timeout
         )
@@ -1141,13 +1144,16 @@ class TestMTCS(MTCSAsyncMock):
         await self.mtcs.assert_all_enabled()
         await self.mtcs.open_m1_cover()
 
-        assert not await self.mtcs.in_m1_cover_operational_range()
         self.mtcs.rem.mtptg.cmd_azElTarget.set.assert_called_with(
             targetName="Mirror covers operation",
             azDegs=self._mtmount_tel_azimuth.actualPosition,
             elDegs=self.mtcs.tel_operate_mirror_covers_el,
             rotPA=self._mtrotator_tel_rotation.actualPosition,
         )
+
+        # After open_m1_cover, it is now in operational range
+        assert await self.mtcs.in_m1_cover_operational_range()
+
         self.mtcs.rem.mtmount.cmd_openMirrorCovers.set_start.assert_awaited_with(
             leaf=MTMount.MirrorCover.ALL, timeout=self.mtcs.long_long_timeout
         )
@@ -1301,8 +1307,130 @@ class TestMTCS(MTCSAsyncMock):
             await self.mtcs.prepare_for_flatfield()
 
     async def test_prepare_for_onsky(self) -> None:
-        with pytest.raises(NotImplementedError):
+        await self.mtcs.enable()
+        await self.mtcs.assert_all_enabled()
+
+        original_check = copy.copy(self.mtcs.check)
+        self.mtcs.check = self.get_all_checks()
+
+        try:
             await self.mtcs.prepare_for_onsky()
+        finally:
+            self.mtcs.check = original_check
+
+        # Assert dome reaches the open azimuth position
+        self.mtcs.rem.mtdome.evt_azMotion.flush.assert_called()
+
+        self.mtcs.rem.mtdome.cmd_moveAz.set_start.assert_awaited_with(
+            position=self.mtcs.dome_open_az,
+            velocity=0.0,
+            timeout=self.mtcs.long_long_timeout,
+        )
+
+        # Assert mtdome final state
+        az_motion = await self.mtcs.rem.mtdome.evt_azMotion.aget(
+            timeout=self.mtcs.fast_timeout
+        )
+
+        assert self.mtcs.rem.mtdome.evt_azMotion.inPosition
+        assert az_motion.state == MTDome.MotionState.ENABLED
+
+        # Assert that the dome following mode is enabled
+        self.mtcs.rem.mtdometrajectory.cmd_setFollowingMode.set_start.assert_awaited_with(
+            enable=True, timeout=self.mtcs.fast_timeout
+        )
+
+        self.mtcs._mtdometrajectory_dome_following = True
+
+        # Assert mtm2 balance system final state is set
+        assert self._mtm2_evt_force_balance_system_status.status
+
+        # Assert final state of dome shutter is OPEN
+        self._mtdome_evt_shutter_motion.state = [
+            MTDome.MotionState.OPEN,
+            MTDome.MotionState.OPEN,
+        ]
+
+        # Assert mtm1m3 is raised
+        self.mtcs.rem.mtm1m3.cmd_raiseM1M3.set_start.assert_awaited_with(
+            raiseM1M3=True, timeout=self.mtcs.long_timeout
+        )
+
+        self.mtcs.rem.mtm1m3.evt_detailedState.next.assert_awaited_with(
+            flush=False, timeout=self.mtcs.long_timeout
+        )
+
+        assert self._mtm1m3_evt_detailed_state.detailedState in (
+            MTM1M3.DetailedStates.ACTIVE,
+            MTM1M3.DetailedStates.ACTIVEENGINEERING,
+        )
+
+        # Assert home both axes command is called
+        self.mtcs.rem.mtmount.cmd_homeBothAxes.start.assert_awaited_once_with(
+            timeout=self.mtcs.home_both_axes_timeout
+        )
+
+        # Assert m1m3 force balance system is enabled m1m3
+        assert self._mtm1m3_evt_force_actuator_state.balanceForcesApplied
+
+        # Assert m1m3 not in engineering mode
+        assert not await self.mtcs.is_m1m3_in_engineering_mode()
+
+        # Assert ccw is following
+        assert self._mtmount_evt_cameraCableWrapFollowing.enabled == 1
+
+        assert self._mtmount_tel_azimuth.actualPosition == self.mtcs.dome_open_az
+        assert self._mtmount_tel_elevation.actualPosition == self.mtcs.tel_park_el
+        assert self._mtrotator_tel_rotation.actualPosition == self.mtcs.tel_park_rot
+
+        # Assert not tracking, rotator stationary
+        assert (
+            self._mtmount_evt_azimuth_motion_state.state
+            == MTMount.AxisMotionState.STOPPED
+        )
+        assert (
+            self._mtmount_evt_elevation_motion_state.state
+            == MTMount.AxisMotionState.STOPPED
+        )
+        assert (
+            self._mtrotator_evt_controller_state.enabledSubstate
+            == MTRotator.EnabledSubstate.STATIONARY
+        )
+
+        # Assert mirror covers are closed
+        assert (
+            self._mtmount_evt_mirror_covers_motion_state.state
+            == MTMount.DeployableMotionState.RETRACTED
+        )
+
+        # Assert compensation mode is enabled
+        if getattr(self.mtcs.check, "mthexapod_1", False):
+            assert self._mthexapod_1_evt_compensation_mode.enabled
+        if getattr(self.mtcs.check, "mthexapod_2", False):
+            assert self._mthexapod_2_evt_compensation_mode.enabled
+
+        # Assert dome following enabled
+        assert self.mtcs._mtdometrajectory_dome_following
+
+        # Assert it raise an exception if the el is below safe elevation
+        self._mtmount_tel_elevation.actualPosition = (
+            self.mtcs.m1m3_tel_min_el_to_raise - 5.0
+        )
+        if (
+            self._mtmount_tel_elevation.actualPosition
+            < self.mtcs.m1m3_tel_min_el_to_raise
+        ):
+            with pytest.raises(RuntimeError):
+                await self.mtcs.prepare_for_onsky()
+
+        # Assert mtmount elevation is above the safe elevation
+        self._mtmount_tel_elevation.actualPosition = (
+            self.mtcs.m1m3_tel_min_el_to_raise + 1.0
+        )
+        assert (
+            self._mtmount_tel_elevation.actualPosition
+            >= self.mtcs.tel_operate_dome_shutter_el
+        )
 
     async def test_shutdown(self) -> None:
         with pytest.raises(NotImplementedError):
@@ -1618,56 +1746,79 @@ class TestMTCS(MTCSAsyncMock):
 
     async def test_enter_m1m3_engineering_mode_not_in_eng_mode(self) -> None:
         m1m3_engineering_states = self.mtcs.m1m3_engineering_states
+        valid_base_states = [
+            MTM1M3.DetailedStates.PARKED,
+            MTM1M3.DetailedStates.ACTIVE,
+        ]
         m1m3_non_engineering_states = {
-            val
-            for val in xml.enums.MTM1M3.DetailedStates
-            if val not in m1m3_engineering_states
+            val for val in MTM1M3.DetailedStates if val not in m1m3_engineering_states
         }
-        for detailed_state in m1m3_non_engineering_states:
+        # Test valid transitions
+        for detailed_state in valid_base_states:
             self._mtm1m3_evt_detailed_state.detailedState = detailed_state
-
             await self.mtcs.enter_m1m3_engineering_mode()
-
             assert await self.mtcs.is_m1m3_in_engineering_mode()
             self.mtcs.rem.mtm1m3.cmd_enterEngineering.start.assert_awaited_once()
-            self.mtcs.rem.mtm1m3.cmd_enterEngineering.start.assert_awaited_with(
-                timeout=self.mtcs.long_timeout
-            )
             self.mtcs.rem.mtm1m3.cmd_enterEngineering.start.reset_mock()
+        # Test invalid transitions
+        for detailed_state in m1m3_non_engineering_states:
+            if detailed_state in valid_base_states:
+                continue
+            self._mtm1m3_evt_detailed_state.detailedState = detailed_state
+            with pytest.raises(RuntimeError):
+                await self.mtcs.enter_m1m3_engineering_mode()
 
     # TODO (DM-39458): Remove this workaround.
     async def test_enter_m1m3_engineering_mode_ignore_cmd_timeout(self) -> None:
         self.mtm1m3_cmd_enter_engineering_timeout = True
 
+        valid_base_states = [
+            MTM1M3.DetailedStates.PARKED,
+            MTM1M3.DetailedStates.ACTIVE,
+        ]
         m1m3_engineering_states = self.mtcs.m1m3_engineering_states
         m1m3_non_engineering_states = {
-            val
-            for val in xml.enums.MTM1M3.DetailedStates
-            if val not in m1m3_engineering_states
+            val for val in MTM1M3.DetailedStates if val not in m1m3_engineering_states
         }
-        for detailed_state in m1m3_non_engineering_states:
+        # Only test the timeout workaround for valid states
+        for detailed_state in valid_base_states:
             self._mtm1m3_evt_detailed_state.detailedState = detailed_state
-
             await self.mtcs.enter_m1m3_engineering_mode()
-
             assert await self.mtcs.is_m1m3_in_engineering_mode()
             self.mtcs.rem.mtm1m3.cmd_enterEngineering.start.assert_awaited_once()
             self.mtcs.rem.mtm1m3.cmd_enterEngineering.start.assert_awaited_with(
                 timeout=self.mtcs.long_timeout
             )
             self.mtcs.rem.mtm1m3.cmd_enterEngineering.start.reset_mock()
+        # All other states should fail fast
+        for detailed_state in m1m3_non_engineering_states:
+            if detailed_state in valid_base_states:
+                continue
+            self._mtm1m3_evt_detailed_state.detailedState = detailed_state
+            with pytest.raises(RuntimeError):
+                await self.mtcs.enter_m1m3_engineering_mode()
 
     async def test_exit_m1m3_engineering_mode_in_eng_mode(self) -> None:
-        for detailed_state in self.mtcs.m1m3_engineering_states:
+        # States from which exiting engineering mode is valid
+        valid_eng_states = [
+            MTM1M3.DetailedStates.PARKEDENGINEERING,
+            MTM1M3.DetailedStates.ACTIVEENGINEERING,
+        ]
+        m1m3_engineering_states = self.mtcs.m1m3_engineering_states
+        # Test valid transitions
+        for detailed_state in valid_eng_states:
             self._mtm1m3_evt_detailed_state.detailedState = detailed_state
-
             await self.mtcs.exit_m1m3_engineering_mode()
             assert not await self.mtcs.is_m1m3_in_engineering_mode()
             self.mtcs.rem.mtm1m3.cmd_exitEngineering.start.assert_awaited_once()
-            self.mtcs.rem.mtm1m3.cmd_exitEngineering.start.assert_awaited_with(
-                timeout=self.mtcs.long_timeout
-            )
             self.mtcs.rem.mtm1m3.cmd_exitEngineering.start.reset_mock()
+        # Test invalid transitions (should raise)
+        for detailed_state in m1m3_engineering_states:
+            if detailed_state in valid_eng_states:
+                continue
+            self._mtm1m3_evt_detailed_state.detailedState = detailed_state
+            with pytest.raises(RuntimeError):
+                await self.mtcs.exit_m1m3_engineering_mode()
 
     async def test_exit_m1m3_engineering_mode_not_in_eng_mode(self) -> None:
         m1m3_engineering_states = self.mtcs.m1m3_engineering_states
