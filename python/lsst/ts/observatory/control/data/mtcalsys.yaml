@@ -325,6 +325,21 @@ whitelight_y_10_daily:
   exposure_times:
     - 20.0
 
+whitelight_ph_5_daily:
+  mtcamera_filter: ph_5
+  led_name:
+    - M730L5
+    - M810L3
+  dac_value: 0.8
+  wavelength: 755.0
+  led_location: 233.83
+  led_focus: 7.07
+  use_fiberspectrograph_red: False
+  use_fiberspectrograph_blue: False
+  n_flat: 3
+  exposure_times:
+    - 30.0
+
 whitelight_u_24_dark:
   mtcamera_filter: u_24
   led_name: 
