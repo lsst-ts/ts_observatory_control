@@ -1014,7 +1014,7 @@ class MTCalsys(BaseCalsys):
         fiberspectrograph_exptimes: list[float | None] = []
         for exptime in exptimes:
             if use_fiberspectrograph:
-                base_exptime = 1  # sec
+                base_exptime = 10  # sec
                 fiberspectrograph_exptimes.append(base_exptime)
             else:
                 fiberspectrograph_exptimes.append(None)
