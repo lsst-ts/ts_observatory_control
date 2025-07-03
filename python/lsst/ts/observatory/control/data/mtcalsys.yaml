@@ -592,6 +592,7 @@ whitelight_r_source:
   use_camera: False
   use_fiberspectrograph_red: True
   use_fiberspectrograph_blue: True
+  use_flatfield_electrometer: True
   exposure_times:
     - 10.0
 
