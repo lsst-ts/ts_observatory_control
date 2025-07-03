@@ -720,6 +720,9 @@ class ATCS(BaseTCS):
 
         if check.ataos:
             await self.disable_ataos_corrections()
+            # give the corrections time to report as disabled before closing
+            # the mirror cover
+            await asyncio.sleep(self.fast_timeout)
         else:
             self.log.debug("Skip disabling ATAOS corrections.")
 
