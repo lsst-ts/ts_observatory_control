@@ -752,8 +752,6 @@ class MTCalsys(BaseCalsys):
                 timeout=self.long_timeout,
             )
 
-            caught_exc = None
-
             results = await asyncio.gather(
                 task_select_led,
                 task_adjust_led_focus,
@@ -768,11 +766,8 @@ class MTCalsys(BaseCalsys):
                     self.log.info(
                         f"Task {i} raised an exception: {type(result).__name__}: {result}"
                     )
-                    if caught_exc is None:
-                        caught_exc = result
 
-            if caught_exc is not None:
-                raise caught_exc
+                    raise result
 
         elif calibration_type == CalibrationType.Mono:
             wavelengths = [400.0]  # function of filter_name
