@@ -12,11 +12,11 @@ cbp_g_leak:
   use_cbp_electrometer: True
   use_flatfield_electrometer: False
   laser_mode: 4
-  optical_configuration: F1 SCU
+  optical_configuration: F2 SCU
   calib_type: CBP
   electrometer_mode: 'CHARGE'
-  electrometer_integration_time: 0.001
-  electrometer_range: 0.000002
+  electrometer_integration_time: 1
+  electrometer_range: 0.0000002
   use_camera: True
 
 cbp_u_leak:
@@ -30,11 +30,11 @@ cbp_u_leak:
   use_cbp_electrometer: True
   use_flatfield_electrometer: False
   laser_mode: 4
-  optical_configuration: F1 SCU
+  optical_configuration: F2 SCU
   calib_type: CBP
   electrometer_mode: 'CHARGE'
-  electrometer_integration_time: 0.001
-  electrometer_range: 0.000002
+  electrometer_integration_time: 1
+  electrometer_range: 0.0000002
   use_camera: True
 
 cbp_g:
@@ -49,11 +49,11 @@ cbp_g:
   use_flatfield_electrometer: False
   laser_mode: 4
   laser_wait_time: 10
-  optical_configuration: F1 SCU
+  optical_configuration: F2 SCU
   calib_type: CBP
   electrometer_mode: 'CHARGE'
-  electrometer_integration_time: 0.001
-  electrometer_range: 0.000002
+  electrometer_integration_time: 1
+  electrometer_range: 0.0000002
 
 cbp_u_24:
   mtcamera_filter: u_24
@@ -66,11 +66,11 @@ cbp_u_24:
   use_cbp_electrometer: True
   use_flatfield_electrometer: False
   laser_mode: 4
-  optical_configuration: F1 SCU
+  optical_configuration: F2 SCU
   calib_type: CBP
   electrometer_mode: 'CHARGE'
-  electrometer_integration_time: 0.001
-  electrometer_range: 0.000002
+  electrometer_integration_time: 1
+  electrometer_range: 0.0000002
   
 cbp_none_leak:
   mtcamera_filter: NONE
@@ -83,11 +83,11 @@ cbp_none_leak:
   use_cbp_electrometer: True
   use_flatfield_electrometer: False
   laser_mode: 4
-  optical_configuration: F1 SCU
+  optical_configuration: F2 SCU
   calib_type: CBP
   electrometer_mode: 'CHARGE'
-  electrometer_integration_time: 0.001
-  electrometer_range: 0.000002
+  electrometer_integration_time: 1
+  electrometer_range: 0.0000002
 
 cbp_none_all:
   mtcamera_filter: NONE
@@ -100,11 +100,11 @@ cbp_none_all:
   use_cbp_electrometer: True
   use_flatfield_electrometer: False
   laser_mode: 4
-  optical_configuration: F1 SCU
+  optical_configuration: F2 SCU
   calib_type: CBP
   electrometer_mode: 'CHARGE'
-  electrometer_integration_time: 0.01
-  electrometer_range: 0.000002
+  electrometer_integration_time: 1
+  electrometer_range: 0.0000002
 
 cbp_u_2nm:
   mtcamera_filter: u_24
@@ -115,11 +115,11 @@ cbp_u_2nm:
   use_cbp_electrometer: True
   use_flatfield_electrometer: False
   laser_mode: 4
-  optical_configuration: F1 SCU
+  optical_configuration: F2 SCU
   calib_type: CBP
   electrometer_mode: 'CHARGE'
-  electrometer_integration_time: 0.01
-  electrometer_range: 0.000002
+  electrometer_integration_time: 1
+  electrometer_range: 0.0000002
   set_wavelength_range: False
 
 cbp_g_2nm:
@@ -131,11 +131,11 @@ cbp_g_2nm:
   use_cbp_electrometer: True
   use_flatfield_electrometer: False
   laser_mode: 4
-  optical_configuration: F1 SCU
+  optical_configuration: F2 SCU
   calib_type: CBP
   electrometer_mode: 'CHARGE'
-  electrometer_integration_time: 0.01
-  electrometer_range: 0.000002
+  electrometer_integration_time: 1
+  electrometer_range: 0.0000002
   set_wavelength_range: False
 
 cbp_r_2nm:
@@ -147,11 +147,11 @@ cbp_r_2nm:
   use_cbp_electrometer: True
   use_flatfield_electrometer: False
   laser_mode: 4
-  optical_configuration: F1 SCU
+  optical_configuration: F2 SCU
   calib_type: CBP
   electrometer_mode: 'CHARGE'
-  electrometer_integration_time: 0.01
-  electrometer_range: 0.000002
+  electrometer_integration_time: 1
+  electrometer_range: 0.0000002
   set_wavelength_range: False
 
 cbp_r_2nm_remainder:
@@ -163,11 +163,11 @@ cbp_r_2nm_remainder:
   use_cbp_electrometer: True
   use_flatfield_electrometer: False
   laser_mode: 4
-  optical_configuration: F1 SCU
+  optical_configuration: F2 SCU
   calib_type: CBP
   electrometer_mode: 'CHARGE'
-  electrometer_integration_time: 0.01
-  electrometer_range: 0.000002
+  electrometer_integration_time: 1
+  electrometer_range: 0.0000002
   set_wavelength_range: False
 
 cbp_i_2nm:
@@ -179,11 +179,11 @@ cbp_i_2nm:
   use_cbp_electrometer: True
   use_flatfield_electrometer: False
   laser_mode: 4
-  optical_configuration: F1 SCU
+  optical_configuration: F2 SCU
   calib_type: CBP
   electrometer_mode: 'CHARGE'
-  electrometer_integration_time: 0.01
-  electrometer_range: 0.000002
+  electrometer_integration_time: 1
+  electrometer_range: 0.0000002
   set_wavelength_range: False
 
 cbp_z_2nm:
@@ -195,11 +195,11 @@ cbp_z_2nm:
   use_cbp_electrometer: True
   use_flatfield_electrometer: False
   laser_mode: 4
-  optical_configuration: F1 SCU
+  optical_configuration: F2 SCU
   calib_type: CBP
   electrometer_mode: 'CHARGE'
-  electrometer_integration_time: 0.01
-  electrometer_range: 0.000002
+  electrometer_integration_time: 1
+  electrometer_range: 0.0000002
   set_wavelength_range: False
 
 cbp_y_2nm:
@@ -211,11 +211,11 @@ cbp_y_2nm:
   use_cbp_electrometer: True
   use_flatfield_electrometer: False
   laser_mode: 4
-  optical_configuration: F1 SCU
+  optical_configuration: F2 SCU
   calib_type: CBP
   electrometer_mode: 'CHARGE'
-  electrometer_integration_time: 0.01
-  electrometer_range: 0.000002
+  electrometer_integration_time: 1
+  electrometer_range: 0.0000002
   set_wavelength_range: False
 
 whitelight_u_24_daily:
