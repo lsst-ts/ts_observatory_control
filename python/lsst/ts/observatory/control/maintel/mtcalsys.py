@@ -751,13 +751,28 @@ class MTCalsys(BaseCalsys):
                 serialNumbers=",".join(led_names),
                 timeout=self.long_timeout,
             )
-            await asyncio.gather(
+
+            caught_exc = None
+
+            results = await asyncio.gather(
                 task_select_led,
                 task_adjust_led_focus,
                 task_adjust_led_level,
                 task_turn_led_on,
                 task_setup_camera,
+                return_exceptions=True,
             )
+
+            for i, result in enumerate(results):
+                if isinstance(result, Exception):
+                    self.log.info(
+                        f"Task {i} raised an exception: {type(result).__name__}: {result}"
+                    )
+                    if caught_exc is None:
+                        caught_exc = result
+
+            if caught_exc is not None:
+                raise caught_exc
 
         elif calibration_type == CalibrationType.Mono:
             wavelengths = [400.0]  # function of filter_name
