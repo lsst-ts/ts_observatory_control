@@ -104,7 +104,7 @@ cbp_none_all:
   optical_configuration: F2 SCU
   calib_type: CBP
   electrometer_mode: 'CHARGE'
-  electrometer_integration_time: 10
+  electrometer_integration_time: 1
   electrometer_range: 0.0000002
 
 cbp_u_2nm:
