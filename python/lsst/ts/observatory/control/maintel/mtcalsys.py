@@ -863,8 +863,12 @@ class MTCalsys(BaseCalsys):
 
             elif calibration_type == CalibrationType.CBP:
                 await self.change_laser_wavelength(wavelength=exposure.wavelength)
+                if exposure.wavelength < 410:
+                    camera_exposure_time = exposure.camera + 8
+                else:
+                    camera_exposure_time = exposure.camera
                 exposure_info = await self._take_data(
-                    mtcamera_exptime=exposure.camera,
+                    mtcamera_exptime=camera_exposure_time,
                     mtcamera_filter=str(config_data["mtcamera_filter"]),
                     exposure_metadata=_exposure_metadata,
                     calibration_type=calibration_type,
