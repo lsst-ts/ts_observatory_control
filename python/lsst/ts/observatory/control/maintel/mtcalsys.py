@@ -145,9 +145,12 @@ class MTCalsys(BaseCalsys):
             ((540, 570), 100),
             ((570, 600), 400),
             ((600, 650), 500),
-            ((650, 770), 1000),
+            ((650, 700), 1000),
+            ((700, 720), 2000),
+            ((720, 770), 1000),
             ((770, 1070), 400),
-            ((1070, None), 3000),
+            ((1070, 1100), 2000),
+            ((1100, None), 3000),
         ]
 
         super().__init__(
@@ -865,8 +868,13 @@ class MTCalsys(BaseCalsys):
                 await self.change_laser_wavelength(wavelength=exposure.wavelength)
                 if exposure.wavelength < 410:
                     camera_exposure_time = exposure.camera + 8
+                    if exposure.electrometer is not None:
+                        electrometer_exposure_time = exposure.electrometer + 8
+                    else:
+                        electrometer_exposure_time = None
                 else:
                     camera_exposure_time = exposure.camera
+                    electrometer_exposure_time = exposure.electrometer
                 exposure_info = await self._take_data(
                     mtcamera_exptime=camera_exposure_time,
                     mtcamera_filter=str(config_data["mtcamera_filter"]),
@@ -874,7 +882,7 @@ class MTCalsys(BaseCalsys):
                     calibration_type=calibration_type,
                     fiber_spectrum_red_exposure_time=exposure.fiberspectrograph_red,
                     fiber_spectrum_blue_exposure_time=exposure.fiberspectrograph_blue,
-                    electrometer_exposure_time=exposure.electrometer,
+                    electrometer_exposure_time=electrometer_exposure_time,
                     nburst=config_data["nburst"],
                     laser_mode=config_data["laser_mode"],
                     sequence_name=sequence_name,
