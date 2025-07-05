@@ -139,8 +139,8 @@ class MTCalsys(BaseCalsys):
         self.linearstage_laser_focus_index = 104
         self.linearstage_select_index = 103
         self.npulse_lookup = [
-            ((None, 400), 4000),
-            ((400, 420), 2000),
+            ((None, 410), 4000),
+            ((410, 420), 2000),
             ((420, 540), 40),
             ((540, 570), 100),
             ((570, 600), 400),
