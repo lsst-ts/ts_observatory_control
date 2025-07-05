@@ -649,7 +649,7 @@ whitelight_u_24_M385L3:
   led_focus: 9.42
   use_fiberspectrograph_red: False
   use_fiberspectrograph_blue: False
-  n_flat: 1
+  n_flat: 20
   exposure_times:
     - 10.0
 
@@ -663,7 +663,7 @@ whitelight_i_39_M730L5:
   led_focus: 7.15
   use_fiberspectrograph_red: False
   use_fiberspectrograph_blue: False
-  n_flat: 1
+  n_flat: 20
   exposure_times:
     - 10.0
 
@@ -677,7 +677,7 @@ whitelight_i_39_M810L3:
   led_focus: 6.94
   use_fiberspectrograph_red: False
   use_fiberspectrograph_blue: False
-  n_flat: 1
+  n_flat: 20
   exposure_times:
     - 10.0
 
@@ -691,7 +691,7 @@ whitelight_g_6_M455L4:
   led_focus: 8.57
   use_fiberspectrograph_red: False
   use_fiberspectrograph_blue: False
-  n_flat: 1
+  n_flat: 20
   exposure_times:
     - 9.0
 
@@ -705,7 +705,7 @@ whitelight_g_6_M505L4:
   led_focus: 8.12
   use_fiberspectrograph_red: False
   use_fiberspectrograph_blue: False
-  n_flat: 1
+  n_flat: 20
   exposure_times:
     - 20.0
 
@@ -719,7 +719,7 @@ whitelight_r_57_M565L3:
   led_focus: 7.79
   use_fiberspectrograph_red: False
   use_fiberspectrograph_blue: False
-  n_flat: 1
+  n_flat: 20
   exposure_times:
     - 20.0
 
@@ -733,7 +733,7 @@ whitelight_r_57_M660L4:
   led_focus: 7.37
   use_fiberspectrograph_red: False
   use_fiberspectrograph_blue: False
-  n_flat: 1
+  n_flat: 20
   exposure_times:
     - 10.0
 
@@ -747,7 +747,7 @@ whitelight_z_20_M850L3:
   led_focus: 6.85
   use_fiberspectrograph_red: False
   use_fiberspectrograph_blue: False
-  n_flat: 1
+  n_flat: 20
   exposure_times:
     - 9.0
 
@@ -761,7 +761,7 @@ whitelight_z_20_M940L3:
   led_focus: 6.66
   use_fiberspectrograph_red: False
   use_fiberspectrograph_blue: False
-  n_flat: 1
+  n_flat: 20
   exposure_times:
     - 10.0
 
@@ -775,7 +775,7 @@ whitelight_y_10_M940L3:
   led_focus: 6.66
   use_fiberspectrograph_red: False
   use_fiberspectrograph_blue: False
-  n_flat: 1
+  n_flat: 20
   exposure_times:
     - 10.0
 
@@ -789,7 +789,7 @@ whitelight_y_10_M970L4:
   led_focus: 6.61
   use_fiberspectrograph_red: False
   use_fiberspectrograph_blue: False
-  n_flat: 1
+  n_flat: 20
   exposure_times:
     - 20.0
 
@@ -946,7 +946,7 @@ whitelight_empty_M385L3:
   led_focus: 9.42
   use_fiberspectrograph_red: False
   use_fiberspectrograph_blue: False
-  n_flat: 1
+  n_flat: 20
   exposure_times:
     - 10.0
 
@@ -960,7 +960,7 @@ whitelight_empty_M730L5:
   led_focus: 7.15
   use_fiberspectrograph_red: False
   use_fiberspectrograph_blue: False
-  n_flat: 1
+  n_flat: 20
   exposure_times:
     - 10.0
 
@@ -974,7 +974,7 @@ whitelight_empty_M810L3:
   led_focus: 6.94
   use_fiberspectrograph_red: False
   use_fiberspectrograph_blue: False
-  n_flat: 1
+  n_flat: 20
   exposure_times:
     - 10.0
 
@@ -988,7 +988,7 @@ whitelight_empty_M455L4:
   led_focus: 8.57
   use_fiberspectrograph_red: False
   use_fiberspectrograph_blue: False
-  n_flat: 1
+  n_flat: 20
   exposure_times:
     - 9.0
 
@@ -1002,7 +1002,7 @@ whitelight_empty_M505L4:
   led_focus: 8.12
   use_fiberspectrograph_red: False
   use_fiberspectrograph_blue: False
-  n_flat: 1
+  n_flat: 20
   exposure_times:
     - 20.0
 
@@ -1016,7 +1016,7 @@ whitelight_empty_M565L3:
   led_focus: 7.79
   use_fiberspectrograph_red: False
   use_fiberspectrograph_blue: False
-  n_flat: 1
+  n_flat: 20
   exposure_times:
     - 20.0
 
@@ -1030,7 +1030,7 @@ whitelight_empty_M660L4:
   led_focus: 7.37
   use_fiberspectrograph_red: False
   use_fiberspectrograph_blue: False
-  n_flat: 1
+  n_flat: 20
   exposure_times:
     - 10.0
 
@@ -1044,7 +1044,7 @@ whitelight_empty_M850L3:
   led_focus: 6.85
   use_fiberspectrograph_red: False
   use_fiberspectrograph_blue: False
-  n_flat: 1
+  n_flat: 20
   exposure_times:
     - 9.0
 
@@ -1058,7 +1058,7 @@ whitelight_empty_M940L3:
   led_focus: 6.66
   use_fiberspectrograph_red: False
   use_fiberspectrograph_blue: False
-  n_flat: 1
+  n_flat: 20
   exposure_times:
     - 10.0
 
@@ -1072,7 +1072,7 @@ whitelight_empty_M970L4:
   led_focus: 6.61
   use_fiberspectrograph_red: False
   use_fiberspectrograph_blue: False
-  n_flat: 1
+  n_flat: 20
   exposure_times:
     - 20.0
 
