@@ -672,9 +672,11 @@ class MTCalsys(BaseCalsys):
         await asyncio.sleep(wait_time)
         await asyncio.sleep(delay_before)
         for n in range(nburst):
+            self.log.debug(f"Burst number {n}")
             await asyncio.sleep(delay_before)
             await self.rem.tunablelaser.cmd_triggerBurst.start()
             await asyncio.sleep(delay_after)
+            self.log.debug(f"Slept for {delay_after}")
         await asyncio.sleep(delay_after)
 
     async def prepare_for_flat(self, sequence_name: str) -> None:
@@ -840,7 +842,7 @@ class MTCalsys(BaseCalsys):
                 and int(config_data["laser_mode"]) == 4
             ):
                 npulse = self.get_npulse_for_wavelength(wavelength=exposure.wavelength)
-
+                self.log.debug(f"Number of pulses in {npulse}")
                 await self.rem.tunablelaser.cmd_setBurstMode.set_start(
                     count=int(npulse)
                 )
