@@ -146,8 +146,8 @@ class MTCalsys(BaseCalsys):
             ((570, 600), 400),
             ((600, 650), 500),
             ((650, 770), 1000),
-            ((770, 1050), 400),
-            ((1050, None), 2000),
+            ((770, 1070), 400),
+            ((1070, None), 2000),
         ]
 
         super().__init__(
@@ -672,11 +672,9 @@ class MTCalsys(BaseCalsys):
         await asyncio.sleep(wait_time)
         await asyncio.sleep(delay_before)
         for n in range(nburst):
-            self.log.debug(f"Burst number {n}")
             await asyncio.sleep(delay_before)
             await self.rem.tunablelaser.cmd_triggerBurst.start()
             await asyncio.sleep(delay_after)
-            self.log.debug(f"Slept for {delay_after}")
         await asyncio.sleep(delay_after)
 
     async def prepare_for_flat(self, sequence_name: str) -> None:
@@ -842,7 +840,7 @@ class MTCalsys(BaseCalsys):
                 and int(config_data["laser_mode"]) == 4
             ):
                 npulse = self.get_npulse_for_wavelength(wavelength=exposure.wavelength)
-                self.log.debug(f"Number of pulses in {npulse}")
+                self.log.debug(f"Number of pulses is {npulse}")
                 await self.rem.tunablelaser.cmd_setBurstMode.set_start(
                     count=int(npulse)
                 )
@@ -878,6 +876,7 @@ class MTCalsys(BaseCalsys):
                     sequence_name=sequence_name,
                     wavelength=int(exposure.wavelength),
                     wait_time=config_data["laser_wait_time"],
+                    delay_after=float(round(1 + npulse / 1000, 2)),
                 )
             else:
                 self.log.info("Calibration Type is WhiteLight")
