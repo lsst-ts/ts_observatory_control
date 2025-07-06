@@ -734,18 +734,19 @@ class MTCalsys(BaseCalsys):
             task_select_led = self.linearstage_led_select.cmd_moveAbsolute.set_start(
                 distance=config_data.get("led_location"),
                 axis=self.linearstage_axis,
-                timeout=self.long_timeout,
+                timeout=self.long_long_timeout,
             )
             task_adjust_led_focus = (
                 self.linearstage_led_focus.cmd_moveAbsolute.set_start(
                     distance=config_data.get("led_focus"),
                     axis=self.led_focus_axis,
-                    timeout=self.long_timeout,
+                    timeout=self.long_long_timeout,
                 )
             )
             task_adjust_led_level = (
                 self.rem.ledprojector.cmd_adjustAllDACPower.set_start(
-                    dacValue=config_data.get("dac_value")
+                    dacValue=config_data.get("dac_value"),
+                    timeout=self.long_timeout,
                 )
             )
 
