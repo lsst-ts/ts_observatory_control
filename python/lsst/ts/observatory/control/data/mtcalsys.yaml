@@ -597,6 +597,20 @@ whitelight_r_source:
   exposure_times:
     - 10.0
 
+whitelight_r_660_source:
+  led_name:
+    - M660L4
+  dac_value: 0.78
+  wavelength: 660.0
+  led_location: 66.87
+  led_focus: 7.52
+  use_camera: False
+  use_fiberspectrograph_red: False
+  use_fiberspectrograph_blue: False
+  use_flatfield_electrometer: True
+  exposure_times:
+    - 10.0
+
 whitelight_i_source:
   mtcamera_filter: i_39
   led_name:
