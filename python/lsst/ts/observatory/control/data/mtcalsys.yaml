@@ -729,8 +729,8 @@ whitelight_r_57_M660L4:
     - M660L4
   dac_value: 1.0
   wavelength: 660.0
-  led_location: 66.73
-  led_focus: 7.37
+  led_location: 66.87
+  led_focus: 7.52
   use_fiberspectrograph_red: False
   use_fiberspectrograph_blue: False
   n_flat: 20
