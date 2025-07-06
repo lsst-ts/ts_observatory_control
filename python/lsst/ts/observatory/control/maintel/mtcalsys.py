@@ -724,7 +724,7 @@ class MTCalsys(BaseCalsys):
             )
             if vertical_pos.position[0] != self.linearstage_projector_locations["led"]:
                 self.log.info("Projector select stage is not aligned with LED position")
-                self.linearstage_projector_select.cmd_moveAbsolute.set_start(
+                await self.linearstage_projector_select.cmd_moveAbsolute.set_start(
                     distance=self.linearstage_projector_locations["led"],
                     axis=self.linearstage_axis,
                     timeout=self.long_timeout,
