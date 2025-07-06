@@ -142,7 +142,7 @@ class MTCS(BaseTCS):
         self.tel_flat_el = 39.0
         self.tel_flat_az = 205.7
         self.tel_settle_time = 3.0
-        self.tel_operate_mirror_covers_el = 70.0
+        self.tel_operate_mirror_covers_el = 20.0
         self.tel_operate_dome_shutter_el = 5.0
 
         # Tolerance to the rotator position for move commands.
