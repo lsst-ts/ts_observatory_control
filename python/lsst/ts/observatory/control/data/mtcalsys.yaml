@@ -763,7 +763,7 @@ whitelight_z_20_M940L3:
   use_fiberspectrograph_blue: False
   n_flat: 20
   exposure_times:
-    - 10.0
+    - 20.0
 
 whitelight_y_10_M940L3:
   mtcamera_filter: y_10
