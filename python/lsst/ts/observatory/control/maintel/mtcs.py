@@ -1223,7 +1223,7 @@ class MTCS(BaseTCS):
                 )
             except salobj.AckError as ack:
                 self.log.error(
-                    f"Open mirror cover command failed with {ack.ack!r}::{ack.error}. "
+                    f"Open mirror cover command failed with {ack.ackcmd.ack!r}::{ack.ackcmd.result}. "
                     "Checking state of the system."
                 )
                 cover_state = await self.rem.mtmount.evt_mirrorCoversMotionState.aget(
