@@ -600,7 +600,7 @@ whitelight_r_source:
 whitelight_r_660_source:
   led_name:
     - M660L4
-  dac_value: 0.78
+  dac_value: 1.0
   wavelength: 660.0
   led_location: 66.87
   led_focus: 7.52
