@@ -621,8 +621,9 @@ whitelight_i_source:
   led_location: 233.83
   led_focus: 7.07
   use_camera: False
-  use_fiberspectrograph_red: True
-  use_fiberspectrograph_blue: True
+  use_fiberspectrograph_red: False
+  use_fiberspectrograph_blue: False
+  use_flatfield_electrometer: True
   exposure_times:
     - 10.0
 
