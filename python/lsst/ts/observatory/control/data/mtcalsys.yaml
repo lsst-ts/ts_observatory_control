@@ -448,7 +448,7 @@ whitelight_y_10_dark:
 scan_u_init:
   calib_type: Mono
   laser_mode: 1
-  optical_configuration: F2 SCU
+  optical_configuration: F1 SCU
   use_camera: True
   mtcamera_filter: u_24
   wavelength: 350.0
@@ -462,7 +462,7 @@ scan_u_init:
 scan_g_init:
   calib_type: Mono
   laser_mode: 1
-  optical_configuration: F2 SCU
+  optical_configuration: F1 SCU
   use_camera: True
   mtcamera_filter: g_6
   wavelength: 480.
@@ -476,7 +476,7 @@ scan_g_init:
 scan_r_init:
   calib_type: Mono
   laser_mode: 1
-  optical_configuration: F2 SCU
+  optical_configuration: F1 SCU
   use_camera: True
   mtcamera_filter: r_57
   wavelength: 625.0
@@ -490,7 +490,7 @@ scan_r_init:
 scan_r:
   calib_type: Mono
   laser_mode: 1
-  optical_configuration: F2 SCU
+  optical_configuration: F1 SCU
   use_camera: True
   mtcamera_filter: r_57
   wavelength: 625.0
@@ -504,7 +504,7 @@ scan_r:
 scan_i_init:
   calib_type: Mono
   laser_mode: 1
-  optical_configuration: F2 SCU
+  optical_configuration: F1 SCU
   use_camera: True
   mtcamera_filter: i_39
   wavelength: 730.0
@@ -518,7 +518,7 @@ scan_i_init:
 scan_z_init:
   calib_type: Mono
   laser_mode: 1
-  optical_configuration: F2 SCU
+  optical_configuration: F1 SCU
   use_camera: True
   mtcamera_filter: z_20
   wavelength: 880.0
@@ -532,7 +532,7 @@ scan_z_init:
 scan_y_init:
   calib_type: Mono
   laser_mode: 1
-  optical_configuration: F2 SCU
+  optical_configuration: F1 SCU
   use_camera: True
   mtcamera_filter: y_10
   wavelength: 970.0
@@ -547,11 +547,10 @@ laser_functional:
   calib_type: Mono
   laser_mode: 1
   use_camera: False
-  optical_configuration: SCU
-  wavelength: 500.0
-  use_flatfield_electrometer: False
-  use_fiberspectrograph_red: False
-  use_fiberspectrograph_blue: False
+  optical_configuration: F1 SCU
+  wavelength: 700.0
+  wavelength_width: 800
+  wavelength_resolution: 100.
   exposure_times:
     - 15.0
 
@@ -563,8 +562,6 @@ whitelight_u_source:
   led_location: 174.18
   led_focus: 9.42
   use_camera: False
-  use_fiberspectrograph_red: True
-  use_fiberspectrograph_blue: True
   exposure_times:
     - 30.0
 
@@ -577,8 +574,6 @@ whitelight_g_source:
   led_location: 5.62
   led_focus: 8.26
   use_camera: False
-  use_fiberspectrograph_red: True
-  use_fiberspectrograph_blue: True
   exposure_times:
     - 10.0
 
@@ -591,9 +586,6 @@ whitelight_r_source:
   led_location: 66.87
   led_focus: 7.52
   use_camera: False
-  use_fiberspectrograph_red: True
-  use_fiberspectrograph_blue: True
-  use_flatfield_electrometer: True
   exposure_times:
     - 10.0
 
@@ -605,9 +597,6 @@ whitelight_r_660_source:
   led_location: 66.87
   led_focus: 7.52
   use_camera: False
-  use_fiberspectrograph_red: False
-  use_fiberspectrograph_blue: False
-  use_flatfield_electrometer: True
   exposure_times:
     - 10.0
 
@@ -621,9 +610,6 @@ whitelight_i_source:
   led_location: 233.83
   led_focus: 7.07
   use_camera: False
-  use_fiberspectrograph_red: False
-  use_fiberspectrograph_blue: False
-  use_flatfield_electrometer: True
   exposure_times:
     - 10.0
 
@@ -636,8 +622,6 @@ whitelight_z_source:
   led_location: 295.504
   led_focus: 6.74
   use_camera: False
-  use_fiberspectrograph_red: True
-  use_fiberspectrograph_blue: True
   exposure_times:
     - 10.0
 
@@ -649,8 +633,6 @@ whitelight_y_source:
   led_location: 171.38
   led_focus: 6.61
   use_camera: False
-  use_fiberspectrograph_red: True
-  use_fiberspectrograph_blue: True
   exposure_times:
     - 20.0
 
