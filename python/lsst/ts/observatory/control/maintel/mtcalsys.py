@@ -862,7 +862,6 @@ class MTCalsys(BaseCalsys):
                     electrometer_exposure_time=exposure.electrometer,
                     nburst=config_data["nburst"],
                     laser_mode=config_data["laser_mode"],
-                    delay_after=float(round(1 + npulse / 1000, 2)),
                 )
 
             elif calibration_type == CalibrationType.CBP:
