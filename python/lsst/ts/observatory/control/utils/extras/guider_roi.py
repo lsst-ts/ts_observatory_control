@@ -663,21 +663,17 @@ class GuiderROIs:
                 ampName, ampX, ampY = lct.ccdPixelToAmpPixel(arow["ccdx"], arow["ccdy"])
                 # check if the amp is in the bad_guideramps list
                 if idet in self.bad_guideramps:
-                    if ampName == self.bad_guideramps[idet]:
+                    if ampName in self.bad_guideramps[idet]:
                         ampOk.append(False)
                     else:
                         ampOk.append(True)
                 else:
                     ampOk.append(True)
 
-            # TBD: Notice this group is not indented
-            # TBD: I believe it should have been indented
-            #      (be in the for loop)
-            #      at least for ampName, ampX, ampY
-            ccdNames.append(detName)
-            ampNames.append(ampName)
-            ampXs.append(ampX)
-            ampYs.append(ampY)
+                ccdNames.append(detName)
+                ampNames.append(ampName)
+                ampXs.append(ampX)
+                ampYs.append(ampY)
 
             # add info on star position to the catalog
             cat_select1["ccdName"] = ccdNames
