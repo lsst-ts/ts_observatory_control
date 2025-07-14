@@ -245,7 +245,7 @@ class GuiderROIs:
 
         # Constants
         self.ccd_diag = 0.15852  # Guider CCD diagonal radius in Degrees
-        self.bad_guideramps = {193: "C1", 198: "C1", 201: "C0"}
+        self.bad_guideramps = {193: ["C1"], 198: ["C1"], 201: ["C0"]}
         self.filters = ["u", "g", "r", "i", "z", "y"]
 
         # Initialize camera (optional, requires DM stack)
@@ -637,6 +637,18 @@ class GuiderROIs:
                     dec_center.asDegrees(),
                 ]
 
+                # also get 4 corners of the CCD
+                ra_corners = []
+                dec_corners = []
+                for corner_pt in detector.getBBox().getCorners():
+                    ra_corner,dec_corner = cam_wcs[detector.getId()].pixelToSky(Point2D(corner_pt))
+                    ra_corners.append(ra_corner)
+                    dec_corners.append(dec_corner)
+                    
+                cam_vec_corners[detector.getId()] = np.array([self.ra_dec_to_vec(ra.asDegrees(), dec.asDegrees()) 
+                                                              for ra, dec in zip(ra_corners, dec_corners)])
+
+
         # loop over detectors, getting the optimal guider star in each
         first = True
         cat_all = Table()  # Initialize empty table
@@ -645,22 +657,31 @@ class GuiderROIs:
             ra_ccd, dec_ccd = cam_radec[idet]
             detector = self.camera[idet]
 
-            # get BBox for this detector, removing some number of edge pixels
+            # get BBox for this detector
             ccd_bbox = detector.getBBox()
             ccd_nx, ccd_ny = ccd_bbox.getDimensions()
-            ccd_bbox.grow(-Extent2I(npix_edge, npix_edge))
+            ccd_nyhalf = ccd_ny // 2
 
-            # query the Monster-based Guider star catalog using HEALPix
-            hp_ind = hp.ang2pix(self.nside, ra_ccd, dec_ccd, lonlat=True)
+            # build BBox for top and bottom halves of the CCD
+            ccd_bbox_top = geom.Box2I(
+                geom.Point2I(ccd_bbox.getMinX(), ccd_nyhalf),
+                geom.Extent2I(ccd_nx, ccd_ny - ccd_nyhalf),
+            )
+            ccd_bbox_top.grow(-Extent2I(npix_edge, npix_edge))
+            ccd_bbox_bottom = geom.Box2I(
+                geom.Point2I(ccd_bbox.getMinX(), 0),
+                geom.Extent2I(ccd_nx, ccd_nyhalf),
+            )
+            ccd_bbox_bottom.grow(-Extent2I(npix_edge, npix_edge))
+
+
+            # query the Monster-based Guider star catalog with the CCD polygon
+            catalog_indices = hp.query_polygon(self.nside, cam_vec_corners[detector.getId()], inclusive=True,fact=8)
 
             # Get neighboring pixels for catalog query
             try:
-                # should only need at most 4 tiles, but for simplicity
-                # using 9 Tables
-                SW, W, NW, N, NE, E, SE, S = hp.get_all_neighbours(self.nside, hp_ind)
 
                 # Get catalog data using HEALPix dimensions
-                catalog_indices = [hp_ind, E, W, S, N, SW, SE, NW, NE]
                 tables = self._get_catalog_data_for_healpix(catalog_indices)
 
                 if not tables:
@@ -673,48 +694,30 @@ class GuiderROIs:
                 warnings.warn(f"Error reading catalog for detector {idet}: {e}")
                 continue
 
-            # check that stars are isolated and are inside the CCD radius
+            # check that stars are isolated and are inside the CCD
             isolated = star_cat["guide_flag"] > 63
 
-            star_cat["dangle"] = np.degrees(
-                angular_separation(
-                    np.deg2rad(ra_ccd),
-                    np.deg2rad(dec_ccd),
-                    star_cat["coord_ra"],
-                    star_cat["coord_dec"],
-                )
+            # using the wcs to locate the stars inside the CCD minus npix_edge
+            # and also avoiding the midline break
+            ccdx, ccdy = wcs.skyToPixelArray(
+                star_cat["coord_ra"], star_cat["coord_dec"], degrees=False
             )
-            inside_CCD_radius = star_cat["dangle"] < self.ccd_diag
+            in_CCD = (ccd_bbox_top.contains(ccdx, ccdy) or 
+                      ccd_bbox_bottom.contains(ccdx, ccdy)) 
 
-            # Selection 1: the Star is isolated and inside the CCD radius
-            cat_select1 = star_cat[(isolated & inside_CCD_radius)]
+            # Selection 1: the Star is isolated and inside top or bottom of CCD
+            cat_select1 = star_cat[(isolated & in_CCD)]
 
             if len(cat_select1) == 0:
                 # TBD: should we raise an error here?
                 warnings.warn(
-                    f"No isolated stars found in CCD radius for detector {idet}"
+                    f"No isolated stars found inside CCD for detector {idet}"
                 )
                 continue
-
-            # using the wcs to locate the stars inside the CCD minus npix_edge
-            ccdx, ccdy = wcs.skyToPixelArray(
-                cat_select1["coord_ra"], cat_select1["coord_dec"], degrees=False
-            )
-            in_CCD = ccd_bbox.contains(ccdx, ccdy)
 
             # fill with CCD pixel x,y
             cat_select1["ccdx"] = ccdx
             cat_select1["ccdy"] = ccdy
-
-            # Selection 2: that the Star is located inside the CCD
-            cat_select2 = cat_select1[in_CCD]
-
-            if len(cat_select2) == 0:
-                # TBD: should we raise an error here?
-                warnings.warn(
-                    f"No stars found inside CCD boundaries for detector {idet}"
-                )
-                continue
 
             # get the Amp coordinates and check that Amp is not in the bad amp
             # list
@@ -728,55 +731,74 @@ class GuiderROIs:
 
             for arow in cat_select2:
                 ampName, ampX, ampY = lct.ccdPixelToAmpPixel(arow["ccdx"], arow["ccdy"])
-                # TBD: This is not the same as the original algorithm
-                #      but the logic should be the same
+                # check if the amp is in the bad_guideramps list
                 if idet in self.bad_guideramps:
-                    if ampName == self.bad_guideramps[idet]:
+                    if ampName in self.bad_guideramps[idet]:
                         ampOk.append(False)
                     else:
                         ampOk.append(True)
                 else:
                     ampOk.append(True)
 
-            # TBD: Notice this group is not indented
-            # TBD: I believe it should have been indented
-            #      (be in the for loop)
-            #      at least for ampName, ampX, ampY
-            ccdNames.append(detName)
-            ampNames.append(ampName)
-            ampXs.append(ampX)
-            ampYs.append(ampY)
+                ccdNames.append(detName)
+                ampNames.append(ampName)
+                ampXs.append(ampX)
+                ampYs.append(ampY)
 
             # add info on star position to the catalog
-            cat_select2["ccdName"] = ccdNames
-            cat_select2["ampName"] = ampNames
-            cat_select2["ampX"] = ampXs
-            cat_select2["ampY"] = ampYs
-            cat_select2["ampOk"] = ampOk
+            cat_select1["ccdName"] = ccdNames
+            cat_select1["ampName"] = ampNames
+            cat_select1["ampX"] = ampXs
+            cat_select1["ampY"] = ampYs
+            cat_select1["ampOk"] = ampOk
+
             # currently just have star's central locations
-            # also need to get the LL edge of the ROI, do this using CCD pixels
-            #  first then convert to Amp pixels
+            # find the location of the ROI containing this star, such that
+            # the star is not within npix_boundary of the edge of the ROI
+            # and the ROI does not cross the midline break
+
             ccdxLLs = []
             ccdyLLs = []
             ampNameLLs = []
             ampxLLs = []
             ampyLLs = []
 
-            for arow in cat_select2:
-                # find CCD LL position
+            for arow in cat_select1:
+                # find ROI LL position in CCD coordinates 
                 ccdxLL = arow["ccdx"] - roi_halfsize
                 ccdyLL = arow["ccdy"] - roi_halfsize
 
-                # adjust LL position if needed, star will be offset in ROI
-                if ccdxLL < npix_boundary:
-                    ccdxLL = npix_boundary
-                elif ccdxLL > ccd_nx - npix_boundary:
-                    ccdxLL = ccd_nx - npix_boundary
+                # find ROI UR position in CCD coordinates
+                ccdxUR = arow["ccdx"] + roi_halfsize
+                ccdyUR = arow["ccdy"] + roi_halfsize
 
-                if ccdyLL < npix_boundary:
-                    ccdyLL = npix_boundary
-                elif ccdyLL > ccd_ny - npix_boundary:
-                    ccdyLL = ccd_ny - npix_boundary
+                # check that the ROI is fully within the CCD and 
+                # does not cross the midline break
+
+                # first check and adjust the ROI in x
+                if ccdxLL<0 :
+                    ccdxLL = 0
+                    ccdxUR = ccdxLL + roi_size
+                elif ccdxUR > ccd_nx:
+                    ccdxUR = ccd_nx
+                    ccdxLL = ccdxUR - roi_size
+
+                # then check and adjust the ROI in y
+                # first see if the star is in the upper or lower half of the CCD
+                if arow["ccdy"] < ccd_nyhalf:
+                    if ccdyLL < 0:
+                        ccdyLL = 0
+                        ccdyUR = ccdyLL + roi_size
+                    elif ccdyUR > ccd_nyhalf:
+                        ccdyUR = ccd_nyhalf
+                        ccdyLL = ccdyUR - roi_size  
+                else:
+                    if ccdyLL < ccd_nyhalf:
+                        ccdyLL = ccd_nyhalf
+                        ccdyUR = ccdyLL + roi_size
+                    elif ccdyUR > ccd_ny:
+                        ccdyUR = ccd_ny
+                        ccdyLL = ccdyUR - roi_size
 
                 ampNameLL, ampxLL, ampyLL = lct.ccdPixelToAmpPixel(ccdxLL, ccdyLL)
                 ccdxLLs.append(ccdxLL)
@@ -786,14 +808,14 @@ class GuiderROIs:
                 ampyLLs.append(ampyLL)
 
             # add info on LL of ROI to the catalog
-            cat_select2["ccdxLL"] = ccdxLLs
-            cat_select2["ccdyLL"] = ccdyLLs
-            cat_select2["ampNameLL"] = ampNameLLs
-            cat_select2["ampxLL"] = ampxLLs
-            cat_select2["ampyLL"] = ampyLLs
+            cat_select1["ccdxLL"] = ccdxLLs
+            cat_select1["ccdyLL"] = ccdyLLs
+            cat_select1["ampNameLL"] = ampNameLLs
+            cat_select1["ampxLL"] = ampxLLs
+            cat_select1["ampyLL"] = ampyLLs
 
             # get the change in magnitude due to the vignetting factor
-            cat_select2["dangle_boresight"] = np.degrees(
+            cat_select1["dangle_boresight"] = np.degrees(
                 angular_separation(
                     np.deg2rad(boresight_RA),
                     np.deg2rad(boresight_DEC),
@@ -802,14 +824,14 @@ class GuiderROIs:
                 )
             )
 
-            cat_select2["delta_mag"] = self.vignetting_correction(
-                cat_select2["dangle_boresight"]
+            cat_select1["delta_mag"] = self.vignetting_correction(
+                cat_select1["dangle_boresight"]
             )
 
-            # Selection3: check that the amplifier is ok
-            cat_select3 = cat_select2[cat_select2["ampOk"]]
+            # Selection2: check that the amplifier is ok
+            cat_select2 = cat_select1[cat_select2["ampOk"]]
 
-            if len(cat_select3) == 0:
+            if len(cat_select2) == 0:
                 # TBD: should we raise an error here?
                 warnings.warn(f"No stars in good amplifiers for detector {idet}")
                 continue
@@ -819,28 +841,25 @@ class GuiderROIs:
             # Gaia magnitudes
             if band in self.filters:
                 themag = f"mag_{band}"
-                # TBD: This check was not in the original algorithm
-                #      but should add stability to the code
-                if themag in cat_select3.colnames:
-                    magok = ~np.isnan(cat_select3[themag])
-                    if len(cat_select3[magok]) > 0:
-                        mags = cat_select3[themag] + cat_select3["delta_mag"]
+                # check if the band magnitude is present in the catalog
+                if themag in cat_select2.colnames:
+                    magok = ~np.isnan(cat_select2[themag])
+                    if len(cat_select2[magok]) > 0:
+                        mags = cat_select2[themag] + cat_select2["delta_mag"]
                         ibrightest = np.argmin(mags)
                     else:
                         # Fall back to Gaia G
-                        mags = cat_select3["gaia_G"] + cat_select3["delta_mag"]
+                        mags = cat_select2["gaia_G"] + cat_select2["delta_mag"]
                         ibrightest = np.argmin(mags)
                 else:
-                    # TBD: This is not in the original algorithm
-                    #      should fail gracefully?
                     # Fall back to Gaia G
-                    mags = cat_select3["gaia_G"] + cat_select3["delta_mag"]
+                    mags = cat_select2["gaia_G"] + cat_select2["delta_mag"]
                     ibrightest = np.argmin(mags)
             else:
-                mags = cat_select3["gaia_G"] + cat_select3["delta_mag"]
+                mags = cat_select2["gaia_G"] + cat_select2["delta_mag"]
                 ibrightest = np.argmin(mags)
 
-            cat_thestar = cat_select3[ibrightest]
+            cat_thestar = cat_select2[ibrightest]
 
             if first:
                 first = False
