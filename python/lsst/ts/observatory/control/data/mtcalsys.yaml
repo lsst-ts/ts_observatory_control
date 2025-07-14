@@ -776,6 +776,149 @@ whitelight_y_10_M970L4:
   exposure_times:
     - 20.0
 
+whitelight_u_24_M385L3_source:
+  mtcamera_filter: u_24
+  led_name: 
+    - M385L3
+  dac_value: 1.0
+  wavelength: 385.0
+  led_location: 174.18
+  led_focus: 9.42
+  use_camera: false
+  n_flat: 1
+  exposure_times:
+    - 10.0
+
+whitelight_i_39_M730L5_source:
+  mtcamera_filter: i_39
+  led_name:
+    - M730L5
+  dac_value: 0.8
+  wavelength: 730.0
+  led_location: 233.91
+  led_focus: 7.15
+  use_camera: false
+  n_flat: 1
+  exposure_times:
+    - 10.0
+
+whitelight_i_39_M810L3_source:
+  mtcamera_filter: i_39
+  led_name:
+    - M810L3
+  dac_value: 0.8
+  wavelength: 810.
+  led_location: 233.71
+  led_focus: 6.94
+  use_camera: false
+  n_flat: 1
+  exposure_times:
+    - 10.0
+
+whitelight_g_6_M455L4_source:
+  mtcamera_filter: g_6
+  led_name:
+    - M455L4
+  dac_value: 1.0
+  wavelength: 455.0
+  led_location: 5.925
+  led_focus: 8.57
+  use_camera: false
+  n_flat: 1
+  exposure_times:
+    - 9.0
+
+whitelight_g_6_M505L4_source:
+  mtcamera_filter: g_6
+  led_name:
+    - M505L4
+  dac_value: 1.0
+  wavelength: 505.0
+  led_location: 5.48
+  led_focus: 8.12
+  use_camera: false
+  n_flat: 1
+  exposure_times:
+    - 20.0
+
+whitelight_r_57_M565L3_source:
+  mtcamera_filter: r_57
+  led_name:
+    - M565L3
+  dac_value: 1.0
+  wavelength: 565.0
+  led_location: 67.14
+  led_focus: 7.79
+  use_camera: false
+  n_flat: 1
+  exposure_times:
+    - 20.0
+
+whitelight_r_57_M660L4_source:
+  mtcamera_filter: r_57
+  led_name:
+    - M660L4
+  dac_value: 1.0
+  wavelength: 660.0
+  led_location: 66.73
+  led_focus: 7.37
+  use_camera: false
+  n_flat: 1
+  exposure_times:
+    - 10.0
+
+whitelight_z_20_M850L3_source:
+  mtcamera_filter: z_20
+  led_name:
+    - M850L3
+  dac_value: 1.0
+  wavelength: 850.0
+  led_location: 295.61
+  led_focus: 6.85
+  use_camera: false
+  n_flat: 1
+  exposure_times:
+    - 9.0
+
+whitelight_z_20_M940L3_source:
+  mtcamera_filter: z_20
+  led_name:
+    - M940L3
+  dac_value: 1.0
+  wavelength: 940.0
+  led_location: 295.432
+  led_focus: 6.66
+  use_camera: false
+  n_flat: 1
+  exposure_times:
+    - 10.0
+
+whitelight_y_10_M940L3_source:
+  mtcamera_filter: y_10
+  led_name:
+    - M940L3
+  dac_value: 1.0
+  wavelength: 940.0
+  led_location: 295.432
+  led_focus: 6.66
+  use_camera: false
+  n_flat: 1
+  exposure_times:
+    - 10.0
+
+whitelight_y_10_M970L4_source:
+  mtcamera_filter: y_10
+  led_name:
+    - M970L4
+  dac_value: 1.0
+  wavelength: 970.0
+  led_location: 171.38
+  led_focus: 6.61
+  use_camera: false
+  n_flat: 1
+  exposure_times:
+    - 20.0
+
 whitelight_empty_M385L3:
   mtcamera_filter: NONE
   led_name: 
