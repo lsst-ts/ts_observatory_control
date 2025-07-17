@@ -142,7 +142,7 @@ class MTCS(BaseTCS):
         self.tel_flat_el = 39.0
         self.tel_flat_az = 205.7
         self.tel_settle_time = 3.0
-        self.tel_operate_mirror_covers_el = 70.0
+        self.tel_operate_mirror_covers_el = 20.0
         self.tel_operate_dome_shutter_el = 5.0
 
         # Tolerance to the rotator position for move commands.
@@ -1223,7 +1223,7 @@ class MTCS(BaseTCS):
                 )
             except salobj.AckError as ack:
                 self.log.error(
-                    f"Open mirror cover command failed with {ack.ack!r}::{ack.error}. "
+                    f"Open mirror cover command failed with {ack.ackcmd.ack!r}::{ack.ackcmd.result}. "
                     "Checking state of the system."
                 )
                 cover_state = await self.rem.mtmount.evt_mirrorCoversMotionState.aget(

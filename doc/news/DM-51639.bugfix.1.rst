@@ -1,0 +1,1 @@
+In mtcs.py, fix issue handling command ack failure when opening the mirror covers and reduce elevation to open mirror to 20 deg. 

@@ -276,7 +276,7 @@ class TestMTCalsys(RemoteGroupAsyncMock):
         for mtcamera_exposure_info in calibration_summary["steps"][0][
             "mtcamera_exposure_info"
         ].values():
-            assert len(mtcamera_exposure_info["electrometer_exposure_result"]) == 0
+            assert len(mtcamera_exposure_info["electrometer_exposure_result"]) == 1
 
     async def test_run_calibration_sequence_mono(self) -> None:
 
@@ -321,7 +321,7 @@ class TestMTCalsys(RemoteGroupAsyncMock):
         for mtcamera_exposure_info in calibration_summary["steps"][0][
             "mtcamera_exposure_info"
         ].values():
-            assert len(mtcamera_exposure_info["electrometer_exposure_result"]) == 0
+            assert len(mtcamera_exposure_info["electrometer_exposure_result"]) == 1
         self.mtcalsys.change_laser_wavelength(
             wavelength=expected_change_wavelegths_calls
         )

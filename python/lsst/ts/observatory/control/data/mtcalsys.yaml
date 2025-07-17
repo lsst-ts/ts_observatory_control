@@ -12,11 +12,11 @@ cbp_g_leak:
   use_cbp_electrometer: True
   use_flatfield_electrometer: False
   laser_mode: 4
-  optical_configuration: F1 SCU
+  optical_configuration: F2 SCU
   calib_type: CBP
   electrometer_mode: 'CHARGE'
-  electrometer_integration_time: 0.001
-  electrometer_range: 0.000002
+  electrometer_integration_time: 1
+  electrometer_range: 0.0000002
   use_camera: True
 
 cbp_u_leak:
@@ -30,11 +30,11 @@ cbp_u_leak:
   use_cbp_electrometer: True
   use_flatfield_electrometer: False
   laser_mode: 4
-  optical_configuration: F1 SCU
+  optical_configuration: F2 SCU
   calib_type: CBP
   electrometer_mode: 'CHARGE'
-  electrometer_integration_time: 0.001
-  electrometer_range: 0.000002
+  electrometer_integration_time: 1
+  electrometer_range: 0.0000002
   use_camera: True
 
 cbp_g:
@@ -49,11 +49,11 @@ cbp_g:
   use_flatfield_electrometer: False
   laser_mode: 4
   laser_wait_time: 10
-  optical_configuration: F1 SCU
+  optical_configuration: F2 SCU
   calib_type: CBP
   electrometer_mode: 'CHARGE'
-  electrometer_integration_time: 0.001
-  electrometer_range: 0.000002
+  electrometer_integration_time: 1
+  electrometer_range: 0.0000002
 
 cbp_u_24:
   mtcamera_filter: u_24
@@ -66,11 +66,11 @@ cbp_u_24:
   use_cbp_electrometer: True
   use_flatfield_electrometer: False
   laser_mode: 4
-  optical_configuration: F1 SCU
+  optical_configuration: F2 SCU
   calib_type: CBP
   electrometer_mode: 'CHARGE'
-  electrometer_integration_time: 0.001
-  electrometer_range: 0.000002
+  electrometer_integration_time: 1
+  electrometer_range: 0.0000002
   
 cbp_none_leak:
   mtcamera_filter: NONE
@@ -83,28 +83,29 @@ cbp_none_leak:
   use_cbp_electrometer: True
   use_flatfield_electrometer: False
   laser_mode: 4
-  optical_configuration: F1 SCU
+  optical_configuration: F2 SCU
   calib_type: CBP
   electrometer_mode: 'CHARGE'
-  electrometer_integration_time: 0.001
-  electrometer_range: 0.000002
+  electrometer_integration_time: 1
+  electrometer_range: 0.0000002
 
 cbp_none_all:
   mtcamera_filter: NONE
   wavelength: 770
   wavelength_width: 940
-  wavelength_resolution: 20
+  wavelength_resolution: 10
   exposure_times:
     - 30.0
   nburst: 5
   use_cbp_electrometer: True
   use_flatfield_electrometer: False
   laser_mode: 4
-  optical_configuration: F1 SCU
+  laser_wait_time: 5
+  optical_configuration: F2 SCU
   calib_type: CBP
   electrometer_mode: 'CHARGE'
-  electrometer_integration_time: 0.01
-  electrometer_range: 0.000002
+  electrometer_integration_time: 2
+  electrometer_range: 0.0000002
 
 cbp_u_2nm:
   mtcamera_filter: u_24
@@ -115,27 +116,27 @@ cbp_u_2nm:
   use_cbp_electrometer: True
   use_flatfield_electrometer: False
   laser_mode: 4
-  optical_configuration: F1 SCU
+  optical_configuration: F2 SCU
   calib_type: CBP
   electrometer_mode: 'CHARGE'
-  electrometer_integration_time: 0.01
-  electrometer_range: 0.000002
+  electrometer_integration_time: 1
+  electrometer_range: 0.0000002
   set_wavelength_range: False
 
 cbp_g_2nm:
   mtcamera_filter: g_6
-  wavelength_list: [385, 387, 389, 391, 393, 395, 397, 399, 401, 403, 405, 407, 409, 411, 413, 415, 420, 425, 430, 435, 440, 445, 450, 455, 460, 465, 470, 475, 480, 485, 490, 495, 500, 505, 510, 515, 520, 525, 530, 532, 534, 536, 538, 540, 542, 544, 546, 548, 550, 552, 554, 556, 558, 560, 562, 564, 566, 568, 570]
+  wavelength_list: [385, 387, 389, 391, 393, 395, 397, 399, 401, 403, 405, 407, 409, 411, 413, 415, 420, 425, 430, 435, 440, 445, 450, 455, 460, 465, 470, 475, 480, 485, 490, 495, 500, 505, 510, 515, 520, 525, 530, 532, 534, 536, 538, 540, 542, 544, 546, 548, 550, 552, 554, 556, 558, 560, 562, 564, 566, 568, 570, 1000, 1020, 1040, 1060, 1080, 1100, 1120, 1140, 1160, 1180]
   exposure_times:
     - 30.0
   nburst: 5
   use_cbp_electrometer: True
   use_flatfield_electrometer: False
   laser_mode: 4
-  optical_configuration: F1 SCU
+  optical_configuration: F2 SCU
   calib_type: CBP
   electrometer_mode: 'CHARGE'
-  electrometer_integration_time: 0.01
-  electrometer_range: 0.000002
+  electrometer_integration_time: 2
+  electrometer_range: 0.0000002
   set_wavelength_range: False
 
 cbp_r_2nm:
@@ -147,11 +148,11 @@ cbp_r_2nm:
   use_cbp_electrometer: True
   use_flatfield_electrometer: False
   laser_mode: 4
-  optical_configuration: F1 SCU
+  optical_configuration: F2 SCU
   calib_type: CBP
   electrometer_mode: 'CHARGE'
-  electrometer_integration_time: 0.01
-  electrometer_range: 0.000002
+  electrometer_integration_time: 1
+  electrometer_range: 0.0000002
   set_wavelength_range: False
 
 cbp_r_2nm_remainder:
@@ -163,11 +164,11 @@ cbp_r_2nm_remainder:
   use_cbp_electrometer: True
   use_flatfield_electrometer: False
   laser_mode: 4
-  optical_configuration: F1 SCU
+  optical_configuration: F2 SCU
   calib_type: CBP
   electrometer_mode: 'CHARGE'
-  electrometer_integration_time: 0.01
-  electrometer_range: 0.000002
+  electrometer_integration_time: 1
+  electrometer_range: 0.0000002
   set_wavelength_range: False
 
 cbp_i_2nm:
@@ -179,11 +180,11 @@ cbp_i_2nm:
   use_cbp_electrometer: True
   use_flatfield_electrometer: False
   laser_mode: 4
-  optical_configuration: F1 SCU
+  optical_configuration: F2 SCU
   calib_type: CBP
   electrometer_mode: 'CHARGE'
-  electrometer_integration_time: 0.01
-  electrometer_range: 0.000002
+  electrometer_integration_time: 1
+  electrometer_range: 0.0000002
   set_wavelength_range: False
 
 cbp_z_2nm:
@@ -195,11 +196,11 @@ cbp_z_2nm:
   use_cbp_electrometer: True
   use_flatfield_electrometer: False
   laser_mode: 4
-  optical_configuration: F1 SCU
+  optical_configuration: F2 SCU
   calib_type: CBP
   electrometer_mode: 'CHARGE'
-  electrometer_integration_time: 0.01
-  electrometer_range: 0.000002
+  electrometer_integration_time: 1
+  electrometer_range: 0.0000002
   set_wavelength_range: False
 
 cbp_y_2nm:
@@ -211,11 +212,11 @@ cbp_y_2nm:
   use_cbp_electrometer: True
   use_flatfield_electrometer: False
   laser_mode: 4
-  optical_configuration: F1 SCU
+  optical_configuration: F2 SCU
   calib_type: CBP
   electrometer_mode: 'CHARGE'
-  electrometer_integration_time: 0.01
-  electrometer_range: 0.000002
+  electrometer_integration_time: 1
+  electrometer_range: 0.0000002
   set_wavelength_range: False
 
 whitelight_u_24_daily:
@@ -325,6 +326,21 @@ whitelight_y_10_daily:
   exposure_times:
     - 20.0
 
+whitelight_ph_5_daily:
+  mtcamera_filter: ph_5
+  led_name:
+    - M730L5
+    - M810L3
+  dac_value: 0.8
+  wavelength: 755.0
+  led_location: 233.83
+  led_focus: 7.07
+  use_fiberspectrograph_red: False
+  use_fiberspectrograph_blue: False
+  n_flat: 3
+  exposure_times:
+    - 30.0
+
 whitelight_u_24_dark:
   mtcamera_filter: u_24
   led_name: 
@@ -432,7 +448,7 @@ whitelight_y_10_dark:
 scan_u_init:
   calib_type: Mono
   laser_mode: 1
-  optical_configuration: F2 SCU
+  optical_configuration: F1 SCU
   use_camera: True
   mtcamera_filter: u_24
   wavelength: 350.0
@@ -446,7 +462,7 @@ scan_u_init:
 scan_g_init:
   calib_type: Mono
   laser_mode: 1
-  optical_configuration: F2 SCU
+  optical_configuration: F1 SCU
   use_camera: True
   mtcamera_filter: g_6
   wavelength: 480.
@@ -460,7 +476,7 @@ scan_g_init:
 scan_r_init:
   calib_type: Mono
   laser_mode: 1
-  optical_configuration: F2 SCU
+  optical_configuration: F1 SCU
   use_camera: True
   mtcamera_filter: r_57
   wavelength: 625.0
@@ -474,7 +490,7 @@ scan_r_init:
 scan_r:
   calib_type: Mono
   laser_mode: 1
-  optical_configuration: F2 SCU
+  optical_configuration: F1 SCU
   use_camera: True
   mtcamera_filter: r_57
   wavelength: 625.0
@@ -488,7 +504,7 @@ scan_r:
 scan_i_init:
   calib_type: Mono
   laser_mode: 1
-  optical_configuration: F2 SCU
+  optical_configuration: F1 SCU
   use_camera: True
   mtcamera_filter: i_39
   wavelength: 730.0
@@ -502,7 +518,7 @@ scan_i_init:
 scan_z_init:
   calib_type: Mono
   laser_mode: 1
-  optical_configuration: F2 SCU
+  optical_configuration: F1 SCU
   use_camera: True
   mtcamera_filter: z_20
   wavelength: 880.0
@@ -516,7 +532,7 @@ scan_z_init:
 scan_y_init:
   calib_type: Mono
   laser_mode: 1
-  optical_configuration: F2 SCU
+  optical_configuration: F1 SCU
   use_camera: True
   mtcamera_filter: y_10
   wavelength: 970.0
@@ -531,11 +547,10 @@ laser_functional:
   calib_type: Mono
   laser_mode: 1
   use_camera: False
-  optical_configuration: SCU
-  wavelength: 500.0
-  use_flatfield_electrometer: False
-  use_fiberspectrograph_red: False
-  use_fiberspectrograph_blue: False
+  optical_configuration: F1 SCU
+  wavelength: 700.0
+  wavelength_width: 800
+  wavelength_resolution: 100.
   exposure_times:
     - 15.0
 
@@ -547,8 +562,6 @@ whitelight_u_source:
   led_location: 174.18
   led_focus: 9.42
   use_camera: False
-  use_fiberspectrograph_red: False
-  use_fiberspectrograph_blue: False
   exposure_times:
     - 30.0
 
@@ -561,8 +574,6 @@ whitelight_g_source:
   led_location: 5.62
   led_focus: 8.26
   use_camera: False
-  use_fiberspectrograph_red: False
-  use_fiberspectrograph_blue: False
   exposure_times:
     - 10.0
 
@@ -575,8 +586,17 @@ whitelight_r_source:
   led_location: 66.87
   led_focus: 7.52
   use_camera: False
-  use_fiberspectrograph_red: False
-  use_fiberspectrograph_blue: False
+  exposure_times:
+    - 10.0
+
+whitelight_r_660_source:
+  led_name:
+    - M660L4
+  dac_value: 1.0
+  wavelength: 660.0
+  led_location: 66.87
+  led_focus: 7.52
+  use_camera: False
   exposure_times:
     - 10.0
 
@@ -590,8 +610,6 @@ whitelight_i_source:
   led_location: 233.83
   led_focus: 7.07
   use_camera: False
-  use_fiberspectrograph_red: False
-  use_fiberspectrograph_blue: False
   exposure_times:
     - 10.0
 
@@ -604,8 +622,6 @@ whitelight_z_source:
   led_location: 295.504
   led_focus: 6.74
   use_camera: False
-  use_fiberspectrograph_red: False
-  use_fiberspectrograph_blue: False
   exposure_times:
     - 10.0
 
@@ -617,8 +633,6 @@ whitelight_y_source:
   led_location: 171.38
   led_focus: 6.61
   use_camera: False
-  use_fiberspectrograph_red: False
-  use_fiberspectrograph_blue: False
   exposure_times:
     - 20.0
 
@@ -632,7 +646,7 @@ whitelight_u_24_M385L3:
   led_focus: 9.42
   use_fiberspectrograph_red: False
   use_fiberspectrograph_blue: False
-  n_flat: 1
+  n_flat: 20
   exposure_times:
     - 10.0
 
@@ -646,7 +660,7 @@ whitelight_i_39_M730L5:
   led_focus: 7.15
   use_fiberspectrograph_red: False
   use_fiberspectrograph_blue: False
-  n_flat: 1
+  n_flat: 20
   exposure_times:
     - 10.0
 
@@ -660,7 +674,7 @@ whitelight_i_39_M810L3:
   led_focus: 6.94
   use_fiberspectrograph_red: False
   use_fiberspectrograph_blue: False
-  n_flat: 1
+  n_flat: 20
   exposure_times:
     - 10.0
 
@@ -674,7 +688,7 @@ whitelight_g_6_M455L4:
   led_focus: 8.57
   use_fiberspectrograph_red: False
   use_fiberspectrograph_blue: False
-  n_flat: 1
+  n_flat: 20
   exposure_times:
     - 9.0
 
@@ -688,7 +702,7 @@ whitelight_g_6_M505L4:
   led_focus: 8.12
   use_fiberspectrograph_red: False
   use_fiberspectrograph_blue: False
-  n_flat: 1
+  n_flat: 20
   exposure_times:
     - 20.0
 
@@ -702,7 +716,7 @@ whitelight_r_57_M565L3:
   led_focus: 7.79
   use_fiberspectrograph_red: False
   use_fiberspectrograph_blue: False
-  n_flat: 1
+  n_flat: 20
   exposure_times:
     - 20.0
 
@@ -712,11 +726,11 @@ whitelight_r_57_M660L4:
     - M660L4
   dac_value: 1.0
   wavelength: 660.0
-  led_location: 66.73
-  led_focus: 7.37
+  led_location: 66.87
+  led_focus: 7.52
   use_fiberspectrograph_red: False
   use_fiberspectrograph_blue: False
-  n_flat: 1
+  n_flat: 20
   exposure_times:
     - 10.0
 
@@ -730,7 +744,7 @@ whitelight_z_20_M850L3:
   led_focus: 6.85
   use_fiberspectrograph_red: False
   use_fiberspectrograph_blue: False
-  n_flat: 1
+  n_flat: 20
   exposure_times:
     - 9.0
 
@@ -744,9 +758,9 @@ whitelight_z_20_M940L3:
   led_focus: 6.66
   use_fiberspectrograph_red: False
   use_fiberspectrograph_blue: False
-  n_flat: 1
+  n_flat: 20
   exposure_times:
-    - 10.0
+    - 20.0
 
 whitelight_y_10_M940L3:
   mtcamera_filter: y_10
@@ -758,7 +772,7 @@ whitelight_y_10_M940L3:
   led_focus: 6.66
   use_fiberspectrograph_red: False
   use_fiberspectrograph_blue: False
-  n_flat: 1
+  n_flat: 20
   exposure_times:
     - 10.0
 
@@ -772,7 +786,7 @@ whitelight_y_10_M970L4:
   led_focus: 6.61
   use_fiberspectrograph_red: False
   use_fiberspectrograph_blue: False
-  n_flat: 1
+  n_flat: 20
   exposure_times:
     - 20.0
 
@@ -929,7 +943,7 @@ whitelight_empty_M385L3:
   led_focus: 9.42
   use_fiberspectrograph_red: False
   use_fiberspectrograph_blue: False
-  n_flat: 1
+  n_flat: 20
   exposure_times:
     - 10.0
 
@@ -943,7 +957,7 @@ whitelight_empty_M730L5:
   led_focus: 7.15
   use_fiberspectrograph_red: False
   use_fiberspectrograph_blue: False
-  n_flat: 1
+  n_flat: 20
   exposure_times:
     - 10.0
 
@@ -957,7 +971,7 @@ whitelight_empty_M810L3:
   led_focus: 6.94
   use_fiberspectrograph_red: False
   use_fiberspectrograph_blue: False
-  n_flat: 1
+  n_flat: 20
   exposure_times:
     - 10.0
 
@@ -971,7 +985,7 @@ whitelight_empty_M455L4:
   led_focus: 8.57
   use_fiberspectrograph_red: False
   use_fiberspectrograph_blue: False
-  n_flat: 1
+  n_flat: 20
   exposure_times:
     - 9.0
 
@@ -985,7 +999,7 @@ whitelight_empty_M505L4:
   led_focus: 8.12
   use_fiberspectrograph_red: False
   use_fiberspectrograph_blue: False
-  n_flat: 1
+  n_flat: 20
   exposure_times:
     - 20.0
 
@@ -999,7 +1013,7 @@ whitelight_empty_M565L3:
   led_focus: 7.79
   use_fiberspectrograph_red: False
   use_fiberspectrograph_blue: False
-  n_flat: 1
+  n_flat: 20
   exposure_times:
     - 20.0
 
@@ -1013,7 +1027,7 @@ whitelight_empty_M660L4:
   led_focus: 7.37
   use_fiberspectrograph_red: False
   use_fiberspectrograph_blue: False
-  n_flat: 1
+  n_flat: 20
   exposure_times:
     - 10.0
 
@@ -1027,7 +1041,7 @@ whitelight_empty_M850L3:
   led_focus: 6.85
   use_fiberspectrograph_red: False
   use_fiberspectrograph_blue: False
-  n_flat: 1
+  n_flat: 20
   exposure_times:
     - 9.0
 
@@ -1041,7 +1055,7 @@ whitelight_empty_M940L3:
   led_focus: 6.66
   use_fiberspectrograph_red: False
   use_fiberspectrograph_blue: False
-  n_flat: 1
+  n_flat: 20
   exposure_times:
     - 10.0
 
@@ -1055,7 +1069,7 @@ whitelight_empty_M970L4:
   led_focus: 6.61
   use_fiberspectrograph_red: False
   use_fiberspectrograph_blue: False
-  n_flat: 1
+  n_flat: 20
   exposure_times:
     - 20.0
 
@@ -1901,3 +1915,806 @@ ptc_i_39_500:
     - 90.803
     - 72.249
     - 93.896
+
+
+ptc_i_39_750:
+  mtcamera_filter: i_39
+  led_name:
+    - M730L5
+    - M810L3
+  dac_value: 0.5
+  wavelength: 755.0
+  led_location: 233.83
+  led_focus: 7.07
+  use_camera: True
+  use_fiberspectrograph_red: False
+  use_fiberspectrograph_blue: False
+  n_flat: 2
+  ptc: True
+  exposure_times:
+    - 15.0
+    - 61.618
+    - 82.941
+    - 91.471
+    - 79.853
+    - 76.765
+    - 63.971
+    - 7.000
+    - 44.559
+    - 70.588
+    - 71.471
+    - 9.778
+    - 50.147
+    - 84.265
+    - 15.0
+    - 86.324
+    - 0.182
+    - 71.324
+    - 40.147
+    - 80.882
+    - 46.324
+    - 87.500
+    - 66.471
+    - 93.235
+    - 0.066
+    - 65.000
+    - 41.765
+    - 9.111
+    - 94.706
+    - 26.556
+    - 47.059
+    - 23.222
+    - 15.0
+    - 83.971
+    - 93.382
+    - 64.118
+    - 43.382
+    - 45.147
+    - 6.000
+    - 49.559
+    - 40.588
+    - 14.333
+    - 16.889
+    - 93.971
+    - 28.444
+    - 81.471
+    - 0.147
+    - 6.889
+    - 17.889
+    - 0.039
+    - 46.029
+    - 1.889
+    - 0.014
+    - 45.000
+    - 21.889
+    - 53.971
+    - 15.333
+    - 0.105
+    - 15.0
+    - 68.382
+    - 41.471
+    - 63.824
+    - 44.118
+    - 0.054
+    - 77.500
+    - 75.294
+    - 0.016
+    - 76.912
+    - 48.235
+    - 57.353
+    - 87.647
+    - 0.138
+    - 26.111
+    - 94.559
+    - 18.556
+    - 43.676
+    - 0.136
+    - 3.444
+    - 27.000
+    - 15.0
+    - 46.912
+    - 4.333
+    - 3.222
+    - 89.706
+    - 88.235
+    - 43.088
+    - 17.444
+    - 52.500
+    - 73.676
+    - 82.353
+    - 27.889
+    - 0.184
+    - 83.824
+    - 62.500
+    - 9.222
+    - 67.647
+    - 46.618
+    - 15.0
+    - 57.941
+    - 12.333
+    - 84.412
+    - 14.667
+    - 12.556
+    - 0.043
+    - 0.020
+    - 87.206
+    - 55.735
+    - 27.333
+    - 12.667
+    - 92.059
+    - 0.238
+    - 25.667
+    - 71.765
+    - 82.647
+    - 22.222
+    - 93.529
+    - 49.706
+    - 13.111
+    - 3.889
+    - 15.0
+    - 65.441
+    - 56.912
+    - 0.145
+    - 29.222
+    - 62.059
+    - 27.444
+    - 75.588
+    - 0.194
+    - 20.667
+    - 2.667
+    - 55.882
+    - 82.059
+    - 28.333
+    - 0.199
+    - 92.941
+    - 5.111
+    - 15.444
+    - 53.088
+    - 27.111
+    - 10.111
+    - 61.176
+    - 11.778
+    - 50.000
+    - 0.213
+    - 25.111
+    - 0.018
+    - 3.000
+    - 15.0
+    - 25.444
+    - 74.559
+    - 0.072
+    - 64.559
+    - 7.444
+    - 4.889
+    - 22.111
+    - 0.170
+    - 0.188
+    - 55.588
+    - 88.088
+    - 59.706
+    - 19.889
+    - 8.667
+    - 75.441
+    - 14.778
+    - 10.444
+    - 51.618
+    - 54.853
+    - 0.196
+    - 41.176
+    - 0.109
+    - 86.176
+    - 15.0
+    - 77.353
+    - 0.236
+    - 92.794
+    - 0.225
+    - 90.294
+    - 14.222
+    - 8.111
+    - 21.111
+    - 0.095
+    - 41.912
+    - 13.333
+    - 22.333
+    - 63.088
+    - 78.235
+    - 0.114
+    - 0.062
+    - 24.667
+    - 43.824
+    - 75.882
+    - 21.444
+    - 86.765
+    - 58.382
+    - 15.0
+    - 65.147
+    - 0.074
+    - 60.441
+    - 58.235
+    - 91.912
+    - 64.706
+    - 77.941
+    - 0.132
+    - 0.085
+    - 21.556
+    - 77.059
+    - 0.230
+    - 19.333
+    - 1.444
+    - 0.174
+    - 0.112
+    - 86.029
+    - 8.444
+    - 56.176
+    - 68.088
+    - 0.120
+    - 24.778
+    - 25.333
+    - 15.0
+    - 77.794
+    - 79.706
+    - 16.000
+    - 0.126
+    - 94.118
+    - 7.111
+    - 88.676
+    - 71.029
+    - 78.088
+    - 24.111
+    - 10.667
+    - 54.412
+    - 26.333
+    - 43.529
+    - 17.111
+    - 92.647
+    - 77.647
+    - 0.165
+    - 15.0
+    - 92.500
+    - 90.735
+    - 91.029
+    - 0.049
+    - 27.222
+    - 68.971
+    - 6.111
+    - 25.000
+    - 8.889
+    - 41.618
+    - 67.794
+    - 21.667
+    - 62.794
+    - 0.157
+    - 13.222
+    - 85.294
+    - 12.111
+    - 0.186
+    - 68.235
+    - 29.111
+    - 15.0
+    - 82.500
+    - 40.882
+    - 0.240
+    - 0.070
+    - 42.647
+    - 29.556
+    - 6.222
+    - 78.382
+    - 11.222
+    - 15.778
+    - 40.735
+    - 63.382
+    - 50.735
+    - 14.889
+    - 23.000
+    - 0.207
+    - 0.190
+    - 23.333
+    - 79.412
+    - 52.941
+    - 0.180
+    - 68.529
+    - 67.059
+    - 29.000
+    - 60.735
+    - 15.0
+    - 61.029
+    - 16.444
+    - 0.116
+    - 8.333
+    - 75.735
+    - 44.706
+    - 19.778
+    - 0.010
+    - 0.134
+    - 53.824
+    - 0.076
+    - 60.147
+    - 8.556
+    - 91.176
+    - 3.333
+    - 51.029
+    - 70.147
+    - 15.556
+    - 5.778
+    - 4.111
+    - 27.778
+    - 87.353
+    - 76.324
+    - 24.889
+    - 49.118
+    - 15.0
+    - 24.556
+    - 58.971
+    - 0.211
+    - 93.088
+    - 1.000
+    - 26.667
+    - 46.471
+    - 90.000
+    - 11.333
+    - 51.765
+    - 76.471
+    - 91.765
+    - 85.147
+    - 28.000
+    - 29.778
+    - 81.176
+    - 0.203
+    - 9.556
+    - 10.222
+    - 15.0
+    - 47.206
+    - 66.029
+    - 17.000
+    - 71.912
+    - 8.222
+    - 18.778
+    - 69.265
+    - 4.778
+    - 88.529
+    - 0.155
+    - 68.824
+    - 64.853
+    - 9.444
+    - 30.000
+    - 18.444
+    - 28.111
+    - 55.294
+    - 0.201
+    - 13.000
+    - 60.882
+    - 0.234
+    - 0.041
+    - 55.441
+    - 15.0
+    - 51.912
+    - 71.618
+    - 62.206
+    - 5.444
+    - 0.097
+    - 73.824
+    - 48.382
+    - 65.735
+    - 85.000
+    - 93.676
+    - 52.353
+    - 12.444
+    - 28.222
+    - 69.559
+    - 66.912
+    - 52.206
+    - 15.0
+    - 43.971
+    - 49.853
+    - 51.471
+    - 85.588
+    - 0.056
+    - 78.676
+    - 46.765
+    - 0.176
+    - 18.111
+    - 91.324
+    - 15.222
+    - 6.333
+    - 76.618
+    - 0.215
+    - 0.167
+    - 59.412
+    - 68.676
+    - 0.128
+    - 65.882
+    - 73.088
+    - 15.0
+    - 69.853
+    - 0.172
+    - 53.676
+    - 82.794
+    - 63.676
+    - 0.045
+    - 12.889
+    - 26.222
+    - 15.667
+    - 1.556
+    - 0.033
+    - 61.765
+    - 76.029
+    - 79.265
+    - 58.088
+    - 72.059
+    - 10.889
+    - 73.529
+    - 81.912
+    - 6.778
+    - 15.0
+    - 73.382
+    - 28.889
+    - 69.706
+    - 0.143
+    - 20.556
+    - 87.941
+    - 66.765
+    - 80.588
+    - 81.029
+    - 19.556
+    - 17.333
+    - 0.153
+    - 0.022
+    - 70.441
+    - 90.147
+    - 21.000
+    - 63.235
+    - 15.0
+    - 86.912
+    - 83.382
+    - 89.559
+    - 73.971
+    - 12.778
+    - 7.333
+    - 42.794
+    - 5.000
+    - 19.000
+    - 0.103
+    - 16.333
+    - 3.667
+    - 89.118
+    - 22.556
+    - 16.222
+    - 48.529
+    - 80.294
+    - 24.000
+    - 40.294
+    - 5.222
+    - 3.111
+    - 0.223
+    - 72.206
+    - 15.0
+    - 74.412
+    - 54.706
+    - 7.889
+    - 6.667
+    - 59.559
+    - 60.294
+    - 56.765
+    - 94.412
+    - 72.794
+    - 29.333
+    - 90.882
+    - 57.206
+    - 0.149
+    - 50.882
+    - 4.222
+    - 4.667
+    - 54.265
+    - 45.735
+    - 24.333
+    - 15.0
+    - 45.588
+    - 40.000
+    - 0.091
+    - 44.265
+    - 0.027
+    - 55.147
+    - 0.083
+    - 42.941
+    - 80.441
+    - 3.778
+    - 82.206
+    - 45.441
+    - 0.060
+    - 65.588
+    - 45.882
+    - 12.000
+    - 10.778
+    - 20.778
+    - 0.064
+    - 85.735
+    - 22.667
+    - 85.441
+    - 6.444
+    - 0.080
+    - 13.778
+    - 0.221
+    - 9.889
+    - 0.037
+    - 15.0
+    - 88.824
+    - 11.667
+    - 18.667
+    - 0.012
+    - 0.163
+    - 25.556
+    - 25.778
+    - 66.324
+    - 6.556
+    - 78.529
+    - 28.667
+    - 26.889
+    - 48.088
+    - 19.222
+    - 20.444
+    - 0.101
+    - 42.206
+    - 73.235
+    - 56.029
+    - 92.206
+    - 64.412
+    - 17.778
+    - 56.618
+    - 15.0
+    - 57.794
+    - 0.161
+    - 21.778
+    - 50.588
+    - 0.047
+    - 13.889
+    - 47.353
+    - 24.444
+    - 16.778
+    - 58.824
+    - 47.941
+    - 86.471
+    - 2.889
+    - 64.265
+    - 65.294
+    - 18.000
+    - 19.444
+    - 23.444
+    - 19.667
+    - 20.222
+    - 9.000
+    - 5.889
+    - 0.178
+    - 23.889
+    - 89.265
+    - 23.111
+    - 28.778
+    - 15.0
+    - 78.971
+    - 4.556
+    - 44.412
+    - 89.412
+    - 23.667
+    - 58.676
+    - 0.031
+    - 0.068
+    - 16.556
+    - 42.059
+    - 74.265
+    - 77.206
+    - 88.971
+    - 62.353
+    - 55.000
+    - 13.667
+    - 41.324
+    - 29.444
+    - 28.556
+    - 15.0
+    - 53.235
+    - 22.000
+    - 22.778
+    - 14.111
+    - 79.118
+    - 4.000
+    - 94.265
+    - 1.667
+    - 52.794
+    - 21.222
+    - 0.025
+    - 83.235
+    - 1.778
+    - 84.706
+    - 69.118
+    - 0.232
+    - 2.333
+    - 48.676
+    - 10.333
+    - 90.441
+    - 50.294
+    - 0.078
+    - 15.0
+    - 84.853
+    - 62.941
+    - 0.118
+    - 51.324
+    - 88.382
+    - 84.559
+    - 14.556
+    - 57.059
+    - 74.706
+    - 70.882
+    - 0.093
+    - 2.111
+    - 2.778
+    - 67.941
+    - 81.765
+    - 52.647
+    - 11.444
+    - 59.853
+    - 15.0
+    - 41.029
+    - 94.853
+    - 0.107
+    - 53.382
+    - 78.824
+    - 85.882
+    - 67.500
+    - 92.353
+    - 1.222
+    - 0.124
+    - 1.333
+    - 0.219
+    - 81.324
+    - 84.118
+    - 46.176
+    - 24.222
+    - 61.471
+    - 15.0
+    - 56.324
+    - 60.588
+    - 12.222
+    - 0.192
+    - 80.147
+    - 54.559
+    - 83.676
+    - 40.441
+    - 17.667
+    - 42.353
+    - 0.089
+    - 17.556
+    - 0.209
+    - 0.141
+    - 61.324
+    - 16.111
+    - 0.217
+    - 2.444
+    - 72.353
+    - 22.444
+    - 80.735
+    - 7.667
+    - 43.235
+    - 0.122
+    - 51.176
+    - 15.0
+    - 91.618
+    - 4.444
+    - 57.500
+    - 15.000
+    - 62.647
+    - 7.222
+    - 7.778
+    - 47.794
+    - 89.853
+    - 10.000
+    - 23.778
+    - 74.118
+    - 56.471
+    - 52.059
+    - 14.000
+    - 0.159
+    - 0.029
+    - 20.000
+    - 87.059
+    - 0.035
+    - 83.529
+    - 81.618
+    - 15.0
+    - 27.667
+    - 86.618
+    - 7.556
+    - 44.853
+    - 1.111
+    - 80.000
+    - 5.333
+    - 14.444
+    - 21.333
+    - 11.889
+    - 49.265
+    - 0.130
+    - 0.205
+    - 75.147
+    - 27.556
+    - 69.412
+    - 70.000
+    - 22.889
+    - 11.556
+    - 66.618
+    - 60.000
+    - 66.176
+    - 15.0
+    - 13.556
+    - 67.206
+    - 9.333
+    - 26.444
+    - 53.529
+    - 87.794
+    - 72.647
+    - 29.889
+    - 58.529
+    - 48.971
+    - 0.087
+    - 70.735
+    - 76.176
+    - 95.000
+    - 0.228
+    - 18.889
+    - 11.000
+    - 59.118
+    - 15.0
+    - 45.294
+    - 90.588
+    - 20.111
+    - 23.556
+    - 0.099
+    - 63.529
+    - 72.941
+    - 25.222
+    - 20.889
+    - 11.111
+    - 50.441
+    - 93.824
+    - 2.222
+    - 25.889
+    - 61.912
+    - 67.353
+    - 9.667
+    - 42.500
+    - 8.778
+    - 83.088
+    - 15.0
+    - 57.647
+    - 15.889
+    - 2.556
+    - 74.853
+    - 18.222
+    - 19.111
+    - 79.559
+    - 49.412
+    - 13.444
+    - 0.151
+    - 17.222
+    - 18.333
+    - 59.265
+    - 47.647
+    - 26.778
+    - 10.556
+    - 70.294
+    - 47.500
+    - 3.556
+    - 5.667
+    - 5.556
+    - 20.333
+    - 54.118
+    - 0.051
+    - 75.000
+    - 8.000
+    - 29.667
+    - 15.0
+    - 72.500
+    - 2.000
+    - 15.111
+    - 26.000
+    - 48.824
+    - 16.667
+    - 0.058
+    - 71.176
+    
