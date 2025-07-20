@@ -947,7 +947,7 @@ class MTCalsys(BaseCalsys):
                     if exptime < 1.0:
                         dac = 0.15
                         exptime = exptime * 100.0
-                    elif exptime > 30.0:
+                    elif exptime > 1.0:
                         dac = 0.8
                         exptime = exptime - 40.0
                 if exptime < 1.0:
