@@ -562,6 +562,7 @@ whitelight_u_source:
   led_location: 174.18
   led_focus: 9.42
   use_camera: False
+  use_flatfield_electrometer: True
   exposure_times:
     - 30.0
 
@@ -574,6 +575,7 @@ whitelight_g_source:
   led_location: 5.62
   led_focus: 8.26
   use_camera: False
+  use_flatfield_electrometer: True
   exposure_times:
     - 10.0
 
@@ -586,6 +588,7 @@ whitelight_r_source:
   led_location: 66.87
   led_focus: 7.52
   use_camera: False
+  use_flatfield_electrometer: True
   exposure_times:
     - 10.0
 
@@ -597,6 +600,7 @@ whitelight_r_660_source:
   led_location: 66.87
   led_focus: 7.52
   use_camera: False
+  use_flatfield_electrometer: True
   exposure_times:
     - 10.0
 
@@ -610,6 +614,7 @@ whitelight_i_source:
   led_location: 233.83
   led_focus: 7.07
   use_camera: False
+  use_flatfield_electrometer: True
   exposure_times:
     - 10.0
 
@@ -622,6 +627,7 @@ whitelight_z_source:
   led_location: 295.504
   led_focus: 6.74
   use_camera: False
+  use_flatfield_electrometer: True
   exposure_times:
     - 10.0
 
@@ -633,6 +639,7 @@ whitelight_y_source:
   led_location: 171.38
   led_focus: 6.61
   use_camera: False
+  use_flatfield_electrometer: True
   exposure_times:
     - 20.0
 
@@ -644,8 +651,6 @@ whitelight_u_24_M385L3:
   wavelength: 385.0
   led_location: 174.18
   led_focus: 9.42
-  use_fiberspectrograph_red: False
-  use_fiberspectrograph_blue: False
   n_flat: 20
   exposure_times:
     - 10.0
@@ -658,8 +663,6 @@ whitelight_i_39_M730L5:
   wavelength: 730.0
   led_location: 233.91
   led_focus: 7.15
-  use_fiberspectrograph_red: False
-  use_fiberspectrograph_blue: False
   n_flat: 20
   exposure_times:
     - 10.0
@@ -672,8 +675,6 @@ whitelight_i_39_M810L3:
   wavelength: 810.
   led_location: 233.71
   led_focus: 6.94
-  use_fiberspectrograph_red: False
-  use_fiberspectrograph_blue: False
   n_flat: 20
   exposure_times:
     - 10.0
@@ -686,8 +687,6 @@ whitelight_g_6_M455L4:
   wavelength: 455.0
   led_location: 5.925
   led_focus: 8.57
-  use_fiberspectrograph_red: False
-  use_fiberspectrograph_blue: False
   n_flat: 20
   exposure_times:
     - 9.0
@@ -700,8 +699,6 @@ whitelight_g_6_M505L4:
   wavelength: 505.0
   led_location: 5.48
   led_focus: 8.12
-  use_fiberspectrograph_red: False
-  use_fiberspectrograph_blue: False
   n_flat: 20
   exposure_times:
     - 20.0
@@ -713,9 +710,6 @@ whitelight_r_57_M565L3:
   dac_value: 1.0
   wavelength: 565.0
   led_location: 67.14
-  led_focus: 7.79
-  use_fiberspectrograph_red: False
-  use_fiberspectrograph_blue: False
   n_flat: 20
   exposure_times:
     - 20.0
@@ -727,9 +721,6 @@ whitelight_r_57_M660L4:
   dac_value: 1.0
   wavelength: 660.0
   led_location: 66.87
-  led_focus: 7.52
-  use_fiberspectrograph_red: False
-  use_fiberspectrograph_blue: False
   n_flat: 20
   exposure_times:
     - 10.0
@@ -742,8 +733,6 @@ whitelight_z_20_M850L3:
   wavelength: 850.0
   led_location: 295.61
   led_focus: 6.85
-  use_fiberspectrograph_red: False
-  use_fiberspectrograph_blue: False
   n_flat: 20
   exposure_times:
     - 9.0
@@ -756,8 +745,6 @@ whitelight_z_20_M940L3:
   wavelength: 940.0
   led_location: 295.432
   led_focus: 6.66
-  use_fiberspectrograph_red: False
-  use_fiberspectrograph_blue: False
   n_flat: 20
   exposure_times:
     - 20.0
@@ -770,8 +757,6 @@ whitelight_y_10_M940L3:
   wavelength: 940.0
   led_location: 295.432
   led_focus: 6.66
-  use_fiberspectrograph_red: False
-  use_fiberspectrograph_blue: False
   n_flat: 20
   exposure_times:
     - 10.0
@@ -784,8 +769,6 @@ whitelight_y_10_M970L4:
   wavelength: 970.0
   led_location: 171.38
   led_focus: 6.61
-  use_fiberspectrograph_red: False
-  use_fiberspectrograph_blue: False
   n_flat: 20
   exposure_times:
     - 20.0
@@ -798,6 +781,7 @@ whitelight_u_24_M385L3_source:
   wavelength: 385.0
   led_location: 174.18
   led_focus: 9.42
+  use_flatfield_electrometer: True
   use_camera: false
   n_flat: 1
   exposure_times:
@@ -812,6 +796,7 @@ whitelight_i_39_M730L5_source:
   led_location: 233.91
   led_focus: 7.15
   use_camera: false
+  use_flatfield_electrometer: True
   n_flat: 1
   exposure_times:
     - 10.0
@@ -825,6 +810,7 @@ whitelight_i_39_M810L3_source:
   led_location: 233.71
   led_focus: 6.94
   use_camera: false
+  use_flatfield_electrometer: True
   n_flat: 1
   exposure_times:
     - 10.0
@@ -838,6 +824,7 @@ whitelight_g_6_M455L4_source:
   led_location: 5.925
   led_focus: 8.57
   use_camera: false
+  use_flatfield_electrometer: True
   n_flat: 1
   exposure_times:
     - 9.0
@@ -851,6 +838,7 @@ whitelight_g_6_M505L4_source:
   led_location: 5.48
   led_focus: 8.12
   use_camera: false
+  use_flatfield_electrometer: True
   n_flat: 1
   exposure_times:
     - 20.0
@@ -864,6 +852,7 @@ whitelight_r_57_M565L3_source:
   led_location: 67.14
   led_focus: 7.79
   use_camera: false
+  use_flatfield_electrometer: True
   n_flat: 1
   exposure_times:
     - 20.0
@@ -877,6 +866,7 @@ whitelight_r_57_M660L4_source:
   led_location: 66.73
   led_focus: 7.37
   use_camera: false
+  use_flatfield_electrometer: True
   n_flat: 1
   exposure_times:
     - 10.0
@@ -890,6 +880,7 @@ whitelight_z_20_M850L3_source:
   led_location: 295.61
   led_focus: 6.85
   use_camera: false
+  use_flatfield_electrometer: True
   n_flat: 1
   exposure_times:
     - 9.0
@@ -903,6 +894,7 @@ whitelight_z_20_M940L3_source:
   led_location: 295.432
   led_focus: 6.66
   use_camera: false
+  use_flatfield_electrometer: True
   n_flat: 1
   exposure_times:
     - 10.0
@@ -916,6 +908,7 @@ whitelight_y_10_M940L3_source:
   led_location: 295.432
   led_focus: 6.66
   use_camera: false
+  use_flatfield_electrometer: True
   n_flat: 1
   exposure_times:
     - 10.0
@@ -929,6 +922,7 @@ whitelight_y_10_M970L4_source:
   led_location: 171.38
   led_focus: 6.61
   use_camera: false
+  use_flatfield_electrometer: True
   n_flat: 1
   exposure_times:
     - 20.0
