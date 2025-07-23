@@ -1,0 +1,5 @@
+- In ``mtcs.py`` add a ``prepare_for_onsky`` method to the ``MTCs`` class that prepares the system for on-sky operations.
+- In ``mtcs_async_mock``, update mocks to support unit tests for the new method:
+
+  - Update dome mock methods and improve the enter/exit mock methods.
+  - Add a mtptg mock method to update telescope position after a point_azel call.
