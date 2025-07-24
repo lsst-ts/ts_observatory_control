@@ -2717,4 +2717,82 @@ ptc_i_39_750:
     - 16.667
     - 0.058
     - 71.176
+
+low_level_0.1:
+  mtcamera_filter: i_39
+  led_name:
+    - M730L5
+    - M810L3
+  dac_value: 0.1
+  wavelength: 755.0
+  led_location: 233.83
+  led_focus: 7.07
+  n_flat: 10
+  exposure_times:
+    - 30.0
+
+low_level_0.11:
+  mtcamera_filter: i_39
+  led_name:
+    - M730L5
+    - M810L3
+  dac_value: 0.11
+  wavelength: 755.0
+  led_location: 233.83
+  led_focus: 7.07
+  n_flat: 10
+  exposure_times:
+    - 30.0
+
+low_level_0.12:
+  mtcamera_filter: i_39
+  led_name:
+    - M730L5
+    - M810L3
+  dac_value: 0.12
+  wavelength: 755.0
+  led_location: 233.83
+  led_focus: 7.07
+  n_flat: 10
+  exposure_times:
+    - 30.0
+
+low_level_0.13:
+  mtcamera_filter: i_39
+  led_name:
+    - M730L5
+    - M810L3
+  dac_value: 0.13
+  wavelength: 755.0
+  led_location: 233.83
+  led_focus: 7.07
+  n_flat: 10
+  exposure_times:
+    - 30.0
+
+low_level_0.14:
+  mtcamera_filter: i_39
+  led_name:
+    - M730L5
+    - M810L3
+  dac_value: 0.14
+  wavelength: 755.0
+  led_location: 233.83
+  led_focus: 7.07
+  n_flat: 10
+  exposure_times:
+    - 30.0
+
+low_level_0.15:
+  mtcamera_filter: i_39
+  led_name:
+    - M730L5
+    - M810L3
+  dac_value: 0.15
+  wavelength: 755.0
+  led_location: 233.83
+  led_focus: 7.07
+  n_flat: 10
+  exposure_times:
+    - 30.0
     
