@@ -471,7 +471,7 @@ scan_g_init:
   use_fiberspectrograph_red: False
   use_fiberspectrograph_blue: False
   exposure_times:
-    - 15.0
+    - 60.0
 
 scan_r_init:
   calib_type: Mono
