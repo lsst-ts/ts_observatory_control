@@ -675,6 +675,18 @@ whitelight_i_39_M730L5:
   exposure_times:
     - 10.0
 
+whitelight_i_39_M730L5_stability:
+  mtcamera_filter: i_39
+  led_name:
+    - M730L5
+  dac_value: 0.8
+  wavelength: 730.0
+  led_location: 233.91
+  led_focus: 7.15
+  n_flat: 5
+  exposure_times:
+    - 10.0
+
 whitelight_i_39_M810L3:
   mtcamera_filter: i_39
   led_name:
