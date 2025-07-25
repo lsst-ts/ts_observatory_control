@@ -523,7 +523,7 @@ mono_i_stability:
   use_fiberspectrograph_blue: False
   n_flat: 10
   exposure_times:
-    - 5.0 #this will need to be updated to give us ~100 counts
+    - 10.0 #this will need to be updated to give us ~100 counts
 
 scan_z_init:
   calib_type: Mono
