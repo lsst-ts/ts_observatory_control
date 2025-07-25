@@ -96,7 +96,7 @@ properties:
   use_flatfield_electrometer:
     description: Identifies if the flat field electrometer will be used in the exposure.
     type: boolean
-    default: true
+    default: false
   use_fiberspectrograph_red:
     description: >-
       Identifies if the fiberspectrograph for red color will be used in the
