@@ -451,13 +451,12 @@ scan_u_init:
   optical_configuration: F1 SCU
   use_camera: True
   mtcamera_filter: u_24
-  wavelength: 350.0
-  wavelength_width: 100.0
-  wavelength_resolution: 25.0
+  wavelength_list: [340.,350.,360.,370.]
+  set_wavelength_range: false
   use_fiberspectrograph_red: False
   use_fiberspectrograph_blue: False
   exposure_times:
-    - 30.0
+    - 60.0
 
 scan_g_init:
   calib_type: Mono
@@ -465,13 +464,12 @@ scan_g_init:
   optical_configuration: F1 SCU
   use_camera: True
   mtcamera_filter: g_6
-  wavelength: 480.
-  wavelength_width: 200
-  wavelength_resolution: 25.0
+  wavelength_list: [400.,420.,440.,450.,470.,490.,510.,530.,550.]
+  set_wavelength_range: false
   use_fiberspectrograph_red: False
   use_fiberspectrograph_blue: False
   exposure_times:
-    - 60.0
+    - 30.0
 
 scan_r_init:
   calib_type: Mono
@@ -479,13 +477,12 @@ scan_r_init:
   optical_configuration: F1 SCU
   use_camera: True
   mtcamera_filter: r_57
-  wavelength: 625.0
-  wavelength_width: 250
-  wavelength_resolution: 25.0
+  wavelength_list: [550.,570.,590.,610.,630.,650.,670.,690.]
+  set_wavelength_range: false
   use_fiberspectrograph_red: False
   use_fiberspectrograph_blue: False
   exposure_times:
-    - 15.0
+    - 30.0
 
 scan_r:
   calib_type: Mono
@@ -507,13 +504,12 @@ scan_i_init:
   optical_configuration: F1 SCU
   use_camera: True
   mtcamera_filter: i_39
-  wavelength: 730.0
-  wavelength_width: 250
-  wavelength_resolution: 25.0
+  wavelength_list: [690.,710., 730., 750., 770., 790., 800.,820.]
+  set_wavelength_range: false
   use_fiberspectrograph_red: False
   use_fiberspectrograph_blue: False
   exposure_times:
-    - 15.0
+    - 30.0
 
 mono_i_stability:
   calib_type: Mono
@@ -522,7 +518,7 @@ mono_i_stability:
   use_camera: True
   mtcamera_filter: i_39
   wavelength_list: [780.0]
-  set_wavelength_range: true
+  set_wavelength_range: false
   use_fiberspectrograph_red: False
   use_fiberspectrograph_blue: False
   n_flat: 10
@@ -535,13 +531,12 @@ scan_z_init:
   optical_configuration: F1 SCU
   use_camera: True
   mtcamera_filter: z_20
-  wavelength: 880.0
-  wavelength_width: 250
-  wavelength_resolution: 25.0
+  wavelength_list: [820.,840., 860., 880., 900., 915., 930.]
+  set_wavelength_range: false
   use_fiberspectrograph_red: False
   use_fiberspectrograph_blue: False
   exposure_times:
-    - 15.0
+    - 30.0
 
 scan_y_init:
   calib_type: Mono
@@ -549,9 +544,8 @@ scan_y_init:
   optical_configuration: F1 SCU
   use_camera: True
   mtcamera_filter: y_10
-  wavelength: 970.0
-  wavelength_width: 250
-  wavelength_resolution: 25.0
+  wavelength_list: [930.,1100.]
+  set_wavelength_range: false
   use_fiberspectrograph_red: False
   use_fiberspectrograph_blue: False
   exposure_times:
