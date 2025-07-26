@@ -945,11 +945,13 @@ class MTCalsys(BaseCalsys):
                 dac = config_data["dac_value"]
                 if config_data["ptc"]:
                     if exptime < 1.0:
-                        dac = 0.15
+                        dac = 0.13
                         exptime = exptime * 100.0
                     elif exptime > 1.0:
                         dac = 0.8
                         exptime = exptime - 40.0
+                    else:
+                        dac = 0.8
                 if exptime < 1.0:
                     exptime = 1.0
 
