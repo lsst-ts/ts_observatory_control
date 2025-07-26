@@ -2827,7 +2827,8 @@ laser_ptc:
   laser_mode: 1
   mtcamera_filter: i_39
   optical_configuration: F1 SCU
-  wavelength: 780.0
+  wavelength_list: [780.0]
+  set_wavelength_range: false
   n_flat: 2
   exposure_times:
     - 6.67
