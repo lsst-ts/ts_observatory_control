@@ -526,11 +526,11 @@ mono_i_stability:
     - 10.0 #this will need to be updated to give us ~100 counts
 
 straylight_flats:
+  mtcamera_filter: NONE
   calib_type: Mono
   laser_mode: 1
   optical_configuration: F1 SCU
   use_camera: True
-  mtcamera_filter: None
   wavelength_list: [460., 760., 860.]
   set_wavelength_range: false
   n_flat: 2
