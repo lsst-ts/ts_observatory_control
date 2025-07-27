@@ -492,10 +492,10 @@ scan_r:
   mtcamera_filter: r_57
   wavelength: 620.0
   wavelength_width: 140
-  wavelength_resolution: 10.0
+  wavelength_resolution: 5.0
   use_fiberspectrograph_red: False
   use_fiberspectrograph_blue: False
-  n_flat: 2
+  n_flat: 4
   exposure_times:
     - 30.0
 
@@ -507,10 +507,10 @@ scan_i:
   mtcamera_filter: i_39
   wavelength: 755.0
   wavelength_width: 130
-  wavelength_resolution: 10.0
+  wavelength_resolution: 5.0
   use_fiberspectrograph_red: False
   use_fiberspectrograph_blue: False
-  n_flat: 2
+  n_flat: 4
   exposure_times:
     - 30.0
 
@@ -522,10 +522,10 @@ scan_z:
   mtcamera_filter: z_20
   wavelength: 875.0
   wavelength_width: 110
-  wavelength_resolution: 10.0
+  wavelength_resolution: 5.0
   use_fiberspectrograph_red: False
   use_fiberspectrograph_blue: False
-  n_flat: 2
+  n_flat: 4
   exposure_times:
     - 30.0
 
@@ -1437,7 +1437,7 @@ ptc_i_39_500:
   led_name:
     - M730L5
     - M810L3
-  dac_value: 0.5
+  dac_value: 0.8
   wavelength: 755.0
   led_location: 233.83
   led_focus: 7.07
