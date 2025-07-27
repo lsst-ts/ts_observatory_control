@@ -947,13 +947,10 @@ class MTCalsys(BaseCalsys):
                     if exptime < 1.0:
                         dac = 0.13
                         exptime = exptime * 100.0
-                    elif exptime > 1.0:
-                        dac = 0.8
+                    elif exptime > 30.0:
                         exptime = exptime - 40.0
-                    else:
-                        dac = 0.8
-                if exptime < 1.0:
-                    exptime = 1.0
+                # if exptime < 1.0:
+                #     exptime = 1.0
 
                 electrometer_exptime = (
                     await self._calculate_electrometer_exposure_times(
