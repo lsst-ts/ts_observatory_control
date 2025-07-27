@@ -491,7 +491,7 @@ scan_r:
   use_camera: True
   mtcamera_filter: r_57
   wavelength: 620.0
-  wavelength_width: 140
+  wavelength_width: 160
   wavelength_resolution: 5.0
   use_fiberspectrograph_red: False
   use_fiberspectrograph_blue: False
@@ -506,7 +506,7 @@ scan_i:
   use_camera: True
   mtcamera_filter: i_39
   wavelength: 755.0
-  wavelength_width: 130
+  wavelength_width: 150
   wavelength_resolution: 5.0
   use_fiberspectrograph_red: False
   use_fiberspectrograph_blue: False
@@ -520,8 +520,8 @@ scan_z:
   optical_configuration: F1 SCU
   use_camera: True
   mtcamera_filter: z_20
-  wavelength: 875.0
-  wavelength_width: 110
+  wavelength: 870.0
+  wavelength_width: 120
   wavelength_resolution: 5.0
   use_fiberspectrograph_red: False
   use_fiberspectrograph_blue: False
