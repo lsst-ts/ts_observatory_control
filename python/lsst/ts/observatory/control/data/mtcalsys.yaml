@@ -484,6 +484,38 @@ scan_r_init:
   exposure_times:
     - 30.0
 
+scan_u:
+  calib_type: Mono
+  laser_mode: 1
+  optical_configuration: F1 SCU
+  use_camera: True
+  mtcamera_filter: u_24
+  wavelength: 355.
+  wavelength_width: 90
+  wavelength_resolution: 5.0
+  set_wavelength_range: false
+  use_fiberspectrograph_red: False
+  use_fiberspectrograph_blue: False
+  n_flat: 2
+  exposure_times:
+    - 120.0
+
+scan_g:
+  calib_type: Mono
+  laser_mode: 1
+  optical_configuration: F1 SCU
+  use_camera: True
+  mtcamera_filter: g_6
+  wavelength: 475.0
+  wavelength_width: 150
+  wavelength_resolution: 5.0
+  set_wavelength_range: false
+  use_fiberspectrograph_red: False
+  use_fiberspectrograph_blue: False
+  n_flat: 2
+  exposure_times:
+    - 30.
+
 scan_r:
   calib_type: Mono
   laser_mode: 1
