@@ -405,29 +405,6 @@ class GuiderROIs:
         deltam = -2.5 * np.log10(vigfraction)
         return deltam
 
-    def ra_dec_to_vec(self, ra_deg: float, dec_deg: float) -> np.ndarray:
-        """Convert RA/Dec to unit vector.
-
-        Parameters
-        ----------
-        ra_deg : float
-            Right ascension in degrees
-        dec_deg : float
-            Declination in degrees
-
-        Returns
-        -------
-        vec : np.ndarray
-            Unit vector [x, y, z]
-        """
-        ra_rad = np.deg2rad(ra_deg)
-        dec_rad = np.deg2rad(dec_deg)
-
-        cos_dec = np.cos(dec_rad)
-        return np.array(
-            [cos_dec * np.cos(ra_rad), cos_dec * np.sin(ra_rad), np.sin(dec_rad)]
-        )
-
     def _get_catalog_data_for_healpix(
         self, hp_indices: typing.List[int]
     ) -> typing.List[Table]:
@@ -671,10 +648,23 @@ class GuiderROIs:
                     ra_corners.append(ra_corner)
                     dec_corners.append(dec_corner)
 
+                # Convert to astropy SkyCoord and get cartesian unit vectors
+                import astropy.units as u
+                from astropy.coordinates import SkyCoord
+
+                # Convert lsst.geom.Angle objects to degrees
+                ra_corners_deg = [ra.asDegrees() for ra in ra_corners]
+                dec_corners_deg = [dec.asDegrees() for dec in dec_corners]
+
+                coords = SkyCoord(ra=ra_corners_deg, dec=dec_corners_deg, unit=u.deg)
                 cam_vec_corners[detector.getId()] = np.array(
                     [
-                        self.ra_dec_to_vec(ra.asDegrees(), dec.asDegrees())
-                        for ra, dec in zip(ra_corners, dec_corners)
+                        [
+                            coord.cartesian.x.value,
+                            coord.cartesian.y.value,
+                            coord.cartesian.z.value,
+                        ]
+                        for coord in coords
                     ]
                 )
 
