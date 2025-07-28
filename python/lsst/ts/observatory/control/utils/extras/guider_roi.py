@@ -405,6 +405,29 @@ class GuiderROIs:
         deltam = -2.5 * np.log10(vigfraction)
         return deltam
 
+    def ra_dec_to_vec(self, ra_deg: float, dec_deg: float) -> np.ndarray:
+        """Convert RA/Dec to unit vector.
+
+        Parameters
+        ----------
+        ra_deg : float
+            Right ascension in degrees
+        dec_deg : float
+            Declination in degrees
+
+        Returns
+        -------
+        vec : np.ndarray
+            Unit vector [x, y, z]
+        """
+        ra_rad = np.deg2rad(ra_deg)
+        dec_rad = np.deg2rad(dec_deg)
+
+        cos_dec = np.cos(dec_rad)
+        return np.array(
+            [cos_dec * np.cos(ra_rad), cos_dec * np.sin(ra_rad), np.sin(dec_rad)]
+        )
+
     def _get_catalog_data_for_healpix(
         self, hp_indices: typing.List[int]
     ) -> typing.List[Table]:
@@ -617,6 +640,7 @@ class GuiderROIs:
         # find WCS and RaDec of the central pixel for each detector
         cam_wcs = {}
         cam_radec = {}
+        cam_vec_corners = {}
         for detector in self.camera:
             if detector.getType() in dtypelist:
                 # build wcs
@@ -641,13 +665,18 @@ class GuiderROIs:
                 ra_corners = []
                 dec_corners = []
                 for corner_pt in detector.getBBox().getCorners():
-                    ra_corner,dec_corner = cam_wcs[detector.getId()].pixelToSky(Point2D(corner_pt))
+                    ra_corner, dec_corner = cam_wcs[detector.getId()].pixelToSky(
+                        geom.Point2D(corner_pt)
+                    )
                     ra_corners.append(ra_corner)
                     dec_corners.append(dec_corner)
-                    
-                cam_vec_corners[detector.getId()] = np.array([self.ra_dec_to_vec(ra.asDegrees(), dec.asDegrees()) 
-                                                              for ra, dec in zip(ra_corners, dec_corners)])
 
+                cam_vec_corners[detector.getId()] = np.array(
+                    [
+                        self.ra_dec_to_vec(ra.asDegrees(), dec.asDegrees())
+                        for ra, dec in zip(ra_corners, dec_corners)
+                    ]
+                )
 
         # loop over detectors, getting the optimal guider star in each
         first = True
@@ -674,9 +703,10 @@ class GuiderROIs:
             )
             ccd_bbox_bottom.grow(-Extent2I(npix_edge, npix_edge))
 
-
             # query the Monster-based Guider star catalog with the CCD polygon
-            catalog_indices = hp.query_polygon(self.nside, cam_vec_corners[detector.getId()], inclusive=True,fact=8)
+            catalog_indices = hp.query_polygon(
+                self.nside, cam_vec_corners[detector.getId()], inclusive=True, fact=8
+            )
 
             # Get neighboring pixels for catalog query
             try:
@@ -694,7 +724,7 @@ class GuiderROIs:
                 warnings.warn(f"Error reading catalog for detector {idet}: {e}")
                 continue
 
-            # check that stars are isolated and are inside the CCD
+                # check that stars are isolated and are inside the CCD
             isolated = star_cat["guide_flag"] > 63
 
             # using the wcs to locate the stars inside the CCD minus npix_edge
@@ -702,22 +732,28 @@ class GuiderROIs:
             ccdx, ccdy = wcs.skyToPixelArray(
                 star_cat["coord_ra"], star_cat["coord_dec"], degrees=False
             )
-            in_CCD = (ccd_bbox_top.contains(ccdx, ccdy) or 
-                      ccd_bbox_bottom.contains(ccdx, ccdy)) 
+            # Check if stars are in either the top or bottom half of the CCD
+            in_top = ccd_bbox_top.contains(ccdx, ccdy)
+            in_bottom = ccd_bbox_bottom.contains(ccdx, ccdy)
+            in_CCD = in_top | in_bottom  # Use bitwise OR for arrays
 
             # Selection 1: the Star is isolated and inside top or bottom of CCD
             cat_select1 = star_cat[(isolated & in_CCD)]
 
             if len(cat_select1) == 0:
                 # TBD: should we raise an error here?
-                warnings.warn(
-                    f"No isolated stars found inside CCD for detector {idet}"
-                )
+                warnings.warn(f"No isolated stars found inside CCD for detector {idet}")
                 continue
 
+            # Get the corresponding CCD coordinates for the filtered stars
+            # Use the same mask that was used to create cat_select1
+            mask = isolated & in_CCD
+            ccdx_filtered = ccdx[mask]
+            ccdy_filtered = ccdy[mask]
+
             # fill with CCD pixel x,y
-            cat_select1["ccdx"] = ccdx
-            cat_select1["ccdy"] = ccdy
+            cat_select1["ccdx"] = ccdx_filtered
+            cat_select1["ccdy"] = ccdy_filtered
 
             # get the Amp coordinates and check that Amp is not in the bad amp
             # list
@@ -729,7 +765,7 @@ class GuiderROIs:
             ampYs = []
             ampOk = []
 
-            for arow in cat_select2:
+            for arow in cat_select1:
                 ampName, ampX, ampY = lct.ccdPixelToAmpPixel(arow["ccdx"], arow["ccdy"])
                 # check if the amp is in the bad_guideramps list
                 if idet in self.bad_guideramps:
@@ -764,7 +800,7 @@ class GuiderROIs:
             ampyLLs = []
 
             for arow in cat_select1:
-                # find ROI LL position in CCD coordinates 
+                # find ROI LL position in CCD coordinates
                 ccdxLL = arow["ccdx"] - roi_halfsize
                 ccdyLL = arow["ccdy"] - roi_halfsize
 
@@ -772,11 +808,11 @@ class GuiderROIs:
                 ccdxUR = arow["ccdx"] + roi_halfsize
                 ccdyUR = arow["ccdy"] + roi_halfsize
 
-                # check that the ROI is fully within the CCD and 
+                # check that the ROI is fully within the CCD and
                 # does not cross the midline break
 
                 # first check and adjust the ROI in x
-                if ccdxLL<0 :
+                if ccdxLL < 0:
                     ccdxLL = 0
                     ccdxUR = ccdxLL + roi_size
                 elif ccdxUR > ccd_nx:
@@ -784,14 +820,15 @@ class GuiderROIs:
                     ccdxLL = ccdxUR - roi_size
 
                 # then check and adjust the ROI in y
-                # first see if the star is in the upper or lower half of the CCD
+                # first see if the star is in the upper
+                # or lower half of the CCD
                 if arow["ccdy"] < ccd_nyhalf:
                     if ccdyLL < 0:
                         ccdyLL = 0
                         ccdyUR = ccdyLL + roi_size
                     elif ccdyUR > ccd_nyhalf:
                         ccdyUR = ccd_nyhalf
-                        ccdyLL = ccdyUR - roi_size  
+                        ccdyLL = ccdyUR - roi_size
                 else:
                     if ccdyLL < ccd_nyhalf:
                         ccdyLL = ccd_nyhalf
@@ -819,8 +856,8 @@ class GuiderROIs:
                 angular_separation(
                     np.deg2rad(boresight_RA),
                     np.deg2rad(boresight_DEC),
-                    cat_select2["coord_ra"],
-                    cat_select2["coord_dec"],
+                    cat_select1["coord_ra"],
+                    cat_select1["coord_dec"],
                 )
             )
 
@@ -829,7 +866,7 @@ class GuiderROIs:
             )
 
             # Selection2: check that the amplifier is ok
-            cat_select2 = cat_select1[cat_select2["ampOk"]]
+            cat_select2 = cat_select1[cat_select1["ampOk"]]
 
             if len(cat_select2) == 0:
                 # TBD: should we raise an error here?
