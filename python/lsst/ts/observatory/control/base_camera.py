@@ -87,22 +87,6 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
         # Maximum time to wait for the tcs to report as ready to take data
         self.max_tcs_wait_time = 30.0
 
-        self.valid_imagetype = [
-            "BIAS",
-            "DARK",
-            "FLAT",
-            "OBJECT",
-            "ENGTEST",
-            "ACQ",
-            "CWFS",
-            "FOCUS",
-            "STUTTERED",
-            "INDOME",
-            "CBP",
-            "SFLAT",
-            "DFLAT",
-        ]
-
         self._stuttered_imgtype = {"STUTTERED"}
 
         self.instrument_setup_attributes = set(instrument_setup_attributes)
@@ -114,6 +98,27 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
         self.max_n_snaps_warning = 2
 
         self._roi_spec_json: None | str = None
+
+    @classmethod
+    def get_image_types(cls) -> typing.List[str]:
+        """List of valid image types accepted by the `take_imgtype` method."""
+        return list(
+            [
+                "BIAS",
+                "DARK",
+                "FLAT",
+                "OBJECT",
+                "ENGTEST",
+                "ACQ",
+                "CWFS",
+                "FOCUS",
+                "STUTTERED",
+                "INDOME",
+                "CBP",
+                "SFLAT",
+                "DFLAT",
+            ]
+        )
 
     async def take_bias(
         self,
@@ -1351,10 +1356,10 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
 
         self.check_kwargs(**kwargs)
 
-        if imgtype not in self.valid_imagetype:
+        if imgtype not in self.get_image_types():
             raise RuntimeError(
                 f"Invalid imgtype:{imgtype}. Must be one of "
-                f"{self.valid_imagetype!r}"
+                f"{self.get_image_types()!r}"
             )
 
         if group_id is None:
