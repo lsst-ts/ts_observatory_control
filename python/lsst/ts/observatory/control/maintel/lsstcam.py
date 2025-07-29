@@ -102,8 +102,6 @@ class LSSTCam(BaseCamera):
         self.shutter_time = 1  # time to open or close shutter (sec)
         self.filter_change_timeout = 120  # time for filter to get into position (sec)
 
-        self.valid_imagetype.append("SPOT")
-
         self.cmd_lock = asyncio.Lock()
 
         roi_spec = ROISpec(
@@ -123,6 +121,10 @@ class LSSTCam(BaseCamera):
         roi = roi_spec_dict.pop("roi")
         roi_spec_dict.update(roi)
         self._roi_spec_json = json.dumps(roi_spec_dict, separators=(",", ":"))
+
+    @classmethod
+    def get_image_types(cls) -> typing.List[str]:
+        return super().get_image_types() + ["SPOT"]
 
     async def take_spot(
         self,
