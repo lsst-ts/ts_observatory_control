@@ -382,6 +382,29 @@ class MTCS(BaseTCS):
                 asyncio.create_task(self.wait_for_rotator_inposition(timeout))
             )
 
+        if _check.mthexapod_1:
+            status_tasks.append(
+                asyncio.create_task(
+                    self._handle_in_position(
+                        in_position_event=self.rem.mthexapod_1.evt_inPosition,
+                        timeout=timeout,
+                        settle_time=0.0,
+                        component_name="Camera Hexapod",
+                    )
+                )
+            )
+
+        if _check.mthexapod_2:
+            status_tasks.append(
+                asyncio.create_task(
+                    self._handle_in_position(
+                        in_position_event=self.rem.mthexapod_2.evt_inPosition,
+                        timeout=timeout,
+                        settle_time=0.0,
+                        component_name="M2 Hexapod",
+                    )
+                )
+            )
         status: typing.List[str] = []
         for s in await asyncio.gather(*status_tasks):
             status.append(f"{s!r}")
