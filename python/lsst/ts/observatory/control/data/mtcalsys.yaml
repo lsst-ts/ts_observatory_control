@@ -493,7 +493,6 @@ scan_u:
   wavelength: 355.
   wavelength_width: 90
   wavelength_resolution: 5.0
-  set_wavelength_range: false
   use_fiberspectrograph_red: False
   use_fiberspectrograph_blue: False
   n_flat: 2
@@ -509,7 +508,6 @@ scan_g:
   wavelength: 475.0
   wavelength_width: 150
   wavelength_resolution: 5.0
-  set_wavelength_range: false
   use_fiberspectrograph_red: False
   use_fiberspectrograph_blue: False
   n_flat: 2
