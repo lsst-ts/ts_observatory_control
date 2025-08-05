@@ -326,7 +326,7 @@ class MTCS(BaseTCS):
             self.scheduled_coro.append(
                 asyncio.create_task(
                     self.wait_for_inposition(
-                        timeout=slew_timeout, wait_settle=wait_settle
+                        timeout=slew_timeout, wait_settle=wait_settle, check=_check
                     )
                 )
             )
