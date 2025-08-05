@@ -1,0 +1,1 @@
+Add support to ``BaseCamera`` for retrieving supported image types through class method
