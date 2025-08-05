@@ -87,18 +87,6 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
         # Maximum time to wait for the tcs to report as ready to take data
         self.max_tcs_wait_time = 30.0
 
-        self.valid_imagetype = [
-            "BIAS",
-            "DARK",
-            "FLAT",
-            "OBJECT",
-            "ENGTEST",
-            "ACQ",
-            "CWFS",
-            "FOCUS",
-            "STUTTERED",
-        ]
-
         self._stuttered_imgtype = {"STUTTERED"}
 
         self.instrument_setup_attributes = set(instrument_setup_attributes)
@@ -110,6 +98,27 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
         self.max_n_snaps_warning = 2
 
         self._roi_spec_json: None | str = None
+
+    @classmethod
+    def get_image_types(cls) -> typing.List[str]:
+        """List of valid image types accepted by the `take_imgtype` method."""
+        return list(
+            [
+                "BIAS",
+                "DARK",
+                "FLAT",
+                "OBJECT",
+                "ENGTEST",
+                "ACQ",
+                "CWFS",
+                "FOCUS",
+                "STUTTERED",
+                "INDOME",
+                "CBP",
+                "SFLAT",
+                "DFLAT",
+            ]
+        )
 
     async def take_bias(
         self,
@@ -161,6 +170,10 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
         take_cwfs: Take series of curvature wavefront sensing images.
         take_acq: Take series of acquisition images.
         take_stuttered: Take series of stuttered images.
+        take_indome: Take series of in-dome testing images.
+        take_cbp: Take series of collimated beam projector images.
+        take_sflat: Take series of sky/twilight-flat images.
+        take_dflat: Take series of dark-flat images.
         take_imgtype: Take series of images of specified imgage type.
         setup_instrument: Set up instrument.
         expose: Low level expose method.
@@ -234,6 +247,10 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
         take_cwfs: Take series of curvature wavefront sensing images.
         take_acq: Take series of acquisition images.
         take_stuttered: Take series of stuttered images.
+        take_indome: Take series of in-dome testing images.
+        take_cbp: Take series of collimated beam projector images.
+        take_sflat: Take series of sky/twilight-flat images.
+        take_dflat: Take series of dark-flat images.
         take_imgtype: Take series of images of specified imgage type.
         setup_instrument: Set up instrument.
         expose: Low level expose method.
@@ -315,6 +332,10 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
         take_cwfs: Take series of curvature wavefront sensing images.
         take_acq: Take series of acquisition images.
         take_stuttered: Take series of stuttered images.
+        take_indome: Take series of in-dome testing images.
+        take_cbp: Take series of collimated beam projector images.
+        take_sflat: Take series of sky/twilight-flat images.
+        take_dflat: Take series of dark-flat images.
         take_imgtype: Take series of images of specified imgage type.
         setup_instrument: Set up instrument.
         expose: Low level expose method.
@@ -401,6 +422,10 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
         take_cwfs: Take series of curvature wavefront sensing images.
         take_acq: Take series of acquisition images.
         take_stuttered: Take series of stuttered images.
+        take_indome: Take series of in-dome testing images.
+        take_cbp: Take series of collimated beam projector images.
+        take_sflat: Take series of sky/twilight-flat images.
+        take_dflat: Take series of dark-flat images.
         take_imgtype: Take series of images of specified imgage type.
         setup_instrument: Set up instrument.
         expose: Low level expose method.
@@ -498,6 +523,10 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
         take_cwfs: Take series of curvature wavefront sensing images.
         take_acq: Take series of acquisition images.
         take_stuttered: Take series of stuttered images.
+        take_indome: Take series of in-dome testing images.
+        take_cbp: Take series of collimated beam projector images.
+        take_sflat: Take series of sky/twilight-flat images.
+        take_dflat: Take series of dark-flat images.
         take_imgtype: Take series of images of specified imgage type.
         setup_instrument: Set up instrument.
         expose: Low level expose method.
@@ -587,6 +616,10 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
         take_cwfs: Take series of curvature wavefront sensing images.
         take_acq: Take series of acquisition images.
         take_stuttered: Take series of stuttered images.
+        take_indome: Take series of in-dome testing images.
+        take_cbp: Take series of collimated beam projector images.
+        take_sflat: Take series of sky/twilight-flat images.
+        take_dflat: Take series of dark-flat images.
         take_imgtype: Take series of images of specified imgage type.
         setup_instrument: Set up instrument.
         expose: Low level expose method.
@@ -672,6 +705,10 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
         take_focus: Take series of focus images.
         take_acq: Take series of acquisition images.
         take_stuttered: Take series of stuttered images.
+        take_indome: Take series of in-dome testing images.
+        take_cbp: Take series of collimated beam projector images.
+        take_sflat: Take series of sky/twilight-flat images.
+        take_dflat: Take series of dark-flat images.
         take_imgtype: Take series of images of specified imgage type.
         setup_instrument: Set up instrument.
         expose: Low level expose method.
@@ -760,6 +797,10 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
         take_focus: Take series of focus images.
         take_cwfs: Take series of curvature wavefront sensing images.
         take_stuttered: Take series of stuttered images.
+        take_indome: Take series of in-dome testing images.
+        take_cbp: Take series of collimated beam projector images.
+        take_sflat: Take series of sky/twilight-flat images.
+        take_dflat: Take series of dark-flat images.
         take_imgtype: Take series of images of specified imgage type.
         setup_instrument: Set up instrument.
         expose: Low level expose method.
@@ -853,6 +894,10 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
         take_focus: Take series of focus images.
         take_cwfs: Take series of curvature wavefront sensing images.
         take_acq: Take series of acquisition images.
+        take_indome: Take series of in-dome testing images.
+        take_cbp: Take series of collimated beam projector images.
+        take_sflat: Take series of sky/twilight-flat images.
+        take_dflat: Take series of dark-flat images.
         take_imgtype: Take series of images of specified imgage type.
         setup_instrument: Set up instrument.
         expose: Low level expose method.
@@ -871,6 +916,356 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
             n_snaps=1,
             n_shift=n_shift,
             row_shift=row_shift,
+            group_id=group_id,
+            test_type=test_type,
+            reason=reason,
+            program=program,
+            sensors=sensors,
+            note=note,
+            checkpoint=checkpoint,
+            **kwargs,
+        )
+
+    async def take_indome(
+        self,
+        exptime: float,
+        n: int = 1,
+        group_id: typing.Optional[str] = None,
+        test_type: typing.Optional[str] = None,
+        reason: typing.Optional[str] = None,
+        program: typing.Optional[str] = None,
+        sensors: typing.Optional[str] = None,
+        note: typing.Optional[str] = None,
+        checkpoint: typing.Optional[typing.Callable[[str], typing.Awaitable]] = None,
+        **kwargs: typing.Union[int, float, str],
+    ) -> typing.List[int]:
+        """Take in-dome images.
+
+        An in-dome image (pinhole, shutter test, etc.) behaves like a FLAT, but
+        indicates that the image is taken inside the dome with the camera
+        shutter open, and not pointed at the calibration screen or CBP. These
+        images are used for in-dome testing, typically when the telescope is
+        not tracking.
+
+        Parameters
+        ----------
+        exptime : `float`
+            Exposure time for flats.
+        n : `int`
+            Number of frames to take.
+        group_id : `str`
+            Optional group id for the data sequence. Will generate a common
+            one for all the data if none is given.
+        test_type : `str`
+            Optional string to be added to the keyword testType image header.
+        reason : `str`, optional
+            Reason for the data being taken. This must be a short tag-like
+            string that can be used to disambiguate a set of observations.
+        program : `str`, optional
+            Name of the program this data belongs to, e.g. WFD, DD, etc.
+        sensors : `str`
+            A colon delimited list of sensor names to use for the image.
+        note : `str`
+            Optional observer note to be added to the image header.
+        checkpoint : `coro`
+            A optional awaitable callback that accepts one string argument
+            that is called before each bias is taken.
+        **kwargs
+            Arbitrary keyword arguments.
+
+        Returns
+        -------
+        `list` of `int`
+            List of exposure ids.
+
+        See Also
+        --------
+        take_bias: Take series of bias images.
+        take_darks: Take series of darks images.
+        take_flats: Take series of flats images.
+        take_object: Take series of object images.
+        take_engtest: Take series of engineering test images.
+        take_focus: Take series of focus images.
+        take_cwfs: Take series of curvature wavefront sensing images.
+        take_acq: Take series of acquisition images.
+        take_stuttered: Take series of stuttered images.
+        take_cbp: Take series of collimated beam projector images.
+        take_sflat: Take series of sky/twilight-flat images.
+        take_dflat: Take series of dark-flat images.
+        take_imgtype: Take series of images of specified imgage type.
+        setup_instrument: Set up instrument.
+        expose: Low level expose method.
+        """
+
+        self.check_kwargs(**kwargs)
+
+        return await self.take_imgtype(
+            imgtype="INDOME",
+            exptime=exptime,
+            n=n,
+            n_snaps=1,
+            n_shift=None,
+            row_shift=None,
+            group_id=group_id,
+            test_type=test_type,
+            reason=reason,
+            program=program,
+            sensors=sensors,
+            note=note,
+            checkpoint=checkpoint,
+            **kwargs,
+        )
+
+    async def take_cbp(
+        self,
+        exptime: float,
+        n: int = 1,
+        group_id: typing.Optional[str] = None,
+        test_type: typing.Optional[str] = None,
+        reason: typing.Optional[str] = None,
+        program: typing.Optional[str] = None,
+        sensors: typing.Optional[str] = None,
+        note: typing.Optional[str] = None,
+        checkpoint: typing.Optional[typing.Callable[[str], typing.Awaitable]] = None,
+        **kwargs: typing.Union[int, float, str],
+    ) -> typing.List[int]:
+        """Take images with the camera shutter pointed at the CBP.
+
+        Take a series of in-dome images with the camera shutter open pointed at
+        the Collimated Beam Projector (CBP). The CBP is an important part of
+        the calibration system but is not the flatfield screen, and its images
+        are not grouped with pinhole shots or scattered light tests.
+
+
+        Parameters
+        ----------
+        exptime : `float`
+            Exposure time for flats.
+        n : `int`
+            Number of frames to take.
+        group_id : `str`
+            Optional group id for the data sequence. Will generate a common
+            one for all the data if none is given.
+        test_type : `str`
+            Optional string to be added to the keyword testType image header.
+        reason : `str`, optional
+            Reason for the data being taken. This must be a short tag-like
+            string that can be used to disambiguate a set of observations.
+        program : `str`, optional
+            Name of the program this data belongs to, e.g. WFD, DD, etc.
+        sensors : `str`
+            A colon delimited list of sensor names to use for the image.
+        note : `str`
+            Optional observer note to be added to the image header.
+        checkpoint : `coro`
+            A optional awaitable callback that accepts one string argument
+            that is called before each bias is taken.
+        **kwargs
+            Arbitrary keyword arguments.
+
+        Returns
+        -------
+        `list` of `int`
+            List of exposure ids.
+
+        See Also
+        --------
+        take_bias: Take series of bias images.
+        take_darks: Take series of darks images.
+        take_flats: Take series of flats images.
+        take_object: Take series of object images.
+        take_engtest: Take series of engineering test images.
+        take_focus: Take series of focus images.
+        take_cwfs: Take series of curvature wavefront sensing images.
+        take_acq: Take series of acquisition images.
+        take_stuttered: Take series of stuttered images.
+        take_indome: Take series of in-dome testing images.
+        take_sflat: Take series of sky/twilight-flat images.
+        take_dflat: Take series of dark-flat images.
+        take_imgtype: Take series of images of specified imgage type.
+        setup_instrument: Set up instrument.
+        expose: Low level expose method.
+        """
+
+        self.check_kwargs(**kwargs)
+
+        return await self.take_imgtype(
+            imgtype="CBP",
+            exptime=exptime,
+            n=n,
+            n_snaps=1,
+            n_shift=None,
+            row_shift=None,
+            group_id=group_id,
+            test_type=test_type,
+            reason=reason,
+            program=program,
+            sensors=sensors,
+            note=note,
+            checkpoint=checkpoint,
+            **kwargs,
+        )
+
+    async def take_sflat(
+        self,
+        exptime: float,
+        n: int = 1,
+        group_id: typing.Optional[str] = None,
+        test_type: typing.Optional[str] = None,
+        reason: typing.Optional[str] = None,
+        program: typing.Optional[str] = None,
+        sensors: typing.Optional[str] = None,
+        note: typing.Optional[str] = None,
+        checkpoint: typing.Optional[typing.Callable[[str], typing.Awaitable]] = None,
+        **kwargs: typing.Union[int, float, str],
+    ) -> typing.List[int]:
+        """Take sky/twilight-flat images.
+
+
+        Parameters
+        ----------
+        exptime : `float`
+            Exposure time for flats.
+        n : `int`
+            Number of frames to take.
+        group_id : `str`
+            Optional group id for the data sequence. Will generate a common
+            one for all the data if none is given.
+        test_type : `str`
+            Optional string to be added to the keyword testType image header.
+        reason : `str`, optional
+            Reason for the data being taken. This must be a short tag-like
+            string that can be used to disambiguate a set of observations.
+        program : `str`, optional
+            Name of the program this data belongs to, e.g. WFD, DD, etc.
+        sensors : `str`
+            A colon delimited list of sensor names to use for the image.
+        note : `str`
+            Optional observer note to be added to the image header.
+        checkpoint : `coro`
+            A optional awaitable callback that accepts one string argument
+            that is called before each bias is taken.
+        **kwargs
+            Arbitrary keyword arguments.
+
+        Returns
+        -------
+        `list` of `int`
+            List of exposure ids.
+
+        See Also
+        --------
+        take_bias: Take series of bias images.
+        take_darks: Take series of darks images.
+        take_flats: Take series of flats images.
+        take_object: Take series of object images.
+        take_engtest: Take series of engineering test images.
+        take_focus: Take series of focus images.
+        take_cwfs: Take series of curvature wavefront sensing images.
+        take_acq: Take series of acquisition images.
+        take_stuttered: Take series of stuttered images.
+        take_indome: Take series of in-dome testing images.
+        take_cbp: Take series of collimated beam projector images.
+        take_dflat: Take series of dark-flat images.
+        take_imgtype: Take series of images of specified imgage type.
+        setup_instrument: Set up instrument.
+        expose: Low level expose method.
+        """
+
+        self.check_kwargs(**kwargs)
+
+        return await self.take_imgtype(
+            imgtype="SFLAT",
+            exptime=exptime,
+            n=n,
+            n_snaps=1,
+            n_shift=None,
+            row_shift=None,
+            group_id=group_id,
+            test_type=test_type,
+            reason=reason,
+            program=program,
+            sensors=sensors,
+            note=note,
+            checkpoint=checkpoint,
+            **kwargs,
+        )
+
+    async def take_dflat(
+        self,
+        exptime: float,
+        n: int = 1,
+        group_id: typing.Optional[str] = None,
+        test_type: typing.Optional[str] = None,
+        reason: typing.Optional[str] = None,
+        program: typing.Optional[str] = None,
+        sensors: typing.Optional[str] = None,
+        note: typing.Optional[str] = None,
+        checkpoint: typing.Optional[typing.Callable[[str], typing.Awaitable]] = None,
+        **kwargs: typing.Union[int, float, str],
+    ) -> typing.List[int]:
+        """Take a series of dark flat images.
+
+
+        Parameters
+        ----------
+        exptime : `float`
+            Exposure time for flats.
+        n : `int`
+            Number of frames to take.
+        group_id : `str`
+            Optional group id for the data sequence. Will generate a common
+            one for all the data if none is given.
+        test_type : `str`
+            Optional string to be added to the keyword testType image header.
+        reason : `str`, optional
+            Reason for the data being taken. This must be a short tag-like
+            string that can be used to disambiguate a set of observations.
+        program : `str`, optional
+            Name of the program this data belongs to, e.g. WFD, DD, etc.
+        sensors : `str`
+            A colon delimited list of sensor names to use for the image.
+        note : `str`
+            Optional observer note to be added to the image header.
+        checkpoint : `coro`
+            A optional awaitable callback that accepts one string argument
+            that is called before each bias is taken.
+        **kwargs
+            Arbitrary keyword arguments.
+
+        Returns
+        -------
+        `list` of `int`
+            List of exposure ids.
+
+        See Also
+        --------
+        take_bias: Take series of bias images.
+        take_darks: Take series of darks images.
+        take_flats: Take series of flats images.
+        take_object: Take series of object images.
+        take_engtest: Take series of engineering test images.
+        take_focus: Take series of focus images.
+        take_cwfs: Take series of curvature wavefront sensing images.
+        take_acq: Take series of acquisition images.
+        take_stuttered: Take series of stuttered images.
+        take_indome: Take series of in-dome testing images.
+        take_cbp: Take series of collimated beam projector images.
+        take_sflat: Take series of sky/twilight-flat images.
+        take_imgtype: Take series of images of specified imgage type.
+        setup_instrument: Set up instrument.
+        expose: Low level expose method.
+        """
+
+        self.check_kwargs(**kwargs)
+
+        return await self.take_imgtype(
+            imgtype="DFLAT",
+            exptime=exptime,
+            n=n,
+            n_snaps=1,
+            n_shift=None,
+            row_shift=None,
             group_id=group_id,
             test_type=test_type,
             reason=reason,
@@ -946,6 +1341,10 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
         take_cwfs: Take series of curvature wavefront sensing images.
         take_acq: Take series of acquisition images.
         take_stuttered: Take series of stuttered images.
+        take_indome: Take series of in-dome testing images.
+        take_cbp: Take series of collimated beam projector images.
+        take_sflat: Take series of sky/twilight-flat images.
+        take_dflat: Take series of dark-flat images.
         setup_instrument: Set up instrument.
         expose: Low level expose method.
 
@@ -957,10 +1356,10 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
 
         self.check_kwargs(**kwargs)
 
-        if imgtype not in self.valid_imagetype:
+        if imgtype not in self.get_image_types():
             raise RuntimeError(
                 f"Invalid imgtype:{imgtype}. Must be one of "
-                f"{self.valid_imagetype!r}"
+                f"{self.get_image_types()!r}"
             )
 
         if group_id is None:
@@ -1057,6 +1456,10 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
         take_cwfs: Take series of curvature wavefront sensing images.
         take_acq: Take series of acquisition images.
         take_stuttered: Take series of stuttered images.
+        take_indome: Take series of in-dome testing images.
+        take_cbp: Take series of collimated beam projector images.
+        take_sflat: Take series of sky/twilight-flat images.
+        take_dflat: Take series of dark-flat images.
         take_imgtype: Take series of images of specified imgage type.
         expose: Low level expose method.
         """
@@ -1099,6 +1502,10 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
         take_cwfs: Take series of curvature wavefront sensing images.
         take_acq: Take series of acquisition images.
         take_stuttered: Take series of stuttered images.
+        take_indome: Take series of in-dome testing images.
+        take_cbp: Take series of collimated beam projector images.
+        take_sflat: Take series of sky/twilight-flat images.
+        take_dflat: Take series of dark-flat images.
         take_imgtype: Take series of images of specified imgage type.
         setup_instrument: Set up instrument.
         """

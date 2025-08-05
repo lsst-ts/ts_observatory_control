@@ -348,6 +348,150 @@ class TestLATISS(BaseCameraAsyncMock):
             row_shift=100,
         )
 
+    async def test_take_indome(self) -> None:
+        await self.assert_take_indome(
+            n=1,
+            exptime=1.0,
+        )
+
+    async def test_take_indome_test_type(self) -> None:
+        await self.assert_take_indome(
+            n=1,
+            exptime=1.0,
+            test_type="LINDOME",
+        )
+
+    async def test_take_indome_reason(self) -> None:
+        await self.assert_take_indome(
+            n=1,
+            exptime=1.0,
+            reason="UNIT TEST",
+        )
+
+    async def test_take_indome_program(self) -> None:
+        await self.assert_take_indome(
+            n=1,
+            exptime=1.0,
+            program="UTEST",
+        )
+
+    async def test_take_indome_test_type_reason_program(self) -> None:
+        await self.assert_take_indome(
+            n=1,
+            exptime=1.0,
+            test_type="LINDOME",
+            reason="UNIT TEST",
+            program="UTEST",
+        )
+
+    async def test_take_cbp(self) -> None:
+        await self.assert_take_cbp(
+            n=1,
+            exptime=1.0,
+        )
+
+    async def test_take_cbp_test_type(self) -> None:
+        await self.assert_take_cbp(
+            n=1,
+            exptime=1.0,
+            test_type="LCBP",
+        )
+
+    async def test_take_cbp_reason(self) -> None:
+        await self.assert_take_cbp(
+            n=1,
+            exptime=1.0,
+            reason="UNIT TEST",
+        )
+
+    async def test_take_cbp_program(self) -> None:
+        await self.assert_take_cbp(
+            n=1,
+            exptime=1.0,
+            program="UTEST",
+        )
+
+    async def test_take_cbp_test_type_reason_program(self) -> None:
+        await self.assert_take_cbp(
+            n=1,
+            exptime=1.0,
+            test_type="LCBP",
+            reason="UNIT TEST",
+            program="UTEST",
+        )
+
+    async def test_take_sflat(self) -> None:
+        await self.assert_take_sflat(
+            n=1,
+            exptime=1.0,
+        )
+
+    async def test_take_sflat_test_type(self) -> None:
+        await self.assert_take_sflat(
+            n=1,
+            exptime=1.0,
+            test_type="LSFLAT",
+        )
+
+    async def test_take_sflat_reason(self) -> None:
+        await self.assert_take_sflat(
+            n=1,
+            exptime=1.0,
+            reason="UNIT TEST",
+        )
+
+    async def test_take_sflat_program(self) -> None:
+        await self.assert_take_sflat(
+            n=1,
+            exptime=1.0,
+            program="UTEST",
+        )
+
+    async def test_take_sflat_test_type_reason_program(self) -> None:
+        await self.assert_take_sflat(
+            n=1,
+            exptime=1.0,
+            test_type="LSFLAT",
+            reason="UNIT TEST",
+            program="UTEST",
+        )
+
+    async def test_take_dflat(self) -> None:
+        await self.assert_take_dflat(
+            n=1,
+            exptime=1.0,
+        )
+
+    async def test_take_dflat_test_type(self) -> None:
+        await self.assert_take_dflat(
+            n=1,
+            exptime=1.0,
+            test_type="LDFLAT",
+        )
+
+    async def test_take_dflat_reason(self) -> None:
+        await self.assert_take_dflat(
+            n=1,
+            exptime=1.0,
+            reason="UNIT TEST",
+        )
+
+    async def test_take_dflat_program(self) -> None:
+        await self.assert_take_dflat(
+            n=1,
+            exptime=1.0,
+            program="UTEST",
+        )
+
+    async def test_take_dflat_test_type_reason_program(self) -> None:
+        await self.assert_take_dflat(
+            n=1,
+            exptime=1.0,
+            test_type="LDFLAT",
+            reason="UNIT TEST",
+            program="UTEST",
+        )
+
     def assert_setup_instrument(
         self, entry: typing.Dict[str, typing.Union[int, float, str, None]]
     ) -> None:
