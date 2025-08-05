@@ -1014,7 +1014,7 @@ class MTCS(BaseTCS):
                 )
             except salobj.AckError as ack:
                 self.log.error(
-                    f"Closing mirror cover command failed with {ack.ack!r}::{ack.error}. "
+                    f"Closing mirror cover command failed with {ack.ackcmd.ack!r}::{ack.ackcmd.error}. "
                     "Checking state of the system."
                 )
                 cover_state = await self.rem.mtmount.evt_mirrorCoversMotionState.aget(
@@ -1031,7 +1031,7 @@ class MTCS(BaseTCS):
                     == MTMount.DeployableMotionState.RETRACTED
                 ):
                     self.log.warning(
-                        f"Close mirror cover command failed {ack.ack!r}::{ack.error} "
+                        f"Close mirror cover command failed {ack.ackcmd.ack!r}::{ack.ackcmd.error} "
                         "but mirror cover in the correct state."
                     )
                 else:
@@ -1044,7 +1044,7 @@ class MTCS(BaseTCS):
                         for state in cover_state.elementsState
                     ]
                     raise RuntimeError(
-                        f"Close mirror cover command failed with {ack.ack!r}::{ack.error}. "
+                        f"Close mirror cover command failed with {ack.ackcmd.ack!r}::{ack.ackcmd.error}. "
                         f"Mirror cover state: {cover_element_state} expected all to be DEPLOYED. "
                         f"Mirror cover locks state: {cover_locks_element_state} expected all to be RETRACTED."
                     )
