@@ -1263,7 +1263,7 @@ class MTCS(BaseTCS):
                     == MTMount.DeployableMotionState.DEPLOYED
                 ):
                     self.log.warning(
-                        f"Open mirror cover command failed {ack.ack!r}::{ack.error} "
+                        f"Open mirror cover command failed {ack.ackcmd.ack!r}::{ack.ackcmd.error} "
                         "but mirror cover in the correct state."
                     )
                 else:
@@ -1276,7 +1276,7 @@ class MTCS(BaseTCS):
                         for state in cover_state.elementsState
                     ]
                     raise RuntimeError(
-                        f"Open mirror cover command failed with {ack.ack!r}::{ack.error}. "
+                        f"Open mirror cover command failed with {ack.ackcmd.ack!r}::{ack.ackcmd.error}. "
                         f"Mirror cover state: {cover_element_state} "
                         f"Mirror cover locks state: {cover_locks_element_state} "
                     )
