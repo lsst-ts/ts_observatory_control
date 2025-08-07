@@ -121,7 +121,7 @@ class MTCS(BaseTCS):
         )
 
         self.open_dome_shutter_time = 1200.0
-        self.timeout_hardpoint_test_status = 600.0
+        self.timeout_hardpoint_test_status = 1200.0
         # There is a race condition when commanding the mount
         # to a new target, which is the time it takes for it
         # to start moving after we send the command to the pointing.
