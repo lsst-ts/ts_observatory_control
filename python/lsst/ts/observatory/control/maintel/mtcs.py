@@ -3239,16 +3239,16 @@ class MTCS(BaseTCS):
         # TODO: Finish implementation.
 
         try:
-            await asyncio.gather(
-                self.wait_for_mtmount_inposition(self.long_timeout, False),
-                self._handle_in_position(
-                    in_position_event=self.rem.mthexapod_1.evt_inPosition,
-                    timeout=self.long_timeout,
-                    settle_time=0.0,
-                    component_name="Camera Hexapod",
-                    race_condition_timeout=self.hexapod_ready_to_take_data_timeout,
-                ),
+            self.scheduled_coro.append(
+                asyncio.create_task(
+                    self.wait_for_inposition(
+                        timeout=self.long_timeout,
+                    )
+                )
             )
+            self.scheduled_coro.append(asyncio.create_task(self.monitor_position()))
+
+            await self.process_as_completed(self.scheduled_coro)
         except asyncio.TimeoutError:
             self.log.warning("Mount, Camera Hexapod or Rotator not in position.")
 
