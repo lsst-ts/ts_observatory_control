@@ -326,14 +326,20 @@ class GuiderROIs:
 
     def _load_vignetting_from_file(
         self,
-    ) -> typing.Optional[typing.Dict[str, np.ndarray]]:
+    ) -> dict[str, np.ndarray]:
         """Load vignetting data from file.
 
         Returns
         -------
-        vignetting_data : `dict` or `None`
-            Dictionary with 'theta' and 'vignetting' arrays, or None if not
-            found.
+        vignetting_data : `dict`
+            Dictionary with 'theta' and 'vignetting' arrays.
+
+        Raises
+        ------
+        FileNotFoundError
+            If no vignetting file is found in any of the default locations.
+        Exception
+            Any other exception from numpy.load() or file operations.
         """
         if self.vignetting_file is None:
             # Try default locations
@@ -349,16 +355,10 @@ class GuiderROIs:
                     break
 
         if self.vignetting_file is None or not os.path.exists(self.vignetting_file):
-            return None
+            raise FileNotFoundError(f"No vignetting file found. Tried: {default_files}")
 
-        try:
-            vigdata = np.load(self.vignetting_file)
-            return {"theta": vigdata["theta"], "vignetting": vigdata["vignetting"]}
-        except Exception as e:
-            warnings.warn(
-                f"Failed to load vignetting data from {self.vignetting_file}: {e}"
-            )
-            return None
+        vigdata = np.load(self.vignetting_file)
+        return {"theta": vigdata["theta"], "vignetting": vigdata["vignetting"]}
 
     def vignetting_correction(self, angle: float) -> float:
         """Calculate vignetting correction.
