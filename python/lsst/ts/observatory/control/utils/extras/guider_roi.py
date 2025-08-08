@@ -37,8 +37,8 @@ __all__ = [
 
 import math
 import os
-import typing
 import warnings
+from typing import Any
 
 import numpy as np
 
@@ -87,10 +87,10 @@ except ImportError:
 
 
 def get_vignetting_data_from_butler(
-    butler: typing.Any,
+    butler: Any,
     vignetting_dataset: str = DEFAULT_VIGNETTING_DATASET_NAME,
     collection: str = DEFAULT_COLLECTION_NAME,
-) -> typing.Optional[typing.Any]:
+) -> dict[str, Any]:
     """Get vignetting correction data from Butler.
 
     Parameters
@@ -104,40 +104,47 @@ def get_vignetting_data_from_butler(
 
     Returns
     -------
-    vignetting_data : `dict` or `None`
-        Vignetting data if available, None otherwise.
+    vignetting_data : `dict`
+        Vignetting data.
 
     Raises
     ------
+    RuntimeError
+        If DM stack is not available (required for Butler operations).
     ValueError
         If vignetting data is found but required columns are missing.
+    Exception
+        Any exception from Butler operations (e.g., DatasetNotFoundError,
+        AttributeError, etc.) will be raised directly.
     """
     if not DM_STACK_AVAILABLE:
-        return None
+        raise RuntimeError("DM stack is not available")
 
-    try:
-        vignetting_refs = butler.registry.queryDatasets(
-            vignetting_dataset, collections=[collection]
+    vignetting_refs = list(
+        butler.registry.queryDatasets(vignetting_dataset, collections=[collection])
+    )
+    if not vignetting_refs:
+        raise RuntimeError(
+            f"No vignetting dataset '{vignetting_dataset}' found in collection '{collection}'."
         )
-        if vignetting_refs:
-            ref = next(iter(vignetting_refs))
-            data = butler.get(ref)
 
-            if data is not None:
-                required_keys = ["theta", "vignetting"]
-                missing_keys = [key for key in required_keys if key not in data]
-                if missing_keys:
-                    raise ValueError(
-                        f"Vignetting data missing required columns: {missing_keys}. "
-                        f"Available columns: {list(data.keys())}"
-                    )
+    ref = vignetting_refs[0]
+    data = butler.get(ref)
 
-            return data
-    except Exception as e:
-        if isinstance(e, ValueError):
-            raise
-        warnings.warn(f"Could not get vignetting data from butler: {e}")
-    return None
+    if data is None:
+        raise RuntimeError(
+            f"Retrieved vignetting dataset '{vignetting_dataset}' is empty or unavailable."
+        )
+
+    required_keys = ["theta", "vignetting"]
+    missing_keys = [key for key in required_keys if key not in data]
+    if missing_keys:
+        raise ValueError(
+            f"Vignetting data missing required columns: {missing_keys}. "
+            f"Available columns: {list(data.keys())}"
+        )
+
+    return data
 
 
 class GuiderROIs:
@@ -159,13 +166,13 @@ class GuiderROIs:
 
     def __init__(
         self,
-        butler: typing.Optional[typing.Any] = None,
-        butler_config: typing.Optional[typing.Union[str, typing.Any]] = None,
+        butler: Any | None = None,
+        butler_config: str | Any | None = None,
         catalog_name: str = DEFAULT_CATALOG_DATASET_NAME,
         vignetting_dataset: str = DEFAULT_VIGNETTING_DATASET_NAME,
         collection: str = DEFAULT_COLLECTION_NAME,
-        catalog_path: typing.Optional[str] = None,
-        vignetting_file: typing.Optional[str] = None,
+        catalog_path: str | None = None,
+        vignetting_file: str | None = None,
         nside: int = 32,
     ) -> None:
         """Initialize GuiderROIs.
@@ -258,8 +265,8 @@ class GuiderROIs:
 
     def _setup_butler(
         self,
-        butler: typing.Optional[typing.Any],
-        butler_config: typing.Optional[typing.Union[str, typing.Any]] = None,
+        butler: Any | None,
+        butler_config: str | Any | None = None,
     ) -> None:
         """Set up butler for data access."""
 
@@ -323,26 +330,32 @@ class GuiderROIs:
             If vignetting data is not available from any source.
         ValueError
             If vignetting data is missing required columns.
+        FileNotFoundError
+            If no vignetting file is found when butler data is not available.
         """
         vignetting_data = None
 
         # Try to get vignetting data from butler first
         if self.butler is not None:
-            vignetting_data = get_vignetting_data_from_butler(
-                self.butler, self.vignetting_dataset, self.collection
-            )
+            try:
+                vignetting_data = get_vignetting_data_from_butler(
+                    self.butler, self.vignetting_dataset, self.collection
+                )
+            except RuntimeError:
+                # DM stack not available, fall back to file-based approach
+                vignetting_data = None
 
         # Fall back to file-based approach
         if vignetting_data is None:
-            vignetting_data = self._load_vignetting_from_file()
-
-        if vignetting_data is None:
-            raise RuntimeError(
-                "Vignetting correction data not available from butler or file. "
-                "Cannot initialize GuiderROIs without vignetting correction data. "
-                "Please provide vignetting_file parameter or ensure butler has "
-                "the data."
-            )
+            try:
+                vignetting_data = self._load_vignetting_from_file()
+            except FileNotFoundError as e:
+                raise RuntimeError(
+                    "Vignetting correction data not available from butler or file. "
+                    "Cannot initialize GuiderROIs without vignetting correction data. "
+                    "Please provide vignetting_file parameter or ensure butler has "
+                    "the data."
+                ) from e
 
         try:
             # Create interpolation spline with the validated data
@@ -354,14 +367,20 @@ class GuiderROIs:
 
     def _load_vignetting_from_file(
         self,
-    ) -> typing.Optional[typing.Dict[str, np.ndarray]]:
+    ) -> dict[str, np.ndarray]:
         """Load vignetting data from file.
 
         Returns
         -------
-        vignetting_data : `dict` or `None`
-            Dictionary with 'theta' and 'vignetting' arrays, or None if not
-            found.
+        vignetting_data : `dict`
+            Dictionary with 'theta' and 'vignetting' arrays.
+
+        Raises
+        ------
+        FileNotFoundError
+            If no vignetting file is found in any of the default locations.
+        Exception
+            Any other exception from numpy.load() or file operations.
         """
         if self.vignetting_file is None:
             # Try default locations
@@ -377,16 +396,10 @@ class GuiderROIs:
                     break
 
         if self.vignetting_file is None or not os.path.exists(self.vignetting_file):
-            return None
+            raise FileNotFoundError(f"No vignetting file found. Tried: {default_files}")
 
-        try:
-            vigdata = np.load(self.vignetting_file)
-            return {"theta": vigdata["theta"], "vignetting": vigdata["vignetting"]}
-        except Exception as e:
-            warnings.warn(
-                f"Failed to load vignetting data from {self.vignetting_file}: {e}"
-            )
-            return None
+        vigdata = np.load(self.vignetting_file)
+        return {"theta": vigdata["theta"], "vignetting": vigdata["vignetting"]}
 
     def vignetting_correction(self, angle: float) -> float:
         """Calculate vignetting correction.
@@ -405,9 +418,7 @@ class GuiderROIs:
         deltam = -2.5 * np.log10(vigfraction)
         return deltam
 
-    def _get_catalog_data_for_healpix(
-        self, hp_indices: typing.List[int]
-    ) -> typing.List[Table]:
+    def _get_catalog_data_for_healpix(self, hp_indices: list[int]) -> list[Table]:
         """Get catalog data for given HEALPix indices using HEALPix dimensions.
 
         Parameters
@@ -420,7 +431,7 @@ class GuiderROIs:
         tables : `list` of `astropy.table.Table`
             Catalog tables for the requested indices.
         """
-        tables: typing.List[Table] = []
+        tables: list[Table] = []
 
         # Try butler approach first
         if self.butler is not None:
@@ -432,11 +443,9 @@ class GuiderROIs:
 
         return tables
 
-    def _get_catalog_data_from_butler(
-        self, hp_indices: typing.List[int]
-    ) -> typing.List[Table]:
+    def _get_catalog_data_from_butler(self, hp_indices: list[int]) -> list[Table]:
         """Get catalog data from butler using HEALPix dimensions."""
-        tables: typing.List[Table] = []
+        tables: list[Table] = []
 
         if not DM_STACK_AVAILABLE:
             warnings.warn(
@@ -493,11 +502,9 @@ class GuiderROIs:
 
         return tables
 
-    def _get_catalog_data_from_files(
-        self, hp_indices: typing.List[int]
-    ) -> typing.List[Table]:
+    def _get_catalog_data_from_files(self, hp_indices: list[int]) -> list[Table]:
         """Get catalog data from CSV files."""
-        tables: typing.List[Table] = []
+        tables: list[Table] = []
 
         if self.catalog_path is None:
             # Try default locations
@@ -546,7 +553,7 @@ class GuiderROIs:
         use_guider: bool = True,
         use_wavefront: bool = False,
         use_science: bool = False,
-    ) -> typing.Tuple[str, typing.Any]:
+    ) -> tuple[str, Table]:
         """Get guider ROI configuration.
 
         Parameters
