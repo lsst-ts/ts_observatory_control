@@ -559,6 +559,21 @@ scan_z:
   exposure_times:
     - 30.0
 
+scan_y:
+  calib_type: Mono
+  laser_mode: 1
+  optical_configuration: F1 SCU
+  use_camera: True
+  mtcamera_filter: y_10
+  wavelength: 1015.0
+  wavelength_width: 170
+  wavelength_resolution: 5.0
+  use_fiberspectrograph_red: False
+  use_fiberspectrograph_blue: False
+  n_flat: 4
+  exposure_times:
+    - 30.0
+
 scan_none:
   calib_type: Mono
   laser_mode: 1
