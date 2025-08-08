@@ -38,7 +38,10 @@ __all__ = [
 import math
 import os
 import warnings
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from lsst.summit.utils import BestEffortIsr as BestEffortIsrType
 
 import numpy as np
 
@@ -246,8 +249,8 @@ class GuiderROIs:
         self.npix = hp.nside2npix(nside)
 
         # Set up butler (optional)
-        self.butler = None
-        self.best_effort_isr = None
+        self.butler: Any | None = None
+        self.best_effort_isr: "BestEffortIsrType | None" = None
         self._setup_butler(butler, butler_config)
 
         # Constants
