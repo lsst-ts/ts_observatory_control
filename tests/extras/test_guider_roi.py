@@ -32,12 +32,17 @@ class TestGuiderROIs:
     def test_init_without_dm_stack(self) -> None:
         """Test that GuiderROIs fails gracefully when DM stack is not
         available."""
+        fake_vig = {"theta": [0.0, 0.5, 1.0, 1.5], "vignetting": [1.0, 0.95, 0.9, 0.85]}
         with unittest.mock.patch(
             "lsst.ts.observatory.control.utils.extras.guider_roi.DM_STACK_AVAILABLE",
             False,
+        ), unittest.mock.patch(
+            "lsst.ts.observatory.control.utils.extras.guider_roi.GuiderROIs._load_vignetting_from_file",
+            return_value=fake_vig,
         ):
-            with pytest.raises(RuntimeError, match="DM stack not available"):
-                GuiderROIs()
+            roi = GuiderROIs()
+            assert roi.camera is None
+            assert roi.butler is None
 
     @pytest.mark.skipif(not DM_STACK_AVAILABLE, reason="DM stack not available.")
     def test_init_without_best_effort_isr(self) -> None:
@@ -46,13 +51,16 @@ class TestGuiderROIs:
         with unittest.mock.patch(
             "lsst.ts.observatory.control.utils.extras.guider_roi.BEST_EFFORT_ISR_AVAILABLE",
             False,
+        ), unittest.mock.patch(
+            "lsst.ts.observatory.control.utils.extras.guider_roi.GuiderROIs._load_vignetting_from_file",
+            return_value={
+                "theta": [0.0, 0.5, 1.0, 1.5],
+                "vignetting": [1.0, 0.95, 0.9, 0.85],
+            },
         ):
-            # Should fail without butler
-            with pytest.raises(
-                RuntimeError,
-                match="BestEffortIsr is not available and no butler was provided",
-            ):
-                GuiderROIs()
+            roi = GuiderROIs()
+            assert roi.butler is None
+            assert roi.best_effort_isr is None
 
             # Should succeed with butler
             mock_butler = unittest.mock.Mock()
@@ -136,7 +144,7 @@ class TestGuiderROIs:
             assert roi.ccd_diag == 0.15852
             assert roi.nside == 32  # 2^5
             assert roi.npix == 12 * 32**2
-            assert roi.bad_guideramps == {193: "C1", 198: "C1", 201: "C0"}
+            assert roi.bad_guideramps == {193: ["C1"], 198: ["C1"], 201: ["C0"]}
             assert roi.filters == ["u", "g", "r", "i", "z", "y"]
             assert roi.catalog_name == "monster_guide_catalog"
             assert roi.vignetting_dataset == "vignetting_correction"
@@ -173,9 +181,12 @@ class TestGuiderROIs:
         with unittest.mock.patch(
             "lsst.ts.observatory.control.utils.extras.guider_roi.get_vignetting_data_from_butler",
             return_value=None,
+        ), unittest.mock.patch(
+            "lsst.ts.observatory.control.utils.extras.guider_roi.GuiderROIs._load_vignetting_from_file",
+            side_effect=FileNotFoundError("no file"),
         ):
             with pytest.raises(
-                RuntimeError, match="Vignetting correction data.*not found in butler"
+                RuntimeError, match="Vignetting correction data not available"
             ):
                 GuiderROIs(butler=mock_butler)
 
@@ -436,25 +447,6 @@ def test_best_effort_isr_available_flag() -> None:
     assert isinstance(BEST_EFFORT_ISR_AVAILABLE, bool)
 
 
-def test_get_monster_catalog_loader_from_butler() -> None:
-    """Test the Monster catalog loader function."""
-    if not DM_STACK_AVAILABLE:
-        pytest.skip("DM stack not available")
-
-    from lsst.ts.observatory.control.utils.extras.guider_roi import (
-        get_monster_catalog_loader_from_butler,
-    )
-
-    mock_butler = unittest.mock.Mock()
-    mock_refs = unittest.mock.Mock()
-    mock_refs.expanded.return_value = []
-    mock_butler.registry.queryDatasets.return_value = mock_refs
-
-    result = get_monster_catalog_loader_from_butler(mock_butler)
-    assert result == []
-    mock_butler.registry.queryDatasets.assert_called_once_with("monster_guide_catalog")
-
-
 def test_get_vignetting_data_from_butler() -> None:
     """Test the vignetting data loader function."""
     if not DM_STACK_AVAILABLE:
@@ -467,6 +459,8 @@ def test_get_vignetting_data_from_butler() -> None:
     mock_butler = unittest.mock.Mock()
     mock_butler.registry.queryDatasets.return_value = []
 
-    result = get_vignetting_data_from_butler(mock_butler)
-    assert result is None
-    mock_butler.registry.queryDatasets.assert_called_once_with("vignetting_correction")
+    with pytest.raises(RuntimeError, match="No vignetting dataset"):
+        get_vignetting_data_from_butler(mock_butler)
+    mock_butler.registry.queryDatasets.assert_called_once_with(
+        "vignetting_correction", collections=["guider_roi_data"]
+    )
