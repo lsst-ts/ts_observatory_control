@@ -30,6 +30,8 @@ from lsst.ts.observatory.control.utils.extras import (
 
 @pytest.mark.skipif(not DM_STACK_AVAILABLE, reason="DM stack not available.")
 def test_find_target_radec() -> None:
+    # Skip if summit utilities (BestEffortIsr) are not available in this env
+    pytest.importorskip("lsst.summit.utils")
     radec_find = astropy.coordinates.ICRS(
         ra=astropy.coordinates.Angle(281.81158107, unit=astropy.units.deg),
         dec=astropy.coordinates.Angle(-25.88640971, unit=astropy.units.deg),
@@ -37,13 +39,13 @@ def test_find_target_radec() -> None:
 
     radec = find_target_radec(
         radec=radec_find,
-        radius=astropy.coordinates.Angle(0.5, units=astropy.units.deg),
+        radius=astropy.coordinates.Angle(0.5, unit=astropy.units.deg),
         mag_limit=(6.0, 8.0),
     )
 
     assert radec.ra == pytest.approx(
-        astropy.coordinates.Angle(4.975997291756341, units=astropy.units.rad)
+        astropy.coordinates.Angle(4.975997291756341, unit=astropy.units.rad)
     )
     assert radec.dec == pytest.approx(
-        astropy.coordinates.Angle(-0.43531985697592745, units=astropy.units.rad)
+        astropy.coordinates.Angle(-0.43531985697592745, unit=astropy.units.rad)
     )
