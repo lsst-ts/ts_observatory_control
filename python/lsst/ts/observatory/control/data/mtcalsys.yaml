@@ -19,6 +19,24 @@ cbp_g_leak:
   electrometer_range: 0.0000002
   use_camera: True
 
+cbp_g_leak_unittest:
+  mtcamera_filter: g_6
+  wavelength: 1100.0
+  wavelength_width: 200
+  wavelength_resolution: 50
+  exposure_times:
+    - 1.0
+  nburst: 5
+  use_cbp_electrometer: True
+  use_flatfield_electrometer: False
+  laser_mode: 4
+  optical_configuration: F2 SCU
+  calib_type: CBP
+  electrometer_mode: 'CHARGE'
+  electrometer_integration_time: 1
+  electrometer_range: 0.0000002
+  use_camera: True
+
 cbp_u_leak:
   mtcamera_filter: u_24
   wavelength: 700.0
@@ -451,13 +469,12 @@ scan_u_init:
   optical_configuration: F1 SCU
   use_camera: True
   mtcamera_filter: u_24
-  wavelength: 350.0
-  wavelength_width: 100.0
-  wavelength_resolution: 25.0
+  wavelength_list: [340.,350.,360.,370.]
+  set_wavelength_range: false
   use_fiberspectrograph_red: False
   use_fiberspectrograph_blue: False
   exposure_times:
-    - 15.0
+    - 60.0
 
 scan_g_init:
   calib_type: Mono
@@ -465,13 +482,12 @@ scan_g_init:
   optical_configuration: F1 SCU
   use_camera: True
   mtcamera_filter: g_6
-  wavelength: 480.
-  wavelength_width: 200
-  wavelength_resolution: 25.0
+  wavelength_list: [400.,420.,440.,450.,470.,490.,510.,530.,550.]
+  set_wavelength_range: false
   use_fiberspectrograph_red: False
   use_fiberspectrograph_blue: False
   exposure_times:
-    - 15.0
+    - 30.0
 
 scan_r_init:
   calib_type: Mono
@@ -479,15 +495,59 @@ scan_r_init:
   optical_configuration: F1 SCU
   use_camera: True
   mtcamera_filter: r_57
-  wavelength: 625.0
-  wavelength_width: 250
-  wavelength_resolution: 25.0
+  wavelength_list: [550.,570.,590.,610.,630.,650.,670.,690.]
+  set_wavelength_range: false
   use_fiberspectrograph_red: False
   use_fiberspectrograph_blue: False
   exposure_times:
-    - 15.0
+    - 30.0
+
+scan_u:
+  calib_type: Mono
+  laser_mode: 1
+  optical_configuration: F1 SCU
+  use_camera: True
+  mtcamera_filter: u_24
+  wavelength: 355.
+  wavelength_width: 90
+  wavelength_resolution: 5.0
+  use_fiberspectrograph_red: False
+  use_fiberspectrograph_blue: False
+  n_flat: 2
+  exposure_times:
+    - 120.0
+
+scan_g:
+  calib_type: Mono
+  laser_mode: 1
+  optical_configuration: F1 SCU
+  use_camera: True
+  mtcamera_filter: g_6
+  wavelength: 475.0
+  wavelength_width: 150
+  wavelength_resolution: 5.0
+  use_fiberspectrograph_red: False
+  use_fiberspectrograph_blue: False
+  n_flat: 2
+  exposure_times:
+    - 30.
 
 scan_r:
+  calib_type: Mono
+  laser_mode: 1
+  optical_configuration: F1 SCU
+  use_camera: True
+  mtcamera_filter: r_57
+  wavelength: 620.0
+  wavelength_width: 160
+  wavelength_resolution: 5.0
+  use_fiberspectrograph_red: False
+  use_fiberspectrograph_blue: False
+  n_flat: 4
+  exposure_times:
+    - 30.0
+
+scan_r_unittest:
   calib_type: Mono
   laser_mode: 1
   optical_configuration: F1 SCU
@@ -501,19 +561,106 @@ scan_r:
   exposure_times:
     - 15.0
 
+scan_i:
+  calib_type: Mono
+  laser_mode: 1
+  optical_configuration: F1 SCU
+  use_camera: True
+  mtcamera_filter: i_39
+  wavelength: 755.0
+  wavelength_width: 150
+  wavelength_resolution: 5.0
+  use_fiberspectrograph_red: False
+  use_fiberspectrograph_blue: False
+  n_flat: 4
+  exposure_times:
+    - 30.0
+
+scan_z:
+  calib_type: Mono
+  laser_mode: 1
+  optical_configuration: F1 SCU
+  use_camera: True
+  mtcamera_filter: z_20
+  wavelength: 870.0
+  wavelength_width: 120
+  wavelength_resolution: 5.0
+  use_fiberspectrograph_red: False
+  use_fiberspectrograph_blue: False
+  n_flat: 4
+  exposure_times:
+    - 30.0
+
+scan_y:
+  calib_type: Mono
+  laser_mode: 1
+  optical_configuration: F1 SCU
+  use_camera: True
+  mtcamera_filter: y_10
+  wavelength: 1015.0
+  wavelength_width: 170
+  wavelength_resolution: 5.0
+  use_fiberspectrograph_red: False
+  use_fiberspectrograph_blue: False
+  n_flat: 4
+  exposure_times:
+    - 30.0
+
+scan_none:
+  calib_type: Mono
+  laser_mode: 1
+  optical_configuration: F1 SCU
+  use_camera: True
+  mtcamera_filter: NONE
+  wavelength: 770
+  wavelength_width: 940
+  wavelength_resolution: 10.0
+  use_fiberspectrograph_red: False
+  use_fiberspectrograph_blue: False
+  n_flat: 2
+  exposure_times:
+    - 30.0
+
 scan_i_init:
   calib_type: Mono
   laser_mode: 1
   optical_configuration: F1 SCU
   use_camera: True
   mtcamera_filter: i_39
-  wavelength: 730.0
-  wavelength_width: 250
-  wavelength_resolution: 25.0
+  wavelength_list: [690.,710., 730., 750., 770., 790., 800.,820.]
+  set_wavelength_range: false
   use_fiberspectrograph_red: False
   use_fiberspectrograph_blue: False
   exposure_times:
-    - 15.0
+    - 30.0
+
+mono_i_stability:
+  calib_type: Mono
+  laser_mode: 1
+  optical_configuration: F1 SCU
+  use_camera: True
+  mtcamera_filter: i_39
+  wavelength_list: [780.0]
+  set_wavelength_range: false
+  use_fiberspectrograph_red: False
+  use_fiberspectrograph_blue: False
+  n_flat: 10
+  exposure_times:
+    - 10.0 #this will need to be updated to give us ~100 counts
+
+straylight_flats:
+  mtcamera_filter: NONE
+  calib_type: Mono
+  laser_mode: 1
+  optical_configuration: F1 SCU
+  use_camera: True
+  wavelength_list: [460., 760., 860.]
+  set_wavelength_range: false
+  n_flat: 2
+  exposure_times:
+    - 10.0
+    - 30.0
+    - 60.0  #this will need to be updated to give us ~100 counts
 
 scan_z_init:
   calib_type: Mono
@@ -521,13 +668,12 @@ scan_z_init:
   optical_configuration: F1 SCU
   use_camera: True
   mtcamera_filter: z_20
-  wavelength: 880.0
-  wavelength_width: 250
-  wavelength_resolution: 25.0
+  wavelength_list: [820.,840., 860., 880., 900., 915., 930.]
+  set_wavelength_range: false
   use_fiberspectrograph_red: False
   use_fiberspectrograph_blue: False
   exposure_times:
-    - 15.0
+    - 30.0
 
 scan_y_init:
   calib_type: Mono
@@ -535,9 +681,8 @@ scan_y_init:
   optical_configuration: F1 SCU
   use_camera: True
   mtcamera_filter: y_10
-  wavelength: 970.0
-  wavelength_width: 250
-  wavelength_resolution: 25.0
+  wavelength_list: [930.,1100.]
+  set_wavelength_range: false
   use_fiberspectrograph_red: False
   use_fiberspectrograph_blue: False
   exposure_times:
@@ -661,6 +806,18 @@ whitelight_i_39_M730L5:
   use_fiberspectrograph_red: False
   use_fiberspectrograph_blue: False
   n_flat: 20
+  exposure_times:
+    - 10.0
+
+whitelight_i_39_M730L5_stability:
+  mtcamera_filter: i_39
+  led_name:
+    - M730L5
+  dac_value: 0.8
+  wavelength: 730.0
+  led_location: 233.91
+  led_focus: 7.15
+  n_flat: 5
   exposure_times:
     - 10.0
 
@@ -1381,13 +1538,14 @@ ptc_i_39_500:
   led_name:
     - M730L5
     - M810L3
-  dac_value: 0.5
+  dac_value: 0.8
   wavelength: 755.0
   led_location: 233.83
   led_focus: 7.07
   use_camera: True
   use_fiberspectrograph_red: False
   use_fiberspectrograph_blue: False
+  use_flatfield_electrometer: True
   n_flat: 2
   ptc: True
   exposure_times:
@@ -2717,4 +2875,303 @@ ptc_i_39_750:
     - 16.667
     - 0.058
     - 71.176
-    
+
+low_level_0.1:
+  mtcamera_filter: i_39
+  led_name:
+    - M730L5
+    - M810L3
+  dac_value: 0.1
+  wavelength: 755.0
+  led_location: 233.83
+  led_focus: 7.07
+  n_flat: 10
+  exposure_times:
+    - 30.0
+
+low_level_0.11:
+  mtcamera_filter: i_39
+  led_name:
+    - M730L5
+    - M810L3
+  dac_value: 0.11
+  wavelength: 755.0
+  led_location: 233.83
+  led_focus: 7.07
+  n_flat: 10
+  exposure_times:
+    - 30.0
+
+low_level_0.12:
+  mtcamera_filter: i_39
+  led_name:
+    - M730L5
+    - M810L3
+  dac_value: 0.12
+  wavelength: 755.0
+  led_location: 233.83
+  led_focus: 7.07
+  n_flat: 10
+  exposure_times:
+    - 30.0
+
+low_level_0.13:
+  mtcamera_filter: i_39
+  led_name:
+    - M730L5
+    - M810L3
+  dac_value: 0.13
+  wavelength: 755.0
+  led_location: 233.83
+  led_focus: 7.07
+  n_flat: 10
+  exposure_times:
+    - 30.0
+
+low_level_0.14:
+  mtcamera_filter: i_39
+  led_name:
+    - M730L5
+    - M810L3
+  dac_value: 0.14
+  wavelength: 755.0
+  led_location: 233.83
+  led_focus: 7.07
+  n_flat: 10
+  exposure_times:
+    - 30.0
+
+low_level_0.15:
+  mtcamera_filter: i_39
+  led_name:
+    - M730L5
+    - M810L3
+  dac_value: 0.15
+  wavelength: 755.0
+  led_location: 233.83
+  led_focus: 7.07
+  n_flat: 10
+  exposure_times:
+    - 30.0
+
+laser_ptc:
+  calib_type: Mono
+  laser_mode: 1
+  mtcamera_filter: i_39
+  optical_configuration: F1 SCU
+  wavelength_list: [780.0]
+  set_wavelength_range: false
+  n_flat: 2
+  exposure_times:
+    - 6.67
+    - 51.7
+    - 26.1
+    - 53.3
+    - 27.2
+    - 58.9
+    - 46.1
+    - 13.9
+    - 56.7
+    - 48.9
+    - 15.6
+    - 12.8
+    - 6.11
+    - 8.89
+    - 57.8
+    - 41.1
+    - 11.1
+    - 17.2
+    - 15.0
+    - 58.3
+    - 9.44
+    - 46.7
+    - 20.0
+    - 34.4
+    - 22.2
+    - 40.0
+    - 5.0
+    - 23.9
+    - 36.7
+    - 39.4
+    - 49.4
+    - 59.4
+    - 40.6
+    - 36.1
+    - 35.0
+    - 56.1
+    - 33.9
+    - 5.56
+    - 53.9
+    - 43.3
+    - 26.7
+    - 52.2
+    - 55.0
+    - 21.1
+    - 31.1
+    - 20.6
+    - 18.3
+    - 55.6
+    - 18.9
+    - 51.1
+    - 24.4
+    - 32.8
+    - 50.6
+    - 27.8
+    - 33.3
+    - 48.3
+    - 35.6
+    - 13.3
+    - 8.33
+    - 7.78
+    - 16.1
+    - 22.8
+    - 60.0
+    - 21.7
+    - 47.8
+    - 57.2
+    - 47.2
+    - 29.4
+    - 14.4
+    - 32.2
+    - 30.6
+    - 42.8
+    - 16.7
+    - 41.7
+    - 42.2
+    - 28.9
+    - 44.4
+    - 37.2
+    - 17.8
+    - 38.9
+    - 43.9
+    - 19.4
+    - 52.8
+    - 12.2
+    - 25.6
+    - 28.3
+    - 23.3
+    - 10.6
+    - 54.4
+    - 25.0
+    - 11.7
+    - 38.3
+    - 7.22
+    - 10.0
+    - 50.0
+    - 45.6
+    - 45.0
+    - 30.0
+    - 31.7
+    - 37.8
+
+low_level_ptc:
+  mtcamera_filter: i_39
+  led_name:
+    - M730L5
+    - M810L3
+  dac_value: 0.13
+  wavelength: 755.0
+  led_location: 233.83
+  led_focus: 7.07
+  n_flat: 2
+  exposure_times:
+    - 11.6
+    - 7.79
+    - 3.55
+    - 13.0
+    - 8.92
+    - 2.7
+    - 14.7
+    - 3.12
+    - 1.0
+    - 12.6
+    - 11.2
+    - 10.6
+    - 14.4
+    - 6.66
+    - 9.63
+    - 5.38
+    - 6.52
+    - 8.78
+    - 8.35
+    - 3.97
+    - 1.71
+    - 10.9
+    - 5.24
+    - 14.6
+    - 5.95
+    - 9.91
+    - 9.06
+    - 9.48
+    - 9.2
+    - 9.77
+    - 13.9
+    - 13.3
+    - 1.99
+    - 7.36
+    - 10.5
+    - 11.5
+    - 2.27
+    - 8.07
+    - 7.22
+    - 1.42
+    - 7.51
+    - 11.0
+    - 12.5
+    - 5.1
+    - 1.57
+    - 6.09
+    - 7.08
+    - 12.7
+    - 8.21
+    - 4.11
+    - 4.82
+    - 3.83
+    - 11.9
+    - 5.81
+    - 3.4
+    - 7.93
+    - 3.26
+    - 13.4
+    - 9.34
+    - 2.84
+    - 10.2
+    - 3.69
+    - 12.9
+    - 4.25
+    - 4.54
+    - 12.0
+    - 14.2
+    - 14.0
+    - 13.6
+    - 12.2
+    - 6.94
+    - 10.3
+    - 6.23
+    - 2.56
+    - 13.2
+    - 5.53
+    - 4.39
+    - 1.14
+    - 11.7
+    - 4.68
+    - 13.7
+    - 1.28
+    - 1.85
+    - 2.41
+    - 6.37
+    - 14.3
+    - 10.8
+    - 4.96
+    - 11.3
+    - 2.13
+    - 7.65
+    - 12.3
+    - 15.0
+    - 10.1
+    - 2.98
+    - 14.9
+    - 8.49
+    - 8.64
+    - 5.67
+    - 6.8  

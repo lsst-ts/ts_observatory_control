@@ -121,7 +121,7 @@ class MTCS(BaseTCS):
         )
 
         self.open_dome_shutter_time = 1200.0
-        self.timeout_hardpoint_test_status = 600.0
+        self.timeout_hardpoint_test_status = 1200.0
         # There is a race condition when commanding the mount
         # to a new target, which is the time it takes for it
         # to start moving after we send the command to the pointing.
@@ -326,7 +326,7 @@ class MTCS(BaseTCS):
             self.scheduled_coro.append(
                 asyncio.create_task(
                     self.wait_for_inposition(
-                        timeout=slew_timeout, wait_settle=wait_settle
+                        timeout=slew_timeout, wait_settle=wait_settle, check=_check
                     )
                 )
             )
@@ -382,6 +382,29 @@ class MTCS(BaseTCS):
                 asyncio.create_task(self.wait_for_rotator_inposition(timeout))
             )
 
+        if _check.mthexapod_1:
+            status_tasks.append(
+                asyncio.create_task(
+                    self._handle_in_position(
+                        in_position_event=self.rem.mthexapod_1.evt_inPosition,
+                        timeout=timeout,
+                        settle_time=0.0,
+                        component_name="Camera Hexapod",
+                    )
+                )
+            )
+
+        if _check.mthexapod_2:
+            status_tasks.append(
+                asyncio.create_task(
+                    self._handle_in_position(
+                        in_position_event=self.rem.mthexapod_2.evt_inPosition,
+                        timeout=timeout,
+                        settle_time=0.0,
+                        component_name="M2 Hexapod",
+                    )
+                )
+            )
         status: typing.List[str] = []
         for s in await asyncio.gather(*status_tasks):
             status.append(f"{s!r}")
@@ -991,7 +1014,7 @@ class MTCS(BaseTCS):
                 )
             except salobj.AckError as ack:
                 self.log.error(
-                    f"Closing mirror cover command failed with {ack.ack!r}::{ack.error}. "
+                    f"Closing mirror cover command failed with {ack.ackcmd.ack!r}::{ack.ackcmd.error}. "
                     "Checking state of the system."
                 )
                 cover_state = await self.rem.mtmount.evt_mirrorCoversMotionState.aget(
@@ -1008,7 +1031,7 @@ class MTCS(BaseTCS):
                     == MTMount.DeployableMotionState.RETRACTED
                 ):
                     self.log.warning(
-                        f"Close mirror cover command failed {ack.ack!r}::{ack.error} "
+                        f"Close mirror cover command failed {ack.ackcmd.ack!r}::{ack.ackcmd.error} "
                         "but mirror cover in the correct state."
                     )
                 else:
@@ -1021,7 +1044,7 @@ class MTCS(BaseTCS):
                         for state in cover_state.elementsState
                     ]
                     raise RuntimeError(
-                        f"Close mirror cover command failed with {ack.ack!r}::{ack.error}. "
+                        f"Close mirror cover command failed with {ack.ackcmd.ack!r}::{ack.ackcmd.error}. "
                         f"Mirror cover state: {cover_element_state} expected all to be DEPLOYED. "
                         f"Mirror cover locks state: {cover_locks_element_state} expected all to be RETRACTED."
                     )
@@ -1240,7 +1263,7 @@ class MTCS(BaseTCS):
                     == MTMount.DeployableMotionState.DEPLOYED
                 ):
                     self.log.warning(
-                        f"Open mirror cover command failed {ack.ack!r}::{ack.error} "
+                        f"Open mirror cover command failed {ack.ackcmd.ack!r}::{ack.ackcmd.error} "
                         "but mirror cover in the correct state."
                     )
                 else:
@@ -1253,7 +1276,7 @@ class MTCS(BaseTCS):
                         for state in cover_state.elementsState
                     ]
                     raise RuntimeError(
-                        f"Open mirror cover command failed with {ack.ack!r}::{ack.error}. "
+                        f"Open mirror cover command failed with {ack.ackcmd.ack!r}::{ack.ackcmd.error}. "
                         f"Mirror cover state: {cover_element_state} "
                         f"Mirror cover locks state: {cover_locks_element_state} "
                     )
@@ -3216,16 +3239,16 @@ class MTCS(BaseTCS):
         # TODO: Finish implementation.
 
         try:
-            await asyncio.gather(
-                self.wait_for_mtmount_inposition(self.long_timeout, False),
-                self._handle_in_position(
-                    in_position_event=self.rem.mthexapod_1.evt_inPosition,
-                    timeout=self.long_timeout,
-                    settle_time=0.0,
-                    component_name="Camera Hexapod",
-                    race_condition_timeout=self.hexapod_ready_to_take_data_timeout,
-                ),
+            self.scheduled_coro.append(
+                asyncio.create_task(
+                    self.wait_for_inposition(
+                        timeout=self.long_timeout,
+                    )
+                )
             )
+            self.scheduled_coro.append(asyncio.create_task(self.monitor_position()))
+
+            await self.process_as_completed(self.scheduled_coro)
         except asyncio.TimeoutError:
             self.log.warning("Mount, Camera Hexapod or Rotator not in position.")
 
