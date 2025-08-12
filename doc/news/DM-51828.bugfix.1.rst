@@ -1,0 +1,1 @@
+Updated MTCS._ready_to_take_data use wait_for_in_position instead of the custom implementation that was only taking into account the mount and the camera hexapod.
