@@ -22,7 +22,6 @@
 __all__ = ["LSSTCam", "LSSTCamUsages"]
 
 import asyncio
-import json
 import logging
 import typing
 
@@ -122,7 +121,6 @@ class LSSTCam(BaseCamera):
         roi_spec_dict = roi_spec.model_dump()
         roi = roi_spec_dict.pop("roi")
         roi_spec_dict.update(roi)
-        self._roi_spec_json = json.dumps(roi_spec_dict, separators=(",", ":"))
 
     async def take_spot(
         self,
