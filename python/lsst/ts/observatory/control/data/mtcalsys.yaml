@@ -617,7 +617,7 @@ scan_none:
   wavelength_resolution: 10.0
   use_fiberspectrograph_red: False
   use_fiberspectrograph_blue: False
-  n_flat: 2
+  n_flat: 4
   exposure_times:
     - 30.0
 
