@@ -939,19 +939,20 @@ class MTCalsys(BaseCalsys):
             and LED dac value.
         """
         exposures: list[MTCalsysExposure] = []
+
+        if config_data["constrained_exp_times"] is not None:
+            # create random list of exposures with dac Values associated
+            # with each based on bin edges and numbers
+            exptimes = []  # random_exptimes
+            levels = []  # dacValues
+        else:
+            exptimes = config_data["exposure_times"]
+            levels = config_data["dac_value"] * np.ones(len(exptimes))
+
         for wavelength in wavelengths:
 
-            for exptime in config_data["exposure_times"]:
-                dac = config_data["dac_value"]
-                if config_data["ptc"]:
-                    if exptime < 1.0:
-                        dac = 0.15
-                        exptime = exptime * 100.0
-                    elif exptime > 30.0:
-                        dac = 0.8
-                        exptime = exptime - 40.0
-                if exptime < 1.0:
-                    exptime = 1.0
+            for i, exptime in enumerate(exptimes):
+                dac = levels[i]
 
                 electrometer_exptime = (
                     await self._calculate_electrometer_exposure_times(
