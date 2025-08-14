@@ -1382,16 +1382,16 @@ ptc_daily:
   use_fiberspectrograph_red: False
   use_fiberspectrograph_blue: False
   n_flat: 2
-  ptc: True
-  exposure_times:
-    - 0.1
-    - 0.5
-    - 1
-    - 10
-    - 15
-    - 30
-    - 45
-    - 60
+  constrained_random_exposure_times:
+    samples_per_bin:
+      - 5
+      - 10
+    bin_edges:
+      - [1.0, 30.0]
+      - [30.0, 60.0]
+    dac_values:
+      - 0.15
+      - 0.8
 
 persistence_i_39:
   mtcamera_filter: i_39

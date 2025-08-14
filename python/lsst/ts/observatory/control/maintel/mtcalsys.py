@@ -31,6 +31,7 @@ from lsst.ts import salobj, utils
 # TODO: (DM-46168) Revert workaround for TunableLaser XML changes
 from lsst.ts.observatory.control.utils.enums import LaserOpticalConfiguration
 from lsst.ts.xml.enums.TunableLaser import LaserDetailedState
+from numpy.typing import NDArray
 
 from ..base_calsys import BaseCalsys
 from ..remote_group import Usages
@@ -917,6 +918,59 @@ class MTCalsys(BaseCalsys):
             calibration_summary["steps"].append(step)
         return calibration_summary
 
+    def generate_random_exposure_times(
+        self,
+        samples_per_bin: list[int],
+        bin_edges: list[list[float]],
+        dac_values: list[float],
+    ) -> tuple[list[float], list[float]]:
+        """
+        Generate a list of random exposure times based on bin edges and the
+        number of samples per bin.
+        Parameters
+        ----------
+        samples_per_bin : int
+            The number of random samples to generate within each bin.
+        bin_edges : list of float
+            List of bin edges, with each element having a min and max value.
+            Each element must contain two values
+        dac_value : list od float
+            List of dac values for each exposure bin
+        Returns
+        -------
+        exposure_times : `list`
+            A list of random exposure times, rounded to 1 decimal place.
+            The length of the list will be: (len(bin_edges) - 1) *
+            samples_per_bin.
+        dac_values : `list`
+        Raises
+        ------
+        ValueError
+            If fewer than two bin edges are provided.
+        """
+        exposure_times_list: list[NDArray[np.float_]] = []
+        bin_edges = np.array(bin_edges, dtype=float)
+
+        for i, bin_ in enumerate(bin_edges):
+            if len(bin_) < 2:
+                raise ValueError(
+                    "At least two bin edges are required to define one bin."
+                )
+
+            samples = np.random.uniform(
+                low=bin_[0], high=bin_[1], size=samples_per_bin[i]
+            )
+            samples = np.round(samples, 1)
+            paired = np.column_stack(
+                (samples, np.full(samples_per_bin[i], dac_values[i]))
+            )
+            exposure_times_list.append(paired)
+
+        exposure_times: NDArray[np.float_] = np.vstack(exposure_times_list)
+        np.random.shuffle(exposure_times)
+
+        return exposure_times[:, 0].tolist(), exposure_times[:, 1].tolist()
+
     async def calculate_optimized_exposure_times(
         self, wavelengths: list, config_data: dict
     ) -> list[MTCalsysExposure]:
@@ -940,14 +994,17 @@ class MTCalsys(BaseCalsys):
         """
         exposures: list[MTCalsysExposure] = []
 
-        if config_data["constrained_exp_times"] is not None:
-            # create random list of exposures with dac Values associated
-            # with each based on bin edges and numbers
-            exptimes = []  # random_exptimes
-            levels = []  # dacValues
+        if config_data["constrained_random_exposure_times"] is not None:
+            random_exptimes = config_data["constrained_random_exposure_times"]
+            exptimes, levels = self.generate_random_exposure_times(
+                random_exptimes["samples_per_bin"],
+                random_exptimes["bin_edges"],
+                random_exptimes["dac_values"],
+            )
+
         else:
             exptimes = config_data["exposure_times"]
-            levels = config_data["dac_value"] * np.ones(len(exptimes))
+            levels = [config_data["dac_value"]] * len(exptimes)
 
         for wavelength in wavelengths:
 
