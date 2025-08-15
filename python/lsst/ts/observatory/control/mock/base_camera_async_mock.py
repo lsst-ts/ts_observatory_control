@@ -816,6 +816,270 @@ class BaseCameraAsyncMock(RemoteGroupAsyncMock):
 
         self.assert_take_calibration(expected_camera_exposure=expected_camera_exposure)
 
+    async def assert_take_indome(
+        self,
+        exptime: float,
+        n: int = 1,
+        group_id: typing.Optional[str] = None,
+        test_type: typing.Optional[str] = None,
+        reason: typing.Optional[str] = None,
+        program: typing.Optional[str] = None,
+        sensors: typing.Optional[str] = None,
+        note: typing.Optional[str] = None,
+        **kwargs: typing.Any,
+    ) -> None:
+        """Run take_indome and assert the await and calls were made with the
+        expected values.
+
+        Parameters
+        ----------
+        exptime : `float`
+            Exposure time (in seconds).
+        n : `int`, optional
+            Number of frames to take.
+        test_type : `str`
+            Optional string to be added to the keyword testType image header.
+        reason : `str`, optional
+            Reason for the data being taken. This must be a short tag-like
+            string that can be used to disambiguate a set of observations.
+        program : `str`, optional
+            Name of the program this data belongs to, e.g. WFD, DD, etc.
+        sensors : `str`
+            A colon delimited list of sensor names to use for the image.
+        note : `str`
+            Optional observer note to be added to the image header.
+        """
+
+        group_id = self.remote_group.next_group_id()
+
+        await self.remote_group.take_indome(
+            n=n,
+            exptime=exptime,
+            group_id=group_id,
+            test_type=test_type,
+            reason=reason,
+            program=program,
+            sensors=sensors,
+            note=note,
+            **kwargs,
+        )
+
+        expected_camera_exposure = CameraExposure(
+            exp_time=exptime,
+            shutter=True,
+            image_type="INDOME",
+            group_id=group_id,
+            n=n,
+            n_snaps=1,
+            n_shift=0,
+            row_shift=0,
+            test_type="INDOME" if test_type is None else test_type,
+            reason=reason,
+            program=program,
+            sensors=sensors if sensors is not None else "",
+            note=note if note is not None else "",
+        )
+
+        self.assert_take_images(expected_camera_exposure=expected_camera_exposure)
+
+    async def assert_take_cbp(
+        self,
+        exptime: float,
+        n: int = 1,
+        group_id: typing.Optional[str] = None,
+        test_type: typing.Optional[str] = None,
+        reason: typing.Optional[str] = None,
+        program: typing.Optional[str] = None,
+        sensors: typing.Optional[str] = None,
+        note: typing.Optional[str] = None,
+        **kwargs: typing.Any,
+    ) -> None:
+        """Run take_cbp and assert the await and calls were made with the
+        expected values.
+
+        Parameters
+        ----------
+        exptime : `float`
+            Exposure time (in seconds).
+        n : `int`, optional
+            Number of frames to take.
+        test_type : `str`
+            Optional string to be added to the keyword testType image header.
+        reason : `str`, optional
+            Reason for the data being taken. This must be a short tag-like
+            string that can be used to disambiguate a set of observations.
+        program : `str`, optional
+            Name of the program this data belongs to, e.g. WFD, DD, etc.
+        sensors : `str`
+            A colon delimited list of sensor names to use for the image.
+        note : `str`
+            Optional observer note to be added to the image header.
+        """
+
+        group_id = self.remote_group.next_group_id()
+
+        await self.remote_group.take_cbp(
+            n=n,
+            exptime=exptime,
+            group_id=group_id,
+            test_type=test_type,
+            reason=reason,
+            program=program,
+            sensors=sensors,
+            note=note,
+            **kwargs,
+        )
+
+        expected_camera_exposure = CameraExposure(
+            exp_time=exptime,
+            shutter=True,
+            image_type="CBP",
+            group_id=group_id,
+            n=n,
+            n_snaps=1,
+            n_shift=0,
+            row_shift=0,
+            test_type="CBP" if test_type is None else test_type,
+            reason=reason,
+            program=program,
+            sensors=sensors if sensors is not None else "",
+            note=note if note is not None else "",
+        )
+
+        self.assert_take_images(expected_camera_exposure=expected_camera_exposure)
+
+    async def assert_take_sflat(
+        self,
+        exptime: float,
+        n: int = 1,
+        group_id: typing.Optional[str] = None,
+        test_type: typing.Optional[str] = None,
+        reason: typing.Optional[str] = None,
+        program: typing.Optional[str] = None,
+        sensors: typing.Optional[str] = None,
+        note: typing.Optional[str] = None,
+        **kwargs: typing.Any,
+    ) -> None:
+        """Run take_sflat and assert the await and calls were made with the
+        expected values.
+
+        Parameters
+        ----------
+        exptime : `float`
+            Exposure time (in seconds).
+        n : `int`, optional
+            Number of frames to take.
+        test_type : `str`
+            Optional string to be added to the keyword testType image header.
+        reason : `str`, optional
+            Reason for the data being taken. This must be a short tag-like
+            string that can be used to disambiguate a set of observations.
+        program : `str`, optional
+            Name of the program this data belongs to, e.g. WFD, DD, etc.
+        sensors : `str`
+            A colon delimited list of sensor names to use for the image.
+        note : `str`
+            Optional observer note to be added to the image header.
+        """
+
+        group_id = self.remote_group.next_group_id()
+
+        await self.remote_group.take_sflat(
+            n=n,
+            exptime=exptime,
+            group_id=group_id,
+            test_type=test_type,
+            reason=reason,
+            program=program,
+            sensors=sensors,
+            note=note,
+            **kwargs,
+        )
+
+        expected_camera_exposure = CameraExposure(
+            exp_time=exptime,
+            shutter=True,
+            image_type="SFLAT",
+            group_id=group_id,
+            n=n,
+            n_snaps=1,
+            n_shift=0,
+            row_shift=0,
+            test_type="SFLAT" if test_type is None else test_type,
+            reason=reason,
+            program=program,
+            sensors=sensors if sensors is not None else "",
+            note=note if note is not None else "",
+        )
+
+        self.assert_take_images(expected_camera_exposure=expected_camera_exposure)
+
+    async def assert_take_dflat(
+        self,
+        exptime: float,
+        n: int = 1,
+        group_id: typing.Optional[str] = None,
+        test_type: typing.Optional[str] = None,
+        reason: typing.Optional[str] = None,
+        program: typing.Optional[str] = None,
+        sensors: typing.Optional[str] = None,
+        note: typing.Optional[str] = None,
+        **kwargs: typing.Any,
+    ) -> None:
+        """Run take_dflat and assert the await and calls were made with the
+        expected values.
+
+        Parameters
+        ----------
+        exptime : `float`
+            Exposure time (in seconds).
+        n : `int`, optional
+            Number of frames to take.
+        test_type : `str`
+            Optional string to be added to the keyword testType image header.
+        reason : `str`, optional
+            Reason for the data being taken. This must be a short tag-like
+            string that can be used to disambiguate a set of observations.
+        program : `str`, optional
+            Name of the program this data belongs to, e.g. WFD, DD, etc.
+        sensors : `str`
+            A colon delimited list of sensor names to use for the image.
+        note : `str`
+            Optional observer note to be added to the image header.
+        """
+
+        group_id = self.remote_group.next_group_id()
+
+        await self.remote_group.take_dflat(
+            n=n,
+            exptime=exptime,
+            group_id=group_id,
+            test_type=test_type,
+            reason=reason,
+            program=program,
+            sensors=sensors,
+            note=note,
+            **kwargs,
+        )
+
+        expected_camera_exposure = CameraExposure(
+            exp_time=exptime,
+            shutter=True,
+            image_type="DFLAT",
+            group_id=group_id,
+            n=n,
+            n_snaps=1,
+            n_shift=0,
+            row_shift=0,
+            test_type="DFLAT" if test_type is None else test_type,
+            reason=reason,
+            program=program,
+            sensors=sensors if sensors is not None else "",
+            note=note if note is not None else "",
+        )
+
+        self.assert_take_images(expected_camera_exposure=expected_camera_exposure)
+
     def assert_take_images(self, expected_camera_exposure: CameraExposure) -> None:
         """Assert that a take image operation was executed with the expected
         values for the input parameters.
