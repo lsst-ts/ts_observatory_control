@@ -171,23 +171,26 @@ properties:
         required:
           - bin_edges
           - samples_per_bin
-          - dac_value
+          - dac_values
         properties:
           bin_edges:
             description: List of lists with min and max for each bin
             type: array
             items:
               type: array
-              items: number
-              minItems: 2
+              items: 
+                type: number
+                minItems: 2
             minItems: 1
           samples_per_bin:
             type: array
-            items: integer
+            items: 
+              type: integer
             minimum: 1
           dac_values:
             type: array
-            items: number 
+            items: 
+              type: number 
             minimum: 1
   laser_mode:
     type: integer
@@ -242,6 +245,10 @@ properties:
 required:
 - calib_type
 - wavelength
+- use_camera
+- use_flatfield_electrometer
+- use_fiberspectrograph_red
+- use_fiberspectrograph_blue
 oneOf:
   - properties:
       exposure_times: {}

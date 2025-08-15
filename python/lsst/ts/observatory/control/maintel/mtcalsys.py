@@ -994,8 +994,8 @@ class MTCalsys(BaseCalsys):
         """
         exposures: list[MTCalsysExposure] = []
 
-        if config_data["constrained_random_exposure_times"] is not None:
-            random_exptimes = config_data["constrained_random_exposure_times"]
+        random_exptimes = config_data.get("constrained_random_exposure_times")
+        if random_exptimes is not None:
             exptimes, levels = self.generate_random_exposure_times(
                 random_exptimes["samples_per_bin"],
                 random_exptimes["bin_edges"],

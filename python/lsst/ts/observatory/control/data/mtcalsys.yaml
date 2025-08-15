@@ -275,8 +275,6 @@ whitelight_r_57_daily:
   wavelength: 612.5
   led_location: 66.87
   led_focus: 7.52
-  use_fiberspectrograph_red: False
-  use_fiberspectrograph_blue: False
   n_flat: 3
   exposure_times:
     - 10.0
@@ -1273,7 +1271,6 @@ ptc_i_39_100_a:
   use_fiberspectrograph_red: False
   use_fiberspectrograph_blue: False
   n_flat: 2
-  ptc: True
   exposure_times:
     - 1.0
     - 2.0
@@ -1296,7 +1293,6 @@ ptc_i_39_100_b:
   use_fiberspectrograph_red: False
   use_fiberspectrograph_blue: False
   n_flat: 2
-  ptc: True
   exposure_times:
     - 1.0
     - 2.0
@@ -1319,7 +1315,6 @@ ptc_i_39_100_c:
   use_fiberspectrograph_red: False
   use_fiberspectrograph_blue: False
   n_flat: 2
-  ptc: True
   exposure_times:
     - 1.0
     - 10.0
@@ -1340,7 +1335,6 @@ ptc_i_39_100_d:
   use_fiberspectrograph_red: False
   use_fiberspectrograph_blue: False
   n_flat: 2
-  ptc: True
   exposure_times:
     - 1.0
     - 30.0
@@ -1355,7 +1349,6 @@ ptc_i_39_100_e:
     - M810L3
   mtcamera_filter: i_39
   n_flat: 2
-  ptc: True
   use_camera: true
   use_fiberspectrograph_blue: false
   use_fiberspectrograph_red: false
@@ -1423,7 +1416,6 @@ ptc_i_39_100:
   use_fiberspectrograph_blue: False
   use_flatfield_electrometer: False
   n_flat: 2
-  ptc: True
   exposure_times:
     - 15.0
     - 18.912
@@ -1544,7 +1536,6 @@ ptc_i_39_500:
   use_fiberspectrograph_blue: False
   use_flatfield_electrometer: True
   n_flat: 2
-  ptc: True
   exposure_times:
     - 15.0
     - 0.240
@@ -2085,7 +2076,6 @@ ptc_i_39_750:
   use_fiberspectrograph_red: False
   use_fiberspectrograph_blue: False
   n_flat: 2
-  ptc: True
   exposure_times:
     - 15.0
     - 61.618
