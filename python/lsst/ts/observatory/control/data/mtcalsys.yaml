@@ -613,8 +613,9 @@ scan_none:
   use_camera: True
   mtcamera_filter: NONE
   wavelength: 770
-  wavelength_width: 940
+  wavelength_width: 800
   wavelength_resolution: 10.0
+  electrometer_integration_time: 1
   use_fiberspectrograph_red: False
   use_fiberspectrograph_blue: False
   n_flat: 4
@@ -693,6 +694,7 @@ laser_functional:
   laser_mode: 1
   use_camera: False
   optical_configuration: F1 SCU
+  electrometer_integration_time: 1
   wavelength: 700.0
   wavelength_width: 800
   wavelength_resolution: 100.
