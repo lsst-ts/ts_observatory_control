@@ -613,7 +613,7 @@ scan_none:
   use_camera: True
   mtcamera_filter: NONE
   wavelength: 770
-  wavelength_width: 940
+  wavelength_width: 800
   wavelength_resolution: 10.0
   electrometer_integration_time: 1
   use_fiberspectrograph_red: False
