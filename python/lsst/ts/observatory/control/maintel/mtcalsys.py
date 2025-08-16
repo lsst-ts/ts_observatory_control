@@ -31,6 +31,7 @@ from lsst.ts import salobj, utils
 # TODO: (DM-46168) Revert workaround for TunableLaser XML changes
 from lsst.ts.observatory.control.utils.enums import LaserOpticalConfiguration
 from lsst.ts.xml.enums.TunableLaser import LaserDetailedState
+from numpy.typing import NDArray
 
 from ..base_calsys import BaseCalsys
 from ..remote_group import Usages
@@ -97,6 +98,7 @@ class MTCalsysExposure:
     fiberspectrograph_red: float | None
     fiberspectrograph_blue: float | None
     electrometer: float | None
+    dacValue: float | None
 
 
 class MTCalsys(BaseCalsys):
@@ -892,6 +894,9 @@ class MTCalsys(BaseCalsys):
                 )
             else:
                 self.log.info("Calibration Type is WhiteLight")
+                await self.rem.ledprojector.cmd_adjustAllDACPower.set_start(
+                    dacValue=exposure.dacValue
+                )
                 exposure_info = await self._take_data(
                     mtcamera_exptime=exposure.camera,
                     mtcamera_filter=str(config_data["mtcamera_filter"]),
@@ -906,11 +911,65 @@ class MTCalsys(BaseCalsys):
 
             step = dict(
                 wavelength=exposure.wavelength,
+                dacValue=exposure.dacValue,
                 mtcamera_exposure_info=mtcamera_exposure_info,
             )
 
             calibration_summary["steps"].append(step)
         return calibration_summary
+
+    def generate_random_exposure_times(
+        self,
+        samples_per_bin: list[int],
+        bin_edges: list[list[float]],
+        dac_values: list[float],
+    ) -> tuple[list[float], list[float]]:
+        """
+        Generate a list of random exposure times based on bin edges and the
+        number of samples per bin.
+        Parameters
+        ----------
+        samples_per_bin : int
+            The number of random samples to generate within each bin.
+        bin_edges : list of float
+            List of bin edges, with each element having a min and max value.
+            Each element must contain two values
+        dac_value : list od float
+            List of dac values for each exposure bin
+        Returns
+        -------
+        exposure_times : `list`
+            A list of random exposure times, rounded to 1 decimal place.
+            The length of the list will be: (len(bin_edges) - 1) *
+            samples_per_bin.
+        dac_values : `list`
+        Raises
+        ------
+        ValueError
+            If fewer than two bin edges are provided.
+        """
+        exposure_times_list: list[NDArray[np.float_]] = []
+        bin_edges = np.array(bin_edges, dtype=float)
+
+        for i, bin_ in enumerate(bin_edges):
+            if len(bin_) < 2:
+                raise ValueError(
+                    "At least two bin edges are required to define one bin."
+                )
+
+            samples = np.random.uniform(
+                low=bin_[0], high=bin_[1], size=samples_per_bin[i]
+            )
+            samples = np.round(samples, 1)
+            paired = np.column_stack(
+                (samples, np.full(samples_per_bin[i], dac_values[i]))
+            )
+            exposure_times_list.append(paired)
+
+        exposure_times: NDArray[np.float_] = np.vstack(exposure_times_list)
+        np.random.shuffle(exposure_times)
+
+        return exposure_times[:, 0].tolist(), exposure_times[:, 1].tolist()
 
     async def calculate_optimized_exposure_times(
         self, wavelengths: list, config_data: dict
@@ -930,41 +989,62 @@ class MTCalsys(BaseCalsys):
         -------
         exposure_list : `list`[ATCalsysExposure|MTCalsysExposure]
             List of exposure information, includes wavelength
-            and camera, fiberspectrograph and electrometer exposure times.
+            and camera, fiberspectrograph and electrometer exposure times,
+            and LED dac value.
         """
         exposures: list[MTCalsysExposure] = []
+
+        random_exptimes = config_data.get("constrained_random_exposure_times")
+        if random_exptimes is not None:
+            exptimes, levels = self.generate_random_exposure_times(
+                random_exptimes["samples_per_bin"],
+                random_exptimes["bin_edges"],
+                random_exptimes["dac_values"],
+            )
+
+        else:
+            exptimes = config_data["exposure_times"]
+            levels = [config_data["dac_value"]] * len(exptimes)
+
         for wavelength in wavelengths:
 
-            electrometer_exptimes = await self._calculate_electrometer_exposure_times(
-                exptimes=config_data["exposure_times"],
-                electrometer_integration_time=config_data[
-                    "electrometer_integration_time"
-                ],
-                use_electrometer=config_data["use_flatfield_electrometer"]
-                or config_data["use_cbp_electrometer"],
-            )
-            fiberspectrograph_exptimes_red = (
-                await self._calculate_fiberspectrograph_exposure_times(
-                    exptimes=config_data["exposure_times"],
-                    use_fiberspectrograph=config_data["use_fiberspectrograph_red"],
-                )
-            )
-            fiberspectrograph_exptimes_blue = (
-                await self._calculate_fiberspectrograph_exposure_times(
-                    exptimes=config_data["exposure_times"],
-                    use_fiberspectrograph=config_data["use_fiberspectrograph_blue"],
-                )
-            )
+            for i, exptime in enumerate(exptimes):
+                dac = levels[i]
 
-            for i, exptime in enumerate(config_data["exposure_times"]):
+                electrometer_exptime = (
+                    await self._calculate_electrometer_exposure_times(
+                        exptimes=[exptime],
+                        electrometer_integration_time=config_data[
+                            "electrometer_integration_time"
+                        ],
+                        use_electrometer=config_data["use_flatfield_electrometer"]
+                        or config_data["use_cbp_electrometer"],
+                    )
+                )
+
+                fiberspectrograph_exptime_red = (
+                    await self._calculate_fiberspectrograph_exposure_times(
+                        exptimes=[exptime],
+                        use_fiberspectrograph=config_data["use_fiberspectrograph_red"],
+                    )
+                )
+
+                fiberspectrograph_exptime_blue = (
+                    await self._calculate_fiberspectrograph_exposure_times(
+                        exptimes=[exptime],
+                        use_fiberspectrograph=config_data["use_fiberspectrograph_blue"],
+                    )
+                )
+
                 for n in range(config_data["n_flat"]):
                     exposures.append(
                         MTCalsysExposure(
                             wavelength=wavelength,
                             camera=exptime,
-                            electrometer=electrometer_exptimes[i],
-                            fiberspectrograph_red=fiberspectrograph_exptimes_red[i],
-                            fiberspectrograph_blue=fiberspectrograph_exptimes_blue[i],
+                            dacValue=dac,
+                            electrometer=electrometer_exptime[0],
+                            fiberspectrograph_red=fiberspectrograph_exptime_red[0],
+                            fiberspectrograph_blue=fiberspectrograph_exptime_blue[0],
                         )
                     )
 

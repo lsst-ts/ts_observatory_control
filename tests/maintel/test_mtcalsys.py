@@ -278,6 +278,40 @@ class TestMTCalsys(RemoteGroupAsyncMock):
         ].values():
             assert len(mtcamera_exposure_info["electrometer_exposure_result"]) == 1
 
+    async def test_run_calibration_sequence_ptc(self) -> None:
+
+        mock_comcam = ComCam(
+            "FakeDomain", log=self.log, intended_usage=ComCamUsages.DryTest
+        )
+        mock_comcam.take_flats = unittest.mock.AsyncMock()
+
+        self.mtcalsys.mtcamera = mock_comcam
+
+        try:
+            calibration_summary = await self.mtcalsys.run_calibration_sequence(
+                "ptc_daily", exposure_metadata=dict()
+            )
+        finally:
+            self.mtcalsys.mtcamera = None
+
+        config_data = self.mtcalsys.get_calibration_configuration("ptc_daily")
+
+        assert "sequence_name" in calibration_summary
+        assert calibration_summary["sequence_name"] == "ptc_daily"
+        assert "steps" in calibration_summary
+        self.log.debug(f"number of steps: {len(calibration_summary['steps'])}")
+        assert (
+            len(calibration_summary["steps"])
+            == np.sum(
+                config_data["constrained_random_exposure_times"]["samples_per_bin"]
+            )
+            * config_data["n_flat"]
+        )
+        for mtcamera_exposure_info in calibration_summary["steps"][0][
+            "mtcamera_exposure_info"
+        ].values():
+            assert len(mtcamera_exposure_info["electrometer_exposure_result"]) == 1
+
     async def test_run_calibration_sequence_mono(self) -> None:
 
         mock_comcam = ComCam(
