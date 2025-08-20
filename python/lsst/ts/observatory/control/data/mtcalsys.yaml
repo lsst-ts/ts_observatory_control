@@ -523,8 +523,8 @@ scan_g:
   optical_configuration: F1 SCU
   use_camera: True
   mtcamera_filter: g_6
-  wavelength: 475.0
-  wavelength_width: 150
+  wavelength: 480.0
+  wavelength_width: 190
   wavelength_resolution: 5.0
   use_fiberspectrograph_red: False
   use_fiberspectrograph_blue: False
@@ -539,7 +539,7 @@ scan_r:
   use_camera: True
   mtcamera_filter: r_57
   wavelength: 620.0
-  wavelength_width: 160
+  wavelength_width: 180
   wavelength_resolution: 5.0
   use_fiberspectrograph_red: False
   use_fiberspectrograph_blue: False
@@ -568,7 +568,7 @@ scan_i:
   use_camera: True
   mtcamera_filter: i_39
   wavelength: 755.0
-  wavelength_width: 150
+  wavelength_width: 190
   wavelength_resolution: 5.0
   use_fiberspectrograph_red: False
   use_fiberspectrograph_blue: False
@@ -583,7 +583,7 @@ scan_z:
   use_camera: True
   mtcamera_filter: z_20
   wavelength: 870.0
-  wavelength_width: 120
+  wavelength_width: 160
   wavelength_resolution: 5.0
   use_fiberspectrograph_red: False
   use_fiberspectrograph_blue: False
@@ -597,8 +597,8 @@ scan_y:
   optical_configuration: F1 SCU
   use_camera: True
   mtcamera_filter: y_10
-  wavelength: 1015.0
-  wavelength_width: 170
+  wavelength: 1025.0
+  wavelength_width: 250
   wavelength_resolution: 5.0
   use_fiberspectrograph_red: False
   use_fiberspectrograph_blue: False
