@@ -1,0 +1,1 @@
+In atcs.py, add feature to await that ataos m1 corrections are disabled before returning disable_ataos_corrections method.

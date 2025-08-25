@@ -28,6 +28,7 @@ import numpy as np
 from lsst.ts import utils, xml
 from lsst.ts.observatory.control.maintel.mtcs import MTCS, MTCSUsages
 from lsst.ts.observatory.control.mock import RemoteGroupAsyncMock
+from lsst.ts.xml import type_hints
 from lsst.ts.xml.enums import MTM1M3, MTDome
 
 
@@ -175,6 +176,7 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
             primaryTestTimestamps=[0.0] * len(self.mtcs.get_m1m3_actuator_ids()),
             secondaryTestTimestamps=[0.0]
             * len(self.mtcs.get_m1m3_actuator_secondary_ids()),
+            private_sndStamp=0.0,
         )
         self._mtm1m3_evt_force_actuator_state = types.SimpleNamespace(
             slewFlag=False,
@@ -216,6 +218,11 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
             useBalanceForces=False,
             triggerBoosterValves=False,
             useVelocityForces=False,
+        )
+
+        # MTAOS
+        self._mtaos_evt_closed_loop_state = types.SimpleNamespace(
+            state=xml.enums.MTAOS.ClosedLoopState.IDLE
         )
 
     async def setup_mocks(self) -> None:
@@ -437,6 +444,10 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
                 value=np.zeros(offset_dof_field_info.value.count)
             ),
             "cmd_offsetDOF.start.side_effect": self.mtaos_cmd_offset_dof,
+            "cmd_stopClosedLoop.start.side_effect": self.mtaos_cmd_stop_closed_loop,
+            "cmd_startClosedLoop.set_start.side_effect": self.mtaos_cmd_start_closed_loop,
+            "evt_closedLoopState.aget.side_effect": self.mtaos_evt_closed_loop_state,
+            "evt_closedLoopState.next.side_effect": self.mtaos_evt_closed_loop_state,
         }
 
         self.mtcs.rem.mtaos.configure_mock(**mtaos_mocks)
@@ -865,9 +876,12 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
 
     async def mtm1m3_cmd_force_actuator_bump_test(
         self, *args: typing.Any, **kwargs: typing.Any
-    ) -> None:
+    ) -> type_hints.BaseMsgType:
         actuator_id = kwargs["actuatorId"]
         self._mtm1m3_evt_force_actuator_bump_test_status.actuatorId = actuator_id
+        self._mtm1m3_evt_force_actuator_bump_test_status.private_sndStamp = (
+            utils.current_tai()
+        )
         if (
             kwargs["testSecondary"]
             and actuator_id not in self.mtcs.get_m1m3_actuator_secondary_ids()
@@ -880,6 +894,7 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
                 test_secondary=kwargs["testSecondary"],
             )
         )
+        return type_hints.BaseMsgType(private_sndStamp=utils.current_tai())
 
     async def mtm1m3_cmd_abort_raise_m1m3(
         self, *args: typing.Any, **kwargs: typing.Any
@@ -1002,6 +1017,9 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
             actuator_index = self.mtcs.get_m1m3_actuator_index(actuator_id=actuator_id)
 
             for state in bump_test_states:
+                self._mtm1m3_evt_force_actuator_bump_test_status.private_sndStamp = (
+                    utils.current_tai()
+                )
                 self._mtm1m3_evt_force_actuator_bump_test_status.primaryTest[
                     actuator_index
                 ] = state
@@ -1018,12 +1036,18 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
             self._mtm1m3_evt_force_actuator_bump_test_status.primaryTestTimestamps[
                 actuator_index
             ] = utils.current_tai()
+            self._mtm1m3_evt_force_actuator_bump_test_status.private_sndStamp = (
+                utils.current_tai()
+            )
 
         if test_secondary:
             actuator_sindex = self.mtcs.get_m1m3_actuator_secondary_index(
                 actuator_id=actuator_id
             )
             for state in bump_test_states:
+                self._mtm1m3_evt_force_actuator_bump_test_status.private_sndStamp = (
+                    utils.current_tai()
+                )
                 self._mtm1m3_evt_force_actuator_bump_test_status.secondaryTest[
                     actuator_sindex
                 ] = state
@@ -1230,6 +1254,40 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
             sync=True,
             timeout=kwargs["timeout"],
         )
+
+    async def mtaos_cmd_stop_closed_loop(
+        self, *args: typing.Any, **kwargs: typing.Any
+    ) -> None:
+        asyncio.create_task(self._mtaos_stop_closed_loop())
+
+    async def _mtaos_stop_closed_loop(self) -> None:
+        self.log.info("Disabling MTAOS closed loop.")
+        self._mtaos_evt_closed_loop_state.state = (
+            xml.enums.MTAOS.ClosedLoopState.WAITING_IMAGE
+        )
+        await asyncio.sleep(self.heartbeat_time * 3)
+        self._mtaos_evt_closed_loop_state.state = xml.enums.MTAOS.ClosedLoopState.IDLE
+        self.log.info("MTAOS closed loop disabled.")
+
+    async def mtaos_cmd_start_closed_loop(
+        self, *args: typing.Any, **kwargs: typing.Any
+    ) -> None:
+        asyncio.create_task(self._mtaos_start_closed_loop())
+
+    async def _mtaos_start_closed_loop(self) -> None:
+        self.log.info("Enabling MTAOS closed loop.")
+        self._mtaos_evt_closed_loop_state.state = xml.enums.MTAOS.ClosedLoopState.IDLE
+        await asyncio.sleep(self.heartbeat_time * 3)
+        self._mtaos_evt_closed_loop_state.state = (
+            xml.enums.MTAOS.ClosedLoopState.WAITING_IMAGE
+        )
+        self.log.info("MTAOS closed loop enabled.")
+
+    async def mtaos_evt_closed_loop_state(
+        self, *args: typing.Any, **kwargs: typing.Any
+    ) -> types.SimpleNamespace:
+        await asyncio.sleep(self.heartbeat_time)
+        return self._mtaos_evt_closed_loop_state
 
     async def mthexapod_2_cmd_offset(
         self, *args: typing.Any, **kwargs: typing.Any

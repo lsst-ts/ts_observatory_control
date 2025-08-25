@@ -845,6 +845,27 @@ class TestMTCS(MTCSAsyncMock):
 
         assert self.mtcs.rem.mtdome.evt_azMotion.inPosition
 
+    async def test_slew_dome_to_with_mtdometrajectory_ignored_and_following_enabled(
+        self,
+    ) -> None:
+        az = 90.0
+        await self.mtcs.enable()
+        await self.mtcs.assert_all_enabled()
+        # Simulate mtdometrajectory ignored
+        self.mtcs.check.mtdometrajectory = False
+
+        # Patch check_dome_following to simulate dome following enabled
+        async def always_true() -> bool:
+            return True
+
+        self.mtcs.check_dome_following = always_true
+
+        with pytest.raises(RuntimeError) as excinfo:
+            await self.mtcs.slew_dome_to(az=az)
+        assert "is ignored" in str(
+            excinfo.value
+        ) and "dome following is enabled" in str(excinfo.value)
+
     async def test_close_dome_when_m1_cover_deployed_and_wrong_el(self) -> None:
         self._mtmount_evt_mirror_covers_motion_state.state = (
             MTMount.DeployableMotionState.DEPLOYED
@@ -1714,12 +1735,6 @@ class TestMTCS(MTCSAsyncMock):
     async def test_run_m1m3_actuator_bump_test_default(self) -> None:
         actuator_id = self.mtcs.get_m1m3_actuator_secondary_ids()[0]
 
-        # Mock the default behavior for this test
-        self.mtcs.get_m1m3_bump_test_status.return_value = (
-            MTM1M3.BumpTest.PASSED,
-            MTM1M3.BumpTest.NOTTESTED,
-        )
-
         await self.mtcs.run_m1m3_actuator_bump_test(
             actuator_id=actuator_id,
         )
@@ -1735,9 +1750,8 @@ class TestMTCS(MTCSAsyncMock):
             testSecondary=False,
             timeout=self.mtcs.long_timeout,
         )
-        self.mtcs.rem.mtm1m3.evt_forceActuatorBumpTestStatus.next.assert_awaited_with(
-            flush=False,
-            timeout=self.mtcs.long_timeout,
+        self.mtcs.rem.mtm1m3.evt_forceActuatorBumpTestStatus.aget.assert_awaited_with(
+            timeout=self.mtcs.fast_timeout,
         )
 
         assert primary_status == MTM1M3.BumpTest.PASSED
@@ -1746,12 +1760,6 @@ class TestMTCS(MTCSAsyncMock):
     async def test_run_m1m3_actuator_bump_test_default_no_secondary(self) -> None:
         actuator_id = 101
 
-        # Mock the default behavior for this test
-        self.mtcs.get_m1m3_bump_test_status.return_value = (
-            MTM1M3.BumpTest.PASSED,
-            None,
-        )
-
         await self.mtcs.run_m1m3_actuator_bump_test(
             actuator_id=actuator_id,
         )
@@ -1767,9 +1775,8 @@ class TestMTCS(MTCSAsyncMock):
             testSecondary=False,
             timeout=self.mtcs.long_timeout,
         )
-        self.mtcs.rem.mtm1m3.evt_forceActuatorBumpTestStatus.next.assert_awaited_with(
-            flush=False,
-            timeout=self.mtcs.long_timeout,
+        self.mtcs.rem.mtm1m3.evt_forceActuatorBumpTestStatus.aget.assert_awaited_with(
+            timeout=self.mtcs.fast_timeout,
         )
 
         assert primary_status == MTM1M3.BumpTest.PASSED
@@ -1777,12 +1784,6 @@ class TestMTCS(MTCSAsyncMock):
 
     async def test_run_m1m3_actuator_bump_test_primary_secondary(self) -> None:
         actuator_id = self.mtcs.get_m1m3_actuator_secondary_ids()[0]
-
-        # Mock the default behavior for this test
-        self.mtcs.get_m1m3_bump_test_status.return_value = (
-            MTM1M3.BumpTest.PASSED,
-            MTM1M3.BumpTest.PASSED,
-        )
 
         await self.mtcs.run_m1m3_actuator_bump_test(
             actuator_id=actuator_id,
@@ -1801,9 +1802,8 @@ class TestMTCS(MTCSAsyncMock):
             testSecondary=True,
             timeout=self.mtcs.long_timeout,
         )
-        self.mtcs.rem.mtm1m3.evt_forceActuatorBumpTestStatus.next.assert_awaited_with(
-            flush=False,
-            timeout=self.mtcs.long_timeout,
+        self.mtcs.rem.mtm1m3.evt_forceActuatorBumpTestStatus.aget.assert_awaited_with(
+            timeout=self.mtcs.fast_timeout,
         )
 
         assert primary_status == MTM1M3.BumpTest.PASSED
@@ -1811,12 +1811,6 @@ class TestMTCS(MTCSAsyncMock):
 
     async def test_run_m1m3_actuator_bump_test_secondary(self) -> None:
         actuator_id = self.mtcs.get_m1m3_actuator_secondary_ids()[0]
-
-        # Mock the default behavior for this test
-        self.mtcs.get_m1m3_bump_test_status.return_value = (
-            MTM1M3.BumpTest.NOTTESTED,
-            MTM1M3.BumpTest.PASSED,
-        )
 
         await self.mtcs.run_m1m3_actuator_bump_test(
             actuator_id=actuator_id,
@@ -1835,9 +1829,8 @@ class TestMTCS(MTCSAsyncMock):
             testSecondary=True,
             timeout=self.mtcs.long_timeout,
         )
-        self.mtcs.rem.mtm1m3.evt_forceActuatorBumpTestStatus.next.assert_awaited_with(
-            flush=False,
-            timeout=self.mtcs.long_timeout,
+        self.mtcs.rem.mtm1m3.evt_forceActuatorBumpTestStatus.aget.assert_awaited_with(
+            timeout=self.mtcs.fast_timeout,
         )
 
         assert primary_status == MTM1M3.BumpTest.NOTTESTED
@@ -1846,39 +1839,9 @@ class TestMTCS(MTCSAsyncMock):
     async def test_run_m1m3_actuator_bump_test_fail(self) -> None:
         # Get a SAA actuator
         actuator_id = self.mtcs.get_m1m3_actuator_secondary_ids()[0]
-        actuator_index = self.mtcs.get_m1m3_actuator_index(actuator_id)
 
-        # Determine if the environment uses old or new XML
-        if hasattr(MTM1M3.BumpTest, "FAILED"):
-            # Old XML version
-            failed_state = MTM1M3.BumpTest.FAILED
-        else:
-            # New XML version
-            failed_state = MTM1M3.BumpTest.FAILED_TESTEDPOSITIVE_OVERSHOOT
-
-        # Mock the failure state for the primary bump test
-        primary_test_mock = [MTM1M3.BumpTest.PASSED] * len(
-            self.mtcs.get_m1m3_actuator_ids()
-        )
-        primary_test_mock[actuator_index] = failed_state
-
-        secondary_test_mock = [MTM1M3.BumpTest.NOTTESTED] * len(
-            self.mtcs.get_m1m3_actuator_secondary_ids()
-        )
-
-        self.mtcs.rem.mtm1m3.evt_forceActuatorBumpTestStatus.next = (
-            unittest.mock.AsyncMock(
-                return_value=unittest.mock.Mock(
-                    actuatorId=actuator_id,
-                    primaryTest=primary_test_mock,
-                    secondaryTest=secondary_test_mock,
-                )
-            )
-        )
-
-        # Mock get_m1m3_bump_test_status to return the failure state
-        self.mtcs.get_m1m3_bump_test_status = unittest.mock.AsyncMock(
-            return_value=(failed_state, MTM1M3.BumpTest.NOTTESTED)
+        self.desired_bump_test_final_status = (
+            MTM1M3.BumpTest.FAILED_TESTEDPOSITIVE_OVERSHOOT
         )
 
         # Run the test and expect a RuntimeError
@@ -1900,49 +1863,19 @@ class TestMTCS(MTCSAsyncMock):
             testSecondary=False,
             timeout=self.mtcs.long_timeout,
         )
-        self.mtcs.rem.mtm1m3.evt_forceActuatorBumpTestStatus.next.assert_awaited_with(
-            flush=False,
-            timeout=self.mtcs.long_timeout,
+        self.mtcs.rem.mtm1m3.evt_forceActuatorBumpTestStatus.aget.assert_awaited_with(
+            timeout=self.mtcs.fast_timeout,
         )
 
-        assert primary_status == failed_state
+        assert primary_status == MTM1M3.BumpTest.FAILED_TESTEDPOSITIVE_OVERSHOOT
         assert secondary_status == MTM1M3.BumpTest.NOTTESTED
 
     async def test_run_m1m3_actuator_bump_test_2nd_fail(self) -> None:
         # Get a DAA actuator
         actuator_id = 218
-        actuator_2nd_index = self.mtcs.get_m1m3_actuator_secondary_index(actuator_id)
 
-        # Determine if the environment uses old or new XML
-        if hasattr(MTM1M3.BumpTest, "FAILED"):
-            # Old XML version
-            failed_state = MTM1M3.BumpTest.FAILED
-        else:
-            # New XML version
-            failed_state = MTM1M3.BumpTest.FAILED_TESTEDPOSITIVE_OVERSHOOT
-
-        # Mock the failure state for the secondary bump test
-        primary_test_mock = [MTM1M3.BumpTest.NOTTESTED] * len(
-            self.mtcs.get_m1m3_actuator_ids()
-        )
-        secondary_test_mock = [MTM1M3.BumpTest.PASSED] * len(
-            self.mtcs.get_m1m3_actuator_secondary_ids()
-        )
-        secondary_test_mock[actuator_2nd_index] = failed_state
-
-        self.mtcs.rem.mtm1m3.evt_forceActuatorBumpTestStatus.next = (
-            unittest.mock.AsyncMock(
-                return_value=unittest.mock.Mock(
-                    actuatorId=actuator_id,
-                    primaryTest=primary_test_mock,
-                    secondaryTest=secondary_test_mock,
-                )
-            )
-        )
-
-        # Mock get_m1m3_bump_test_status to return the failure state
-        self.mtcs.get_m1m3_bump_test_status = unittest.mock.AsyncMock(
-            return_value=(MTM1M3.BumpTest.NOTTESTED, failed_state)
+        self.desired_bump_test_final_status = (
+            MTM1M3.BumpTest.FAILED_TESTEDPOSITIVE_OVERSHOOT
         )
 
         # Run the test and expect a RuntimeError
@@ -1966,51 +1899,19 @@ class TestMTCS(MTCSAsyncMock):
             testSecondary=True,
             timeout=self.mtcs.long_timeout,
         )
-        self.mtcs.rem.mtm1m3.evt_forceActuatorBumpTestStatus.next.assert_awaited_with(
-            flush=False,
-            timeout=self.mtcs.long_timeout,
+        self.mtcs.rem.mtm1m3.evt_forceActuatorBumpTestStatus.aget.assert_awaited_with(
+            timeout=self.mtcs.fast_timeout,
         )
 
         assert primary_status == MTM1M3.BumpTest.NOTTESTED
-        assert secondary_status == failed_state
+        assert secondary_status == MTM1M3.BumpTest.FAILED_TESTEDPOSITIVE_OVERSHOOT
 
     async def test_run_m1m3_actuator_bump_test_both_fail(self) -> None:
         # Get a DAA actuator
         actuator_id = self.mtcs.get_m1m3_actuator_secondary_ids()[1]
-        actuator_index = self.mtcs.get_m1m3_actuator_index(actuator_id)
-        actuator_2nd_index = self.mtcs.get_m1m3_actuator_secondary_index(actuator_id)
 
-        # Determine if the environment uses old or new XML
-        if hasattr(MTM1M3.BumpTest, "FAILED"):
-            # Old XML version
-            failed_state = MTM1M3.BumpTest.FAILED
-        else:
-            # New XML version
-            failed_state = MTM1M3.BumpTest.FAILED_TESTEDPOSITIVE_OVERSHOOT
-
-        # Mock the failure state for both bump tests
-        primary_test_mock = [MTM1M3.BumpTest.NOTTESTED] * len(
-            self.mtcs.get_m1m3_actuator_ids()
-        )
-        secondary_test_mock = [MTM1M3.BumpTest.NOTTESTED] * len(
-            self.mtcs.get_m1m3_actuator_secondary_ids()
-        )
-        primary_test_mock[actuator_index] = failed_state
-        secondary_test_mock[actuator_2nd_index] = failed_state
-
-        self.mtcs.rem.mtm1m3.evt_forceActuatorBumpTestStatus.next = (
-            unittest.mock.AsyncMock(
-                return_value=unittest.mock.Mock(
-                    actuatorId=actuator_id,
-                    primaryTest=primary_test_mock,
-                    secondaryTest=secondary_test_mock,
-                )
-            )
-        )
-
-        # Mock get_m1m3_bump_test_status to return the failure state
-        self.mtcs.get_m1m3_bump_test_status = unittest.mock.AsyncMock(
-            return_value=(failed_state, failed_state)
+        self.desired_bump_test_final_status = (
+            MTM1M3.BumpTest.FAILED_TESTEDPOSITIVE_OVERSHOOT
         )
 
         # Run the test and expect a RuntimeError
@@ -2035,30 +1936,15 @@ class TestMTCS(MTCSAsyncMock):
             timeout=self.mtcs.long_timeout,
         )
 
-        assert primary_status == failed_state
-        assert secondary_status == failed_state
+        assert primary_status == MTM1M3.BumpTest.FAILED_TESTEDPOSITIVE_OVERSHOOT
+        assert secondary_status == MTM1M3.BumpTest.FAILED_TESTEDPOSITIVE_OVERSHOOT
 
     async def test_stop_m1m3_bump_test_running(self) -> None:
-        self._mtm1m3_evt_force_actuator_bump_test_status.actuatorId = 102
-
         await self.mtcs.stop_m1m3_bump_test()
 
-        self.mtcs.rem.mtm1m3.evt_forceActuatorBumpTestStatus.aget.assert_awaited_with(
-            timeout=self.mtcs.fast_timeout
-        )
         self.mtcs.rem.mtm1m3.cmd_killForceActuatorBumpTest.start.assert_awaited_with(
             timeout=self.mtcs.long_timeout
         )
-
-    async def test_stop_m1m3_bump_test_not_running(self) -> None:
-        self._mtm1m3_evt_force_actuator_bump_test_status.actuatorId = -1
-
-        await self.mtcs.stop_m1m3_bump_test()
-
-        self.mtcs.rem.mtm1m3.evt_forceActuatorBumpTestStatus.aget.assert_awaited_with(
-            timeout=self.mtcs.fast_timeout
-        )
-        self.mtcs.rem.mtm1m3.cmd_killForceActuatorBumpTest.start.assert_not_awaited()
 
     async def test_run_m1m3_actuator_bump_bad_secondary_index(self) -> None:
         primary_index = self.mtcs.get_m1m3_actuator_ids()
@@ -2793,3 +2679,20 @@ class TestMTCS(MTCSAsyncMock):
 
         self.mtcs.rem.mtm1m3.cmd_enterEngineering.start.assert_awaited_once()
         self.mtcs.rem.mtm1m3.cmd_exitEngineering.start.assert_awaited_once()
+
+    async def test_disable_aos_closed_loop(self) -> None:
+        await self.mtcs.disable_aos_closed_loop()
+        self.mtcs.rem.mtaos.cmd_stopClosedLoop.start.assert_awaited_once()
+
+    async def test_enable_aos_closed_loop(self) -> None:
+        config = {
+            "truncation_index": 5,
+            "comp_dof_idx": {
+                "m2HexPos": [0, 1, 2, 3, 4],
+            },
+        }
+
+        await self.mtcs.enable_aos_closed_loop(config)
+        self.mtcs.rem.mtaos.cmd_startClosedLoop.set_start.assert_awaited_once_with(
+            config=config, timeout=self.mtcs.aos_closed_loop_timeout
+        )

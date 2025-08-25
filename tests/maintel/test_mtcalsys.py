@@ -276,7 +276,7 @@ class TestMTCalsys(RemoteGroupAsyncMock):
         for mtcamera_exposure_info in calibration_summary["steps"][0][
             "mtcamera_exposure_info"
         ].values():
-            assert len(mtcamera_exposure_info["electrometer_exposure_result"]) >= 1
+            assert len(mtcamera_exposure_info["electrometer_exposure_result"]) == 1
 
     async def test_run_calibration_sequence_mono(self) -> None:
 
@@ -287,14 +287,16 @@ class TestMTCalsys(RemoteGroupAsyncMock):
 
         self.mtcalsys.mtcamera = mock_comcam
 
+        sequence_name = "scan_r_unittest"
+
         try:
             calibration_summary = await self.mtcalsys.run_calibration_sequence(
-                "scan_r", exposure_metadata=dict()
+                sequence_name, exposure_metadata=dict()
             )
         finally:
             self.mtcalsys.mtcamera = None
 
-        config_data = self.mtcalsys.get_calibration_configuration("scan_r")
+        config_data = self.mtcalsys.get_calibration_configuration(sequence_name)
         wavelength = float(config_data["wavelength"])
         wavelength_width = float(config_data["wavelength_width"])
         wavelength_resolution = float(config_data["wavelength_resolution"])
@@ -312,7 +314,7 @@ class TestMTCalsys(RemoteGroupAsyncMock):
         ]
 
         assert "sequence_name" in calibration_summary
-        assert calibration_summary["sequence_name"] == "scan_r"
+        assert calibration_summary["sequence_name"] == sequence_name
         assert "steps" in calibration_summary
         assert len(calibration_summary["steps"]) == 50
         assert len(calibration_summary["steps"][0]["mtcamera_exposure_info"]) == len(
@@ -321,28 +323,28 @@ class TestMTCalsys(RemoteGroupAsyncMock):
         for mtcamera_exposure_info in calibration_summary["steps"][0][
             "mtcamera_exposure_info"
         ].values():
-            assert len(mtcamera_exposure_info["electrometer_exposure_result"]) >= 1
+            assert len(mtcamera_exposure_info["electrometer_exposure_result"]) == 1
         self.mtcalsys.change_laser_wavelength(
             wavelength=expected_change_wavelegths_calls
         )
 
     async def test_run_calibration_sequence_cbp(self) -> None:
 
-        mock_LSSTcam = LSSTCam(
+        mock_lsstcam = LSSTCam(
             "FakeDomain", log=self.log, intended_usage=LSSTCamUsages.DryTest
         )
-        mock_LSSTcam.take_flats = unittest.mock.AsyncMock()
+        mock_lsstcam.take_flats = unittest.mock.AsyncMock()
 
-        self.mtcalsys.mtcamera = mock_LSSTcam
+        self.mtcalsys.mtcamera = mock_lsstcam
 
         try:
             calibration_summary = await self.mtcalsys.run_calibration_sequence(
-                "cbp_g_leak", exposure_metadata=dict()
+                "cbp_g_leak_unittest", exposure_metadata=dict()
             )
         finally:
             self.mtcalsys.mtcamera = None
 
-        config_data = self.mtcalsys.get_calibration_configuration("cbp_g_leak")
+        config_data = self.mtcalsys.get_calibration_configuration("cbp_g_leak_unittest")
         wavelength = float(config_data["wavelength"])
         wavelength_width = float(config_data["wavelength_width"])
         wavelength_resolution = float(config_data["wavelength_resolution"])
@@ -360,9 +362,9 @@ class TestMTCalsys(RemoteGroupAsyncMock):
         ]
 
         assert "sequence_name" in calibration_summary
-        assert calibration_summary["sequence_name"] == "cbp_g_leak"
+        assert calibration_summary["sequence_name"] == "cbp_g_leak_unittest"
         assert "steps" in calibration_summary
-        assert len(calibration_summary["steps"]) == 20
+        assert len(calibration_summary["steps"]) == 4
         assert len(calibration_summary["steps"][0]["mtcamera_exposure_info"]) == len(
             config_data["exposure_times"]
         )

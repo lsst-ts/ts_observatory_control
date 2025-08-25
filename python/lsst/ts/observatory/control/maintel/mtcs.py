@@ -32,8 +32,8 @@ import numpy as np
 from astropy.coordinates import Angle
 from lsst.ts import salobj, utils
 from lsst.ts.utils import angle_diff
-from lsst.ts.xml.enums import MTM1M3, MTM2, MTDome, MTMount, MTPtg, MTRotator
-from lsst.ts.xml.tables.m1m3 import FATable
+from lsst.ts.xml.enums import MTAOS, MTM1M3, MTM2, MTDome, MTMount, MTPtg, MTRotator
+from lsst.ts.xml.tables.m1m3 import FATable, ForceActuatorData, force_actuator_from_id
 
 from ..base_tcs import BaseTCS
 from ..constants import mtcs_constants
@@ -121,7 +121,7 @@ class MTCS(BaseTCS):
         )
 
         self.open_dome_shutter_time = 1200.0
-        self.timeout_hardpoint_test_status = 600.0
+        self.timeout_hardpoint_test_status = 1200.0
         # There is a race condition when commanding the mount
         # to a new target, which is the time it takes for it
         # to start moving after we send the command to the pointing.
@@ -142,7 +142,7 @@ class MTCS(BaseTCS):
         self.tel_flat_el = 39.0
         self.tel_flat_az = 205.7
         self.tel_settle_time = 3.0
-        self.tel_operate_mirror_covers_el = 70.0
+        self.tel_operate_mirror_covers_el = 20.0
         self.tel_operate_dome_shutter_el = 5.0
 
         # Tolerance to the rotator position for move commands.
@@ -179,9 +179,19 @@ class MTCS(BaseTCS):
         self._m1m3_actuator_id_sindex_table: dict[int, int] = dict(
             [(fa.actuator_id, fa.s_index) for fa in FATable if fa.s_index is not None]
         )
+        self.m1m3_bump_test_testing_states = {
+            MTM1M3.BumpTest.TRIGGERED,
+            MTM1M3.BumpTest.TESTINGPOSITIVE,
+            MTM1M3.BumpTest.TESTINGPOSITIVEWAIT,
+            MTM1M3.BumpTest.TESTINGNEGATIVE,
+            MTM1M3.BumpTest.TESTINGNEGATIVEWAIT,
+        }
 
         # Mirror covers operation timeout, in seconds.
         self.mirror_covers_timeout = 120.0
+
+        # AOS enable / disable closed loop timeout, in seconds.
+        self.aos_closed_loop_timeout = 100.0
 
         try:
             self._create_asyncio_events()
@@ -316,7 +326,7 @@ class MTCS(BaseTCS):
             self.scheduled_coro.append(
                 asyncio.create_task(
                     self.wait_for_inposition(
-                        timeout=slew_timeout, wait_settle=wait_settle
+                        timeout=slew_timeout, wait_settle=wait_settle, check=_check
                     )
                 )
             )
@@ -372,6 +382,29 @@ class MTCS(BaseTCS):
                 asyncio.create_task(self.wait_for_rotator_inposition(timeout))
             )
 
+        if _check.mthexapod_1:
+            status_tasks.append(
+                asyncio.create_task(
+                    self._handle_in_position(
+                        in_position_event=self.rem.mthexapod_1.evt_inPosition,
+                        timeout=timeout,
+                        settle_time=0.0,
+                        component_name="Camera Hexapod",
+                    )
+                )
+            )
+
+        if _check.mthexapod_2:
+            status_tasks.append(
+                asyncio.create_task(
+                    self._handle_in_position(
+                        in_position_event=self.rem.mthexapod_2.evt_inPosition,
+                        timeout=timeout,
+                        settle_time=0.0,
+                        component_name="M2 Hexapod",
+                    )
+                )
+            )
         status: typing.List[str] = []
         for s in await asyncio.gather(*status_tasks):
             status.append(f"{s!r}")
@@ -810,7 +843,23 @@ class MTCS(BaseTCS):
         check : `types.SimpleNamespace` or `None`
             Override `self.check` for defining which resources are used.
 
+        Raises
+        ------
+        RuntimeError
+            If the `mtdometrajectory` is ignored while the dome following is
+            enabled. This is to prevent conflicts between the dome trajectory
+            and the dome following features, which could result in unexpected
+            behavior while slewing the dome.
         """
+        if not getattr(self.check, self.dome_trajectory_name):
+            if await self.check_dome_following():
+                raise RuntimeError(
+                    f"Cannot proceed: '{self.dome_trajectory_name}' is ignored "
+                    f"while dome following is enabled. Either disable dome following "
+                    f"before running this operation, or remove '{self.dome_trajectory_name}' "
+                    f"from the ignore list."
+                )
+
         self.log.info(f"Slewing MT dome to position az = {az}.")
         await self.assert_all_enabled()
 
@@ -965,7 +1014,7 @@ class MTCS(BaseTCS):
                 )
             except salobj.AckError as ack:
                 self.log.error(
-                    f"Closing mirror cover command failed with {ack.ack!r}::{ack.error}. "
+                    f"Closing mirror cover command failed with {ack.ackcmd.ack!r}::{ack.ackcmd.error}. "
                     "Checking state of the system."
                 )
                 cover_state = await self.rem.mtmount.evt_mirrorCoversMotionState.aget(
@@ -982,7 +1031,7 @@ class MTCS(BaseTCS):
                     == MTMount.DeployableMotionState.RETRACTED
                 ):
                     self.log.warning(
-                        f"Close mirror cover command failed {ack.ack!r}::{ack.error} "
+                        f"Close mirror cover command failed {ack.ackcmd.ack!r}::{ack.ackcmd.error} "
                         "but mirror cover in the correct state."
                     )
                 else:
@@ -995,7 +1044,7 @@ class MTCS(BaseTCS):
                         for state in cover_state.elementsState
                     ]
                     raise RuntimeError(
-                        f"Close mirror cover command failed with {ack.ack!r}::{ack.error}. "
+                        f"Close mirror cover command failed with {ack.ackcmd.ack!r}::{ack.ackcmd.error}. "
                         f"Mirror cover state: {cover_element_state} expected all to be DEPLOYED. "
                         f"Mirror cover locks state: {cover_locks_element_state} expected all to be RETRACTED."
                     )
@@ -1197,7 +1246,7 @@ class MTCS(BaseTCS):
                 )
             except salobj.AckError as ack:
                 self.log.error(
-                    f"Open mirror cover command failed with {ack.ack!r}::{ack.error}. "
+                    f"Open mirror cover command failed with {ack.ackcmd.ack!r}::{ack.ackcmd.result}. "
                     "Checking state of the system."
                 )
                 cover_state = await self.rem.mtmount.evt_mirrorCoversMotionState.aget(
@@ -1214,7 +1263,7 @@ class MTCS(BaseTCS):
                     == MTMount.DeployableMotionState.DEPLOYED
                 ):
                     self.log.warning(
-                        f"Open mirror cover command failed {ack.ack!r}::{ack.error} "
+                        f"Open mirror cover command failed {ack.ackcmd.ack!r}::{ack.ackcmd.error} "
                         "but mirror cover in the correct state."
                     )
                 else:
@@ -1227,7 +1276,7 @@ class MTCS(BaseTCS):
                         for state in cover_state.elementsState
                     ]
                     raise RuntimeError(
-                        f"Open mirror cover command failed with {ack.ack!r}::{ack.error}. "
+                        f"Open mirror cover command failed with {ack.ackcmd.ack!r}::{ack.ackcmd.error}. "
                         f"Mirror cover state: {cover_element_state} "
                         f"Mirror cover locks state: {cover_locks_element_state} "
                     )
@@ -1731,7 +1780,11 @@ class MTCS(BaseTCS):
                 )
 
     async def _wait_bump_test_ok(
-        self, actuator_id: int, primary: bool, secondary: bool
+        self,
+        actuator_id: int,
+        primary: bool,
+        secondary: bool,
+        test_started: float,
     ) -> None:
         """Wait until the bump test for the specified actuator finishes.
 
@@ -1743,6 +1796,8 @@ class MTCS(BaseTCS):
             Wait for primary (z-axis) test to finish.
         secondary : `bool`
             Wait for secondary (xy-axis) test to finish.
+        test_started : `float`
+            Timestamp for when the test started.
         """
 
         # Determine failure states based on the XML version
@@ -1761,11 +1816,16 @@ class MTCS(BaseTCS):
             }
 
         while True:
+            await self.rem.mtm1m3.evt_heartbeat.next(
+                flush=True, timeout=self.fast_timeout
+            )
             bump_test_status = (
-                await self.rem.mtm1m3.evt_forceActuatorBumpTestStatus.next(
-                    flush=False, timeout=self.long_timeout
+                await self.rem.mtm1m3.evt_forceActuatorBumpTestStatus.aget(
+                    timeout=self.long_timeout
                 )
             )
+            if bump_test_status.private_sndStamp < test_started:
+                continue
 
             (
                 primary_status,
@@ -1785,19 +1845,185 @@ class MTCS(BaseTCS):
                     f"{primary_status!r}[{primary}], {secondary_status!r}[{secondary}]"
                 )
                 return
-            elif primary and primary_status in FAILED_STATES:
+            elif primary and not secondary and primary_status in FAILED_STATES:
                 raise RuntimeError(
                     f"Primary bump test failed for actuator {actuator_id} with status {primary_status!r}."
                 )
             elif secondary and secondary_status in FAILED_STATES:
+                primary_report = (
+                    f"Primary bump test failed for actuator {actuator_id} with status {primary_status!r}. "
+                    if primary and primary_status in FAILED_STATES
+                    else ""
+                )
                 raise RuntimeError(
-                    f"Secondary bump test failed for actuator {actuator_id} with status {secondary_status!r}."
+                    f"{primary_report}Secondary bump test failed for "
+                    f"actuator {actuator_id} with status {secondary_status!r}."
                 )
             else:
                 self.log.debug(
                     f"Actuator {actuator_id} bump test status: "
                     f"{primary_status!r}[{primary}], {secondary_status!r}[{secondary}]"
                 )
+
+    def is_actuator_in_testing_state(
+        self, actuator_data: ForceActuatorData, bump_test_status: salobj.BaseDdsDataType
+    ) -> bool:
+        (
+            primary_status,
+            secondary_status,
+        ) = self._extract_bump_test_status_info(
+            actuator_id=actuator_data.actuator_id,
+            status=bump_test_status,
+        )
+        return (
+            primary_status in self.m1m3_bump_test_testing_states
+            or secondary_status in self.m1m3_bump_test_testing_states
+        )
+
+    async def wait_m1m3_actuator_in_testing_state(
+        self, actuator: ForceActuatorData
+    ) -> None:
+        """Wait until the specified actuator enters testing state.
+
+        Parameters
+        ----------
+        actuator : `ForceActuatorData`
+            Metadata about the actuator to wait for.
+        """
+        self.rem.mtm1m3.evt_forceActuatorBumpTestStatus.flush()
+
+        bump_test_status = await self.rem.mtm1m3.evt_forceActuatorBumpTestStatus.aget(
+            timeout=self.long_timeout
+        )
+
+        (
+            primary_status,
+            secondary_status,
+        ) = self._extract_bump_test_status_info(
+            actuator_id=actuator.actuator_id,
+            status=bump_test_status,
+        )
+
+        self.log.info(
+            f"Waiting for {actuator=} to be in testing state. "
+            f"Current state: {primary_status=} {secondary_status=}."
+        )
+
+        while not self.is_actuator_in_testing_state(actuator, bump_test_status):
+            bump_test_status = (
+                await self.rem.mtm1m3.evt_forceActuatorBumpTestStatus.next(
+                    flush=False, timeout=self.long_timeout
+                )
+            )
+            (
+                primary_status,
+                secondary_status,
+            ) = self._extract_bump_test_status_info(
+                actuator_id=actuator.actuator_id,
+                status=bump_test_status,
+            )
+
+            self.log.info(
+                f"Waiting for {actuator=} to be in testing state. "
+                f"Current state: {primary_status=} {secondary_status=}."
+            )
+
+    async def get_m1m3_actuator_to_test(
+        self, actuators_to_test: list[int]
+    ) -> typing.AsyncGenerator[ForceActuatorData, None]:
+        """Given a list of m1m3 actuator to test, generate a list of actuator
+        that can be tested concurrently.
+
+        Yields
+        ------
+        `int`
+            Id of the next suitable M1M3 actuator to test.
+        """
+
+        bump_test_minimal_distance = (
+            await self.rem.mtm1m3.evt_forceActuatorSettings.aget(
+                timeout=self.fast_timeout
+            )
+        ).bumpTestMinimalDistance
+
+        force_actuators_data_to_test = [
+            force_actuator_from_id(actuator_id) for actuator_id in actuators_to_test
+        ]
+
+        skipped_actuators = 0
+
+        m1m3_actuators = [
+            force_actuator_from_id(actuator_id)
+            for actuator_id in self.get_m1m3_actuator_ids()
+        ]
+
+        while force_actuators_data_to_test:
+            selected_force_actuator = force_actuators_data_to_test.pop(0)
+            bump_test_status = (
+                await self.rem.mtm1m3.evt_forceActuatorBumpTestStatus.aget(
+                    timeout=self.long_timeout
+                )
+            )
+            if (
+                force_actuators_data_to_test
+                and skipped_actuators % len(force_actuators_data_to_test) == 0
+            ):
+                try:
+                    bump_test_status = (
+                        await self.rem.mtm1m3.evt_forceActuatorBumpTestStatus.next(
+                            flush=True,
+                            timeout=self.fast_timeout,
+                        )
+                    )
+                except asyncio.TimeoutError:
+                    self.log.debug(
+                        "No new force actuator bumpt test data. Using latest value."
+                    )
+            else:
+                await asyncio.sleep(0.1)
+
+            if self.is_actuator_in_testing_state(
+                selected_force_actuator, bump_test_status
+            ):
+                self.log.info(
+                    f"Selected force actuator {selected_force_actuator} already in testing state. "
+                    "Skipping..."
+                )
+                skipped_actuators += 1
+                continue
+
+            distances_to_testing_actuators = [
+                selected_force_actuator.distance(force_actuator_data)
+                for force_actuator_data in m1m3_actuators
+                if self.is_actuator_in_testing_state(
+                    force_actuator_data, bump_test_status
+                )
+            ]
+            if (
+                not distances_to_testing_actuators
+                or min(distances_to_testing_actuators) > bump_test_minimal_distance
+            ):
+                distance_log = (
+                    (
+                        f" Closest testing actuator distance = {min(distances_to_testing_actuators)}, "
+                        f"minimum distance {bump_test_minimal_distance}."
+                    )
+                    if distances_to_testing_actuators
+                    else " No tests running."
+                )
+                self.log.info(
+                    f"Selected {selected_force_actuator} actuator to test."
+                    f"{distance_log}"
+                )
+                skipped_actuators = 0
+                yield selected_force_actuator
+            else:
+                self.log.debug(
+                    f"Actuator {selected_force_actuator} too close to a testing actuator. "
+                    "Putting it back in the queue and selecting another one."
+                )
+                force_actuators_data_to_test.append(selected_force_actuator)
+                skipped_actuators += 1
 
     async def _wait_m2_bump_test_ok(self, actuator: int) -> None:
         """Wait until the bump test for the specified M2 actuator finishes.
@@ -2113,7 +2339,7 @@ class MTCS(BaseTCS):
         """
 
         self.rem.mtm1m3.evt_forceActuatorBumpTestStatus.flush()
-        await self.rem.mtm1m3.cmd_forceActuatorBumpTest.set_start(
+        ackcmd = await self.rem.mtm1m3.cmd_forceActuatorBumpTest.set_start(
             actuatorId=actuator_id,
             testPrimary=primary,
             testSecondary=secondary,
@@ -2122,7 +2348,10 @@ class MTCS(BaseTCS):
 
         await asyncio.wait_for(
             self._wait_bump_test_ok(
-                actuator_id=actuator_id, primary=primary, secondary=secondary
+                actuator_id=actuator_id,
+                primary=primary,
+                secondary=secondary,
+                test_started=ackcmd.private_sndStamp,
             ),
             timeout=self.long_long_timeout,
         )
@@ -2130,16 +2359,9 @@ class MTCS(BaseTCS):
     async def stop_m1m3_bump_test(self) -> None:
         """Stop bump test."""
 
-        status = await self.rem.mtm1m3.evt_forceActuatorBumpTestStatus.aget(
-            timeout=self.fast_timeout
+        await self.rem.mtm1m3.cmd_killForceActuatorBumpTest.start(
+            timeout=self.long_timeout,
         )
-
-        if status.actuatorId > 0:
-            await self.rem.mtm1m3.cmd_killForceActuatorBumpTest.start(
-                timeout=self.long_timeout
-            )
-        else:
-            self.log.info("M1M3 bump test is not running.")
 
     async def get_m1m3_bump_test_status(
         self, actuator_id: int
@@ -3017,16 +3239,16 @@ class MTCS(BaseTCS):
         # TODO: Finish implementation.
 
         try:
-            await asyncio.gather(
-                self.wait_for_mtmount_inposition(self.long_timeout, False),
-                self._handle_in_position(
-                    in_position_event=self.rem.mthexapod_1.evt_inPosition,
-                    timeout=self.long_timeout,
-                    settle_time=0.0,
-                    component_name="Camera Hexapod",
-                    race_condition_timeout=self.hexapod_ready_to_take_data_timeout,
-                ),
+            self.scheduled_coro.append(
+                asyncio.create_task(
+                    self.wait_for_inposition(
+                        timeout=self.long_timeout,
+                    )
+                )
             )
+            self.scheduled_coro.append(asyncio.create_task(self.monitor_position()))
+
+            await self.process_as_completed(self.scheduled_coro)
         except asyncio.TimeoutError:
             self.log.warning("Mount, Camera Hexapod or Rotator not in position.")
 
@@ -3197,6 +3419,55 @@ class MTCS(BaseTCS):
 
         self.log.info(f"M1M3 {setting_key} setting updated successfully.")
 
+    async def disable_aos_closed_loop(self) -> None:
+        self.rem.mtaos.evt_closedLoopState.flush()
+        await self.rem.mtaos.cmd_stopClosedLoop.start(
+            timeout=self.aos_closed_loop_timeout
+        )
+
+        closed_loop_state = await self.rem.mtaos.evt_closedLoopState.aget(
+            timeout=self.long_long_timeout
+        )
+
+        while closed_loop_state.state != MTAOS.ClosedLoopState.IDLE:
+            self.log.debug(
+                f"Closed loop state: {MTAOS.ClosedLoopState(closed_loop_state.state).name}."
+            )
+
+            closed_loop_state = await self.rem.mtaos.evt_closedLoopState.next(
+                flush=False, timeout=self.long_long_timeout
+            )
+        self.log.info(
+            f"Closed loop state: {MTAOS.ClosedLoopState(closed_loop_state.state).name}."
+        )
+
+    async def enable_aos_closed_loop(self, config: dict) -> None:
+        self.rem.mtaos.evt_closedLoopState.flush()
+
+        await self.rem.mtaos.cmd_startClosedLoop.set_start(
+            config=config, timeout=self.aos_closed_loop_timeout
+        )
+
+        self.log.info("Waiting for closed loop to be ready.")
+        closed_loop_state = await self.rem.mtaos.evt_closedLoopState.aget(
+            timeout=self.long_long_timeout
+        )
+
+        while closed_loop_state.state != MTAOS.ClosedLoopState.WAITING_IMAGE:
+            if closed_loop_state.state == MTAOS.ClosedLoopState.ERROR:
+                raise RuntimeError("Closed loop in Error state.")
+            else:
+                self.log.info(
+                    f"closed loop state: {MTAOS.ClosedLoopState(closed_loop_state.state).name}."
+                )
+
+            closed_loop_state = await self.rem.mtaos.evt_closedLoopState.next(
+                flush=False, timeout=self.long_long_timeout
+            )
+        self.log.info(
+            f"Closed loop state: {MTAOS.ClosedLoopState(closed_loop_state.state).name}."
+        )
+
     @property
     def m1m3_engineering_states(self) -> set[MTM1M3.DetailedStates]:
         """M1M3 engineering states.
@@ -3364,6 +3635,7 @@ class MTCS(BaseTCS):
                     "mirrorCoversMotionState",
                 ],
                 mtdome=["azimuth", "lightWindScreen", "azMotion", "shutterMotion"],
+                mtdometrajectory=["followingMode"],
                 mtm1m3=[
                     "boosterValveStatus",
                     "forceActuatorState",
@@ -3448,6 +3720,9 @@ class MTCS(BaseTCS):
                 mtaos=[
                     "degreeOfFreedom",
                     "wavefrontError",
+                    "startClosedLoop",
+                    "stopClosedLoop",
+                    "closedLoopState",
                 ],
             )
 
