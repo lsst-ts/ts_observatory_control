@@ -86,7 +86,7 @@ except ImportError:
 
 
 def get_vignetting_data_from_butler(
-    butler: Butler,
+    butler: Any,
     vignetting_dataset: str = DEFAULT_VIGNETTING_DATASET_NAME,
     collection: str = DEFAULT_COLLECTION_NAME,
 ) -> dict[str, Any]:
