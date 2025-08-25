@@ -1,1 +1,0 @@
-In ``data/mtcalsys.yaml``, update the exposure time for the ``whitelight_empty_M940L3`` and ``whitelight_y_10_M940L3`` calibrations sequences.

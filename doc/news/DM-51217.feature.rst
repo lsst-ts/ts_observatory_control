@@ -1,1 +1,0 @@
-In ``data/mtcalsys_schema.yaml``, remove calib_type, use_camera, and use_flatfield_electrometer from required parameters.

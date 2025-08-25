@@ -1,1 +1,0 @@
-Updated the ``MTCS._slew`` method to pass in the local ``_check`` variable to the ``wait_for_inposition`` method. This should fix an issue with the ``point_azel`` method when ``wait_dome=False``.

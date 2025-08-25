@@ -1,1 +1,0 @@
-Updated ``MTCS._wait_bump_test_ok`` to work when m1m3 actuator bump test runs concurrently.

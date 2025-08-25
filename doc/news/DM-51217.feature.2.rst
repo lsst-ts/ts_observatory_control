@@ -1,1 +1,0 @@
-In ``mtcalsys.yaml``, add y band 940 LED config.

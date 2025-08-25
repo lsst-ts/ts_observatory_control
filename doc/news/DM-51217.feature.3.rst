@@ -1,1 +1,0 @@
-In slew_dome_to mtcs method, raise an error if mtdometrajectory is ignored and dome following is enabled.
