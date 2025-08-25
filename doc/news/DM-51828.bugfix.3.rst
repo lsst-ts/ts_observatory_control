@@ -1,1 +1,0 @@
-Fixed MTCS.close_m1_cover reference to ack error.

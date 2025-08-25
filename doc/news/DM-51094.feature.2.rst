@@ -1,1 +1,0 @@
-Added ptc to the mtcalsys_schema to indicate if a test is a ptc.

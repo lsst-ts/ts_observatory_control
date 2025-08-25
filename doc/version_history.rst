@@ -8,6 +8,54 @@ Version History
 
 .. towncrier release notes start
 
+v0.43.0 (2025-08-25)
+====================
+
+New Features
+------------
+
+- Move MTAOS start/stop close loop logic to MTCS. (`DM-50762 <https://rubinobs.atlassian.net/browse/DM-50762>`_)
+- Setup the electrometer after it is cycled. (`DM-51041 <https://rubinobs.atlassian.net/browse/DM-51041>`_)
+- Added several different tests to mtcalsys.yaml: gain tests, monochromatic scans, ptc level tests and ptc daily sequences. (`DM-51094 <https://rubinobs.atlassian.net/browse/DM-51094>`_)
+- Added ptc to the mtcalsys_schema to indicate if a test is a ptc. (`DM-51094 <https://rubinobs.atlassian.net/browse/DM-51094>`_)
+- In slew_dome_to mtcs method, raise an error if mtdometrajectory is ignored and dome following is enabled. (`DM-51217 <https://rubinobs.atlassian.net/browse/DM-51217>`_)
+- In ``mtcalsys.yaml``, add y band 940 LED config. (`DM-51217 <https://rubinobs.atlassian.net/browse/DM-51217>`_)
+- In ``data/mtcalsys.yaml, update n_flat and reduce exp_times for whitelight_u band sequences. (`DM-51217 <https://rubinobs.atlassian.net/browse/DM-51217>`_)
+- In ``data/mtcalsys.yaml``, update the exposure time for the ``whitelight_empty_M940L3`` and ``whitelight_y_10_M940L3`` calibrations sequences. (`DM-51217 <https://rubinobs.atlassian.net/browse/DM-51217>`_)
+- `DM-51217 <https://rubinobs.atlassian.net/browse/DM-51217>`_
+- In ``data/mtcalsys_schema.yaml``, remove calib_type, use_camera, and use_flatfield_electrometer from required parameters. (`DM-51217 <https://rubinobs.atlassian.net/browse/DM-51217>`_)
+- In atcs.py, add feature to await that ataos m1 corrections are disabled before returning disable_ataos_corrections method. (`DM-51639 <https://rubinobs.atlassian.net/browse/DM-51639>`_)
+- Added source tests with single LEDs (`DM-51802 <https://rubinobs.atlassian.net/browse/DM-51802>`_)
+- Updated MTCalSys configuration. (`DM-51828 <https://rubinobs.atlassian.net/browse/DM-51828>`_)
+- Updated MTCalSys configurations. (`DM-52162 <https://rubinobs.atlassian.net/browse/DM-52162>`_)
+- Add guider roi selection task in ts_observatory_control (`OSW-77 <https://rubinobs.atlassian.net/browse/OSW-77>`_)
+- Updated ``MTCS._wait_bump_test_ok`` to work when m1m3 actuator bump test runs concurrently. (`OSW-949 <https://rubinobs.atlassian.net/browse/OSW-949>`_)
+- Added new ``MTCS.get_m1m3_actuator_to_test`` coroutine. This coroutine receives a list of actuators to test and will yield actuators to be tested in an order that allows them to run concurrently (`OSW-949 <https://rubinobs.atlassian.net/browse/OSW-949>`_)
+
+
+Bug Fixes
+---------
+
+- In mtcs.py, fix issue handling command ack failure when opening the mirror covers and reduce elevation to open mirror to 20 deg. (`DM-51639 <https://rubinobs.atlassian.net/browse/DM-51639>`_)
+- In MTCalsys.py, fix bugs in CBP methods. (`DM-51639 <https://rubinobs.atlassian.net/browse/DM-51639>`_)
+- Added check for camera and m2 hexapods in position event in the ``MTCS.wait_for_inposition`` method. (`DM-51828 <https://rubinobs.atlassian.net/browse/DM-51828>`_)
+- Updated the ``MTCS._slew`` method to pass in the local ``_check`` variable to the ``wait_for_inposition`` method. This should fix an issue with the ``point_azel`` method when ``wait_dome=False``. (`DM-51828 <https://rubinobs.atlassian.net/browse/DM-51828>`_)
+- Updated MTCS._ready_to_take_data use wait_for_in_position instead of the custom implementation that was only taking into account the mount and the camera hexapod. (`DM-51828 <https://rubinobs.atlassian.net/browse/DM-51828>`_)
+- Fixed MTCS.close_m1_cover reference to ack error. (`DM-51828 <https://rubinobs.atlassian.net/browse/DM-51828>`_)
+- Fixed MTCS.open_m1_cover reference to ack error. (`DM-51828 <https://rubinobs.atlassian.net/browse/DM-51828>`_)
+- Increased timeout for hard point test for m1m3 in MTCS. (`DM-51828 <https://rubinobs.atlassian.net/browse/DM-51828>`_)
+- In ``test_dm_target_catalog.py`` replace incorrect units keyword with unit in Angle constructors and skip test if summit package not available. (`OSW-77 <https://rubinobs.atlassian.net/browse/OSW-77>`_)
+- Fixed ``MTCS.stop_m1m3_bump_test``. The methos now receives no parameter and stops all running bump tests. (`OSW-949 <https://rubinobs.atlassian.net/browse/OSW-949>`_)
+- Fixed an issue with ``MTCS._wait_bump_test_ok`` that would cause it to exit prematurely if it was running primary and secondary tests and the primary test failed. (`OSW-949 <https://rubinobs.atlassian.net/browse/OSW-949>`_)
+
+
+Other Changes and Additions
+---------------------------
+
+- Minor updates to MTCalsys sequence configuration. (`DM-51428 <https://rubinobs.atlassian.net/browse/DM-51428>`_)
+- In MTCalsys.yaml, update sequence configurations. (`DM-51639 <https://rubinobs.atlassian.net/browse/DM-51639>`_)
+
+
 v0.42.0 (2025-06-06)
 ====================
 

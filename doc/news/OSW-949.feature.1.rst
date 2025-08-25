@@ -1,1 +1,0 @@
-Added new ``MTCS.get_m1m3_actuator_to_test`` coroutine. This coroutine receives a list of actuators to test and will yield actuators to be tested in an order that allows them to run concurrently

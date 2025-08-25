@@ -1,1 +1,0 @@
-Added several different tests to mtcalsys.yaml: gain tests, monochromatic scans, ptc level tests and ptc daily sequences.

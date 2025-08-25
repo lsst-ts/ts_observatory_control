@@ -1,1 +1,0 @@
-Added check for camera and m2 hexapods in position event in the ``MTCS.wait_for_inposition`` method.
