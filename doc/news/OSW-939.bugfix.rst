@@ -1,0 +1,1 @@
+Updated ``get_vignetting_data_from_butler`` interface to use ``Any`` instead of ``Butler``.
