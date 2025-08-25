@@ -8,6 +8,15 @@ Version History
 
 .. towncrier release notes start
 
+v0.43.1 (2025-08-25)
+====================
+
+Bug Fixes
+---------
+
+- Updated ``get_vignetting_data_from_butler`` interface to use ``Any`` instead of ``Butler``. (`OSW-939 <https://rubinobs.atlassian.net/browse/OSW-939>`_)
+
+
 v0.43.0 (2025-08-25)
 ====================
 
