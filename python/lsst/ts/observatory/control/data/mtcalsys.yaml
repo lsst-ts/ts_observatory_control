@@ -468,7 +468,7 @@ scan_r_init:
 
 scan_u:
   calib_type: Mono
-  laser_mode: 1
+  laser_mode: 3
   optical_configuration: F1 SCU
   use_camera: True
   mtcamera_filter: u_24
@@ -481,7 +481,7 @@ scan_u:
 
 scan_g:
   calib_type: Mono
-  laser_mode: 1
+  laser_mode: 3
   optical_configuration: F1 SCU
   use_camera: True
   mtcamera_filter: g_6
@@ -494,7 +494,7 @@ scan_g:
 
 scan_r:
   calib_type: Mono
-  laser_mode: 1
+  laser_mode: 3
   optical_configuration: F1 SCU
   use_camera: True
   mtcamera_filter: r_57
@@ -507,7 +507,7 @@ scan_r:
 
 scan_r_unittest:
   calib_type: Mono
-  laser_mode: 1
+  laser_mode: 3
   optical_configuration: F1 SCU
   use_camera: True
   mtcamera_filter: r_57
@@ -519,7 +519,7 @@ scan_r_unittest:
 
 scan_i:
   calib_type: Mono
-  laser_mode: 1
+  laser_mode: 3
   optical_configuration: F1 SCU
   use_camera: True
   mtcamera_filter: i_39
@@ -532,7 +532,7 @@ scan_i:
 
 scan_z:
   calib_type: Mono
-  laser_mode: 1
+  laser_mode: 3
   optical_configuration: F1 SCU
   use_camera: True
   mtcamera_filter: z_20
@@ -545,7 +545,7 @@ scan_z:
 
 scan_y:
   calib_type: Mono
-  laser_mode: 1
+  laser_mode: 3
   optical_configuration: F1 SCU
   use_camera: True
   mtcamera_filter: y_10
@@ -558,7 +558,7 @@ scan_y:
 
 scan_none:
   calib_type: Mono
-  laser_mode: 1
+  laser_mode: 3
   optical_configuration: F1 SCU
   use_camera: True
   mtcamera_filter: NONE
