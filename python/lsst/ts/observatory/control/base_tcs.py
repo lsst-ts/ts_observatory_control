@@ -1972,7 +1972,13 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
         )
 
         in_position_event.flush()
-        in_position = await in_position_event.aget(timeout=self.fast_timeout)
+        try:
+            in_position = await in_position_event.aget(timeout=self.fast_timeout)
+        except asyncio.TimeoutError as e:
+            raise RuntimeError(
+                f"Timed out waiting for initial in position event from {component_name}."
+            ) from e
+
         self.log.debug(f"{component_name} in position: {in_position.inPosition}.")
 
         _settle_time = max([settle_time, race_condition_timeout])
