@@ -573,15 +573,23 @@ class MTCalsys(BaseCalsys):
             list : configuration details
 
         """
-
-        return await asyncio.gather(
-            self.rem.tunablelaser.evt_opticalConfiguration.aget(
-                timeout=self.long_timeout
-            ),
-            self.rem.tunablelaser.evt_wavelengthChanged.aget(timeout=self.long_timeout),
-            self.rem.tunablelaser.evt_interlockState.aget(timeout=self.long_timeout),
-            self.rem.tunablelaser.evt_burstModeSet.aget(timeout=self.long_timeout),
-            self.rem.tunablelaser.evt_continuousModeSet.aget(timeout=self.long_timeout),
+        optical_config = (
+            await self.rem.tunablelaser.evt_opticalConfiguration.aget().data.configuration
+        )
+        wavelength = (
+            await self.rem.tunablelaser.evt_wavelengthChanged.aget().data.wavelength
+        )
+        interlock_state = (
+            await self.rem.tunablelaser.evt_interlockState.aget().data.state
+        )
+        burst_mode = await self.rem.tunablelaser.evt_burstModeSet.aget().data
+        continuous_mode = await self.rem.tunablelaser.evt_continuousModeSet.aget().data
+        return (
+            optical_config,
+            wavelength,
+            interlock_state,
+            burst_mode,
+            continuous_mode,
         )
 
     async def laser_start_propagate(self) -> None:
