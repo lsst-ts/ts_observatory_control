@@ -104,8 +104,16 @@ class LSSTCam(BaseCamera):
 
         self.cmd_lock = asyncio.Lock()
 
+        self.DEFAULT_GUIDER_ROI_ROWS = 400
+        self.DEFAULT_GUIDER_ROI_COLS = 400
+        self.DEFAULT_GUIDER_ROI_TIME_MS = 200
+
         roi_spec = ROISpec(
-            common=ROICommon(rows=400, cols=400, integration_time_millis=200),
+            common=ROICommon(
+                rows=self.DEFAULT_GUIDER_ROI_ROWS,
+                cols=self.DEFAULT_GUIDER_ROI_COLS,
+                integration_time_millis=self.DEFAULT_GUIDER_ROI_TIME_MS,
+            ),
             roi=dict(
                 R00SG0=ROI(segment=7, start_row=800, start_col=56),
                 R00SG1=ROI(segment=0, start_row=800, start_col=56),
