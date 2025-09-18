@@ -32,7 +32,7 @@ __all__ = [
     "DM_STACK_AVAILABLE",
     "BEST_EFFORT_ISR_AVAILABLE",
     "GuiderROIs",
-    "get_vignetting_data_from_butler",
+    "get_vignetting_correction_from_butler",
 ]
 
 import logging
@@ -42,15 +42,20 @@ from typing import TYPE_CHECKING, Any
 import healpy as hp
 from astropy.coordinates import angular_separation
 from astropy.table import Table, vstack
-from scipy.interpolate import make_interp_spline
 
 if TYPE_CHECKING:
     from lsst.summit.utils import BestEffortIsr as BestEffortIsrType
 
 import numpy as np
+from lsst.ts.observatory.control.utils.extras.vignetting_correction import (
+    VignettingCorrection,
+)
+from lsst.ts.observatory.control.utils.extras.vignetting_storage import (
+    register_vignetting_storage_class,
+)
 
-DEFAULT_CATALOG_DATASET_NAME = "monster_guide_catalog"
-DEFAULT_VIGNETTING_DATASET_NAME = "vignetting_correction"
+DEFAULT_CATALOG_DATASET_NAME = "guider_roi_monster_guide_catalog"
+DEFAULT_VIGNETTING_DATASET_NAME = "guider_roi_vignetting_correction"
 DEFAULT_COLLECTION_NAME = "guider_roi_data"
 
 
@@ -60,7 +65,7 @@ try:
     # Core DM stack imports
     import lsst.geom as geom
     from lsst.afw import cameraGeom
-    from lsst.daf.butler import Butler
+    from lsst.daf.butler import Butler, StorageClassFactory
     from lsst.daf.butler._exceptions import DatasetNotFoundError
     from lsst.obs.base import createInitialSkyWcsFromBoresight
     from lsst.obs.lsst import LsstCam
@@ -79,12 +84,12 @@ except ImportError:
     BestEffortIsr = None
 
 
-def get_vignetting_data_from_butler(
+def get_vignetting_correction_from_butler(
     butler: Any,
     vignetting_dataset: str = DEFAULT_VIGNETTING_DATASET_NAME,
     collection: str = DEFAULT_COLLECTION_NAME,
-) -> dict[str, Any]:
-    """Get vignetting correction data from Butler.
+) -> "VignettingCorrection":
+    """Get VignettingCorrection object from Butler.
 
     Parameters
     ----------
@@ -97,15 +102,16 @@ def get_vignetting_data_from_butler(
 
     Returns
     -------
-    vignetting_data : `dict`
-        Vignetting data.
+    vignetting_correction : `VignettingCorrection`
+        VignettingCorrection object.
 
     Raises
     ------
     RuntimeError
-        If DM stack is not available (required for Butler operations).
+        If DM stack is not available (required for Butler operations) or
+        if no vignetting dataset is found.
     ValueError
-        If vignetting data is found but required columns are missing.
+        If the retrieved data is not a VignettingCorrection object.
     Exception
         Any exception from Butler operations (e.g., DatasetNotFoundError,
         AttributeError, etc.) will be raised directly.
@@ -129,12 +135,10 @@ def get_vignetting_data_from_butler(
             f"Retrieved vignetting dataset '{vignetting_dataset}' is empty or unavailable."
         )
 
-    required_keys = ["theta", "vignetting"]
-    missing_keys = [key for key in required_keys if key not in data]
-    if missing_keys:
+    if not isinstance(data, VignettingCorrection):
         raise ValueError(
-            f"Vignetting data missing required columns: {missing_keys}. "
-            f"Available columns: {list(data.keys())}"
+            f"Expected VignettingCorrection object from Butler, got {type(data)}. "
+            f"Please re-ingest vignetting data using the updated ingestion script."
         )
 
     return data
@@ -234,6 +238,9 @@ class GuiderROIs:
         if DM_STACK_AVAILABLE:
             self.camera = LsstCam.getCamera()
 
+        # Register custom storage classes (must happen before vignetting init)
+        self._register_storage_classes()
+
         # Initialize vignetting correction
         self._init_vignetting_correction()
 
@@ -271,33 +278,57 @@ class GuiderROIs:
         self.nside = derived_nside
         self.healpix_level = level
         self.healpix_dim = hp_name
+        self.npix = hp.nside2npix(self.nside)
 
     def _init_vignetting_correction(self) -> None:
-        """Initialize vignetting correction spline.
+        """Initialize vignetting correction.
 
         Raises
         ------
         RuntimeError
-            If vignetting data is not available from any source.
-        ValueError
-            If vignetting data is missing required columns.
-        FileNotFoundError
-            If no vignetting file is found when butler data is not available.
+            If Butler is not available or vignetting data is not found.
         """
         if self.butler is None:
             raise RuntimeError("Butler is not available")
 
-        vignetting_data = get_vignetting_data_from_butler(
+        # Get VignettingCorrection object from Butler
+        self.vignetting_correction_obj = get_vignetting_correction_from_butler(
             self.butler, self.vignetting_dataset, self.collection
         )
 
+        self.log.info("Loaded VignettingCorrection object from Butler")
+
+    def _register_storage_classes(self) -> None:
+        """Register custom storage classes required for GuiderROIs.
+
+        This method ensures that custom storage classes (like
+        VignettingCorrection) are registered with Butler before they are
+        needed. It's safe to call multiple times - already registered
+        classes will be ignored.
+
+        Raises
+        ------
+        RuntimeError
+            If Butler is not available or storage class registration fails.
+        """
+        if self.butler is None:
+            raise RuntimeError("Butler is not available for storage class registration")
+
         try:
-            # Create interpolation spline with the validated data
-            self.vigspline = make_interp_spline(
-                vignetting_data["theta"], vignetting_data["vignetting"], k=3
-            )
-        except Exception as e:
-            raise RuntimeError("Failed to create vignetting correction spline.") from e
+            factory = StorageClassFactory()
+
+            try:
+                factory.getStorageClass("VignettingCorrection")
+                self.log.debug("VignettingCorrection storage class already registered")
+                return
+            except KeyError:
+                pass
+
+            register_vignetting_storage_class(self.butler)
+            self.log.debug("VignettingCorrection storage class registered successfully")
+
+        except Exception:
+            self.log.exception("Storage class registration failed")
 
     def vignetting_correction(self, angle: float) -> float:
         """Calculate vignetting correction.
@@ -312,9 +343,7 @@ class GuiderROIs:
         deltam : float
             Change in magnitude due to vignetting
         """
-        vigfraction = self.vigspline(angle)
-        deltam = -2.5 * np.log10(vigfraction)
-        return deltam
+        return self.vignetting_correction_obj.delta_magnitude(angle)
 
     def _get_catalog_data_from_butler(self, hp_indices: list[int]) -> list[Table]:
         """Get catalog data from butler using HEALPix dimensions."""
@@ -549,7 +578,19 @@ class GuiderROIs:
                     self.log.warning(f"No catalog data found for detector {idet}")
                     continue
 
-                star_cat = vstack(tables)
+                # Strip metadata from all tables to avoid merge warnings
+                # ROI selection doesn't need metadata, only star data
+                clean_tables = []
+                for table in tables:
+                    clean_table = table.copy()
+                    clean_table.meta = {}
+                    clean_tables.append(clean_table)
+
+                star_cat = vstack(clean_tables)
+
+                self.log.debug(
+                    f"Merged {len(tables)} catalogs with {len(star_cat)} total stars for detector {idet}"
+                )
 
             except Exception as e:
                 self.log.warning(f"Error reading catalog for detector {idet}: {e}")
@@ -730,7 +771,19 @@ class GuiderROIs:
                 first = False
                 cat_all = Table(cat_thestar)
             else:
-                cat_all = vstack([cat_thestar, cat_all])
+                # Strip metadata to avoid merge warnings when
+                # combining stars from different detectors
+                # Handle both Table and Row cases
+                if hasattr(cat_thestar, "copy"):
+                    cat_thestar_clean = cat_thestar.copy()
+                    cat_thestar_clean.meta = {}
+                else:
+                    cat_thestar_clean = Table(cat_thestar)
+                    cat_thestar_clean.meta = {}
+
+                cat_all_clean = cat_all.copy()
+                cat_all_clean.meta = {}
+                cat_all = vstack([cat_thestar_clean, cat_all_clean])
 
         # build the configuration string for the ROIs from the catalog with
         # all stars

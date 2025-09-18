@@ -1,0 +1,56 @@
+# Metadata sidecar file for Guider ROI Monster guide star catalog
+# This file describes the provenance and characteristics of the guide star catalog
+
+# Data provenance - WHO created this data and HOW
+
+data_source: "Monster catalog + Gaia DR3"
+processing_pipeline: "Monster catalog generation pipeline v2.1"
+curator: "Shuang Liang"
+contact_email: "sliang92@stanford.edu"
+processing_date: "2025-08-15T10:30:00"
+
+# Catalog-specific metadata
+description: "High-quality guide star catalog for LSSTCam guider ROI selection"
+version: "2.1"
+
+# Data characteristics
+catalog_coverage: "Full sky"
+magnitude_limits:
+  g_min: 10.0
+  g_max: 18.0
+  r_min: 9.5
+  r_max: 17.5
+stellar_density_per_sq_deg: 1200  # Average stars per square degree
+isolation_criteria: "No neighbors within 5 arcsec"
+
+# Source catalogs and cross-matching
+primary_catalog: "Monster v1.2"
+secondary_catalog: "Gaia DR3"
+
+# Quality control
+validation_status: "production"
+completeness_estimate: 0.95  # fraction
+contamination_estimate: 0.02  # fraction
+photometric_accuracy: 0.01   # magnitudes RMS
+
+# Processing details
+software_version: "monster_pipeline-2.1.0"
+healpix_scheme: "NESTED"
+healpix_nside: 32
+
+# Quality metrics and validation
+notes: |
+  Production-quality guide star catalog generated from Monster catalog
+  cross-matched with Gaia DR3 for proper motions and astrometry.
+  
+  Quality cuts applied:
+  - Stellar classification confidence > 0.9
+  - Proper motion uncertainty < 1 mas/yr
+  - Photometric quality flags passed
+  - No bright neighbors within isolation radius
+  
+  Suitable for operations and commissioning.
+
+# References
+documentation_url: "TBD"
+pipeline_repository: "TBD"

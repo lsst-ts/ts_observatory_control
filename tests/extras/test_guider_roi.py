@@ -21,14 +21,41 @@
 
 import logging
 import unittest.mock
+from typing import TYPE_CHECKING
 
+import numpy as np
 import pytest
 from lsst.ts.observatory.control.utils.extras import (
     BEST_EFFORT_ISR_AVAILABLE,
     DM_STACK_AVAILABLE,
     GuiderROIs,
-    get_vignetting_data_from_butler,
+    get_vignetting_correction_from_butler,
 )
+
+if TYPE_CHECKING:
+    from lsst.ts.observatory.control.utils.extras.vignetting_correction import (
+        VignettingCorrection,
+    )
+
+
+def _create_mock_vignetting_correction() -> "VignettingCorrection":
+    """Create a VignettingCorrection object for testing.
+
+    Raises
+    ------
+    ImportError
+        If VignettingCorrection class is not available - this is intentional
+        as tests should fail if the required class is missing.
+    """
+    from lsst.ts.observatory.control.utils.extras.vignetting_correction import (
+        VignettingCorrection,
+    )
+
+    theta = np.array([0.0, 0.5, 1.0, 1.5])
+    vignetting = np.array([1.0, 0.95, 0.9, 0.85])
+    metadata = {"description": "Test vignetting data", "version": "test"}
+
+    return VignettingCorrection(theta, vignetting, metadata)
 
 
 class TestGuiderROIs:
@@ -89,10 +116,7 @@ class TestGuiderROIs:
         mock_dataset_type.dimensions.required = {"healpix5"}
         mock_butler.registry.getDatasetType.return_value = mock_dataset_type
 
-        vignetting_data = {
-            "theta": [0.0, 0.5, 1.0, 1.5],
-            "vignetting": [1.0, 0.95, 0.9, 0.85],
-        }
+        vignetting_correction = _create_mock_vignetting_correction()
 
         with unittest.mock.patch(
             "lsst.ts.observatory.control.utils.extras.guider_roi.BEST_EFFORT_ISR_AVAILABLE",
@@ -101,15 +125,15 @@ class TestGuiderROIs:
             "lsst.ts.observatory.control.utils.extras.guider_roi.BestEffortIsr",
             return_value=mock_best_effort,
         ), unittest.mock.patch(
-            "lsst.ts.observatory.control.utils.extras.guider_roi.get_vignetting_data_from_butler",
-            return_value=vignetting_data,
+            "lsst.ts.observatory.control.utils.extras.guider_roi.get_vignetting_correction_from_butler",
+            return_value=vignetting_correction,
         ):
             roi = GuiderROIs()
 
             assert roi.butler is mock_butler
             assert roi.best_effort_isr is mock_best_effort
-            assert roi.catalog_name == "monster_guide_catalog"
-            assert roi.vignetting_dataset == "vignetting_correction"
+            assert roi.catalog_name == "guider_roi_monster_guide_catalog"
+            assert roi.vignetting_dataset == "guider_roi_vignetting_correction"
             assert roi.collection == "guider_roi_data"
             assert roi.nside == 32  # 2^5
             assert roi.healpix_dim == "healpix5"
@@ -129,10 +153,7 @@ class TestGuiderROIs:
         mock_dataset_type.dimensions.required = {"healpix4"}
         mock_butler.registry.getDatasetType.return_value = mock_dataset_type
 
-        vignetting_data = {
-            "theta": [0.0, 0.5, 1.0, 1.5],
-            "vignetting": [1.0, 0.95, 0.9, 0.85],
-        }
+        vignetting_correction = _create_mock_vignetting_correction()
 
         mock_logger = unittest.mock.Mock(spec=logging.Logger)
 
@@ -143,8 +164,8 @@ class TestGuiderROIs:
             "lsst.ts.observatory.control.utils.extras.guider_roi.BestEffortIsr",
             return_value=mock_best_effort,
         ), unittest.mock.patch(
-            "lsst.ts.observatory.control.utils.extras.guider_roi.get_vignetting_data_from_butler",
-            return_value=vignetting_data,
+            "lsst.ts.observatory.control.utils.extras.guider_roi.get_vignetting_correction_from_butler",
+            return_value=vignetting_correction,
         ):
             roi = GuiderROIs(
                 catalog_name="custom_catalog",
@@ -203,10 +224,10 @@ class TestGuiderROIs:
             "lsst.ts.observatory.control.utils.extras.guider_roi.BestEffortIsr",
             return_value=mock_best_effort,
         ), unittest.mock.patch(
-            "lsst.ts.observatory.control.utils.extras.guider_roi.get_vignetting_data_from_butler",
-            side_effect=RuntimeError("No vignetting data found"),
+            "lsst.ts.observatory.control.utils.extras.guider_roi.get_vignetting_correction_from_butler",
+            side_effect=RuntimeError("No vignetting dataset"),
         ):
-            with pytest.raises(RuntimeError, match="No vignetting data found"):
+            with pytest.raises(RuntimeError, match="No vignetting dataset"):
                 GuiderROIs()
 
     @pytest.mark.skipif(not DM_STACK_AVAILABLE, reason="DM stack not available.")
@@ -220,10 +241,7 @@ class TestGuiderROIs:
         mock_dataset_type.dimensions.required = {"healpix5"}
         mock_butler.registry.getDatasetType.return_value = mock_dataset_type
 
-        vignetting_data = {
-            "theta": [0.0, 0.5, 1.0, 1.5],
-            "vignetting": [1.0, 0.95, 0.9, 0.85],
-        }
+        vignetting_correction = _create_mock_vignetting_correction()
 
         with unittest.mock.patch(
             "lsst.ts.observatory.control.utils.extras.guider_roi.BEST_EFFORT_ISR_AVAILABLE",
@@ -232,8 +250,8 @@ class TestGuiderROIs:
             "lsst.ts.observatory.control.utils.extras.guider_roi.BestEffortIsr",
             return_value=mock_best_effort,
         ), unittest.mock.patch(
-            "lsst.ts.observatory.control.utils.extras.guider_roi.get_vignetting_data_from_butler",
-            return_value=vignetting_data,
+            "lsst.ts.observatory.control.utils.extras.guider_roi.get_vignetting_correction_from_butler",
+            return_value=vignetting_correction,
         ):
             roi = GuiderROIs()
 
@@ -256,10 +274,7 @@ class TestGuiderROIs:
         mock_dataset_type.dimensions.required = {"healpix5"}
         mock_butler.registry.getDatasetType.return_value = mock_dataset_type
 
-        vignetting_data = {
-            "theta": [0.0, 0.5, 1.0, 1.5],
-            "vignetting": [1.0, 0.95, 0.9, 0.85],
-        }
+        vignetting_correction = _create_mock_vignetting_correction()
 
         with unittest.mock.patch(
             "lsst.ts.observatory.control.utils.extras.guider_roi.BEST_EFFORT_ISR_AVAILABLE",
@@ -268,8 +283,8 @@ class TestGuiderROIs:
             "lsst.ts.observatory.control.utils.extras.guider_roi.BestEffortIsr",
             return_value=mock_best_effort,
         ), unittest.mock.patch(
-            "lsst.ts.observatory.control.utils.extras.guider_roi.get_vignetting_data_from_butler",
-            return_value=vignetting_data,
+            "lsst.ts.observatory.control.utils.extras.guider_roi.get_vignetting_correction_from_butler",
+            return_value=vignetting_correction,
         ):
             roi = GuiderROIs()
 
@@ -288,10 +303,7 @@ class TestGuiderROIs:
         mock_dataset_type.dimensions.required = {"healpix5"}
         mock_butler.registry.getDatasetType.return_value = mock_dataset_type
 
-        vignetting_data = {
-            "theta": [0.0, 0.5, 1.0, 1.5],
-            "vignetting": [1.0, 0.95, 0.9, 0.85],
-        }
+        vignetting_correction = _create_mock_vignetting_correction()
 
         with unittest.mock.patch(
             "lsst.ts.observatory.control.utils.extras.guider_roi.BEST_EFFORT_ISR_AVAILABLE",
@@ -300,8 +312,8 @@ class TestGuiderROIs:
             "lsst.ts.observatory.control.utils.extras.guider_roi.BestEffortIsr",
             return_value=mock_best_effort,
         ), unittest.mock.patch(
-            "lsst.ts.observatory.control.utils.extras.guider_roi.get_vignetting_data_from_butler",
-            return_value=vignetting_data,
+            "lsst.ts.observatory.control.utils.extras.guider_roi.get_vignetting_correction_from_butler",
+            return_value=vignetting_correction,
         ):
             roi = GuiderROIs()
 
@@ -332,10 +344,7 @@ class TestGuiderROIs:
         mock_dataset_type.dimensions.required = {"healpix5"}
         mock_butler.registry.getDatasetType.return_value = mock_dataset_type
 
-        vignetting_data = {
-            "theta": [0.0, 0.5, 1.0, 1.5],
-            "vignetting": [1.0, 0.95, 0.9, 0.85],
-        }
+        vignetting_correction = _create_mock_vignetting_correction()
 
         with unittest.mock.patch(
             "lsst.ts.observatory.control.utils.extras.guider_roi.BEST_EFFORT_ISR_AVAILABLE",
@@ -344,8 +353,8 @@ class TestGuiderROIs:
             "lsst.ts.observatory.control.utils.extras.guider_roi.BestEffortIsr",
             return_value=mock_best_effort,
         ), unittest.mock.patch(
-            "lsst.ts.observatory.control.utils.extras.guider_roi.get_vignetting_data_from_butler",
-            return_value=vignetting_data,
+            "lsst.ts.observatory.control.utils.extras.guider_roi.get_vignetting_correction_from_butler",
+            return_value=vignetting_correction,
         ):
             roi = GuiderROIs()
 
@@ -376,10 +385,7 @@ class TestGuiderROIs:
         mock_dataset_type.dimensions.required = {"healpix5"}
         mock_butler.registry.getDatasetType.return_value = mock_dataset_type
 
-        vignetting_data = {
-            "theta": [0.0, 0.5, 1.0, 1.5],
-            "vignetting": [1.0, 0.95, 0.9, 0.85],
-        }
+        vignetting_correction = _create_mock_vignetting_correction()
 
         with unittest.mock.patch(
             "lsst.ts.observatory.control.utils.extras.guider_roi.BEST_EFFORT_ISR_AVAILABLE",
@@ -388,8 +394,8 @@ class TestGuiderROIs:
             "lsst.ts.observatory.control.utils.extras.guider_roi.BestEffortIsr",
             return_value=mock_best_effort,
         ), unittest.mock.patch(
-            "lsst.ts.observatory.control.utils.extras.guider_roi.get_vignetting_data_from_butler",
-            return_value=vignetting_data,
+            "lsst.ts.observatory.control.utils.extras.guider_roi.get_vignetting_correction_from_butler",
+            return_value=vignetting_correction,
         ):
             roi = GuiderROIs()
             roi.camera = None  # Force camera to be None
@@ -417,8 +423,8 @@ def test_best_effort_isr_available_flag() -> None:
     assert isinstance(BEST_EFFORT_ISR_AVAILABLE, bool)
 
 
-def test_get_vignetting_data_from_butler() -> None:
-    """Test the vignetting data loader function."""
+def test_get_vignetting_correction_from_butler() -> None:
+    """Test the vignetting correction loader function."""
     if not DM_STACK_AVAILABLE:
         pytest.skip("DM stack not available")
 
@@ -426,7 +432,7 @@ def test_get_vignetting_data_from_butler() -> None:
     mock_butler.registry.queryDatasets.return_value = []
 
     with pytest.raises(RuntimeError, match="No vignetting dataset"):
-        get_vignetting_data_from_butler(mock_butler)
+        get_vignetting_correction_from_butler(mock_butler)
     mock_butler.registry.queryDatasets.assert_called_once_with(
-        "vignetting_correction", collections=["guider_roi_data"]
+        "guider_roi_vignetting_correction", collections=["guider_roi_data"]
     )

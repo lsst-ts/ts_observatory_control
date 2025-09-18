@@ -21,3 +21,8 @@
 
 from .dm_target_catalog import *
 from .guider_roi import *
+from .vignetting_correction import VignettingCorrection
+from .vignetting_storage import (
+    VignettingCorrectionFormatter,
+    register_vignetting_storage_class,
+)
