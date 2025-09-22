@@ -681,7 +681,7 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
             else:
                 if self._overslew_az:
                     try:
-                        overslew_az = 2.0 * 3600.0 * np.cos(alt_az.alt.rad)
+                        overslew_az = 1.5 * 3600.0 * np.cos(alt_az.alt.rad)
                         self.log.info(
                             "Overslew Azimuth feature is enabled. Slewing past target position by"
                             f"{(overslew_az/3600.):.1f} degrees and waiting for settle."

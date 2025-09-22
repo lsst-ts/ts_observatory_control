@@ -905,10 +905,16 @@ class MTCS(BaseTCS):
         ]
         self.log.debug(f"Shutter state: {shutter_state.state}")
 
-        if (
-            shutter_state.state == [MTDome.MotionState.OPEN, MTDome.MotionState.OPEN]
-            or force
-        ):
+        accepted_open_states = {
+            MTDome.MotionState.OPEN,
+            MTDome.MotionState.STOPPED_BRAKED,
+        }
+
+        both_doors_open_like = all(
+            state in accepted_open_states for state in shutter_state.state
+        )
+
+        if both_doors_open_like or force:
             # Issue command only if mirror covers are deployed or if telescope
             # elevation is near horizon or if force = True
             cover_state = await self.rem.mtmount.evt_mirrorCoversMotionState.aget(
@@ -967,8 +973,8 @@ class MTCS(BaseTCS):
         else:
             raise RuntimeError(
                 f"Shutter door state is {shutter_state.state}. "
-                f"Expected either {[MTDome.MotionState.CLOSED, MTDome.MotionState.CLOSED]}, "
-                f"or {[MTDome.MotionState.OPEN, MTDome.MotionState.OPEN]}."
+                f"Expected both doors to be in one of {accepted_open_states}, "
+                f"or {[MTDome.MotionState.CLOSED, MTDome.MotionState.CLOSED]}."
             )
 
     async def close_m1_cover(self) -> None:
@@ -1140,11 +1146,15 @@ class MTCS(BaseTCS):
         ]
         self.log.debug(f"Shutter state: {shutter_state.state}")
 
-        if (
-            shutter_state.state
-            == [MTDome.MotionState.CLOSED, MTDome.MotionState.CLOSED]
-            or force
-        ):
+        accepted_closed_states = {
+            MTDome.MotionState.CLOSED,
+            MTDome.MotionState.STOPPED_BRAKED,
+        }
+        both_doors_closed_like = all(
+            state in accepted_closed_states for state in shutter_state.state
+        )
+
+        if both_doors_closed_like or force:
             # Issue command only if mirror covers are deployed or if telescope
             # elevation is near horizon or if force = True
             cover_state = await self.rem.mtmount.evt_mirrorCoversMotionState.aget(
@@ -1200,7 +1210,7 @@ class MTCS(BaseTCS):
         else:
             raise RuntimeError(
                 f"Shutter door state is {shutter_state.state}. "
-                f"Expected either {[MTDome.MotionState.CLOSED, MTDome.MotionState.CLOSED]}, "
+                f"Expected both doors to be in one of {accepted_closed_states}, "
                 f"or {[MTDome.MotionState.OPEN, MTDome.MotionState.OPEN]}."
             )
 
