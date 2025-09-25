@@ -1,1 +1,0 @@
-Removed ``BASIC_DEPS_AVAILABLE`` check from ``guider_roi``.

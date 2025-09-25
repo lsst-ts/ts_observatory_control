@@ -1,1 +1,0 @@
-In ``MTCS``, expanded valid states to allow opening/closing dome shutters.
