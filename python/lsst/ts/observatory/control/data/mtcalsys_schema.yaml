@@ -159,6 +159,48 @@ properties:
     type: array
     items:
       type: number
+  ptc_dac_values:
+    description: List of dac values for a randomized exposure list
+    type: array
+    items:
+      type: number
+  constrained_random_exposure_times:
+    description: >-
+      Generate a list of random exposure times defined by
+      bin_edges, samples_per_bin, and dac_value (LED brightness). This 
+      information will enable the generation of an exposure_times array
+      with corresponding dac values that will be used in PTC curves
+    oneOf:
+      - type: "null"
+      - type: "object"
+        required:
+          - bin_edges
+          - samples_per_bin
+          - bin_dac_values
+          - random_seed
+        properties:
+          bin_edges:
+            description: List of lists with min and max for each bin
+            type: array
+            minItems: 1
+            items:
+              type: array
+              minItems: 2
+              items:
+                type: number
+          samples_per_bin:
+            type: array
+            items: 
+              type: integer
+              minimum: 1
+          bin_dac_values:
+            type: array
+            minimum: 1
+            items: 
+              type: number 
+          random_seed:
+            description: random seed to create random exposure set
+            type: [integer, "null"]
   laser_mode:
     type: integer
   laser_wait_time:
@@ -209,13 +251,19 @@ properties:
     default: 6000
     minimum: 0
     maximum: 13000  
-  ptc:
-     description: Identify if a whitelight flat sequence is a PTC curve
-     type: boolean
-     default: false
-required:
-- wavelength
-- use_fiberspectrograph_red
-- use_fiberspectrograph_blue
-- exposure_times
+oneOf:
+  - properties:
+      exposure_times: {}
+    required: 
+      - exposure_times
+    not: 
+      required: 
+        - constrained_random_exposure_times
+  - properties:
+      constrained_random_exposure_times: {}
+    required: 
+      - constrained_random_exposure_times
+    not:
+      required: 
+        - exposure_times
 additionalProperties: false

@@ -185,7 +185,7 @@ class BaseCalsys(RemoteGroup, metaclass=abc.ABCMeta):
         wavelengths : `list`
             List of all wavelengths for this exposure list
         config_data : `dict`
-            All information from configuration file
+            Dict of all configuration data
 
         Returns
         -------

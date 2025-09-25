@@ -890,7 +890,7 @@ class TestMTCS(MTCSAsyncMock):
         )
         self._mtdome_evt_shutter_motion.state = [
             MTDome.MotionState.OPEN,
-            MTDome.MotionState.OPEN,
+            MTDome.MotionState.STOPPED_BRAKED,
         ]
 
         await self.mtcs.close_dome()
@@ -1234,7 +1234,7 @@ class TestMTCS(MTCSAsyncMock):
         )
         self._mtdome_evt_shutter_motion.state = [
             MTDome.MotionState.CLOSED,
-            MTDome.MotionState.CLOSED,
+            MTDome.MotionState.STOPPED_BRAKED,
         ]
 
         await self.mtcs.open_dome_shutter()

@@ -1,0 +1,1 @@
+Add guider ROI defaults (DEFAULT_GUIDER_ROI_ROWS/COLS/TIME_MS).

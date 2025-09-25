@@ -118,6 +118,10 @@ class GenericCamera(BaseCamera):
         take_cwfs: Take series of curvature wavefront sensing images.
         take_acq: Take series of acquisition images.
         take_stuttered: Take series of stuttered images.
+        take_indome: Take series of in-dome testing images.
+        take_cbp: Take series of collimated beam projector images.
+        take_sflat: Take series of sky/twilight-flat images.
+        take_dflat: Take series of dark-flat images.
         take_imgtype: Take series of images of specified imgage type.
         expose: Low level expose method.
         """

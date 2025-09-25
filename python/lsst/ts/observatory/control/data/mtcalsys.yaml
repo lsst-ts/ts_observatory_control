@@ -245,8 +245,6 @@ whitelight_u_24_daily:
   wavelength: 385.0
   led_location: 174.18
   led_focus: 9.42
-  use_fiberspectrograph_red: False
-  use_fiberspectrograph_blue: False
   n_flat: 3
   exposure_times:
     - 10.0
@@ -260,8 +258,6 @@ whitelight_g_6_daily:
   wavelength: 480.0
   led_location: 5.62
   led_focus: 8.26
-  use_fiberspectrograph_red: False
-  use_fiberspectrograph_blue: False
   n_flat: 3
   exposure_times:
     - 10.0
@@ -275,8 +271,6 @@ whitelight_r_57_daily:
   wavelength: 612.5
   led_location: 66.87
   led_focus: 7.52
-  use_fiberspectrograph_red: False
-  use_fiberspectrograph_blue: False
   n_flat: 3
   exposure_times:
     - 10.0
@@ -290,8 +284,6 @@ whitelight_i_39_daily:
   wavelength: 755.0
   led_location: 233.83
   led_focus: 7.07
-  use_fiberspectrograph_red: False
-  use_fiberspectrograph_blue: False
   n_flat: 3
   exposure_times:
     - 10.0
@@ -305,8 +297,6 @@ whitelight_i_39_sequencer:
   wavelength: 755.0
   led_location: 233.83
   led_focus: 7.07
-  use_fiberspectrograph_red: False
-  use_fiberspectrograph_blue: False
   n_flat: 6
   exposure_times:
     - 20.0
@@ -324,8 +314,6 @@ whitelight_z_20_daily:
   wavelength: 895.0
   led_location: 295.504
   led_focus: 6.74
-  use_fiberspectrograph_red: False
-  use_fiberspectrograph_blue: False
   n_flat: 3
   exposure_times:
     - 15.0
@@ -338,8 +326,6 @@ whitelight_y_10_daily:
   wavelength: 970.0
   led_location: 171.38
   led_focus: 6.61
-  use_fiberspectrograph_red: False
-  use_fiberspectrograph_blue: False
   n_flat: 3
   exposure_times:
     - 20.0
@@ -353,8 +339,6 @@ whitelight_ph_5_daily:
   wavelength: 755.0
   led_location: 233.83
   led_focus: 7.07
-  use_fiberspectrograph_red: False
-  use_fiberspectrograph_blue: False
   n_flat: 3
   exposure_times:
     - 30.0
@@ -367,8 +351,6 @@ whitelight_u_24_dark:
   wavelength: 385.0
   led_location: 174.18
   led_focus: 9.42
-  use_fiberspectrograph_red: False
-  use_fiberspectrograph_blue: False
   n_flat: 20
   exposure_times:
     - 10.0
@@ -382,8 +364,6 @@ whitelight_g_6_dark:
   wavelength: 480.0
   led_location: 5.62
   led_focus: 8.26
-  use_fiberspectrograph_red: False
-  use_fiberspectrograph_blue: False
   n_flat: 20
   exposure_times:
     - 10.0
@@ -397,8 +377,6 @@ whitelight_r_57_dark:
   wavelength: 612.5
   led_location: 66.87
   led_focus: 7.52
-  use_fiberspectrograph_red: False
-  use_fiberspectrograph_blue: False
   n_flat: 20
   exposure_times:
     - 10.0
@@ -412,8 +390,6 @@ whitelight_i_39_dark:
   wavelength: 755.0
   led_location: 233.83
   led_focus: 7.07
-  use_fiberspectrograph_red: False
-  use_fiberspectrograph_blue: False
   use_flatfield_electrometer: False
   n_flat: 20
   exposure_times:
@@ -428,8 +404,6 @@ whitelight_pinhole_dark:
   wavelength: 755.0
   led_location: 233.83
   led_focus: 7.07
-  use_fiberspectrograph_red: False
-  use_fiberspectrograph_blue: False
   n_flat: 1
   exposure_times:
     - 60.0
@@ -443,8 +417,6 @@ whitelight_z_20_dark:
   wavelength: 895.0
   led_location: 295.504
   led_focus: 6.74
-  use_fiberspectrograph_red: False
-  use_fiberspectrograph_blue: False
   n_flat: 20
   exposure_times:
     - 15.0
@@ -457,8 +429,6 @@ whitelight_y_10_dark:
   wavelength: 970.0
   led_location: 171.38
   led_focus: 6.61
-  use_fiberspectrograph_red: False
-  use_fiberspectrograph_blue: False
   n_flat: 20
   exposure_times:
     - 20.0
@@ -471,8 +441,6 @@ scan_u_init:
   mtcamera_filter: u_24
   wavelength_list: [340.,350.,360.,370.]
   set_wavelength_range: false
-  use_fiberspectrograph_red: False
-  use_fiberspectrograph_blue: False
   exposure_times:
     - 60.0
 
@@ -484,8 +452,6 @@ scan_g_init:
   mtcamera_filter: g_6
   wavelength_list: [400.,420.,440.,450.,470.,490.,510.,530.,550.]
   set_wavelength_range: false
-  use_fiberspectrograph_red: False
-  use_fiberspectrograph_blue: False
   exposure_times:
     - 30.0
 
@@ -497,118 +463,102 @@ scan_r_init:
   mtcamera_filter: r_57
   wavelength_list: [550.,570.,590.,610.,630.,650.,670.,690.]
   set_wavelength_range: false
-  use_fiberspectrograph_red: False
-  use_fiberspectrograph_blue: False
   exposure_times:
     - 30.0
 
 scan_u:
   calib_type: Mono
-  laser_mode: 1
+  laser_mode: 3
   optical_configuration: F1 SCU
   use_camera: True
   mtcamera_filter: u_24
   wavelength: 355.
   wavelength_width: 90
   wavelength_resolution: 5.0
-  use_fiberspectrograph_red: False
-  use_fiberspectrograph_blue: False
   n_flat: 2
   exposure_times:
     - 120.0
 
 scan_g:
   calib_type: Mono
-  laser_mode: 1
+  laser_mode: 3
   optical_configuration: F1 SCU
   use_camera: True
   mtcamera_filter: g_6
   wavelength: 480.0
   wavelength_width: 190
   wavelength_resolution: 5.0
-  use_fiberspectrograph_red: False
-  use_fiberspectrograph_blue: False
   n_flat: 2
   exposure_times:
     - 30.
 
 scan_r:
   calib_type: Mono
-  laser_mode: 1
+  laser_mode: 3
   optical_configuration: F1 SCU
   use_camera: True
   mtcamera_filter: r_57
   wavelength: 620.0
   wavelength_width: 180
   wavelength_resolution: 5.0
-  use_fiberspectrograph_red: False
-  use_fiberspectrograph_blue: False
   n_flat: 4
   exposure_times:
     - 30.0
 
 scan_r_unittest:
   calib_type: Mono
-  laser_mode: 1
+  laser_mode: 3
   optical_configuration: F1 SCU
   use_camera: True
   mtcamera_filter: r_57
   wavelength: 625.0
   wavelength_width: 250
   wavelength_resolution: 5.0
-  use_fiberspectrograph_red: False
-  use_fiberspectrograph_blue: False
   exposure_times:
     - 15.0
 
 scan_i:
   calib_type: Mono
-  laser_mode: 1
+  laser_mode: 3
   optical_configuration: F1 SCU
   use_camera: True
   mtcamera_filter: i_39
   wavelength: 755.0
   wavelength_width: 190
   wavelength_resolution: 5.0
-  use_fiberspectrograph_red: False
-  use_fiberspectrograph_blue: False
   n_flat: 4
   exposure_times:
     - 30.0
 
 scan_z:
   calib_type: Mono
-  laser_mode: 1
+  laser_mode: 3
   optical_configuration: F1 SCU
   use_camera: True
   mtcamera_filter: z_20
   wavelength: 870.0
   wavelength_width: 160
   wavelength_resolution: 5.0
-  use_fiberspectrograph_red: False
-  use_fiberspectrograph_blue: False
   n_flat: 4
   exposure_times:
     - 30.0
 
 scan_y:
   calib_type: Mono
-  laser_mode: 1
+  laser_mode: 3
   optical_configuration: F1 SCU
   use_camera: True
   mtcamera_filter: y_10
   wavelength: 1025.0
   wavelength_width: 250
   wavelength_resolution: 5.0
-  use_fiberspectrograph_red: False
-  use_fiberspectrograph_blue: False
   n_flat: 4
   exposure_times:
     - 30.0
 
 scan_none:
   calib_type: Mono
-  laser_mode: 1
+  laser_mode: 3
   optical_configuration: F1 SCU
   use_camera: True
   mtcamera_filter: NONE
@@ -616,8 +566,6 @@ scan_none:
   wavelength_width: 800
   wavelength_resolution: 10.0
   electrometer_integration_time: 1
-  use_fiberspectrograph_red: False
-  use_fiberspectrograph_blue: False
   n_flat: 4
   exposure_times:
     - 30.0
@@ -630,8 +578,6 @@ scan_i_init:
   mtcamera_filter: i_39
   wavelength_list: [690.,710., 730., 750., 770., 790., 800.,820.]
   set_wavelength_range: false
-  use_fiberspectrograph_red: False
-  use_fiberspectrograph_blue: False
   exposure_times:
     - 30.0
 
@@ -643,8 +589,6 @@ mono_i_stability:
   mtcamera_filter: i_39
   wavelength_list: [780.0]
   set_wavelength_range: false
-  use_fiberspectrograph_red: False
-  use_fiberspectrograph_blue: False
   n_flat: 10
   exposure_times:
     - 10.0 #this will need to be updated to give us ~100 counts
@@ -671,8 +615,6 @@ scan_z_init:
   mtcamera_filter: z_20
   wavelength_list: [820.,840., 860., 880., 900., 915., 930.]
   set_wavelength_range: false
-  use_fiberspectrograph_red: False
-  use_fiberspectrograph_blue: False
   exposure_times:
     - 30.0
 
@@ -684,8 +626,6 @@ scan_y_init:
   mtcamera_filter: y_10
   wavelength_list: [930.,1100.]
   set_wavelength_range: false
-  use_fiberspectrograph_red: False
-  use_fiberspectrograph_blue: False
   exposure_times:
     - 15.0
 
@@ -791,8 +731,6 @@ whitelight_u_24_M385L3:
   wavelength: 385.0
   led_location: 174.18
   led_focus: 9.42
-  use_fiberspectrograph_red: False
-  use_fiberspectrograph_blue: False
   n_flat: 20
   exposure_times:
     - 10.0
@@ -805,8 +743,6 @@ whitelight_i_39_M730L5:
   wavelength: 730.0
   led_location: 233.91
   led_focus: 7.15
-  use_fiberspectrograph_red: False
-  use_fiberspectrograph_blue: False
   n_flat: 20
   exposure_times:
     - 10.0
@@ -831,8 +767,6 @@ whitelight_i_39_M810L3:
   wavelength: 810.
   led_location: 233.71
   led_focus: 6.94
-  use_fiberspectrograph_red: False
-  use_fiberspectrograph_blue: False
   n_flat: 20
   exposure_times:
     - 10.0
@@ -845,8 +779,6 @@ whitelight_g_6_M455L4:
   wavelength: 455.0
   led_location: 5.925
   led_focus: 8.57
-  use_fiberspectrograph_red: False
-  use_fiberspectrograph_blue: False
   n_flat: 20
   exposure_times:
     - 9.0
@@ -859,8 +791,6 @@ whitelight_g_6_M505L4:
   wavelength: 505.0
   led_location: 5.48
   led_focus: 8.12
-  use_fiberspectrograph_red: False
-  use_fiberspectrograph_blue: False
   n_flat: 20
   exposure_times:
     - 20.0
@@ -873,8 +803,6 @@ whitelight_r_57_M565L3:
   wavelength: 565.0
   led_location: 67.14
   led_focus: 7.79
-  use_fiberspectrograph_red: False
-  use_fiberspectrograph_blue: False
   n_flat: 20
   exposure_times:
     - 20.0
@@ -887,8 +815,6 @@ whitelight_r_57_M660L4:
   wavelength: 660.0
   led_location: 66.87
   led_focus: 7.52
-  use_fiberspectrograph_red: False
-  use_fiberspectrograph_blue: False
   n_flat: 20
   exposure_times:
     - 10.0
@@ -901,8 +827,6 @@ whitelight_z_20_M850L3:
   wavelength: 850.0
   led_location: 295.61
   led_focus: 6.85
-  use_fiberspectrograph_red: False
-  use_fiberspectrograph_blue: False
   n_flat: 20
   exposure_times:
     - 9.0
@@ -915,8 +839,6 @@ whitelight_z_20_M940L3:
   wavelength: 940.0
   led_location: 295.432
   led_focus: 6.66
-  use_fiberspectrograph_red: False
-  use_fiberspectrograph_blue: False
   n_flat: 20
   exposure_times:
     - 20.0
@@ -929,8 +851,6 @@ whitelight_y_10_M940L3:
   wavelength: 940.0
   led_location: 295.432
   led_focus: 6.66
-  use_fiberspectrograph_red: False
-  use_fiberspectrograph_blue: False
   n_flat: 20
   exposure_times:
     - 10.0
@@ -943,8 +863,6 @@ whitelight_y_10_M970L4:
   wavelength: 970.0
   led_location: 171.38
   led_focus: 6.61
-  use_fiberspectrograph_red: False
-  use_fiberspectrograph_blue: False
   n_flat: 20
   exposure_times:
     - 20.0
@@ -1100,8 +1018,6 @@ whitelight_empty_M385L3:
   wavelength: 385.0
   led_location: 174.18
   led_focus: 9.42
-  use_fiberspectrograph_red: False
-  use_fiberspectrograph_blue: False
   n_flat: 20
   exposure_times:
     - 10.0
@@ -1114,8 +1030,6 @@ whitelight_empty_M730L5:
   wavelength: 730.0
   led_location: 233.91
   led_focus: 7.15
-  use_fiberspectrograph_red: False
-  use_fiberspectrograph_blue: False
   n_flat: 20
   exposure_times:
     - 10.0
@@ -1128,8 +1042,6 @@ whitelight_empty_M810L3:
   wavelength: 810.
   led_location: 233.71
   led_focus: 6.94
-  use_fiberspectrograph_red: False
-  use_fiberspectrograph_blue: False
   n_flat: 20
   exposure_times:
     - 10.0
@@ -1142,8 +1054,6 @@ whitelight_empty_M455L4:
   wavelength: 455.0
   led_location: 5.925
   led_focus: 8.57
-  use_fiberspectrograph_red: False
-  use_fiberspectrograph_blue: False
   n_flat: 20
   exposure_times:
     - 9.0
@@ -1156,8 +1066,6 @@ whitelight_empty_M505L4:
   wavelength: 505.0
   led_location: 5.48
   led_focus: 8.12
-  use_fiberspectrograph_red: False
-  use_fiberspectrograph_blue: False
   n_flat: 20
   exposure_times:
     - 20.0
@@ -1170,8 +1078,6 @@ whitelight_empty_M565L3:
   wavelength: 565.0
   led_location: 67.14
   led_focus: 7.79
-  use_fiberspectrograph_red: False
-  use_fiberspectrograph_blue: False
   n_flat: 20
   exposure_times:
     - 20.0
@@ -1184,8 +1090,6 @@ whitelight_empty_M660L4:
   wavelength: 660.0
   led_location: 66.73
   led_focus: 7.37
-  use_fiberspectrograph_red: False
-  use_fiberspectrograph_blue: False
   n_flat: 20
   exposure_times:
     - 10.0
@@ -1198,8 +1102,6 @@ whitelight_empty_M850L3:
   wavelength: 850.0
   led_location: 295.61
   led_focus: 6.85
-  use_fiberspectrograph_red: False
-  use_fiberspectrograph_blue: False
   n_flat: 20
   exposure_times:
     - 9.0
@@ -1212,8 +1114,6 @@ whitelight_empty_M940L3:
   wavelength: 940.0
   led_location: 295.432
   led_focus: 6.66
-  use_fiberspectrograph_red: False
-  use_fiberspectrograph_blue: False
   n_flat: 20
   exposure_times:
     - 10.0
@@ -1226,8 +1126,6 @@ whitelight_empty_M970L4:
   wavelength: 970.0
   led_location: 171.38
   led_focus: 6.61
-  use_fiberspectrograph_red: False
-  use_fiberspectrograph_blue: False
   n_flat: 20
   exposure_times:
     - 20.0
@@ -1242,8 +1140,6 @@ whitelight_i_39_gain_100:
   led_location: 233.83
   led_focus: 7.07
   n_flat: 215
-  use_fiberspectrograph_red: False
-  use_fiberspectrograph_blue: False
   exposure_times:
     - 10.0
 
@@ -1257,143 +1153,8 @@ whitelight_i_39_gain_600:
   led_location: 233.83
   led_focus: 7.07
   n_flat: 600
-  use_fiberspectrograph_red: False
-  use_fiberspectrograph_blue: False
   exposure_times:
     - 10.0
-
-ptc_i_39_100_a:
-  mtcamera_filter: i_39
-  led_name:
-    - M730L5
-    - M810L3
-  dac_value: 0.1
-  wavelength: 755.0
-  led_location: 233.83
-  led_focus: 7.07
-  use_camera: True
-  use_fiberspectrograph_red: False
-  use_fiberspectrograph_blue: False
-  n_flat: 2
-  ptc: True
-  exposure_times:
-    - 1.0
-    - 2.0
-    - 5.0
-    - 10.0
-    - 30.0
-    - 60.0
-    - 90.0
-
-ptc_i_39_100_b:
-  mtcamera_filter: i_39
-  led_name:
-    - M730L5
-    - M810L3
-  dac_value: 0.2
-  wavelength: 755.0
-  led_location: 233.83
-  led_focus: 7.07
-  use_camera: True
-  use_fiberspectrograph_red: False
-  use_fiberspectrograph_blue: False
-  n_flat: 2
-  ptc: True
-  exposure_times:
-    - 1.0
-    - 2.0
-    - 5.0
-    - 10.0
-    - 30.0
-    - 60.0
-    - 90.0
-
-ptc_i_39_100_c:
-  mtcamera_filter: i_39
-  led_name:
-    - M730L5
-    - M810L3
-  dac_value: 0.8
-  wavelength: 755.0
-  led_location: 233.83
-  led_focus: 7.07
-  use_camera: True
-  use_fiberspectrograph_red: False
-  use_fiberspectrograph_blue: False
-  n_flat: 2
-  ptc: True
-  exposure_times:
-    - 1.0
-    - 10.0
-    - 30.0
-    - 65.0
-    - 90.0
-
-ptc_i_39_100_d:
-  mtcamera_filter: i_39
-  led_name:
-    - M730L5
-    - M810L3
-  dac_value: 0.8
-  wavelength: 755.0
-  led_location: 233.83
-  led_focus: 7.07
-  use_camera: True
-  use_fiberspectrograph_red: False
-  use_fiberspectrograph_blue: False
-  n_flat: 2
-  ptc: True
-  exposure_times:
-    - 1.0
-    - 30.0
-    - 65.0
-
-ptc_i_39_100_e:
-  dac_value: 0.15
-  led_focus: 7.07
-  led_location: 233.83
-  led_name:
-    - M730L5
-    - M810L3
-  mtcamera_filter: i_39
-  n_flat: 2
-  ptc: True
-  use_camera: true
-  use_fiberspectrograph_blue: false
-  use_fiberspectrograph_red: false
-  wavelength: 755
-  exposure_times:
-    - 1
-    - 2
-    - 5
-    - 10
-    - 30
-    - 60
-    - 90
-
-ptc_daily:
-  mtcamera_filter: i_39
-  led_name:
-    - M730L5
-    - M810L3
-  dac_value: 0.5
-  wavelength: 755.0
-  led_location: 233.83
-  led_focus: 7.07
-  use_camera: True
-  use_fiberspectrograph_red: False
-  use_fiberspectrograph_blue: False
-  n_flat: 2
-  ptc: True
-  exposure_times:
-    - 0.1
-    - 0.5
-    - 1
-    - 10
-    - 15
-    - 30
-    - 45
-    - 60
 
 persistence_i_39:
   mtcamera_filter: i_39
@@ -1404,1519 +1165,131 @@ persistence_i_39:
   wavelength: 755.0
   led_location: 233.83
   led_focus: 7.07
-  use_fiberspectrograph_red: False
-  use_fiberspectrograph_blue: False
   use_flatfield_electrometer: False
   n_flat: 1
   exposure_times:
     - 60.0
+
+ptc_daily:
+  mtcamera_filter: i_39
+  led_name:
+    - M730L5
+    - M810L3
+  wavelength: 755.0
+  led_location: 233.83
+  led_focus: 7.07
+  use_camera: True
+  n_flat: 2
+  constrained_random_exposure_times:
+    samples_per_bin:
+      - 5
+      - 10
+    bin_edges:
+      - [1.0, 15.0]
+      - [4.0, 65.0]
+    bin_dac_values:
+      - 0.5
+      - 0.8
+    random_seed: null
+
+ptc_daily_test:
+  mtcamera_filter: i_39
+  led_name:
+    - M730L5
+    - M810L3
+  wavelength: 755.0
+  led_location: 233.83
+  led_focus: 7.07
+  use_camera: False
+  n_flat: 2
+  constrained_random_exposure_times:
+    samples_per_bin:
+      - 5
+      - 10
+    bin_edges:
+      - [1.0, 15.0]
+      - [4.0, 65.0]
+    bin_dac_values:
+      - 0.5
+      - 0.8
+    random_seed: null
 
 ptc_i_39_100:
   mtcamera_filter: i_39
   led_name:
     - M730L5
     - M810L3
-  dac_value: 0.5
   wavelength: 755.0
   led_location: 233.83
   led_focus: 7.07
   use_camera: True
-  use_fiberspectrograph_red: False
-  use_fiberspectrograph_blue: False
   use_flatfield_electrometer: False
   n_flat: 2
-  ptc: True
-  exposure_times:
-    - 15.0
-    - 80.115
-    - 53.427
-    - 55.404
-    - 41.566
-    - 18.833
-    - 61.335
-    - 70.230
-    - 49.474
-    - 96.918
-    - 99.883
-    - 81.103
-    - 90.987
-    - 58.370
-    - 63.312
-    - 3.018
-    - 34.648
-    - 15.0
-    - 82.091
-    - 6.972
-    - 23.775
-    - 59.358
-    - 65.288
-    - 11.914
-    - 71.219
-    - 1.386
-    - 50.462
-    - 83.080
-    - 43.543
-    - 51.451
-    - 56.393
-    - 79.126
-    - 32.671
-    - 14.879
-    - 8.949
-    - 47.497
-    - 89.010
-    - 98.895
-    - 76.161
-    - 15.0
-    - 66.277
-    - 30.694
-    - 13.891
-    - 57.381
-    - 12.902
-    - 54.416
-    - 93.952
-    - 10.926
-    - 22.787
-    - 37.613
-    - 35.636
-    - 15.868
-    - 5.983
-    - 38.601
-    - 42.555
-    - 26.740
-    - 91.976
-    - 20.810
-    - 78.138
-    - 67.265
-    - 86.045
-    - 73.196
-    - 29.705
-    - 52.439
-    - 7.960
-    - 4.007
-    - 15.0
-    - 33.659
-    - 95.929
-    - 31.682
-    - 21.798
-    - 69.242
-    - 85.057
-    - 62.323
-    - 48.485
-    - 27.729
-    - 68.254
-    - 46.509
-    - 45.520
-    - 36.624
-    - 89.999
-    - 75.173
-    - 16.856
-    - 39.590
-    - 74.184
-    - 64.300
-    - 15.0
-    - 72.207
-    - 94.941
-    - 92.964
-    - 19.821
-    - 60.346
-    - 97.906
-    - 28.717
-    - 24.763
-    - 77.149
-    - 9.937
-    - 84.068
-    - 87.034
-    - 88.022
-    - 2.030
-    - 44.532
-    - 4.995
-    - 2.030
-    - 40.578
-    - 17.844
-    - 25.752
+  constrained_random_exposure_times:
+    samples_per_bin:
+      - 20
+      - 30
+      - 50
+    bin_edges:
+      - [1.0, 30.0]
+      - [1.0, 15.0]
+      - [4.0, 65.0]
+    bin_dac_values:
+      - 0.15
+      - 0.5
+      - 0.8
+    random_seed: 12345
 
 ptc_i_39_500:
   mtcamera_filter: i_39
   led_name:
     - M730L5
     - M810L3
-  dac_value: 0.8
   wavelength: 755.0
   led_location: 233.83
   led_focus: 7.07
   use_camera: True
-  use_fiberspectrograph_red: False
-  use_fiberspectrograph_blue: False
   use_flatfield_electrometer: True
   n_flat: 2
-  ptc: True
-  exposure_times:
-    - 15.0
-    - 0.240
-    - 28.167
-    - 29.500
-    - 88.815
-    - 53.032
-    - 58.554
-    - 0.013
-    - 1.167
-    - 4.167
-    - 0.113
-    - 16.833
-    - 61.867
-    - 44.418
-    - 69.378
-    - 71.145
-    - 25.167
-    - 18.000
-    - 81.526
-    - 70.040
-    - 51.707
-    - 15.0
-    - 86.165
-    - 14.167
-    - 27.500
-    - 0.088
-    - 0.094
-    - 71.586
-    - 20.167
-    - 5.500
-    - 64.297
-    - 85.502
-    - 18.167
-    - 21.167
-    - 0.060
-    - 44.197
-    - 49.056
-    - 56.345
-    - 86.386
-    - 26.167
-    - 66.727
-    - 89.699
-    - 0.032
-    - 15.0
-    - 91.687
-    - 0.131
-    - 2.167
-    - 52.811
-    - 76.888
-    - 5.000
-    - 56.124
-    - 0.091
-    - 87.932
-    - 71.365
-    - 25.000
-    - 20.667
-    - 45.743
-    - 80.863
-    - 27.833
-    - 93.675
-    - 82.189
-    - 0.041
-    - 15.0
-    - 77.992
-    - 90.582
-    - 13.833
-    - 45.301
-    - 1.500
-    - 0.038
-    - 46.406
-    - 0.172
-    - 13.500
-    - 55.904
-    - 59.217
-    - 0.150
-    - 88.373
-    - 57.450
-    - 24.667
-    - 64.076
-    - 65.402
-    - 81.305
-    - 40.442
-    - 2.667
-    - 47.510
-    - 15.0
-    - 10.333
-    - 54.578
-    - 1.333
-    - 3.833
-    - 2.333
-    - 25.500
-    - 85.723
-    - 88.594
-    - 83.735
-    - 16.500
-    - 28.000
-    - 0.137
-    - 19.167
-    - 65.181
-    - 22.000
-    - 42.430
-    - 76.667
-    - 65.843
-    - 49.719
-    - 0.122
-    - 4.000
-    - 62.309
-    - 15.0
-    - 43.534
-    - 53.916
-    - 72.470
-    - 87.048
-    - 15.000
-    - 83.514
-    - 78.876
-    - 87.269
-    - 80.422
-    - 50.382
-    - 16.333
-    - 89.478
-    - 7.167
-    - 17.333
-    - 60.763
-    - 15.0
-    - 23.333
-    - 0.097
-    - 64.518
-    - 91.024
-    - 73.353
-    - 70.924
-    - 85.281
-    - 90.141
-    - 66.948
-    - 11.667
-    - 7.667
-    - 57.892
-    - 63.635
-    - 27.000
-    - 25.333
-    - 24.333
-    - 20.833
-    - 15.0
-    - 28.500
-    - 0.109
-    - 6.167
-    - 42.651
-    - 56.787
-    - 74.016
-    - 26.500
-    - 55.241
-    - 0.153
-    - 75.562
-    - 6.667
-    - 43.313
-    - 0.072
-    - 57.008
-    - 0.212
-    - 0.075
-    - 12.667
-    - 17.500
-    - 2.500
-    - 56.566
-    - 11.833
-    - 11.500
-    - 48.835
-    - 0.116
-    - 47.068
-    - 4.667
-    - 23.167
-    - 28.333
-    - 15.0
-    - 95.000
-    - 0.047
-    - 87.490
-    - 30.000
-    - 54.357
-    - 40.663
-    - 67.390
-    - 66.064
-    - 0.184
-    - 17.667
-    - 16.667
-    - 77.108
-    - 70.482
-    - 53.695
-    - 0.029
-    - 79.759
-    - 72.912
-    - 8.500
-    - 15.0
-    - 83.072
-    - 0.035
-    - 10.833
-    - 67.831
-    - 0.162
-    - 21.333
-    - 29.000
-    - 78.655
-    - 41.325
-    - 47.952
-    - 86.606
-    - 58.775
-    - 26.833
-    - 92.570
-    - 60.542
-    - 71.807
-    - 12.833
-    - 19.667
-    - 23.500
-    - 45.522
-    - 15.0
-    - 50.602
-    - 15.167
-    - 29.167
-    - 82.410
-    - 5.833
-    - 42.209
-    - 83.293
-    - 46.847
-    - 3.500
-    - 5.333
-    - 29.333
-    - 82.631
-    - 23.000
-    - 63.414
-    - 51.928
-    - 58.112
-    - 22.333
-    - 41.988
-    - 5.667
-    - 43.976
-    - 26.333
-    - 15.0
-    - 40.884
-    - 59.659
-    - 93.012
-    - 3.333
-    - 6.833
-    - 66.506
-    - 15.333
-    - 12.167
-    - 22.833
-    - 14.000
-    - 53.474
-    - 9.833
-    - 0.026
-    - 0.119
-    - 64.960
-    - 0.221
-    - 74.679
-    - 94.779
-    - 0.063
-    - 76.446
-    - 0.128
-    - 21.833
-    - 0.190
-    - 41.767
-    - 4.833
-    - 52.590
-    - 6.333
-    - 15.0
-    - 91.466
-    - 84.839
-    - 78.434
-    - 45.964
-    - 92.129
-    - 0.066
-    - 91.908
-    - 67.610
-    - 57.229
-    - 53.253
-    - 76.004
-    - 82.851
-    - 14.500
-    - 10.000
-    - 15.0
-    - 93.233
-    - 17.833
-    - 57.671
-    - 48.394
-    - 58.333
-    - 10.500
-    - 46.185
-    - 0.081
-    - 20.333
-    - 67.169
-    - 0.228
-    - 66.285
-    - 0.200
-    - 0.144
-    - 9.667
-    - 13.333
-    - 75.120
-    - 54.799
-    - 9.000
-    - 59.438
-    - 8.667
-    - 87.711
-    - 17.167
-    - 2.000
-    - 12.500
-    - 55.683
-    - 15.0
-    - 77.771
-    - 3.000
-    - 42.871
-    - 60.984
-    - 0.178
-    - 9.167
-    - 80.201
-    - 12.333
-    - 23.833
-    - 90.361
-    - 54.137
-    - 89.257
-    - 0.175
-    - 22.167
-    - 0.103
-    - 48.173
-    - 28.667
-    - 3.667
-    - 0.181
-    - 24.000
-    - 84.618
-    - 17.000
-    - 68.936
-    - 0.085
-    - 8.167
-    - 15.0
-    - 72.028
-    - 13.667
-    - 0.234
-    - 68.494
-    - 12.000
-    - 6.500
-    - 51.265
-    - 62.751
-    - 47.289
-    - 68.273
-    - 0.078
-    - 83.956
-    - 50.823
-    - 18.500
-    - 5.167
-    - 61.647
-    - 9.333
-    - 0.156
-    - 1.000
-    - 16.167
-    - 27.333
-    - 18.833
-    - 81.747
-    - 85.060
-    - 15.0
-    - 94.337
-    - 0.193
-    - 79.980
-    - 23.667
-    - 72.691
-    - 94.116
-    - 22.667
-    - 0.016
-    - 25.833
-    - 9.500
-    - 0.054
-    - 68.715
-    - 52.149
-    - 8.333
-    - 18.667
-    - 0.100
-    - 21.000
-    - 24.500
-    - 81.968
-    - 69.598
-    - 0.050
-    - 19.833
-    - 89.036
-    - 15.0
-    - 63.193
-    - 0.134
-    - 13.000
-    - 0.203
-    - 0.125
-    - 47.731
-    - 0.224
-    - 79.096
-    - 46.627
-    - 29.833
-    - 73.133
-    - 4.333
-    - 6.000
-    - 62.088
-    - 0.022
-    - 55.020
-    - 0.165
-    - 1.833
-    - 93.454
-    - 60.321
-    - 60.100
-    - 26.000
-    - 63.855
-    - 15.0
-    - 86.827
-    - 0.010
-    - 28.833
-    - 41.104
-    - 40.000
-    - 62.530
-    - 59.880
-    - 14.333
-    - 40.221
-    - 10.167
-    - 92.349
-    - 25.667
-    - 0.196
-    - 48.614
-    - 14.667
-    - 0.206
-    - 11.333
-    - 75.341
-    - 0.237
-    - 11.167
-    - 14.833
-    - 76.225
-    - 0.209
-    - 21.667
-    - 80.643
-    - 15.0
-    - 84.398
-    - 49.277
-    - 24.167
-    - 89.920
-    - 27.167
-    - 50.161
-    - 21.500
-    - 7.833
-    - 24.833
-    - 61.426
-    - 0.141
-    - 11.000
-    - 19.000
-    - 0.187
-    - 0.057
-    - 7.500
-    - 58.996
-    - 73.574
-    - 0.019
-    - 0.106
-    - 51.486
-    - 91.245
-    - 8.000
-    - 18.333
-    - 49.498
-    - 15.0
-    - 74.237
-    - 79.538
-    - 13.167
-    - 44.859
-    - 49.940
-    - 22.500
-    - 16.000
-    - 43.755
-    - 7.000
-    - 29.667
-    - 26.667
-    - 73.795
-    - 0.147
-    - 77.329
-    - 10.667
-    - 92.791
-    - 44.639
-    - 2.833
-    - 1.667
-    - 68.052
-    - 0.159
-    - 77.550
-    - 15.667
-    - 0.069
-    - 15.0
-    - 15.833
-    - 62.972
-    - 3.167
-    - 94.558
-    - 84.177
-    - 43.092
-    - 19.333
-    - 70.261
-    - 52.369
-    - 75.783
-    - 70.703
-    - 0.218
-    - 74.900
-    - 45.080
-    - 0.215
-    - 81.084
-    - 15.0
-    - 51.044
-    - 41.546
-    - 74.458
-    - 69.819
-    - 88.153
-    - 4.500
-    - 0.169
-    - 7.333
-    - 20.000
-    - 61.205
-    - 15.500
-    - 55.462
-    - 8.833
-    - 19.500
-    - 79.317
-    - 64.739
-    - 0.044
-    - 78.213
-    - 85.944
-    - 20.500
-    - 15.0
-    - 27.667
-    - 69.157
-    - 0.231
-    - 65.622
-    - 90.803
-    - 72.249
-    - 93.896
-
+  constrained_random_exposure_times:
+    samples_per_bin:
+      - 150
+      - 100
+      - 250
+    bin_edges:
+      - [1.0, 30.0]
+      - [1.0, 15.0]
+      - [4.0, 65.0]
+    bin_dac_values:
+      - 0.15
+      - 0.5
+      - 0.8
+    random_seed: 12345
 
 ptc_i_39_750:
   mtcamera_filter: i_39
   led_name:
     - M730L5
     - M810L3
-  dac_value: 0.5
   wavelength: 755.0
   led_location: 233.83
   led_focus: 7.07
   use_camera: True
-  use_fiberspectrograph_red: False
-  use_fiberspectrograph_blue: False
   n_flat: 2
-  ptc: True
-  exposure_times:
-    - 15.0
-    - 52.406
-    - 92.785
-    - 66.236
-    - 90.867
-    - 91.776
-    - 0.064
-    - 62.602
-    - 87.233
-    - 87.536
-    - 56.141
-    - 79.965
-    - 70.173
-    - 0.170
-    - 59.674
-    - 43.927
-    - 58.362
-    - 90.766
-    - 100.558
-    - 80.773
-    - 15.0
-    - 95.309
-    - 49.681
-    - 0.056
-    - 95.208
-    - 61.290
-    - 73.605
-    - 45.037
-    - 68.457
-    - 84.709
-    - 85.517
-    - 58.160
-    - 65.327
-    - 54.021
-    - 91.675
-    - 0.284
-    - 75.826
-    - 56.040
-    - 59.573
-    - 88.445
-    - 15.0
-    - 82.085
-    - 75.523
-    - 99.145
-    - 90.968
-    - 0.134
-    - 46.046
-    - 48.065
-    - 80.066
-    - 68.255
-    - 54.122
-    - 0.207
-    - 93.997
-    - 60.684
-    - 46.753
-    - 71.082
-    - 54.526
-    - 58.968
-    - 0.028
-    - 104.293
-    - 15.0
-    - 68.558
-    - 48.368
-    - 67.548
-    - 76.836
-    - 0.111
-    - 57.050
-    - 56.343
-    - 83.498
-    - 91.574
-    - 99.650
-    - 52.507
-    - 73.908
-    - 54.728
-    - 88.243
-    - 0.282
-    - 42.009
-    - 87.839
-    - 57.655
-    - 66.842
-    - 15.0
-    - 95.410
-    - 64.217
-    - 69.870
-    - 48.772
-    - 65.731
-    - 77.643
-    - 85.820
-    - 101.770
-    - 0.046
-    - 50.993
-    - 72.899
-    - 95.713
-    - 88.646
-    - 90.464
-    - 81.883
-    - 64.722
-    - 0.204
-    - 88.344
-    - 102.375
-    - 15.0
-    - 75.220
-    - 96.722
-    - 0.290
-    - 0.271
-    - 75.624
-    - 59.271
-    - 46.349
-    - 105.000
-    - 49.075
-    - 87.637
-    - 104.899
-    - 65.832
-    - 94.300
-    - 98.539
-    - 0.118
-    - 56.848
-    - 58.665
-    - 0.103
-    - 99.448
-    - 15.0
-    - 92.079
-    - 70.577
-    - 100.457
-    - 52.002
-    - 75.119
-    - 93.189
-    - 61.794
-    - 60.381
-    - 51.296
-    - 74.211
-    - 100.861
-    - 74.514
-    - 0.030
-    - 47.864
-    - 55.636
-    - 0.292
-    - 80.672
-    - 69.365
-    - 90.665
-    - 15.0
-    - 47.359
-    - 85.416
-    - 103.486
-    - 46.450
-    - 79.157
-    - 53.517
-    - 58.463
-    - 62.905
-    - 50.791
-    - 43.220
-    - 54.930
-    - 81.479
-    - 0.015
-    - 97.328
-    - 0.246
-    - 83.397
-    - 61.491
-    - 0.095
-    - 0.261
-    - 15.0
-    - 79.460
-    - 79.763
-    - 94.905
-    - 0.074
-    - 0.295
-    - 0.152
-    - 93.391
-    - 98.741
-    - 82.892
-    - 66.741
-    - 97.025
-    - 64.318
-    - 0.022
-    - 97.631
-    - 57.555
-    - 94.602
-    - 47.258
-    - 50.084
-    - 0.191
-    - 15.0
-    - 0.243
-    - 101.871
-    - 52.305
-    - 96.117
-    - 94.804
-    - 70.678
-    - 74.009
-    - 0.258
-    - 0.043
-    - 50.185
-    - 90.363
-    - 102.880
-    - 57.756
-    - 88.747
-    - 90.161
-    - 73.302
-    - 57.454
-    - 0.194
-    - 67.044
-    - 15.0
-    - 0.209
-    - 42.614
-    - 99.246
-    - 76.634
-    - 60.280
-    - 62.804
-    - 78.148
-    - 64.419
-    - 63.510
-    - 61.391
-    - 0.059
-    - 98.035
-    - 92.583
-    - 88.041
-    - 69.466
-    - 49.580
-    - 93.492
-    - 42.311
-    - 47.157
-    - 15.0
-    - 50.690
-    - 91.978
-    - 89.151
-    - 84.003
-    - 97.227
-    - 98.842
-    - 89.757
-    - 41.908
-    - 46.551
-    - 66.640
-    - 86.426
-    - 0.227
-    - 90.262
-    - 91.271
-    - 88.545
-    - 41.504
-    - 69.769
-    - 49.378
-    - 93.694
-    - 15.0
-    - 72.192
-    - 0.181
-    - 68.861
-    - 53.819
-    - 94.703
-    - 49.176
-    - 76.533
-    - 59.977
-    - 63.914
-    - 102.073
-    - 85.315
-    - 93.795
-    - 68.356
-    - 42.109
-    - 60.482
-    - 45.643
-    - 0.035
-    - 89.252
-    - 0.025
-    - 15.0
-    - 61.189
-    - 53.012
-    - 74.615
-    - 0.157
-    - 92.886
-    - 0.054
-    - 101.669
-    - 41.706
-    - 81.378
-    - 73.100
-    - 104.394
-    - 54.223
-    - 59.876
-    - 0.235
-    - 0.160
-    - 79.359
-    - 58.059
-    - 44.027
-    - 102.678
-    - 15.0
-    - 73.504
-    - 65.025
-    - 85.214
-    - 51.901
-    - 0.124
-    - 82.489
-    - 59.775
-    - 44.633
-    - 62.097
-    - 0.087
-    - 68.962
-    - 93.593
-    - 103.789
-    - 93.088
-    - 0.300
-    - 59.069
-    - 53.618
-    - 75.018
-    - 102.173
-    - 15.0
-    - 69.668
-    - 63.107
-    - 99.549
-    - 85.113
-    - 70.072
-    - 0.233
-    - 97.732
-    - 100.659
-    - 62.198
-    - 0.214
-    - 46.147
-    - 92.684
-    - 98.337
-    - 76.735
-    - 71.384
-    - 71.586
-    - 0.108
-    - 59.473
-    - 102.476
-    - 15.0
-    - 71.990
-    - 100.155
-    - 69.264
-    - 78.955
-    - 68.154
-    - 67.346
-    - 104.091
-    - 97.934
-    - 87.738
-    - 0.238
-    - 71.283
-    - 45.542
-    - 0.225
-    - 64.015
-    - 47.460
-    - 87.940
-    - 87.334
-    - 0.212
-    - 0.251
-    - 15.0
-    - 46.652
-    - 51.599
-    - 91.473
-    - 65.126
-    - 78.350
-    - 63.813
-    - 94.400
-    - 83.902
-    - 99.852
-    - 0.168
-    - 96.016
-    - 72.495
-    - 0.116
-    - 0.222
-    - 63.611
-    - 85.719
-    - 103.890
-    - 87.435
-    - 96.823
-    - 15.0
-    - 83.700
-    - 77.946
-    - 78.451
-    - 89.454
-    - 94.199
-    - 0.061
-    - 0.220
-    - 96.318
-    - 59.372
-    - 71.687
-    - 70.476
-    - 57.958
-    - 66.337
-    - 101.265
-    - 45.845
-    - 52.204
-    - 0.017
-    - 77.037
-    - 101.063
-    - 15.0
-    - 81.176
-    - 47.056
-    - 81.075
-    - 80.167
-    - 87.132
-    - 41.807
-    - 42.412
-    - 103.284
-    - 51.195
-    - 0.131
-    - 71.182
-    - 0.217
-    - 0.199
-    - 70.981
-    - 102.779
-    - 101.164
-    - 60.583
-    - 0.048
-    - 42.715
-    - 15.0
-    - 76.432
-    - 53.214
-    - 0.183
-    - 53.315
-    - 0.165
-    - 104.596
-    - 83.801
-    - 74.110
-    - 99.953
-    - 85.618
-    - 43.321
-    - 0.274
-    - 98.943
-    - 89.555
-    - 60.987
-    - 94.098
-    - 102.577
-    - 72.798
-    - 41.100
-    - 15.0
-    - 84.810
-    - 42.917
-    - 88.142
-    - 91.372
-    - 56.747
-    - 98.136
-    - 79.258
-    - 0.092
-    - 77.138
-    - 86.627
-    - 73.706
-    - 55.939
-    - 54.627
-    - 57.353
-    - 41.302
-    - 0.279
-    - 104.697
-    - 0.277
-    - 0.100
-    - 15.0
-    - 69.567
-    - 95.814
-    - 48.671
-    - 0.155
-    - 59.170
-    - 83.094
-    - 48.974
-    - 83.195
-    - 82.388
-    - 104.192
-    - 0.297
-    - 86.930
-    - 86.123
-    - 95.612
-    - 45.744
-    - 51.094
-    - 79.561
-    - 96.924
-    - 64.621
-    - 15.0
-    - 81.782
-    - 55.536
-    - 42.513
-    - 77.744
-    - 44.229
-    - 89.050
-    - 47.763
-    - 102.981
-    - 76.936
-    - 54.324
-    - 66.438
-    - 0.098
-    - 0.266
-    - 58.867
-    - 76.028
-    - 65.227
-    - 90.060
-    - 49.782
-    - 82.590
-    - 15.0
-    - 0.248
-    - 74.817
-    - 101.972
-    - 80.268
-    - 70.375
-    - 0.150
-    - 62.400
-    - 53.718
-    - 51.498
-    - 51.397
-    - 48.267
-    - 86.022
-    - 62.703
-    - 68.053
-    - 48.166
-    - 71.788
-    - 70.779
-    - 44.330
-    - 0.240
-    - 15.0
-    - 0.041
-    - 86.325
-    - 68.760
-    - 87.031
-    - 63.006
-    - 99.347
-    - 0.038
-    - 101.568
-    - 45.441
-    - 68.659
-    - 53.920
-    - 47.964
-    - 48.873
-    - 103.183
-    - 81.681
-    - 86.829
-    - 67.649
-    - 55.132
-    - 60.179
-    - 15.0
-    - 78.855
-    - 0.051
-    - 51.700
-    - 84.104
-    - 47.561
-    - 79.056
-    - 72.293
-    - 0.253
-    - 96.520
-    - 50.387
-    - 0.162
-    - 97.833
-    - 0.126
-    - 57.252
-    - 77.239
-    - 80.974
-    - 52.103
-    - 44.431
-    - 69.164
-    - 15.0
-    - 80.571
-    - 103.587
-    - 56.646
-    - 0.066
-    - 96.419
-    - 74.918
-    - 95.006
-    - 79.864
-    - 89.353
-    - 51.800
-    - 97.126
-    - 44.532
-    - 0.121
-    - 46.854
-    - 56.545
-    - 98.236
-    - 99.751
-    - 54.425
-    - 55.838
-    - 15.0
-    - 98.438
-    - 96.621
-    - 0.020
-    - 78.653
-    - 43.725
-    - 45.945
-    - 45.239
-    - 74.716
-    - 41.605
-    - 58.261
-    - 45.340
-    - 0.090
-    - 78.754
-    - 80.369
-    - 69.971
-    - 61.088
-    - 0.069
-    - 44.835
-    - 63.712
-    - 15.0
-    - 103.991
-    - 0.033
-    - 0.085
-    - 97.530
-    - 86.527
-    - 104.798
-    - 57.857
-    - 81.277
-    - 0.287
-    - 58.766
-    - 67.245
-    - 100.356
-    - 62.501
-    - 67.447
-    - 96.218
-    - 55.334
-    - 56.444
-    - 92.281
-    - 67.851
-    - 15.0
-    - 100.962
-    - 82.691
-    - 75.927
-    - 84.911
-    - 44.128
-    - 77.441
-    - 55.435
-    - 52.608
-    - 69.063
-    - 77.542
-    - 101.467
-    - 61.996
-    - 46.955
-    - 41.201
-    - 76.331
-    - 61.895
-    - 80.470
-    - 91.877
-    - 0.105
-    - 15.0
-    - 85.921
-    - 52.810
-    - 50.589
-    - 0.077
-    - 104.495
-    - 90.564
-    - 43.826
-    - 43.119
-    - 85.012
-    - 54.829
-    - 42.210
-    - 67.952
-    - 89.858
-    - 70.880
-    - 95.107
-    - 56.242
-    - 63.409
-    - 100.054
-    - 71.889
-    - 15.0
-    - 100.255
-    - 67.145
-    - 75.321
-    - 89.959
-    - 88.949
-    - 41.403
-    - 0.129
-    - 83.296
-    - 0.137
-    - 76.129
-    - 0.147
-    - 42.816
-    - 92.180
-    - 0.012
-    - 50.892
-    - 99.044
-    - 44.734
-    - 103.082
-    - 73.807
-    - 15.0
-    - 73.201
-    - 78.047
-    - 55.233
-    - 60.078
-    - 0.186
-    - 49.277
-    - 83.599
-    - 72.091
-    - 64.924
-    - 0.188
-    - 49.983
-    - 73.000
-    - 75.725
-    - 82.287
-    - 46.248
-    - 72.394
-    - 94.501
-    - 101.366
-    - 0.196
-    - 15.0
-    - 55.031
-    - 43.624
-    - 52.911
-    - 64.520
-    - 0.269
-    - 0.175
-    - 89.656
-    - 0.173
-    - 66.034
-    - 57.151
-    - 72.697
-    - 62.299
-    - 61.592
-    - 0.178
-    - 92.482
-    - 86.224
-    - 76.230
-    - 78.552
-    - 60.785
-    - 15.0
-    - 0.113
-    - 53.416
-    - 65.630
-    - 65.933
-    - 48.469
-    - 84.508
-    - 72.596
-    - 49.882
-    - 0.072
-    - 63.208
-    - 71.485
-    - 53.113
-    - 80.873
-    - 75.422
-    - 97.429
-    - 0.142
-    - 66.943
-    - 103.688
-    - 84.609
-    - 15.0
-    - 91.170
-    - 74.312
-    - 64.823
-    - 52.709
-    - 48.570
-    - 93.896
-    - 81.580
-    - 84.407
-    - 84.306
-    - 88.848
-    - 102.274
-    - 0.144
-    - 64.116
-    - 82.993
-    - 91.069
-    - 100.760
-    - 82.186
-    - 60.886
-    - 67.750
-    - 15.0
-    - 79.662
-    - 43.422
-    - 92.987
-    - 55.737
-    - 81.984
-    - 49.479
-
-low_level_0.1:
-  mtcamera_filter: i_39
-  led_name:
-    - M730L5
-    - M810L3
-  dac_value: 0.1
-  wavelength: 755.0
-  led_location: 233.83
-  led_focus: 7.07
-  n_flat: 10
-  exposure_times:
-    - 30.0
-
-low_level_0.11:
-  mtcamera_filter: i_39
-  led_name:
-    - M730L5
-    - M810L3
-  dac_value: 0.11
-  wavelength: 755.0
-  led_location: 233.83
-  led_focus: 7.07
-  n_flat: 10
-  exposure_times:
-    - 30.0
-
-low_level_0.12:
-  mtcamera_filter: i_39
-  led_name:
-    - M730L5
-    - M810L3
-  dac_value: 0.12
-  wavelength: 755.0
-  led_location: 233.83
-  led_focus: 7.07
-  n_flat: 10
-  exposure_times:
-    - 30.0
-
-low_level_0.13:
-  mtcamera_filter: i_39
-  led_name:
-    - M730L5
-    - M810L3
-  dac_value: 0.13
-  wavelength: 755.0
-  led_location: 233.83
-  led_focus: 7.07
-  n_flat: 10
-  exposure_times:
-    - 30.0
-
-low_level_0.14:
-  mtcamera_filter: i_39
-  led_name:
-    - M730L5
-    - M810L3
-  dac_value: 0.14
-  wavelength: 755.0
-  led_location: 233.83
-  led_focus: 7.07
-  n_flat: 10
-  exposure_times:
-    - 30.0
-
-low_level_0.15:
-  mtcamera_filter: i_39
-  led_name:
-    - M730L5
-    - M810L3
-  dac_value: 0.15
-  wavelength: 755.0
-  led_location: 233.83
-  led_focus: 7.07
-  n_flat: 10
-  exposure_times:
-    - 30.0
+  constrained_random_exposure_times:
+    samples_per_bin:
+      - 225
+      - 150
+      - 375
+    bin_edges:
+      - [1.0, 30.0]
+      - [1.0, 15.0]
+      - [4.0, 65.0]
+    bin_dac_values:
+      - 0.15
+      - 0.5
+      - 0.8
+    random_seed: 12345
 
 laser_ptc:
   calib_type: Mono
@@ -2926,216 +1299,11 @@ laser_ptc:
   wavelength_list: [780.0]
   set_wavelength_range: false
   n_flat: 2
-  exposure_times:
-    - 6.67
-    - 51.7
-    - 26.1
-    - 53.3
-    - 27.2
-    - 58.9
-    - 46.1
-    - 13.9
-    - 56.7
-    - 48.9
-    - 15.6
-    - 12.8
-    - 6.11
-    - 8.89
-    - 57.8
-    - 41.1
-    - 11.1
-    - 17.2
-    - 15.0
-    - 58.3
-    - 9.44
-    - 46.7
-    - 20.0
-    - 34.4
-    - 22.2
-    - 40.0
-    - 5.0
-    - 23.9
-    - 36.7
-    - 39.4
-    - 49.4
-    - 59.4
-    - 40.6
-    - 36.1
-    - 35.0
-    - 56.1
-    - 33.9
-    - 5.56
-    - 53.9
-    - 43.3
-    - 26.7
-    - 52.2
-    - 55.0
-    - 21.1
-    - 31.1
-    - 20.6
-    - 18.3
-    - 55.6
-    - 18.9
-    - 51.1
-    - 24.4
-    - 32.8
-    - 50.6
-    - 27.8
-    - 33.3
-    - 48.3
-    - 35.6
-    - 13.3
-    - 8.33
-    - 7.78
-    - 16.1
-    - 22.8
-    - 60.0
-    - 21.7
-    - 47.8
-    - 57.2
-    - 47.2
-    - 29.4
-    - 14.4
-    - 32.2
-    - 30.6
-    - 42.8
-    - 16.7
-    - 41.7
-    - 42.2
-    - 28.9
-    - 44.4
-    - 37.2
-    - 17.8
-    - 38.9
-    - 43.9
-    - 19.4
-    - 52.8
-    - 12.2
-    - 25.6
-    - 28.3
-    - 23.3
-    - 10.6
-    - 54.4
-    - 25.0
-    - 11.7
-    - 38.3
-    - 7.22
-    - 10.0
-    - 50.0
-    - 45.6
-    - 45.0
-    - 30.0
-    - 31.7
-    - 37.8
-
-low_level_ptc:
-  mtcamera_filter: i_39
-  led_name:
-    - M730L5
-    - M810L3
-  dac_value: 0.13
-  wavelength: 755.0
-  led_location: 233.83
-  led_focus: 7.07
-  n_flat: 2
-  exposure_times:
-    - 11.6
-    - 7.79
-    - 3.55
-    - 13.0
-    - 8.92
-    - 2.7
-    - 14.7
-    - 3.12
-    - 1.0
-    - 12.6
-    - 11.2
-    - 10.6
-    - 14.4
-    - 6.66
-    - 9.63
-    - 5.38
-    - 6.52
-    - 8.78
-    - 8.35
-    - 3.97
-    - 1.71
-    - 10.9
-    - 5.24
-    - 14.6
-    - 5.95
-    - 9.91
-    - 9.06
-    - 9.48
-    - 9.2
-    - 9.77
-    - 13.9
-    - 13.3
-    - 1.99
-    - 7.36
-    - 10.5
-    - 11.5
-    - 2.27
-    - 8.07
-    - 7.22
-    - 1.42
-    - 7.51
-    - 11.0
-    - 12.5
-    - 5.1
-    - 1.57
-    - 6.09
-    - 7.08
-    - 12.7
-    - 8.21
-    - 4.11
-    - 4.82
-    - 3.83
-    - 11.9
-    - 5.81
-    - 3.4
-    - 7.93
-    - 3.26
-    - 13.4
-    - 9.34
-    - 2.84
-    - 10.2
-    - 3.69
-    - 12.9
-    - 4.25
-    - 4.54
-    - 12.0
-    - 14.2
-    - 14.0
-    - 13.6
-    - 12.2
-    - 6.94
-    - 10.3
-    - 6.23
-    - 2.56
-    - 13.2
-    - 5.53
-    - 4.39
-    - 1.14
-    - 11.7
-    - 4.68
-    - 13.7
-    - 1.28
-    - 1.85
-    - 2.41
-    - 6.37
-    - 14.3
-    - 10.8
-    - 4.96
-    - 11.3
-    - 2.13
-    - 7.65
-    - 12.3
-    - 15.0
-    - 10.1
-    - 2.98
-    - 14.9
-    - 8.49
-    - 8.64
-    - 5.67
-    - 6.8  
+  constrained_random_exposure_times:
+    samples_per_bin:
+      - 100
+    bin_edges:
+      - [1.0, 60.0]
+    bin_dac_values:
+      - 1.0
+    random_seed: 12345

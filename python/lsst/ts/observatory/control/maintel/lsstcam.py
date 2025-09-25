@@ -102,12 +102,18 @@ class LSSTCam(BaseCamera):
         self.shutter_time = 1  # time to open or close shutter (sec)
         self.filter_change_timeout = 120  # time for filter to get into position (sec)
 
-        self.valid_imagetype.append("SPOT")
-
         self.cmd_lock = asyncio.Lock()
 
+        self.DEFAULT_GUIDER_ROI_ROWS = 400
+        self.DEFAULT_GUIDER_ROI_COLS = 400
+        self.DEFAULT_GUIDER_ROI_TIME_MS = 200
+
         roi_spec = ROISpec(
-            common=ROICommon(rows=400, cols=400, integration_time_millis=200),
+            common=ROICommon(
+                rows=self.DEFAULT_GUIDER_ROI_ROWS,
+                cols=self.DEFAULT_GUIDER_ROI_COLS,
+                integration_time_millis=self.DEFAULT_GUIDER_ROI_TIME_MS,
+            ),
             roi=dict(
                 R00SG0=ROI(segment=7, start_row=800, start_col=56),
                 R00SG1=ROI(segment=0, start_row=800, start_col=56),
@@ -123,6 +129,10 @@ class LSSTCam(BaseCamera):
         roi = roi_spec_dict.pop("roi")
         roi_spec_dict.update(roi)
         self._roi_spec_json = json.dumps(roi_spec_dict, separators=(",", ":"))
+
+    @classmethod
+    def get_image_types(cls) -> typing.List[str]:
+        return super().get_image_types() + ["SPOT"]
 
     async def take_spot(
         self,
@@ -221,6 +231,14 @@ class LSSTCam(BaseCamera):
         take_flats: Take series of flat-field images.
         take_object: Take series of object observations.
         take_engtest: Take series of engineering test observations.
+        take_focus: Take series of focus images.
+        take_cwfs: Take series of curvature wavefront sensing images.
+        take_acq: Take series of acquisition images.
+        take_stuttered: Take series of stuttered images.
+        take_indome: Take series of in-dome testing images.
+        take_cbp: Take series of collimated beam projector images.
+        take_sflat: Take series of sky/twilight-flat images.
+        take_dflat: Take series of dark-flat images.
         take_spot: Take series of spot images.
         take_imgtype: Take series of images by image type.
         expose: Low level expose method.
