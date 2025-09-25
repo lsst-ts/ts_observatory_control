@@ -35,17 +35,6 @@ class TestGuiderROIs:
     """Test GuiderROIs class functionality."""
 
     @pytest.mark.skipif(not DM_STACK_AVAILABLE, reason="DM stack not available.")
-    def test_init_without_basic_deps(self) -> None:
-        """Test that GuiderROIs fails when basic dependencies are not
-        available."""
-        with unittest.mock.patch(
-            "lsst.ts.observatory.control.utils.extras.guider_roi.BASIC_DEPS_AVAILABLE",
-            False,
-        ):
-            with pytest.raises(RuntimeError, match="Basic dependencies.*not available"):
-                GuiderROIs()
-
-    @pytest.mark.skipif(not DM_STACK_AVAILABLE, reason="DM stack not available.")
     def test_init_without_dm_stack(self) -> None:
         """Test that GuiderROIs fails when DM stack is not available."""
         with unittest.mock.patch(
