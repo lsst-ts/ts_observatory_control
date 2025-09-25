@@ -1,1 +1,0 @@
-Add support for new image types ``INDOME``, ``CBP``, ``SFLAT``, and ``DFLAT`` to ``BaseCamera``

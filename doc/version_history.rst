@@ -8,6 +8,45 @@ Version History
 
 .. towncrier release notes start
 
+v0.43.2 (2025-09-25)
+====================
+
+New Features
+------------
+
+- Change the way that exposure time lists are generated for PTC curves in mtcalsys.py
+  - In ``mtcalsys_schema.yaml``, add new configurable option for ``constrained_random_exposure_times``.
+      Allow user to set provide either ``constrained_random_exposure_times`` or ``exposure_times``.
+  - In ``mtcalsys.py``, add method to generate random set of exposure times and overwrite the empty exposure_times when provided. 
+  - Modified calculate_optimized_exposure_times to read in the random exposure times with dac values.
+  - Wrote a new test case for PTC curves. (`DM-51282 <https://rubinobs.atlassian.net/browse/DM-51282>`_)
+- Add support for new image types ``INDOME``, ``CBP``, ``SFLAT``, and ``DFLAT`` to ``BaseCamera`` (`DM-51409 <https://rubinobs.atlassian.net/browse/DM-51409>`_)
+- Add support to ``BaseCamera`` for retrieving supported image types through class method (`DM-51409 <https://rubinobs.atlassian.net/browse/DM-51409>`_)
+- - In base_tcs.py, add more context to timeout error in _handle_in_position method.
+  - In mtcalsys.py, fix the laser mode. (`DM-52297 <https://rubinobs.atlassian.net/browse/DM-52297>`_)
+- Add guider ROI defaults (DEFAULT_GUIDER_ROI_ROWS/COLS/TIME_MS). (`OSW-964 <https://rubinobs.atlassian.net/browse/OSW-964>`_)
+
+
+Bug Fixes
+---------
+
+- In ``MTCS``, expanded valid states to allow opening/closing dome shutters. (`DM-52457 <https://rubinobs.atlassian.net/browse/DM-52457>`_)
+- Removed ``BASIC_DEPS_AVAILABLE`` check from ``guider_roi``. (`OSW-939 <https://rubinobs.atlassian.net/browse/OSW-939>`_)
+- Updated conda recipe to Add healpy as a test and run dependency. (`OSW-939 <https://rubinobs.atlassian.net/browse/OSW-939>`_)
+
+
+Documentation
+-------------
+
+- Add documentation for ``LSSTCam`` supported image types (`DM-51409 <https://rubinobs.atlassian.net/browse/DM-51409>`_)
+
+
+Other Changes and Additions
+---------------------------
+
+- In ``BaseTCS``, reduced the azimuth overslew step size. (`DM-52457 <https://rubinobs.atlassian.net/browse/DM-52457>`_)
+
+
 v0.43.1 (2025-08-25)
 ====================
 

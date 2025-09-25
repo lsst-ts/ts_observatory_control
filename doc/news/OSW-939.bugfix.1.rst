@@ -1,1 +1,0 @@
-Updated conda recipe to Add healpy as a test and run dependency.
