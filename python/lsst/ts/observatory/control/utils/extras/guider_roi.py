@@ -29,7 +29,6 @@ Original algorithm credit: Aaron Roodman
 """
 
 __all__ = [
-    "BASIC_DEPS_AVAILABLE",
     "DM_STACK_AVAILABLE",
     "BEST_EFFORT_ISR_AVAILABLE",
     "GuiderROIs",
@@ -40,6 +39,11 @@ import logging
 import warnings
 from typing import TYPE_CHECKING, Any
 
+import healpy as hp
+from astropy.coordinates import angular_separation
+from astropy.table import Table, vstack
+from scipy.interpolate import make_interp_spline
+
 if TYPE_CHECKING:
     from lsst.summit.utils import BestEffortIsr as BestEffortIsrType
 
@@ -49,16 +53,6 @@ DEFAULT_CATALOG_DATASET_NAME = "monster_guide_catalog"
 DEFAULT_VIGNETTING_DATASET_NAME = "vignetting_correction"
 DEFAULT_COLLECTION_NAME = "guider_roi_data"
 
-try:
-    import healpy as hp
-    from astropy.coordinates import angular_separation
-    from astropy.table import Table, vstack
-    from scipy.interpolate import make_interp_spline
-
-    BASIC_DEPS_AVAILABLE = True
-except ImportError:
-    BASIC_DEPS_AVAILABLE = False
-    warnings.warn("Cannot import required libraries. Module will not work.")
 
 # DM Stack imports (includes Butler)
 DM_STACK_AVAILABLE = True
@@ -200,12 +194,6 @@ class GuiderROIs:
           obtained from BestEffortIsr, and HEALPix settings are derived from
           the repository.
         """
-        if not BASIC_DEPS_AVAILABLE:
-            raise RuntimeError(
-                "Basic dependencies (healpy, astropy, scipy) not available. "
-                "Cannot initialize GuiderROIs."
-            )
-
         if not DM_STACK_AVAILABLE:
             raise RuntimeError(
                 "DM Stack not available. BestEffortIsr mode is required for GuiderROIs."
