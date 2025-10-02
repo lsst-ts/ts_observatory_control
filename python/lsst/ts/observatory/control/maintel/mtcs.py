@@ -2771,8 +2771,16 @@ class MTCS(BaseTCS):
                 "Camera Hexapod compensation mode enabled. Move with respect to LUT."
             )
 
-        await self.rem.mthexapod_1.cmd_move.set_start(
-            x=x, y=y, z=z, u=u, v=v, w=w, sync=sync, timeout=self.long_timeout
+        await self.rem.mthexapod_1.cmd_moveInSteps.set_start(
+            x=x,
+            y=y,
+            z=z,
+            u=u,
+            v=v,
+            w=w,
+            overwriteStepSizeFromConfig=True,
+            sync=sync,
+            timeout=self.long_timeout,
         )
 
         await self._handle_in_position(
@@ -2935,8 +2943,16 @@ class MTCS(BaseTCS):
                 "M2 Hexapod compensation mode enabled. Move with respect to LUT."
             )
 
-        await self.rem.mthexapod_2.cmd_move.set_start(
-            x=x, y=y, z=z, u=u, v=v, w=w, sync=sync, timeout=self.long_timeout
+        await self.rem.mthexapod_2.cmd_moveInSteps.set_start(
+            x=x,
+            y=y,
+            z=z,
+            u=u,
+            v=v,
+            w=w,
+            overwriteStepSizeFromConfig=True,
+            sync=sync,
+            timeout=self.long_timeout,
         )
 
         await self._handle_in_position(

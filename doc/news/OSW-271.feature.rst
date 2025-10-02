@@ -1,0 +1,1 @@
+Use Hexapod.moveInSteps with the overwriteStepSizeFromConfig=True.

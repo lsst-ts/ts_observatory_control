@@ -413,7 +413,7 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
             "evt_inPosition.aget.side_effect": self.mthexapod_1_evt_in_position,
             "evt_inPosition.next.side_effect": self.mthexapod_1_evt_in_position,
             "cmd_setCompensationMode.set_start.side_effect": self.mthexapod_1_cmd_set_compensation_mode,
-            "cmd_move.set_start.side_effect": self.mthexapod_1_cmd_move,
+            "cmd_moveInSteps.set_start.side_effect": self.mthexapod_1_cmd_move_in_steps,
             "cmd_offset.set_start.side_effect": self.mthexapod_1_cmd_offset,
         }
 
@@ -430,7 +430,7 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
             "evt_inPosition.aget.side_effect": self.mthexapod_2_evt_in_position,
             "evt_inPosition.next.side_effect": self.mthexapod_2_evt_in_position,
             "cmd_setCompensationMode.set_start.side_effect": self.mthexapod_2_cmd_set_compensation_mode,
-            "cmd_move.set_start.side_effect": self.mthexapod_2_cmd_move,
+            "cmd_moveInSteps.set_start.side_effect": self.mthexapod_2_cmd_move_in_steps,
             "cmd_offset.set_start.side_effect": self.mthexapod_2_cmd_offset,
         }
 
@@ -1200,7 +1200,7 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
             await asyncio.sleep(self.heartbeat_time)
             self._mthexapod_2_evt_compensation_mode.enabled = True
 
-    async def mthexapod_1_cmd_move(
+    async def mthexapod_1_cmd_move_in_steps(
         self, *args: typing.Any, **kwargs: typing.Any
     ) -> None:
         self.log.debug("Move camera hexapod...")
@@ -1210,7 +1210,7 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
         )
         await asyncio.sleep(self.short_process_time)
 
-    async def mthexapod_2_cmd_move(
+    async def mthexapod_2_cmd_move_in_steps(
         self, *args: typing.Any, **kwargs: typing.Any
     ) -> None:
         await asyncio.sleep(self.heartbeat_time / 2.0)
@@ -1234,23 +1234,25 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
         self, *args: typing.Any, **kwargs: typing.Any
     ) -> None:
         self.log.info(f"{kwargs=}")
-        await self.mtcs.rem.mthexapod_1.cmd_move.set_start(
+        await self.mtcs.rem.mthexapod_1.cmd_moveInSteps.set_start(
             x=kwargs["data"].value[6],
             y=kwargs["data"].value[7],
             z=kwargs["data"].value[5],
             u=kwargs["data"].value[8],
             v=kwargs["data"].value[9],
             w=0,
+            overwriteStepSizeFromConfig=True,
             sync=True,
             timeout=kwargs["timeout"],
         )
-        await self.mtcs.rem.mthexapod_2.cmd_move.set_start(
+        await self.mtcs.rem.mthexapod_2.cmd_moveInSteps.set_start(
             x=kwargs["data"].value[1],
             y=kwargs["data"].value[2],
             z=kwargs["data"].value[0],
             u=kwargs["data"].value[3],
             v=kwargs["data"].value[4],
             w=0,
+            overwriteStepSizeFromConfig=True,
             sync=True,
             timeout=kwargs["timeout"],
         )
