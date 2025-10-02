@@ -102,13 +102,13 @@ properties:
       Identifies if the fiberspectrograph for red color will be used in the
       exposure.
     type: boolean
-    default: false
+    default: true
   use_fiberspectrograph_blue:
     description: >-
       Identifies if the fiberspectrograph for blue color will be used in the
       exposure.
     type: boolean
-    default: false
+    default: true
   electrometer_integration_time:
     description: >-
       Integration time in seconds (166.67e-6 to 200e-3) for each sample.
