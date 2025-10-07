@@ -321,11 +321,11 @@ whitelight_z_20_daily:
 whitelight_y_10_daily:
   mtcamera_filter: y_10
   led_name:
-    - M970L4
+    - M1050L4
   dac_value: 1.0
-  wavelength: 970.0
-  led_location: 171.38
-  led_focus: 6.61
+  wavelength: 1050.0
+  led_location: 171.24
+  led_focus: 6.47
   n_flat: 3
   exposure_times:
     - 20.0
@@ -424,11 +424,11 @@ whitelight_z_20_dark:
 whitelight_y_10_dark:
   mtcamera_filter: y_10
   led_name:
-    - M970L4
+    - M1050L4
   dac_value: 1.0
-  wavelength: 970.0
-  led_location: 171.38
-  led_focus: 6.61
+  wavelength: 1050.0
+  led_location: 171.24
+  led_focus: 6.47
   n_flat: 20
   exposure_times:
     - 20.0
@@ -714,11 +714,11 @@ whitelight_z_source:
 
 whitelight_y_source:
   led_name:
-    - M970L4
+    - M1050L4
   dac_value: 1.0
-  wavelength: 970.0
-  led_location: 171.38
-  led_focus: 6.61
+  wavelength: 1050.0
+  led_location: 171.24
+  led_focus: 6.47
   use_camera: False
   exposure_times:
     - 20.0
@@ -855,14 +855,14 @@ whitelight_y_10_M940L3:
   exposure_times:
     - 10.0
 
-whitelight_y_10_M970L4:
+whitelight_y_10_M1050L4:
   mtcamera_filter: y_10
   led_name:
-    - M970L4
+    - M1050L4
   dac_value: 1.0
-  wavelength: 970.0
-  led_location: 171.38
-  led_focus: 6.61
+  wavelength: 1050.0
+  led_location: 171.24
+  led_focus: 6.47
   n_flat: 20
   exposure_times:
     - 20.0
@@ -997,14 +997,14 @@ whitelight_y_10_M940L3_source:
   exposure_times:
     - 10.0
 
-whitelight_y_10_M970L4_source:
+whitelight_y_10_M1050L4_source:
   mtcamera_filter: y_10
   led_name:
-    - M970L4
+    - M1050L4
   dac_value: 1.0
-  wavelength: 970.0
-  led_location: 171.38
-  led_focus: 6.61
+  wavelength: 1050.0
+  led_location: 171.24
+  led_focus: 6.47
   use_camera: false
   n_flat: 1
   exposure_times:
@@ -1118,14 +1118,14 @@ whitelight_empty_M940L3:
   exposure_times:
     - 10.0
 
-whitelight_empty_M970L4:
+whitelight_empty_M1050L4:
   mtcamera_filter: NONE
   led_name:
-    - M970L4
+    - M1050L4
   dac_value: 1.0
-  wavelength: 970.0
-  led_location: 171.38
-  led_focus: 6.61
+  wavelength: 1050.0
+  led_location: 171.24
+  led_focus: 6.47
   n_flat: 20
   exposure_times:
     - 20.0
