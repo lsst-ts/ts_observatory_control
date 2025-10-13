@@ -36,7 +36,7 @@ properties:
         - M810L3
         - M850L3
         - M940L3
-        - M970L4
+        - M1050L4
   dac_value:
     description: Level of LED brightness (0-1.0)
     type: number
