@@ -940,7 +940,7 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
         await self._slew_to(ptg.cmd_ephemTarget, slew_timeout=slew_timeout)
         self.log.info(f"Telescope slewed to target {target_name} using ephemeris data.")
 
-    async def offset_radec(self, ra: float, dec: float) -> None:
+    async def offset_radec(self, ra: float, dec: float, absorb: bool = False) -> None:
         """Offset telescope in RA and Dec.
 
         Perform arc-length offset in sky coordinates. The magnitude of the
@@ -952,6 +952,9 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
             Offset in ra (arcsec).
         dec : `float` or `str`
             Offset in dec (arcsec).
+        absorb : `bool`, optional
+            Should the offset be absorbed and persisted between slews?
+            (default: `False`)
 
         See Also
         --------
@@ -959,13 +962,21 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
         offset_xy : Offsets in the detector X/Y plane.
 
         """
-        self.log.debug(f"Applying RA/Dec offset: {ra}/{dec} ")
+        self.log.debug(
+            f"Applying RA/Dec offset: {ra}/{dec}{' (absorb)' if absorb else ''}"
+        )
 
         await self._offset(
             offset_cmd=getattr(self.rem, self.ptg_name).cmd_offsetRADec.set_start(
                 type=1, off1=ra, off2=dec, num=0
             )
         )
+
+        if absorb:
+            self.log.debug("Absorbing RA/Dec offset into pointing model")
+            await getattr(self.rem, self.ptg_name).cmd_offsetAbsorb.set_start(
+                num=0, timeout=self.fast_timeout
+            )
 
     async def offset_azel(
         self,
