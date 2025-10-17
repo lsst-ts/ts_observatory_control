@@ -8,6 +8,7 @@ config.log
 *.pyc
 *_wrap.cc
 *Lib.py
+.DS_Store
 
 # Built by sconsUtils
 version.py

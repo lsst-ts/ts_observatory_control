@@ -1,0 +1,1 @@
+Support the timeout in MTCS.move_camera_hexapod() and MTCS.move_m2_hexapod().

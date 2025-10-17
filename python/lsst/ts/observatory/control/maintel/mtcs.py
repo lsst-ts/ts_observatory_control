@@ -2739,6 +2739,7 @@ class MTCS(BaseTCS):
         v: float,
         w: float = 0.0,
         sync: bool = True,
+        timeout: float | None = None,
     ) -> None:
         """Move camera hexapod.
 
@@ -2762,6 +2763,9 @@ class MTCS(BaseTCS):
             Hexapod-w angle (degrees). Default 0.
         sync : `bool`, optional
             Should the hexapod movement be synchronized? Default True.
+        timeout : `float` | `None`, optional
+            Timeout for the move command (in seconds). Default None, which uses
+            `self.long_timeout`.
         """
 
         compensation_mode = await self.get_compensation_mode_camera_hexapod()
@@ -2771,6 +2775,7 @@ class MTCS(BaseTCS):
                 "Camera Hexapod compensation mode enabled. Move with respect to LUT."
             )
 
+        timeout_in_use = self.long_timeout if (timeout is None) else timeout
         await self.rem.mthexapod_1.cmd_moveInSteps.set_start(
             x=x,
             y=y,
@@ -2780,12 +2785,12 @@ class MTCS(BaseTCS):
             w=w,
             overwriteStepSizeFromConfig=True,
             sync=sync,
-            timeout=self.long_timeout,
+            timeout=timeout_in_use,
         )
 
         await self._handle_in_position(
             in_position_event=self.rem.mthexapod_1.evt_inPosition,
-            timeout=self.long_timeout,
+            timeout=timeout_in_use,
             component_name="Camera Hexapod",
         )
 
@@ -2911,6 +2916,7 @@ class MTCS(BaseTCS):
         v: float,
         w: float = 0.0,
         sync: bool = True,
+        timeout: float | None = None,
     ) -> None:
         """Move m2 hexapod.
 
@@ -2934,6 +2940,9 @@ class MTCS(BaseTCS):
             Hexapod-w angle (degrees). Default 0.
         sync : `bool`, optional
             Should the hexapod movement be synchronized? Default True.
+        timeout : `float` | `None`, optional
+            Timeout for the move command (in seconds). Default None, which uses
+            `self.long_timeout`.
         """
 
         compensation_mode = await self.get_compensation_mode_m2_hexapod()
@@ -2943,6 +2952,7 @@ class MTCS(BaseTCS):
                 "M2 Hexapod compensation mode enabled. Move with respect to LUT."
             )
 
+        timeout_in_use = self.long_timeout if (timeout is None) else timeout
         await self.rem.mthexapod_2.cmd_moveInSteps.set_start(
             x=x,
             y=y,
@@ -2952,12 +2962,12 @@ class MTCS(BaseTCS):
             w=w,
             overwriteStepSizeFromConfig=True,
             sync=sync,
-            timeout=self.long_timeout,
+            timeout=timeout_in_use,
         )
 
         await self._handle_in_position(
             in_position_event=self.rem.mthexapod_2.evt_inPosition,
-            timeout=self.long_timeout,
+            timeout=timeout_in_use,
             component_name="M2 Hexapod",
         )
 
