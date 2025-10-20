@@ -1,1 +1,0 @@
-- In ``mtcs_async_mock``, add a mtptg mock method to update telescope position after a `point_azel`` call.

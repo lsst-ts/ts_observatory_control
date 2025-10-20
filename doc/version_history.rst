@@ -8,6 +8,20 @@ Version History
 
 .. towncrier release notes start
 
+v0.44.0 (2025-10-20)
+====================
+
+New Features
+------------
+
+- - In ``mtcs.py`` add a ``prepare_for_onsky`` method to the ``MTCs`` class that prepares the system for on-sky operations. (`DM-51325 <https://rubinobs.atlassian.net/browse/DM-51325>`_)
+- - In ``mtcs_async_mock``, add a mtptg mock method to update telescope position after a `point_azel`` call. (`DM-51325 <https://rubinobs.atlassian.net/browse/DM-51325>`_)
+- - In ``mtcs_async_mock``, update dome mock methods and improve the enter/exit engineering mode mock methods. (`DM-51325 <https://rubinobs.atlassian.net/browse/DM-51325>`_)
+- Adding fiber spectrographs back into mtcalsys sequences. (`DM-52592 <https://rubinobs.atlassian.net/browse/DM-52592>`_)
+- In mtcs.py, add MTDome azEnabled to All and Slew usages. (`DM-52592 <https://rubinobs.atlassian.net/browse/DM-52592>`_)
+- Changed M970L4 LED to M1050L4 in the y-band. This also required a slight change to the focus location. (`DM-52785 <https://rubinobs.atlassian.net/browse/DM-52785>`_)
+
+
 v0.43.3 (2025-10-06)
 ====================
 
