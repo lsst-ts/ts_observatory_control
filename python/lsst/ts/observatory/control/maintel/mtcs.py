@@ -3758,7 +3758,7 @@ class MTCS(BaseTCS):
                     "detailedState",
                     "forceControllerState",
                 ],
-                mtdome=["azimuth", "lightWindScreen", "azMotion"],
+                mtdome=["azimuth", "lightWindScreen", "azMotion", "azEnabled"],
                 mthexapod_1=["compensationMode"],
                 mthexapod_2=["compensationMode"],
             )
@@ -3799,7 +3799,13 @@ class MTCS(BaseTCS):
                     "cameraCableWrapFollowing",
                     "mirrorCoversMotionState",
                 ],
-                mtdome=["azimuth", "lightWindScreen", "azMotion", "shutterMotion"],
+                mtdome=[
+                    "azimuth",
+                    "lightWindScreen",
+                    "azMotion",
+                    "shutterMotion",
+                    "azEnabled",
+                ],
                 mtdometrajectory=["followingMode"],
                 mtm1m3=[
                     "boosterValveStatus",
