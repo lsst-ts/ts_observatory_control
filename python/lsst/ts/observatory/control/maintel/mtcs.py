@@ -139,6 +139,7 @@ class MTCS(BaseTCS):
 
         self.tel_park_el = 80.0
         self.tel_park_az = 0.0
+        self.tel_park_rot = 0.0
         self.tel_flat_el = 39.0
         self.tel_flat_az = 205.7
         self.tel_settle_time = 3.0
@@ -148,6 +149,7 @@ class MTCS(BaseTCS):
         # Tolerance to the rotator position for move commands.
         self.rotator_position_tolerance = 0.1
 
+        self.dome_open_az = 90.0
         self.dome_park_az = 285.0
         self.dome_park_el = 80.0
         self.dome_flat_az = 20.0
@@ -160,6 +162,8 @@ class MTCS(BaseTCS):
         self.park_dome_timeout = 600
         self.move_dome_timeout = 600
 
+        self.home_both_axes_timeout = 300.0
+
         self._dome_az_in_position: typing.Union[None, asyncio.Event] = None
         self._dome_el_in_positio: typing.Union[None, asyncio.Event] = None
 
@@ -169,6 +173,9 @@ class MTCS(BaseTCS):
         self.m1m3_raise_timeout = 600.0
         # time it takes for m1m3 to settle after a slew finishes.
         self.m1m3_settle_time = 0.0
+
+        # Telescope minimum elevation to raise M1M3.
+        self.m1m3_tel_min_el_to_raise = 20.0
 
         # Tolerance on the stability of the balance force magnitude
         self.m1m3_force_magnitude_stable_tolerance = 50.0
@@ -1379,11 +1386,143 @@ class MTCS(BaseTCS):
         # TODO: Implement (DM-21336).
         raise NotImplementedError("# TODO: Implement (DM-21336).")
 
+    @staticmethod
+    def get_critical_components_for_prepare_for_onsky() -> list[str]:
+        return ["mtmount", "mtrotator", "mtm1m3", "mtm2", "mtptg"]
+
+    def _assert_critical_components_in_prepare_for_onsky(self) -> None:
+        critical = self.get_critical_components_for_prepare_for_onsky()
+        for comp in critical:
+            if not getattr(self.check, comp, False):
+                raise RuntimeError(f"Cannot ignore {comp} for prepare_for_onsky.")
+
     async def prepare_for_onsky(
         self, overrides: typing.Optional[typing.Dict[str, str]] = None
     ) -> None:
-        # TODO: Implement (DM-21336).
-        raise NotImplementedError("# TODO: Implement (DM-21336).")
+        """Prepare Simonyi Telescope for on-sky operations
+
+        This method performs the start-of-night procedure for the MTCS
+        components. The high-level steps are:
+
+        1. Assert that all MTCS components are enabled.
+        2. Assert that critical components are not ignored.
+        3. Slew the dome to the open position.
+        4. Ensure the M2 balance system is enabled.
+        5. Check telescope elevation and raise M1M3 if safe.
+        6. Home both axes of the mount.
+        7. Enable M1M3 engineering mode and force balance system, then exit
+        engineering mode.
+        8. Enable camera cable wrap following.
+        9. Slew the telescope to the open position. Rotator set to 0 deg.
+        10. Stop tracking.
+        11. Ensure mirror covers are closed before opening the dome.
+        12. Open the dome shutter.
+        13. Open the mirror covers.
+        14. Enable hexapod compensation mode if not ignored.
+        15. Enable dome following if not ignored.
+
+        Parameters
+        ----------
+        overrides : typing.Optional[typing.Dict[str, str]], optional
+            Dictionary of component overrides, by default None
+        """
+
+        await self.assert_all_enabled(
+            message="All components need to be enabled for on-sky operations."
+        )
+
+        self._assert_critical_components_in_prepare_for_onsky()
+
+        # Slew dome to open position
+        if self.check.mtdome:
+            self.log.info("Slewing dome to open position.")
+            await self.slew_dome_to(az=self.dome_open_az)
+        else:
+            self.log.warning("mtdome is ignored; skipping dome operations.")
+
+        # Ensure M2 balance system is enabled
+        await self.enable_m2_balance_system()
+
+        # Get telescope elevation and raise mirror if it is safe to do so.
+        elevation = (
+            await self.rem.mtmount.tel_elevation.aget(timeout=self.fast_timeout)
+        ).actualPosition
+
+        safe = elevation >= self.m1m3_tel_min_el_to_raise
+
+        if not safe:
+            raise RuntimeError(
+                f"Telescope El = {elevation} deg is below the minimum "
+                f"safe elevation to raise M1M3: {self.m1m3_tel_min_el_to_raise}."
+            )
+        else:
+            self.log.info("Raising mirror.")
+            await self.raise_m1m3()
+
+        self.log.info("Homing both axes.")
+        await self.rem.mtmount.cmd_homeBothAxes.start(
+            timeout=self.home_both_axes_timeout
+        )
+
+        # Enable m1m3 force balance system
+        await self.enter_m1m3_engineering_mode()
+        await self.enable_m1m3_balance_system()
+        await self.exit_m1m3_engineering_mode()
+
+        # Note: Slew flags are going to be set in a the sal script
+
+        self.log.info("Ensuring CCW is following before slewing to open position.")
+        await self.enable_ccw_following()
+
+        self.log.info("Slewing telescope to open position.")
+        await self.point_azel(
+            target_name="Prepare for on-sky",
+            az=self.dome_open_az,
+            el=self.tel_park_el,
+            rot_tel=self.tel_park_rot,
+            wait_dome=False,
+        )
+
+        self.log.info("Ensuring telescope is not tracking.")
+        await self.stop_tracking()
+
+        self.log.info("Ensuring mirror covers are closed before opening the dome.")
+        await self.close_m1_cover()
+
+        if self.check.mtdome:
+            self.log.info("Opening dome shutter.")
+            await self.open_dome_shutter(force=True)
+        else:
+            self.log.warning("mtdome is ignored; skipping dome shutter operations.")
+
+        self.log.info("Opening mirror covers.")
+        await self.open_m1_cover()
+
+        enabled_hexapods = [
+            component
+            for component in self.compensation_mode_components
+            if getattr(self.check, component, False)
+        ]
+        if enabled_hexapods:
+            self.log.info(
+                f"Enabling hexapods compensation mode for: {', '.join(enabled_hexapods)}."
+            )
+            await asyncio.gather(
+                *[
+                    self.enable_compensation_mode(component)
+                    for component in enabled_hexapods
+                ]
+            )
+
+        if getattr(self.check, self.dome_trajectory_name):
+            self.log.info("Enabling dome following mode.")
+            await self.enable_dome_following()
+        else:
+            self.log.warning(
+                f"{self.dome_trajectory_name} is ignored; skipping dome following operations."
+            )
+
+        self.log.info("Prepare for on-sky finished.")
 
     async def shutdown(self) -> None:
         # TODO: Implement (DM-21336).
@@ -3619,7 +3758,7 @@ class MTCS(BaseTCS):
                     "detailedState",
                     "forceControllerState",
                 ],
-                mtdome=["azimuth", "lightWindScreen", "azMotion"],
+                mtdome=["azimuth", "lightWindScreen", "azMotion", "azEnabled"],
                 mthexapod_1=["compensationMode"],
                 mthexapod_2=["compensationMode"],
             )
@@ -3660,7 +3799,13 @@ class MTCS(BaseTCS):
                     "cameraCableWrapFollowing",
                     "mirrorCoversMotionState",
                 ],
-                mtdome=["azimuth", "lightWindScreen", "azMotion", "shutterMotion"],
+                mtdome=[
+                    "azimuth",
+                    "lightWindScreen",
+                    "azMotion",
+                    "shutterMotion",
+                    "azEnabled",
+                ],
                 mtdometrajectory=["followingMode"],
                 mtm1m3=[
                     "boosterValveStatus",
