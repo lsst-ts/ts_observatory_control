@@ -1,1 +1,0 @@
-In mtcs.py, add MTDome azEnabled to All and Slew usages.

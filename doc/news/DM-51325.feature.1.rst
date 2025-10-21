@@ -1,1 +1,0 @@
-- In ``mtcs.py`` add a ``prepare_for_onsky`` method to the ``MTCs`` class that prepares the system for on-sky operations.
