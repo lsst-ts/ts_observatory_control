@@ -256,17 +256,17 @@ class TestMTCalsys(RemoteGroupAsyncMock):
 
         try:
             calibration_summary = await self.mtcalsys.run_calibration_sequence(
-                "whitelight_u_24_daily", exposure_metadata=dict()
+                "whitelight_u_24_test", exposure_metadata=dict()
             )
         finally:
             self.mtcalsys.mtcamera = None
 
         config_data = self.mtcalsys.get_calibration_configuration(
-            "whitelight_u_24_daily"
+            "whitelight_u_24_test"
         )
 
         assert "sequence_name" in calibration_summary
-        assert calibration_summary["sequence_name"] == "whitelight_u_24_daily"
+        assert calibration_summary["sequence_name"] == "whitelight_u_24_test"
         assert "steps" in calibration_summary
         self.log.debug(f"number of steps: {len(calibration_summary['steps'])}")
         assert (
@@ -289,15 +289,15 @@ class TestMTCalsys(RemoteGroupAsyncMock):
 
         try:
             calibration_summary = await self.mtcalsys.run_calibration_sequence(
-                "ptc_daily", exposure_metadata=dict()
+                "ptc_daily_test", exposure_metadata=dict()
             )
         finally:
             self.mtcalsys.mtcamera = None
 
-        config_data = self.mtcalsys.get_calibration_configuration("ptc_daily")
+        config_data = self.mtcalsys.get_calibration_configuration("ptc_daily_test")
 
         assert "sequence_name" in calibration_summary
-        assert calibration_summary["sequence_name"] == "ptc_daily"
+        assert calibration_summary["sequence_name"] == "ptc_daily_test"
         assert "steps" in calibration_summary
         self.log.debug(f"number of steps: {len(calibration_summary['steps'])}")
         assert (

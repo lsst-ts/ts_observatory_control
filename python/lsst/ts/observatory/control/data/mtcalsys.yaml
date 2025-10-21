@@ -249,6 +249,19 @@ whitelight_u_24_daily:
   exposure_times:
     - 10.0
 
+whitelight_u_24_test:
+  mtcamera_filter: u_24
+  led_name: 
+    - M385L3
+  dac_value: 1.0
+  wavelength: 385.0
+  led_location: 174.18
+  led_focus: 9.42
+  n_flat: 3
+  use_flatfield_electrometer: true
+  exposure_times:
+    - 10.0
+
 whitelight_g_6_daily:
   mtcamera_filter: g_6
   led_name:
@@ -514,6 +527,7 @@ scan_r_unittest:
   wavelength: 625.0
   wavelength_width: 250
   wavelength_resolution: 5.0
+  use_flatfield_electrometer: true
   exposure_times:
     - 15.0
 
@@ -1202,6 +1216,7 @@ ptc_daily_test:
   led_focus: 7.07
   use_camera: False
   n_flat: 2
+  use_flatfield_electrometer: true
   constrained_random_exposure_times:
     samples_per_bin:
       - 5
