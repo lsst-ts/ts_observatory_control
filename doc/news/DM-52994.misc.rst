@@ -1,0 +1,1 @@
+Changed default for flatfield electrometer to false in data/mtcalsys_schema.yaml because the electrometer is not working.
