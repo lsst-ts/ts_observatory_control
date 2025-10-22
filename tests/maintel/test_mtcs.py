@@ -2401,7 +2401,7 @@ class TestMTCS(MTCSAsyncMock):
             w=0.0,
             overwriteStepSizeFromConfig=True,
             sync=True,
-            timeout=self.mtcs.long_timeout,
+            timeout=self.mtcs.hexapod_movement_timeout,
         )
 
         assert self._mthexapod_1_evt_in_position.inPosition
@@ -2431,7 +2431,7 @@ class TestMTCS(MTCSAsyncMock):
             w=0.0,
             overwriteStepSizeFromConfig=True,
             sync=True,
-            timeout=self.mtcs.long_timeout,
+            timeout=self.mtcs.hexapod_movement_timeout,
         )
 
         assert self._mthexapod_2_evt_in_position.inPosition
@@ -2524,7 +2524,7 @@ class TestMTCS(MTCSAsyncMock):
             w=0,
             overwriteStepSizeFromConfig=True,
             sync=True,
-            timeout=self.mtcs.long_timeout,
+            timeout=self.mtcs.hexapod_movement_timeout,
         )
         self.mtcs.rem.mthexapod_1.evt_inPosition.next.assert_awaited_with(
             timeout=self.mtcs.long_timeout, flush=False
@@ -2553,7 +2553,7 @@ class TestMTCS(MTCSAsyncMock):
             w=0,
             overwriteStepSizeFromConfig=True,
             sync=True,
-            timeout=self.mtcs.long_timeout,
+            timeout=self.mtcs.hexapod_movement_timeout,
         )
         self.mtcs.rem.mthexapod_2.evt_inPosition.next.assert_awaited_with(
             timeout=self.mtcs.long_timeout, flush=False
