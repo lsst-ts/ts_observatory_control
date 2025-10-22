@@ -180,7 +180,7 @@ class MTCalsys(BaseCalsys):
         self.linearstage_projector_locations = {"led": 9.96, "laser": 79.96}
         self.led_rest_position = 90.0  # mm
         self.linearstage_projector_pos_tolerance = 0.2
-        self.led_focus_axis = 0
+        self.led_focus_axis = 3
         self.linearstage_axis = 0
 
         self.laser_enclosure_temp = 20.0  # C
@@ -270,7 +270,7 @@ class MTCalsys(BaseCalsys):
                 axis=self.linearstage_axis, timeout=self.long_timeout
             )
             led_focus_home = self.linearstage_led_focus.cmd_getHome.set_start(
-                axis=self.linearstage_axis, timeout=self.stage_homing_timeout
+                axis=self.led_focus_axis, timeout=self.stage_homing_timeout
             )
 
             # TO-DO: DM-50505, add laser_focus when stage is repaired.
@@ -381,7 +381,7 @@ class MTCalsys(BaseCalsys):
         )
         # Home the focus stages
         led_focus_home = self.linearstage_led_focus.cmd_getHome.set_start(
-            axis=self.linearstage_axis, timeout=self.stage_homing_timeout
+            axis=self.led_focus_axis, timeout=self.stage_homing_timeout
         )
 
         # TO-DO: DM-50505, add laser focus home when stage is repaired.
