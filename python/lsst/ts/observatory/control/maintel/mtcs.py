@@ -2926,7 +2926,7 @@ class MTCS(BaseTCS):
 
         await self._handle_in_position(
             in_position_event=self.rem.mthexapod_1.evt_inPosition,
-            timeout=self.long_timeout,
+            timeout=self.hexapod_movement_timeout,
             component_name="Camera Hexapod",
         )
 
@@ -3098,7 +3098,7 @@ class MTCS(BaseTCS):
 
         await self._handle_in_position(
             in_position_event=self.rem.mthexapod_2.evt_inPosition,
-            timeout=self.long_timeout,
+            timeout=self.hexapod_movement_timeout,
             component_name="M2 Hexapod",
         )
 
