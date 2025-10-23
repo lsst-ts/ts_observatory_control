@@ -840,10 +840,19 @@ class MTCalsys(BaseCalsys):
             wavelengths=calibration_wavelengths, config_data=config_data
         )
         self.log.debug(f"Exposure Table: {exposure_table}")
+
         for i, exposure in enumerate(exposure_table):
             self.log.debug(
                 f"Performing {calibration_type.name} calibration with {exposure.wavelength=}."
             )
+
+            exposure_id = f"exposure_{i + 1}_w{exposure.wavelength:.1f}nm"
+
+            step_info = {
+                "wavelength": exposure.wavelength,
+                "status": "pending",
+            }
+            await self.exposure_log.add_entry(exposure_id, step_info)
 
             _exposure_metadata = exposure_metadata.copy()
             if "group_id" in _exposure_metadata:
@@ -851,80 +860,98 @@ class MTCalsys(BaseCalsys):
 
             mtcamera_exposure_info: dict = dict()
 
-            if (
-                calibration_type == CalibrationType.CBP
-                and int(config_data["laser_mode"]) == 4
-            ):
-                npulse = self.get_npulse_for_wavelength(wavelength=exposure.wavelength)
-                self.log.debug(f"Number of pulses is {npulse}")
-                await self.rem.tunablelaser.cmd_setBurstMode.set_start(
-                    count=int(npulse)
-                )
+            try:
+                if (
+                    calibration_type == CalibrationType.CBP
+                    and int(config_data["laser_mode"]) == 4
+                ):
+                    npulse = self.get_npulse_for_wavelength(wavelength=exposure.wavelength)
+                    self.log.debug(f"Number of pulses is {npulse}")
+                    await self.rem.tunablelaser.cmd_setBurstMode.set_start(
+                        count=int(npulse)
+                    )
 
-            self.log.debug("Taking data sequence.")
-            if calibration_type == CalibrationType.Mono:
-                await self.change_laser_wavelength(wavelength=exposure.wavelength)
-                exposure_info = await self._take_data(
-                    mtcamera_exptime=exposure.camera,
-                    mtcamera_filter=str(config_data["mtcamera_filter"]),
-                    exposure_metadata=_exposure_metadata,
-                    calibration_type=calibration_type,
-                    fiber_spectrum_red_exposure_time=exposure.fiberspectrograph_red,
-                    fiber_spectrum_blue_exposure_time=exposure.fiberspectrograph_blue,
-                    electrometer_exposure_time=exposure.electrometer,
-                    nburst=config_data["nburst"],
-                    laser_mode=config_data["laser_mode"],
-                )
+                self.log.debug("Taking data sequence.")
+                if calibration_type == CalibrationType.Mono:
+                    await self.change_laser_wavelength(wavelength=exposure.wavelength)
+                    exposure_info = await self._take_data(
+                        exposure_id=exposure_id,
+                        mtcamera_exptime=exposure.camera,
+                        mtcamera_filter=str(config_data["mtcamera_filter"]),
+                        exposure_metadata=_exposure_metadata,
+                        calibration_type=calibration_type,
+                        fiber_spectrum_red_exposure_time=exposure.fiberspectrograph_red,
+                        fiber_spectrum_blue_exposure_time=exposure.fiberspectrograph_blue,
+                        electrometer_exposure_time=exposure.electrometer,
+                        nburst=config_data["nburst"],
+                        laser_mode=config_data["laser_mode"],
+                    )
+                    mtcamera_exposure_info.update(exposure_info)
 
-            elif calibration_type == CalibrationType.CBP:
-                await self.change_laser_wavelength(wavelength=exposure.wavelength)
-                if exposure.wavelength < 410:
-                    camera_exposure_time = exposure.camera + 8
-                    if exposure.electrometer is not None:
-                        electrometer_exposure_time = exposure.electrometer + 8
+                elif calibration_type == CalibrationType.CBP:
+                    await self.change_laser_wavelength(wavelength=exposure.wavelength)
+                    if exposure.wavelength < 410:
+                        camera_exposure_time = exposure.camera + 8
+                        if exposure.electrometer is not None:
+                            electrometer_exposure_time = exposure.electrometer + 8
+                        else:
+                            electrometer_exposure_time = None
                     else:
-                        electrometer_exposure_time = None
-                else:
-                    camera_exposure_time = exposure.camera
-                    electrometer_exposure_time = exposure.electrometer
-                exposure_info = await self._take_data(
-                    mtcamera_exptime=camera_exposure_time,
-                    mtcamera_filter=str(config_data["mtcamera_filter"]),
-                    exposure_metadata=_exposure_metadata,
-                    calibration_type=calibration_type,
-                    fiber_spectrum_red_exposure_time=exposure.fiberspectrograph_red,
-                    fiber_spectrum_blue_exposure_time=exposure.fiberspectrograph_blue,
-                    electrometer_exposure_time=electrometer_exposure_time,
-                    nburst=config_data["nburst"],
-                    laser_mode=config_data["laser_mode"],
-                    sequence_name=sequence_name,
-                    wavelength=int(exposure.wavelength),
-                    wait_time=config_data["laser_wait_time"],
-                    delay_after=float(round(1 + npulse / 1000, 2)),
-                )
-            else:
-                self.log.info("Calibration Type is WhiteLight")
-                await self.rem.ledprojector.cmd_adjustAllDACPower.set_start(
-                    dacValue=exposure.dacValue
-                )
-                exposure_info = await self._take_data(
-                    mtcamera_exptime=exposure.camera,
-                    mtcamera_filter=str(config_data["mtcamera_filter"]),
-                    calibration_type=calibration_type,
-                    exposure_metadata=_exposure_metadata,
-                    fiber_spectrum_red_exposure_time=exposure.fiberspectrograph_red,
-                    fiber_spectrum_blue_exposure_time=exposure.fiberspectrograph_blue,
-                    electrometer_exposure_time=exposure.electrometer,
-                )
+                        camera_exposure_time = exposure.camera
+                        electrometer_exposure_time = exposure.electrometer
+                    exposure_info = await self._take_data(
+                        exposure_id=exposure_id,
+                        mtcamera_exptime=camera_exposure_time,
+                        mtcamera_filter=str(config_data["mtcamera_filter"]),
+                        exposure_metadata=_exposure_metadata,
+                        calibration_type=calibration_type,
+                        fiber_spectrum_red_exposure_time=exposure.fiberspectrograph_red,
+                        fiber_spectrum_blue_exposure_time=exposure.fiberspectrograph_blue,
+                        electrometer_exposure_time=electrometer_exposure_time,
+                        nburst=config_data["nburst"],
+                        laser_mode=config_data["laser_mode"],
+                        sequence_name=sequence_name,
+                        wavelength=int(exposure.wavelength),
+                        wait_time=config_data["laser_wait_time"],
+                        delay_after=float(round(1 + npulse / 1000, 2)),
+                    )
+                    mtcamera_exposure_info.update(exposure_info)
 
-            mtcamera_exposure_info.update(exposure_info)
+                else:
+                    self.log.info("Calibration Type is WhiteLight")
+                    await self.rem.ledprojector.cmd_adjustAllDACPower.set_start(
+                        dacValue=exposure.dacValue
+                    )
+                    exposure_info = await self._take_data(
+                        exposure_id=exposure_id,
+                        mtcamera_exptime=exposure.camera,
+                        mtcamera_filter=str(config_data["mtcamera_filter"]),
+                        calibration_type=calibration_type,
+                        exposure_metadata=_exposure_metadata,
+                        fiber_spectrum_red_exposure_time=exposure.fiberspectrograph_red,
+                        fiber_spectrum_blue_exposure_time=exposure.fiberspectrograph_blue,
+                        electrometer_exposure_time=exposure.electrometer,
+                    )
+                    mtcamera_exposure_info.update(exposure_info)
+
+            except Exception as e:
+                self.log.exception(
+                    f"Failed to take exposure at wavelength {exposure.wavelength}nm "
+                    f"(Exposure ID: {exposure_id})."
+                )
+                await self.exposure_log.update_entry(
+                    exposure_id,
+                    {
+                        "status": "failed",
+                        "error_message": str(e),
+                    },
+                )
 
             step = dict(
                 wavelength=exposure.wavelength,
                 dacValue=exposure.dacValue,
                 mtcamera_exposure_info=mtcamera_exposure_info,
             )
-
             calibration_summary["steps"].append(step)
         return calibration_summary
 
@@ -1176,6 +1203,7 @@ class MTCalsys(BaseCalsys):
 
     async def _take_data(
         self,
+        exposure_id: str,
         mtcamera_exptime: float,
         mtcamera_filter: str,
         exposure_metadata: dict,

@@ -31,6 +31,7 @@ import yaml
 from lsst.ts import salobj
 from lsst.ts.xml.enums.Electrometer import UnitToRead
 
+from .exposure_log import ExposureLog
 from .remote_group import RemoteGroup
 from .utils import get_data_path
 
@@ -73,6 +74,7 @@ class BaseCalsys(RemoteGroup, metaclass=abc.ABCMeta):
         )
 
         self.calibration_config: dict[str, dict[str, typing.Any]] = dict()
+        self.exposure_log = ExposureLog()
 
     async def setup_electrometers(
         self,
