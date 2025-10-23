@@ -133,7 +133,7 @@ class MTCS(BaseTCS):
         # the hexapod when checking if it is ready to take data.
         self.hexapod_ready_to_take_data_timeout = 0.5
         # Timeout specific to the hexapods move.
-        self.hexapod_movement_timeout = 60.0
+        self.hexapod_movement_timeout = 300.0
         # Similar to the mtmount_race_condition_timeout, this is
         # used to check the in position event race condition for
         # the rotator when checking if it is in position.
