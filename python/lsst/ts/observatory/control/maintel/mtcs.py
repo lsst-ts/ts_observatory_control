@@ -466,25 +466,32 @@ class MTCS(BaseTCS):
             status = ""
 
             if _check.mtmount:
-                target, tel_az, tel_el = await asyncio.gather(
-                    self.rem.mtmount.evt_target.next(
-                        flush=True, timeout=self.long_timeout
-                    ),
-                    self.rem.mtmount.tel_azimuth.next(
-                        flush=True, timeout=self.fast_timeout
-                    ),
-                    self.rem.mtmount.tel_elevation.next(
-                        flush=True, timeout=self.fast_timeout
-                    ),
-                )
-                tel_az_actual_position = getattr(tel_az, mtmount_actual_position_name)
-                tel_el_actual_position = getattr(tel_el, mtmount_actual_position_name)
-                distance_az = angle_diff(target.azimuth, tel_az_actual_position)
-                distance_el = angle_diff(target.elevation, tel_el_actual_position)
-                status += (
-                    f"[Tel]: Az = {tel_az_actual_position:+08.3f}[{distance_az.deg:+6.1f}]; "
-                    f"El = {tel_el_actual_position:+08.3f}[{distance_el.deg:+6.1f}] "
-                )
+                try:
+                    target, tel_az, tel_el = await asyncio.gather(
+                        self.rem.mtmount.evt_target.next(
+                            flush=True, timeout=self.long_timeout
+                        ),
+                        self.rem.mtmount.tel_azimuth.next(
+                            flush=True, timeout=self.long_timeout
+                        ),
+                        self.rem.mtmount.tel_elevation.next(
+                            flush=True, timeout=self.long_timeout
+                        ),
+                    )
+                    tel_az_actual_position = getattr(
+                        tel_az, mtmount_actual_position_name
+                    )
+                    tel_el_actual_position = getattr(
+                        tel_el, mtmount_actual_position_name
+                    )
+                    distance_az = angle_diff(target.azimuth, tel_az_actual_position)
+                    distance_el = angle_diff(target.elevation, tel_el_actual_position)
+                    status += (
+                        f"[Tel]: Az = {tel_az_actual_position:+08.3f}[{distance_az.deg:+6.1f}]; "
+                        f"El = {tel_el_actual_position:+08.3f}[{distance_el.deg:+6.1f}] "
+                    )
+                except asyncio.TimeoutError:
+                    status += "Failed to retrieve mount data "
 
             if _check.mtrotator:
                 rotation_data = await self.rem.mtrotator.tel_rotation.next(
