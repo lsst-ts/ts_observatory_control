@@ -1589,6 +1589,21 @@ class TestATTCS(ATCSAsyncMock):
             type=1, off1=ra_offset, off2=dec_offset, num=0
         )
 
+    async def test_offset_radec_with_absorb(self) -> None:
+        # Test offset_radec with absorb=True
+        ra_offset, dec_offset = 10.0, -10.0
+        await self.atcs.offset_radec(ra=ra_offset, dec=dec_offset, absorb=True)
+
+        # Verify the offset command was called
+        self.atcs.rem.atptg.cmd_offsetRADec.set_start.assert_called_with(
+            type=1, off1=ra_offset, off2=dec_offset, num=0
+        )
+
+        # Verify the absorb command was called
+        self.atcs.rem.atptg.cmd_offsetAbsorb.set_start.assert_called_with(
+            num=0, timeout=self.atcs.fast_timeout
+        )
+
     async def test_offset_azel(self) -> None:
         az_offset, el_offset = 10.0, -10.0
 
