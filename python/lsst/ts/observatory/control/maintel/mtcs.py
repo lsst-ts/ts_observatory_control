@@ -813,6 +813,111 @@ class MTCS(BaseTCS):
                 f"Dome state: {MTDome.MotionState(az_motion.state).name}, inPosition: {az_motion.inPosition}"
             )
 
+    async def wait_for_shutter_open_state(self, timeout: float) -> None:
+        """Wait until both shutter doors are in open-like state.
+
+        This waits on MTDome.evt_shutterMotion and treats a door as
+        "open-like" when its MotionState is in {OPEN, STOPPED_BRAKED}.
+
+
+        Parameters
+        ----------
+        timeout : float
+            Maximum time to wait for convergence to the accepted states.
+
+        Raises
+        ------
+        RuntimeError
+            If a bad state is observed while waiting.
+        """
+
+        accepted_states: set[MTDome.MotionState] = {
+            MTDome.MotionState.OPEN,
+            MTDome.MotionState.STOPPED_BRAKED,
+        }
+        bad_states: set[MTDome.MotionState] = {
+            MTDome.MotionState.ERROR,
+            MTDome.MotionState.UNDETERMINED,
+            MTDome.MotionState.DISABLING,
+            MTDome.MotionState.DISABLED,
+        }
+
+        shutter_evt = await self.rem.mtdome.evt_shutterMotion.aget(timeout=timeout)
+        states = [MTDome.MotionState(val) for val in shutter_evt.state]
+
+        while not all(st in accepted_states for st in states):
+            if any(st in bad_states for st in states):
+                raise RuntimeError(
+                    "MTDome shutter transitioned into a bad state while "
+                    f"waiting for open state: {[st.name for st in states]}"
+                )
+
+            self.log.debug(
+                "Waiting for shutter open state; "
+                f"states={[st.name for st in states]}"
+            )
+
+            shutter_evt = await self.rem.mtdome.evt_shutterMotion.next(
+                flush=False, timeout=timeout
+            )
+            states = [MTDome.MotionState(val) for val in shutter_evt.state]
+
+        self.log.info(
+            "Shutter doors reached open states: " f"{[st.name for st in states]}"
+        )
+
+    async def wait_for_shutter_close_state(self, timeout: float) -> None:
+        """Wait until both shutter doors are in closed-like state.
+
+        This waits on MTDome.evt_shutterMotion and treats a door as
+        "closed-like" when its MotionState is in {CLOSED, STOPPED_BRAKED}.
+
+        Parameters
+        ----------
+        timeout : float
+            Maximum time to wait for convergence to the accepted states.
+
+        Raises
+        ------
+        RuntimeError
+            If a bad state is observed while waiting.
+        """
+
+        accepted_states: set[MTDome.MotionState] = {
+            MTDome.MotionState.CLOSED,
+            MTDome.MotionState.STOPPED_BRAKED,
+        }
+        bad_states: set[MTDome.MotionState] = {
+            MTDome.MotionState.ERROR,
+            MTDome.MotionState.UNDETERMINED,
+            MTDome.MotionState.DISABLING,
+            MTDome.MotionState.DISABLED,
+        }
+
+        shutter_evt = await self.rem.mtdome.evt_shutterMotion.aget(timeout=timeout)
+        states = [MTDome.MotionState(val) for val in shutter_evt.state]
+
+        while not all(st in accepted_states for st in states):
+            if any(st in bad_states for st in states):
+                raise RuntimeError(
+                    "MTDome shutter transitioned into a bad state while "
+                    f"waiting for closed-like: {[st.name for st in states]}"
+                )
+
+            self.log.debug(
+                "Waiting for shutter closed state; "
+                f"states={[st.name for st in states]}"
+            )
+
+            shutter_evt = await self.rem.mtdome.evt_shutterMotion.next(
+                flush=False, timeout=timeout
+            )
+            states = [MTDome.MotionState(val) for val in shutter_evt.state]
+
+        self.log.info(
+            "Shutter doors reached closed states: " f"{[st.name for st in states]}"
+        )
+
     async def park_dome(self) -> None:
         """Park the dome by moving it to the park azimuth."""
         self.log.info("Parking dome")
@@ -1026,11 +1131,9 @@ class MTCS(BaseTCS):
                     timeout=self.open_dome_shutter_time
                 )
 
-                # Wait for MT Dome shutter door to reach final position
-                await self._handle_in_position(
-                    self.rem.mtdome.evt_shutterMotion,
-                    timeout=self.open_dome_shutter_time,
-                    component_name="MTDome shutter door",
+                # Wait for MT Dome shutter door to reach final state
+                await self.wait_for_shutter_close_state(
+                    timeout=self.open_dome_shutter_time
                 )
 
                 shutter_state = await self.rem.mtdome.evt_shutterMotion.aget(
@@ -1266,11 +1369,9 @@ class MTCS(BaseTCS):
                     timeout=self.open_dome_shutter_time
                 )
 
-                # Wait for MT Dome shutter door to reach final position
-                await self._handle_in_position(
-                    self.rem.mtdome.evt_shutterMotion,
-                    timeout=self.open_dome_shutter_time,
-                    component_name="MTDome shutter door",
+                # Wait for MT Dome shutter door to reach final state
+                await self.wait_for_shutter_open_state(
+                    timeout=self.open_dome_shutter_time
                 )
 
                 shutter_state = await self.rem.mtdome.evt_shutterMotion.aget(
