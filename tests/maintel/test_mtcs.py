@@ -2412,7 +2412,7 @@ class TestMTCS(MTCSAsyncMock):
         self.mtcs.rem.mthexapod_1.evt_inPosition.flush.assert_called()
 
         self.mtcs.rem.mthexapod_1.evt_inPosition.next.assert_awaited_with(
-            timeout=self.mtcs.long_timeout, flush=False
+            timeout=self.mtcs.hexapod_movement_timeout, flush=False
         )
 
     async def test_move_m2_hexapod(self) -> None:
@@ -2442,7 +2442,7 @@ class TestMTCS(MTCSAsyncMock):
         self.mtcs.rem.mthexapod_2.evt_inPosition.flush.assert_called()
 
         self.mtcs.rem.mthexapod_2.evt_inPosition.next.assert_awaited_with(
-            timeout=self.mtcs.long_timeout, flush=False
+            timeout=self.mtcs.hexapod_movement_timeout, flush=False
         )
 
     async def test_offset_camera_hexapod(self) -> None:
@@ -2527,7 +2527,7 @@ class TestMTCS(MTCSAsyncMock):
             timeout=self.mtcs.hexapod_movement_timeout,
         )
         self.mtcs.rem.mthexapod_1.evt_inPosition.next.assert_awaited_with(
-            timeout=self.mtcs.long_timeout, flush=False
+            timeout=self.mtcs.hexapod_movement_timeout, flush=False
         )
 
     async def test_reset_m2_hexapod_position(self) -> None:
@@ -2556,7 +2556,7 @@ class TestMTCS(MTCSAsyncMock):
             timeout=self.mtcs.hexapod_movement_timeout,
         )
         self.mtcs.rem.mthexapod_2.evt_inPosition.next.assert_awaited_with(
-            timeout=self.mtcs.long_timeout, flush=False
+            timeout=self.mtcs.hexapod_movement_timeout, flush=False
         )
 
     async def test_move_p2p_azel(self) -> None:
