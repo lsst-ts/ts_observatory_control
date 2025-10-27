@@ -1,1 +1,0 @@
-Increased hexapod move timeout.

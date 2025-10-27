@@ -8,6 +8,31 @@ Version History
 
 .. towncrier release notes start
 
+v0.45.0 (2025-10-27)
+====================
+
+New Features
+------------
+
+- Added in use of linearstage_laser_focus and put in function for moving the linear stage the appropriate amount. (`DM-50505 <https://rubinobs.atlassian.net/browse/DM-50505>`_)
+- Add timeout specific for moving the camera and M2 hexapods in ``MTCS``. (`DM-52978 <https://rubinobs.atlassian.net/browse/DM-52978>`_)
+
+
+Bug Fixes
+---------
+
+- Fixed passing the hexapod move timeout to the handle_in_position method. (`DM-52978 <https://rubinobs.atlassian.net/browse/DM-52978>`_)
+- Increased hexapod move timeout. (`DM-52978 <https://rubinobs.atlassian.net/browse/DM-52978>`_)
+- Changed led_focus_axis from 0 to 3. (`DM-53012 <https://rubinobs.atlassian.net/browse/DM-53012>`_)
+- Changed led_focus_axis to 2 from 3. (`DM-53012.1 <https://rubinobs.atlassian.net/browse/DM-53012.1>`_)
+
+
+Other Changes and Additions
+---------------------------
+
+- Changed default for flatfield electrometer to false in data/mtcalsys_schema.yaml because the electrometer is not working. (`DM-52994 <https://rubinobs.atlassian.net/browse/DM-52994>`_)
+
+
 v0.44.0 (2025-10-20)
 ====================
 
