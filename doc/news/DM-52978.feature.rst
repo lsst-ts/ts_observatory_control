@@ -1,0 +1,1 @@
+Add timeout specific for moving the camera and M2 hexapods in ``MTCS``.

@@ -180,7 +180,7 @@ class MTCalsys(BaseCalsys):
         self.linearstage_projector_locations = {"led": 9.96, "laser": 79.96}
         self.led_rest_position = 90.0  # mm
         self.linearstage_projector_pos_tolerance = 0.2
-        self.led_focus_axis = 0
+        self.led_focus_axis = 2
         self.linearstage_axis = 0
 
         self.laser_enclosure_temp = 20.0  # C
@@ -270,14 +270,14 @@ class MTCalsys(BaseCalsys):
                 axis=self.linearstage_axis, timeout=self.long_timeout
             )
             led_focus_home = self.linearstage_led_focus.cmd_getHome.set_start(
+                axis=self.led_focus_axis, timeout=self.stage_homing_timeout
+            )
+
+            laser_focus_home = self.linearstage_laser_focus.cmd_getHome.set_start(
                 axis=self.linearstage_axis, timeout=self.stage_homing_timeout
             )
 
-            # TO-DO: DM-50505, add laser_focus when stage is repaired.
-
-            await asyncio.gather(
-                led_focus_home,
-            )
+            await asyncio.gather(led_focus_home, laser_focus_home)
 
             # Move LED Select stage to a safe position
             self.log.debug("Moving LED select stage to safe position.")
@@ -381,14 +381,14 @@ class MTCalsys(BaseCalsys):
         )
         # Home the focus stages
         led_focus_home = self.linearstage_led_focus.cmd_getHome.set_start(
+            axis=self.led_focus_axis, timeout=self.stage_homing_timeout
+        )
+
+        laser_focus_home = self.linearstage_laser_focus.cmd_getHome.set_start(
             axis=self.linearstage_axis, timeout=self.stage_homing_timeout
         )
 
-        # TO-DO: DM-50505, add laser focus home when stage is repaired.
-
-        await asyncio.gather(
-            led_focus_home,
-        )
+        await asyncio.gather(led_focus_home, laser_focus_home)
         # Turn off the LEDs
         # TO-DO (DM-50206): Swap switchON/OFF
         await self.rem.ledprojector.cmd_switchAllOn.start(
@@ -411,8 +411,12 @@ class MTCalsys(BaseCalsys):
         location of the linear stage for the laser projector focus in mm
 
         """
-        # TODO (DM-44772): implement the actual function
-        return 10.0
+        laser_focus_offset = 17.343
+        a = 77.092
+        b = 0.005
+        c = 39.048
+        separation = a * np.exp(-(b * float(wavelength))) + c
+        return separation - laser_focus_offset
 
     async def change_laser_wavelength(
         self,
@@ -433,8 +437,13 @@ class MTCalsys(BaseCalsys):
         await self.rem.tunablelaser.cmd_changeWavelength.set_start(
             wavelength=wavelength, timeout=self.long_long_timeout
         )
-
-        # TO-DO: DM-50505 add task to focus laser stage when stage is repaired.
+        if use_projector:
+            laser_focus_location = self.calculate_laser_focus_location(wavelength)
+            await self.linearstage_laser_focus.cmd_moveAbsolute.set_start(
+                distance=laser_focus_location,
+                axis=self.linearstage_axis,
+                timeout=self.long_long_timeout,
+            )
 
     async def change_laser_optical_configuration(
         self, optical_configuration: LaserOpticalConfiguration
@@ -535,7 +544,7 @@ class MTCalsys(BaseCalsys):
         self.log.debug(select_location)
         led_location = await self.linearstage_led_select.tel_position.next(flush=True)
         led_focus = await self.linearstage_led_focus.tel_position.next(flush=True)
-        # TO-DO: DM-50505, add laser focus position when stage is repaired.
+        laser_focus = await self.linearstage_laser_focus.tel_position.next(flush=True)
         led_state = await self.rem.ledprojector.evt_ledState.aget(
             timeout=self.fast_timeout
         )
@@ -549,19 +558,19 @@ class MTCalsys(BaseCalsys):
             else:
                 projector_location = "misaligned"
 
-        # TO-DO: DM-50505, add laser focus position when stage is repaired.
         self.log.info(
             f"Projector Location is {projector_location}, {select_location.position[0]} \n"
             f"LED Location stage pos @: {led_location.position[0]}], \n"
             f"LED Focus stage pos @: {led_focus.position[0]}, \n"
-            f"LED State stage pos @: {led_state}"
+            f"LED State stage pos @: {led_state}, \n"
+            f"Laser Focus stage pos @: {laser_focus.position[0]}"
         )
 
         return (
             projector_location,
             float(led_location.position[0]),
             float(led_focus.position[0]),
-            0.0,
+            float(laser_focus.position[0]),
             str(led_state),
         )
 

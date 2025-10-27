@@ -256,17 +256,17 @@ class TestMTCalsys(RemoteGroupAsyncMock):
 
         try:
             calibration_summary = await self.mtcalsys.run_calibration_sequence(
-                "whitelight_u_24_daily", exposure_metadata=dict()
+                "whitelight_u_24_test", exposure_metadata=dict()
             )
         finally:
             self.mtcalsys.mtcamera = None
 
         config_data = self.mtcalsys.get_calibration_configuration(
-            "whitelight_u_24_daily"
+            "whitelight_u_24_test"
         )
 
         assert "sequence_name" in calibration_summary
-        assert calibration_summary["sequence_name"] == "whitelight_u_24_daily"
+        assert calibration_summary["sequence_name"] == "whitelight_u_24_test"
         assert "steps" in calibration_summary
         self.log.debug(f"number of steps: {len(calibration_summary['steps'])}")
         assert (
@@ -289,15 +289,15 @@ class TestMTCalsys(RemoteGroupAsyncMock):
 
         try:
             calibration_summary = await self.mtcalsys.run_calibration_sequence(
-                "ptc_daily", exposure_metadata=dict()
+                "ptc_daily_test", exposure_metadata=dict()
             )
         finally:
             self.mtcalsys.mtcamera = None
 
-        config_data = self.mtcalsys.get_calibration_configuration("ptc_daily")
+        config_data = self.mtcalsys.get_calibration_configuration("ptc_daily_test")
 
         assert "sequence_name" in calibration_summary
-        assert calibration_summary["sequence_name"] == "ptc_daily"
+        assert calibration_summary["sequence_name"] == "ptc_daily_test"
         assert "steps" in calibration_summary
         self.log.debug(f"number of steps: {len(calibration_summary['steps'])}")
         assert (
@@ -340,12 +340,13 @@ class TestMTCalsys(RemoteGroupAsyncMock):
         calibration_wavelengths = np.arange(
             wavelength_start, wavelength_end, wavelength_resolution
         )
-        expected_change_wavelegths_calls = [
-            unittest.mock.call(
-                wavelength=wavelength, timeout=self.mtcalsys.long_long_timeout
-            )
-            for wavelength in calibration_wavelengths
-        ]
+        # expected_change_wavelegths_calls = [
+        #     unittest.mock.call(
+        #         wavelength=wavelength,
+        #         timeout=self.mtcalsys.long_long_timeout
+        #     )
+        #     for wavelength in calibration_wavelengths
+        # ]
 
         assert "sequence_name" in calibration_summary
         assert calibration_summary["sequence_name"] == sequence_name
@@ -358,9 +359,8 @@ class TestMTCalsys(RemoteGroupAsyncMock):
             "mtcamera_exposure_info"
         ].values():
             assert len(mtcamera_exposure_info["electrometer_exposure_result"]) == 1
-        self.mtcalsys.change_laser_wavelength(
-            wavelength=expected_change_wavelegths_calls
-        )
+        for wavelength in calibration_wavelengths:
+            await self.mtcalsys.change_laser_wavelength(wavelength=wavelength)
 
     async def test_run_calibration_sequence_cbp(self) -> None:
 
@@ -388,12 +388,13 @@ class TestMTCalsys(RemoteGroupAsyncMock):
         calibration_wavelengths = np.arange(
             wavelength_start, wavelength_end, wavelength_resolution
         )
-        expected_change_wavelegths_calls = [
-            unittest.mock.call(
-                wavelength=wavelength, timeout=self.mtcalsys.long_long_timeout
-            )
-            for wavelength in calibration_wavelengths
-        ]
+        # expected_change_wavelegths_calls = [
+        #     unittest.mock.call(
+        #         wavelength=wavelength,
+        #         timeout=self.mtcalsys.long_long_timeout
+        #     )
+        #     for wavelength in calibration_wavelengths
+        # ]
 
         assert "sequence_name" in calibration_summary
         assert calibration_summary["sequence_name"] == "cbp_g_leak_unittest"
@@ -406,6 +407,5 @@ class TestMTCalsys(RemoteGroupAsyncMock):
             "mtcamera_exposure_info"
         ].values():
             assert len(mtcamera_exposure_info["electrometer_exposure_result"]) >= 1
-        self.mtcalsys.change_laser_wavelength(
-            wavelength=expected_change_wavelegths_calls
-        )
+        for wavelength in calibration_wavelengths:
+            await self.mtcalsys.change_laser_wavelength(wavelength=wavelength)

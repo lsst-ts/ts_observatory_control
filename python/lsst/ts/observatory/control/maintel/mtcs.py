@@ -132,6 +132,8 @@ class MTCS(BaseTCS):
         # used to check the in position event race condition for
         # the hexapod when checking if it is ready to take data.
         self.hexapod_ready_to_take_data_timeout = 0.5
+        # Timeout specific to the hexapods move.
+        self.hexapod_movement_timeout = 300.0
         # Similar to the mtmount_race_condition_timeout, this is
         # used to check the in position event race condition for
         # the rotator when checking if it is in position.
@@ -2919,12 +2921,12 @@ class MTCS(BaseTCS):
             w=w,
             overwriteStepSizeFromConfig=True,
             sync=sync,
-            timeout=self.long_timeout,
+            timeout=self.hexapod_movement_timeout,
         )
 
         await self._handle_in_position(
             in_position_event=self.rem.mthexapod_1.evt_inPosition,
-            timeout=self.long_timeout,
+            timeout=self.hexapod_movement_timeout,
             component_name="Camera Hexapod",
         )
 
@@ -3091,12 +3093,12 @@ class MTCS(BaseTCS):
             w=w,
             overwriteStepSizeFromConfig=True,
             sync=sync,
-            timeout=self.long_timeout,
+            timeout=self.hexapod_movement_timeout,
         )
 
         await self._handle_in_position(
             in_position_event=self.rem.mthexapod_2.evt_inPosition,
-            timeout=self.long_timeout,
+            timeout=self.hexapod_movement_timeout,
             component_name="M2 Hexapod",
         )
 

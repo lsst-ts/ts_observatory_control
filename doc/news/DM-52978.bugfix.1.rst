@@ -1,0 +1,1 @@
+Fixed passing the hexapod move timeout to the handle_in_position method.
