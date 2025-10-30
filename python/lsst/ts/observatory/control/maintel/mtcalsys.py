@@ -245,6 +245,7 @@ class MTCalsys(BaseCalsys):
                 config_data["laser_mode"],
                 config_data["wavelength"],
                 config_data["optical_configuration"],
+                use_projector=False,
             )
             await self.laser_start_propagate()
 
@@ -877,7 +878,10 @@ class MTCalsys(BaseCalsys):
                 )
 
             elif calibration_type == CalibrationType.CBP:
-                await self.change_laser_wavelength(wavelength=exposure.wavelength)
+                await self.change_laser_wavelength(
+                    wavelength=exposure.wavelength,
+                    use_projector=False,
+                )
                 if exposure.wavelength < 410:
                     camera_exposure_time = exposure.camera + 8
                     if exposure.electrometer is not None:
