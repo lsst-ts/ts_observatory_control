@@ -111,7 +111,7 @@ cbp_none_all:
   mtcamera_filter: NONE
   wavelength: 770
   wavelength_width: 940
-  wavelength_resolution: 10
+  wavelength_resolution: 20
   exposure_times:
     - 30.0
   nburst: 5
