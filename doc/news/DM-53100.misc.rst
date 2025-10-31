@@ -1,0 +1,1 @@
+Changed 1050nm y-band LED exposure time to 30 seconds and reduced n_flat on monochromatic flats from 4 to 2.
