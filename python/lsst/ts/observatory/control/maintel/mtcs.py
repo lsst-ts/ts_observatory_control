@@ -155,6 +155,7 @@ class MTCS(BaseTCS):
         self.tel_park_el = 80.0
         self.tel_park_az = 0.0
         self.tel_park_rot = 0.0
+        self.tel_park_position = MTMount.ParkPosition.ZENITH
 
         self.tel_open_az = 150.0
         self.tel_open_el = 70.0
@@ -168,7 +169,7 @@ class MTCS(BaseTCS):
         self.rotator_position_tolerance = 0.1
 
         self.dome_open_az = 150.0
-        self.dome_park_az = 285.0
+        self.dome_park_az = 328.0
         self.dome_park_el = 80.0
         self.dome_flat_az = 20.0
         self.dome_flat_el = self.dome_park_el
@@ -1290,25 +1291,45 @@ class MTCS(BaseTCS):
         target_az = self.home_dome_az - offset
         await self.slew_dome_to(target_az)
 
-        self.rem.mtdome.evt_azMotion.flush()
-
-        await self.rem.mtdome.cmd_stop.set_start(
-            engageBrakes=True,
-            subSystemIds=MTDome.SubSystemId.AMCS,
-            timeout=self.long_long_timeout,
-        )
-        motion_state = await self.rem.mtdome.evt_azMotion.aget(
-            timeout=self.fast_timeout
-        )
-        while motion_state.state != MTDome.MotionState.STOPPED_BRAKED:
-            motion_state = await self.rem.mtdome.evt_azMotion.next(
-                flush=False, timeout=self.long_long_timeout
-            )
-            self.log.debug(f"Motion state: {MTDome.MotionState(motion_state.state)!r}")
+        await self.stop_dome(engageBrakes=True)
 
         await self.rem.mtdome.cmd_setZeroAz.start(timeout=self.fast_timeout)
         azimuth = await self.rem.mtdome.tel_azimuth.aget(timeout=self.fast_timeout)
         self.log.debug(f"{azimuth.positionActual=}, {azimuth.positionCommanded=}")
+
+    async def stop_dome(self, engageBrakes: bool) -> None:
+        """Utility method to stop dome
+
+        Sends the stop command to the dome and waits until is effectively
+        stopped.
+
+        Parameters
+        ----------
+        engageBrakes : `bool`
+            Engage the brakes (True) or not (False).
+
+        """
+        self.rem.mtdome.evt_azMotion.flush()
+
+        await self.rem.mtdome.cmd_stop.set_start(
+            engageBrakes=engageBrakes,
+            subSystemIds=MTDome.SubSystemId.AMCS,
+            timeout=self.long_long_timeout,
+        )
+
+        expected_state = getattr(
+            MTDome.MotionState, "STOPPED_BRAKED" if engageBrakes else "STOPPED"
+        )
+
+        motion_state = await self.rem.mtdome.evt_azMotion.aget(
+            timeout=self.fast_timeout
+        )
+
+        while motion_state.state != expected_state:
+            motion_state = await self.rem.mtdome.evt_azMotion.next(
+                flush=False, timeout=self.long_long_timeout
+            )
+            self.log.debug(f"Motion state: {MTDome.MotionState(motion_state.state)!r}")
 
     async def open_dome_shutter(self, force: bool = False) -> None:
         """Method to open dome shutter.
@@ -1702,8 +1723,119 @@ class MTCS(BaseTCS):
             )
 
     async def shutdown(self) -> None:
-        # TODO: Implement (DM-21336).
-        raise NotImplementedError("# TODO: Implement (DM-21336).")
+        """Shut down MTCS components.
+
+        This method performs the end-of-night procedure for the MTCS component.
+        It closes the mirror covers, closes the dome, moves the rotator to zero
+        degrees, disables the hexapod compensation mode, moves the hexapods to
+        zero, disables dome following, moves the dome to the parking (or
+        custom) azimuth, parks the TMA, and lowers the M1M3 mirror back onto
+        its static supports.
+
+        Steps:
+            - Close mirror covers
+            - Close dome shutter
+            - Move rotator to 0 deg
+            - Disable hexapods comp. mode
+            - Move hexapods to Zero
+            - Disable dome following mode
+            - Move dome to Az (parking/custom)
+            - Park TMA (El = Horizon / Zenith, Az = parking / custom)
+            - Lower M1M3
+        """
+        # Create a copy of check to restore at the end.
+        check = copy.copy(self.check)
+
+        # Close mirror covers
+        if self.check.mtmount:
+            try:
+                await self.close_m1_cover()
+            except Exception as e:
+                self.log.exception("Error closing m1m3 cover.")
+                raise e
+        else:
+            self.log.warning(
+                "Skipping deploying m1m3 cover. If mirror cover is retracted, "
+                "will not be able to close the dome shutter unless the telescope"
+                "be in safe elevation."
+            )
+
+        # Close dome shutter
+        if self.check.mtdome:
+            try:
+                await self.close_dome()
+            except Exception as e:
+                self.log.error(
+                    "Failed to close the dome. Cannot continue with shutdown operation. "
+                    "Check system for errors and try again."
+                )
+                raise e
+        else:
+            self.log.warning("Skipping closing dome shutter.")
+
+        # Move rotator to zero
+        if self.check.mtrotator:
+            try:
+                await self.move_rotator(0)
+            except Exception as e:
+                self.log.error(
+                    "Failed to move rotator to 0 degrees. Cannot continue with shutdown operation. "
+                    "Check system for errors and try again."
+                )
+                raise e
+        else:
+            self.log.warning("Skipping moving rotator to 0 degrees.")
+
+        # Disable hexapods compensation mode
+        for hexapod in ["mthexapod_1", "mthexapod_2"]:
+            if getattr(self.check, hexapod):
+                await self.disable_compensation_mode(hexapod)
+            else:
+                self.log.warning(
+                    f"Skipping disableing compensation mode for {hexapod}."
+                )
+
+        # Move hexapods to Zero
+        if self.check.mthexapod_1:
+            await self.reset_camera_hexapod_position()
+        else:
+            self.log.warning("Skipping moving camera hexapod to Zero.")
+
+        if self.check.mthexapod_2:
+            await self.reset_m2_hexapod_position()
+        else:
+            self.log.warning("Skipping moving m2 hexapod to Zero.")
+
+        # Disable dome following mode
+        await self.disable_dome_following()
+
+        # Move dome to Az (parking/custom)
+        #
+        # TODO: This should be done using the park_dome() method once the CSC
+        # successfully implements the cmd_park command.
+        #
+        if self.check.mtdome:
+            await self.slew_dome_to(az=self.dome_park_az)
+            await self.stop_dome(engageBrakes=True)
+        else:
+            self.log.warning("Skipping moving dome to parking position.")
+
+        # Park TMA (El = Horizont/Zenith, Az =parking/custom)
+        if self.check.mtmount:
+            await self.move_p2p_azel(az=self.tel_park_az, el=self.tel_park_el)
+            await self.park_mount(position=self.tel_park_position)
+        else:
+            self.log.warning("Skipping parking the TMA.")
+
+        # Lower M1M3
+        if self.check.mtm1m3:
+            # TODO: Analizar posibles excepciones
+            await self.lower_m1m3()
+        else:
+            self.log.warning("Skipping lowering m1m3 mirror.")
+
+        # restore check
+        self.check = copy.copy(check)
 
     async def stop_all(self) -> None:
         # TODO: Implement (DM-21336).

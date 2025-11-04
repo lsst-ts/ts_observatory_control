@@ -1434,8 +1434,112 @@ class TestMTCS(MTCSAsyncMock):
         )
 
     async def test_shutdown(self) -> None:
-        with pytest.raises(NotImplementedError):
+        await self.mtcs.enable()
+        await self.mtcs.assert_all_enabled()
+
+        original_check = copy.copy(self.mtcs.check)
+
+        self.mtcs.check = self.get_all_checks()
+
+        # To check: close mirror covers
+        self._mtmount_evt_mirror_covers_motion_state.state = (
+            MTMount.DeployableMotionState.RETRACTED
+        )
+
+        # To check: close dome shutter
+        self._mtdome_evt_shutter_motion.state = [
+            MTDome.MotionState.OPEN,
+            MTDome.MotionState.OPEN,
+        ]
+
+        # To check: move rotator to zero
+        self._mtrotator_tel_rotation.actualPosition = 5.0
+
+        # To check: disable hexapods compensation mode
+        self._mthexapod_1_evt_compensation_mode.enabled = True
+        self._mthexapod_2_evt_compensation_mode.enabled = True
+
+        # To check: move hexapods to Zero
+        for axis in "xyzuv":
+            setattr(self._mthexapod_1_evt_uncompensated_position, axis, 1.0)
+
+        for axis in "xyzuv":
+            setattr(self._mthexapod_2_evt_uncompensated_position, axis, 1.0)
+
+        # To check: disable dome following mode
+        self._mtdometrajectory_dome_following.enabled = True
+
+        # To check: move dome to Az (parking/custom)
+        self._mtdome_tel_azimuth.positionActual = 0.0
+        self._mtdome_tel_azimuth.positionActualpositionCommanded = 0.0
+
+        # To check: park TMA (El = Horizont/Zenith, Az =parking/custom)
+        self._mtmount_tel_azimuth.actualPosition = 0.0
+        self._mtmount_tel_elevation.actualPosition = 0.0
+
+        # To check: lower M1M3
+        self._mtm1m3_evt_detailed_state.detailedState = (
+            xml.enums.MTM1M3.DetailedStates.ACTIVE
+        )
+
+        # Run shutdown
+        try:
             await self.mtcs.shutdown()
+        finally:
+            self.mtcs.check = original_check
+
+        # Check: close mirror covers
+        assert (
+            self._mtmount_evt_mirror_covers_motion_state.state
+            == MTMount.DeployableMotionState.DEPLOYED
+        )
+
+        # Check: close dome shutter
+        assert self._mtdome_evt_shutter_motion.state == [
+            MTDome.MotionState.CLOSED,
+            MTDome.MotionState.CLOSED,
+        ]
+
+        # Check: move rotator to zero
+        assert self._mtrotator_tel_rotation.actualPosition == 0.0
+
+        # Check: disable hexapods compensation mode
+        assert not self._mthexapod_1_evt_compensation_mode.enabled
+        assert not self._mthexapod_2_evt_compensation_mode.enabled
+
+        # Check: move hexapods to Zero
+        assert all(
+            getattr(self._mthexapod_1_evt_uncompensated_position, axis) == 0.0
+            for axis in "xyzuv"
+        )
+        assert all(
+            getattr(self._mthexapod_2_evt_uncompensated_position, axis) == 0.0
+            for axis in "xyzuv"
+        )
+
+        # Check: disable dome following mode
+        assert not self._mtdometrajectory_dome_following.enabled
+
+        # Check: move dome to Az (parking/custom)
+        assert self._mtdome_tel_azimuth.positionActual == self.mtcs.dome_park_az
+        assert self._mtdome_tel_azimuth.positionCommanded == self.mtcs.dome_park_az
+        assert self._mtdome_evt_az_motion.state == MTDome.MotionState.STOPPED_BRAKED
+
+        # Check: park TMA (El = Horizont/Zenith, Az =parking/custom)
+        self.mtcs.rem.mtmount.cmd_moveToTarget.set_start.assert_awaited_with(
+            azimuth=self.mtcs.tel_park_az,
+            elevation=self.mtcs.tel_park_el,
+            timeout=120.0,
+        )
+        self.mtcs.rem.mtmount.cmd_park.start.assert_awaited_with(
+            position=self.mtcs.tel_park_position, timeout=self.mtcs.long_timeout
+        )
+
+        # Check: lower M1M3
+        assert (
+            self._mtm1m3_evt_detailed_state.detailedState
+            == xml.enums.MTM1M3.DetailedStates.PARKED
+        )
 
     async def test_stop_all(self) -> None:
         with pytest.raises(NotImplementedError):
