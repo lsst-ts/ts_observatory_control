@@ -483,7 +483,7 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
         offset_y: float = 0.0,
         az_wrap_strategy: enum.IntEnum | None = None,
         time_on_target: float = 0.0,
-        slew_timeout: float = 240.0,
+        slew_timeout: float = 600.0,
         stop_before_slew: bool = False,
         wait_settle: bool = True,
     ) -> typing.Tuple[ICRS, Angle]:
