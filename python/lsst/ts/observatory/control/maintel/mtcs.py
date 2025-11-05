@@ -2943,6 +2943,11 @@ class MTCS(BaseTCS):
         wait_for_in_position : `bool`, optional
             Wait for rotator to reach desired position before returning the
             function? Default True.
+
+        Raises
+        ------
+        RuntimeError
+            If CCW following is disabled and check MTMount is enabled.
         """
 
         rotator_position_tolerance = self.rotator_position_tolerance
@@ -2970,6 +2975,20 @@ class MTCS(BaseTCS):
                 "Nothing to do."
             )
             return
+
+        ccw_following = await self.rem.mtmount.evt_cameraCableWrapFollowing.aget(
+            timeout=self.fast_timeout
+        )
+        if not ccw_following.enabled:
+            if self.check.mtmount:
+                raise RuntimeError(
+                    "Trying to move rotator while camera cable wrap following is disabled."
+                )
+            else:
+                self.log.warning(
+                    "MTMount check is disabled."
+                    " Moving rotator while camera cable wrap following is disabled."
+                )
 
         ntries = 2
         for i in range(ntries):

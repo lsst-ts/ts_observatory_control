@@ -2385,6 +2385,44 @@ class TestMTCS(MTCSAsyncMock):
         self.mtcs.rem.mtrotator.evt_inPosition.aget.assert_not_awaited()
         self.mtcs.rem.mtrotator.evt_inPosition.next.assert_not_awaited()
 
+    async def test_move_rotator_with_ccw_following_disabled_and_check_mtmount_enabled(
+        self,
+    ) -> None:
+        position = 10.0
+
+        self._mtmount_evt_cameraCableWrapFollowing.enabled = 0
+        self.mtcs.check.mtmount = True
+
+        with pytest.raises(
+            RuntimeError,
+            match="Trying to move rotator while camera cable wrap following is disabled.",
+        ):
+            await self.mtcs.move_rotator(position=position)
+
+        self.mtcs.rem.mtrotator.cmd_move.set_start.assert_not_awaited()
+
+    async def test_move_rotator_with_ccw_following_and_check_mtmount_disabled(
+        self,
+    ) -> None:
+        position = 10.0
+
+        self._mtmount_evt_cameraCableWrapFollowing.enabled = 0
+        self.mtcs.check.mtmount = False
+
+        await self.mtcs.move_rotator(position=position)
+
+        self.mtcs.rem.mtrotator.cmd_move.set_start.assert_awaited_with(
+            position=position, timeout=self.mtcs.long_timeout
+        )
+        self.mtcs.rem.mtrotator.evt_inPosition.aget.assert_awaited_with(
+            timeout=self.mtcs.fast_timeout
+        )
+        self.mtcs.rem.mtrotator.evt_inPosition.flush.assert_called()
+
+        self.mtcs.rem.mtrotator.evt_inPosition.next.assert_awaited_with(
+            timeout=self.mtcs.long_long_timeout, flush=False
+        )
+
     async def test_move_camera_hexapod(self) -> None:
         hexapod_positions = dict([(axis, np.random.rand()) for axis in "xyzuv"])
 
