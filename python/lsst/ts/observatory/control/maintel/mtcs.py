@@ -3801,6 +3801,7 @@ class MTCS(BaseTCS):
                     "pointAddData",
                     "timeAndDate",
                     "target",
+                    "currentTarget",
                     "focusNameSelected",
                 ],
                 mtrotator=[
