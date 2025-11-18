@@ -229,6 +229,28 @@ class MTCS(BaseTCS):
                 """
             )
 
+    def set_dome_park_position(
+        self,
+        azimuth: typing.Optional[float] = None,
+        elevation: typing.Optional[float] = None,
+    ) -> None:
+        """Sets the dome park position."""
+        self.dome_park_az = azimuth if azimuth is not None else self.dome_park_az
+        self.dome_park_el = elevation if elevation is not None else self.dome_park_el
+
+    def set_park_position(
+        self,
+        azimuth: typing.Optional[float] = None,
+        elevation: typing.Optional[float] = None,
+        position: typing.Optional[MTMount.ParkPosition] = None,
+    ) -> None:
+        """Sets the TMA park position."""
+        self.tel_park_az = azimuth if azimuth is not None else self.tel_park_az
+        self.tel_park_el = elevation if elevation is not None else self.tel_park_el
+        self.tel_park_position = (
+            position if position is not None else self.tel_park_position
+        )
+
     def _create_asyncio_events(self) -> None:
         """Create asyncio event loop for internal data."""
         self._dome_az_in_position = asyncio.Event()
