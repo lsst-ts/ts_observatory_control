@@ -70,6 +70,81 @@ class TestMTCS(MTCSAsyncMock):
         assert el == pytest.approx(azel.alt.value, abs=5e-6)
         assert pa.value == pytest.approx(3.1269, abs=5e-2)
 
+    async def test_set_dome_park_position(self) -> None:
+        original_park_values = {
+            "azimuth": self.mtcs.dome_park_az,
+            "elevation": self.mtcs.dome_park_el,
+        }
+        # Test without overrides
+        self.mtcs.set_dome_park_position()
+        assert (
+            dict(azimuth=self.mtcs.dome_park_az, elevation=self.mtcs.dome_park_el)
+            == original_park_values
+        )
+        # Test overriding azimuth
+        self.mtcs.set_dome_park_position(azimuth=100.0)
+        assert (
+            self.mtcs.dome_park_az == 100.0
+            and self.mtcs.dome_park_el == original_park_values["elevation"]
+        )
+        # Test overriding elevation
+        self.mtcs.set_dome_park_position(elevation=20.0)
+        assert self.mtcs.dome_park_el == 20.0 and self.mtcs.dome_park_az == 100.0
+        # Test overriding all
+        self.mtcs.set_dome_park_position(**original_park_values)
+        assert (
+            dict(azimuth=self.mtcs.dome_park_az, elevation=self.mtcs.dome_park_el)
+            == original_park_values
+        )
+
+    async def test_set_park_position(self) -> None:
+        original_park_values = {
+            "azimuth": self.mtcs.tel_park_az,
+            "elevation": self.mtcs.tel_park_el,
+            "position": self.mtcs.tel_park_position,
+        }
+        # Test without overrides
+        self.mtcs.set_park_position()
+        assert (
+            dict(
+                azimuth=self.mtcs.tel_park_az,
+                elevation=self.mtcs.tel_park_el,
+                position=self.mtcs.tel_park_position,
+            )
+            == original_park_values
+        )
+        # Test overriding azimuth
+        self.mtcs.set_park_position(azimuth=100.0)
+        assert (
+            self.mtcs.tel_park_az == 100.0
+            and self.mtcs.tel_park_el == original_park_values["elevation"]
+            and self.mtcs.tel_park_position == original_park_values["position"]
+        )
+        # Test overriding elevation
+        self.mtcs.set_park_position(elevation=20.0)
+        assert (
+            self.mtcs.tel_park_el == 20.0
+            and self.mtcs.tel_park_az == 100.0
+            and self.mtcs.tel_park_position == original_park_values["position"]
+        )
+        # Test overriding position
+        self.mtcs.set_park_position(position=MTMount.ParkPosition.HORIZON)
+        assert (
+            self.mtcs.tel_park_position == MTMount.ParkPosition.HORIZON
+            and self.mtcs.tel_park_el == 20.0
+            and self.mtcs.tel_park_az == 100.0
+        )
+        # Test overriding all
+        self.mtcs.set_park_position(**original_park_values)
+        assert (
+            dict(
+                azimuth=self.mtcs.tel_park_az,
+                elevation=self.mtcs.tel_park_el,
+                position=self.mtcs.tel_park_position,
+            )
+            == original_park_values
+        )
+
     async def test_set_azel_slew_checks(self) -> None:
         original_check = copy.copy(self.mtcs.check)
 
