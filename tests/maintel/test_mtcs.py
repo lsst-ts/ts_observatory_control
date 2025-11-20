@@ -1616,6 +1616,9 @@ class TestMTCS(MTCSAsyncMock):
             == xml.enums.MTM1M3.DetailedStates.PARKED
         )
 
+        # Check final system state
+        await self.mtcs.assert_all_enabled()
+
     async def test_stop_all(self) -> None:
         with pytest.raises(NotImplementedError):
             await self.mtcs.stop_all()

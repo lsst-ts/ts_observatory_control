@@ -1754,6 +1754,13 @@ class MTCS(BaseTCS):
         custom) azimuth, parks the TMA, and lowers the M1M3 mirror back onto
         its static supports.
 
+        Initial System State:
+            - All CSCs Enabled
+            - TMA either parked or unparked
+
+        Note: Right now we need to assume TMA is already parked since CSC
+              parking command is not ready yet.
+
         Steps:
             - Close mirror covers
             - Close dome shutter
@@ -1764,9 +1771,24 @@ class MTCS(BaseTCS):
             - Move dome to Az (parking/custom)
             - Park TMA (El = Horizon / Zenith, Az = parking / custom)
             - Lower M1M3
+
+        Final System State:
+            - TMA and Dome parked
+            - All CSCs remain enabled
         """
         # Create a copy of check to restore at the end.
         check = copy.copy(self.check)
+
+        # Check initial system state
+        await self.assert_all_enabled(
+            message="All components need to be enabled for shutdown operations."
+        )
+
+        # TODO: There is currently no event or telemetry available to verify
+        # whether the TMA is parked or unparked. This check must be implemented
+        # once the corresponding mechanism becomes available.
+
+        # Steps for shutdown
 
         # Close mirror covers
         if self.check.mtmount:
@@ -1834,7 +1856,7 @@ class MTCS(BaseTCS):
         # Move dome to Az (parking/custom)
         #
         # TODO: This should be done using the park_dome() method once the CSC
-        # successfully implements the cmd_park command.
+        # successfully implements the `park` command.
         #
         if self.check.mtdome:
             await self.slew_dome_to(az=self.dome_park_az)
@@ -1855,6 +1877,19 @@ class MTCS(BaseTCS):
             await self.lower_m1m3()
         else:
             self.log.warning("Skipping lowering m1m3 mirror.")
+
+        # Check final system state
+        await self.assert_all_enabled(
+            message="Some components did not remain enabled after the shutdown operations."
+        )
+
+        # TODO: There is currently no event or telemetry available to verify
+        # whether the TMA is parked. This check must be implemented once the
+        # corresponding mechanism becomes available.
+
+        # TODO: Since the MTDome `park` command could not be used, the check
+        # for whether the dome is parked is currently skipped. This must be
+        # verified once the park_dome() method is used.
 
         # restore check
         self.check = copy.copy(check)
