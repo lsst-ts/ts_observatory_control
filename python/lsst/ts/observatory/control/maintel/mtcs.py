@@ -3901,7 +3901,11 @@ class MTCS(BaseTCS):
             )
 
             usages[self.valid_use_cases.AOS] = UsagesResources(
-                components_attr=["mtaos"],
+                components_attr=[
+                    "mtaos",
+                    "mthexapod_1",
+                    "mthexapod_2",
+                ],
                 readonly=False,
                 mtaos=[
                     "degreeOfFreedom",
@@ -3909,6 +3913,12 @@ class MTCS(BaseTCS):
                     "startClosedLoop",
                     "stopClosedLoop",
                     "closedLoopState",
+                ],
+                mthexapod_1=[
+                    "application",
+                ],
+                mthexapod_2=[
+                    "application",
                 ],
             )
 
