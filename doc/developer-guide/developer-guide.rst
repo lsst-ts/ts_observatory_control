@@ -83,15 +83,15 @@ You can find Jira issues for this module under the `ts_observatory_control <http
 .. .. toctree::
 ..    :maxdepth: 1
 
-.. .. _lsst.ts.observatory.control-scripts:
+.. _lsst.ts.observatory.control-scripts:
 
-.. Script reference
-.. ================
+Script reference
+================
 
-.. .. TODO: Add an item to this toctree for each script reference topic in the scripts subdirectory.
+.. toctree::
+   :maxdepth: 1
 
-.. .. toctree::
-..    :maxdepth: 1
+   ../guider-roi-scripts
 
 .. .. _lsst.ts.observatory.control-pyapi:
 

@@ -1,0 +1,45 @@
+# Metadata sidecar file for vignetting_vs_angle.npz
+# This file describes the provenance and characteristics of the vignetting data
+
+# Data provenance - WHO created this data and HOW
+data_source: "Batoid ray-tracer optical model"
+processing_pipeline: "Batoid ray-tracer v0.8"
+curator: "Aaron Roodman"
+contact_email: "roodman@slac.stanford.edu"
+simulation_type: "optical_ray_tracing"
+
+# Technical details about the simulation
+telescope_model: "LSST_r.yaml" 
+# whatever info about the simulation is relevant
+ray_density: 9000  # rays per field point
+wavelength_nm: 620  # r-band central wavelength
+
+# Catalog-specific metadata
+description: "Vignetting correction vs angle from boresight for guide star flux correction"
+version: "1.0"
+coordinate_system: "boresight_angle"
+
+# Processing details
+created_by: "Aaron Roodman"
+processing_date: "2025-04-09T07:37:19"
+software_version: "batoid-0.8.0"
+
+# Data characteristics
+field_coverage_deg: 2.0  # Maximum field angle covered
+angular_resolution_deg: 0.04  # Angular step size
+vignetting_model: "geometric_and_physical"
+
+# Quality metrics
+validation_status: "preliminary"  # or "validated", "production"
+accuracy_estimate: "0.05"  # Expected relative accuracy
+notes: |
+  Generated from full Batoid optical model including:
+  - Primary and secondary mirror geometry
+  - Camera lens system
+  
+  This is a preliminary correction for guider ROI development.
+  A refined correction based on measured flux may be determined.
+
+# References
+documentation_url: ""
+pipeline_repository: "https://github.com/jmeyers314/batoid"

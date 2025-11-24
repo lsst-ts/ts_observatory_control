@@ -30,27 +30,29 @@ Original algorithm credit: Aaron Roodman
 
 __all__ = [
     "DM_STACK_AVAILABLE",
-    "BEST_EFFORT_ISR_AVAILABLE",
     "GuiderROIs",
-    "get_vignetting_data_from_butler",
+    "get_vignetting_correction_from_butler",
 ]
 
 import logging
 import warnings
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 import healpy as hp
+import numpy as np
 from astropy.coordinates import angular_separation
 from astropy.table import Table, vstack
-from scipy.interpolate import make_interp_spline
+from lsst.ts.observatory.control.utils.extras.vignetting_correction import (
+    VignettingCorrection,
+)
+from lsst.ts.observatory.control.utils.extras.vignetting_storage import (
+    register_vignetting_storage_class,
+)
 
-if TYPE_CHECKING:
-    from lsst.summit.utils import BestEffortIsr as BestEffortIsrType
+from .. import ROI, ROICommon, ROISpec
 
-import numpy as np
-
-DEFAULT_CATALOG_DATASET_NAME = "monster_guide_catalog"
-DEFAULT_VIGNETTING_DATASET_NAME = "vignetting_correction"
+DEFAULT_CATALOG_DATASET_NAME = "guider_roi_monster_guide_catalog"
+DEFAULT_VIGNETTING_DATASET_NAME = "guider_roi_vignetting_correction"
 DEFAULT_COLLECTION_NAME = "guider_roi_data"
 
 
@@ -60,7 +62,7 @@ try:
     # Core DM stack imports
     import lsst.geom as geom
     from lsst.afw import cameraGeom
-    from lsst.daf.butler import Butler
+    from lsst.daf.butler import Butler, StorageClassFactory
     from lsst.daf.butler._exceptions import DatasetNotFoundError
     from lsst.obs.base import createInitialSkyWcsFromBoresight
     from lsst.obs.lsst import LsstCam
@@ -71,20 +73,18 @@ except ImportError:
         "DM Stack not available. GuiderROIs will work in file-based mode only."
     )
 
-BEST_EFFORT_ISR_AVAILABLE = True
 try:
-    from lsst.summit.utils import BestEffortIsr
+    from lsst.summit.utils import makeDefaultButler
 except ImportError:
-    BEST_EFFORT_ISR_AVAILABLE = False
-    BestEffortIsr = None
+    makeDefaultButler = None  # type: ignore
 
 
-def get_vignetting_data_from_butler(
+def get_vignetting_correction_from_butler(
     butler: Any,
     vignetting_dataset: str = DEFAULT_VIGNETTING_DATASET_NAME,
     collection: str = DEFAULT_COLLECTION_NAME,
-) -> dict[str, Any]:
-    """Get vignetting correction data from Butler.
+) -> "VignettingCorrection":
+    """Get VignettingCorrection object from Butler.
 
     Parameters
     ----------
@@ -97,15 +97,16 @@ def get_vignetting_data_from_butler(
 
     Returns
     -------
-    vignetting_data : `dict`
-        Vignetting data.
+    vignetting_correction : `VignettingCorrection`
+        VignettingCorrection object.
 
     Raises
     ------
     RuntimeError
-        If DM stack is not available (required for Butler operations).
+        If DM stack is not available (required for Butler operations) or
+        if no vignetting dataset is found.
     ValueError
-        If vignetting data is found but required columns are missing.
+        If the retrieved data is not a VignettingCorrection object.
     Exception
         Any exception from Butler operations (e.g., DatasetNotFoundError,
         AttributeError, etc.) will be raised directly.
@@ -129,12 +130,10 @@ def get_vignetting_data_from_butler(
             f"Retrieved vignetting dataset '{vignetting_dataset}' is empty or unavailable."
         )
 
-    required_keys = ["theta", "vignetting"]
-    missing_keys = [key for key in required_keys if key not in data]
-    if missing_keys:
+    if not isinstance(data, VignettingCorrection):
         raise ValueError(
-            f"Vignetting data missing required columns: {missing_keys}. "
-            f"Available columns: {list(data.keys())}"
+            f"Expected VignettingCorrection object from Butler, got {type(data)}. "
+            f"Please re-ingest vignetting data using the updated ingestion script."
         )
 
     return data
@@ -162,6 +161,7 @@ class GuiderROIs:
         catalog_name: str = DEFAULT_CATALOG_DATASET_NAME,
         vignetting_dataset: str = DEFAULT_VIGNETTING_DATASET_NAME,
         collection: str = DEFAULT_COLLECTION_NAME,
+        repo_name: str = "LSSTCam",
         log: logging.Logger | None = None,
     ) -> None:
         """Initialize GuiderROIs.
@@ -174,6 +174,9 @@ class GuiderROIs:
             Name of the vignetting correction dataset in butler.
         collection : `str`, optional
             Collection name for data queries.
+        repo_name : `str`, optional
+            Repository name for BestEffortIsr (e.g., "LATISS", "LSSTCam").
+            Default: "LSSTCam".
         log : `logging.Logger`, optional
             Parent logger. If provided, a child logger will be created from it
             named after this class; otherwise, a class-scoped logger will be
@@ -183,38 +186,50 @@ class GuiderROIs:
         ------
         RuntimeError
             If basic dependencies are not available, or the DM stack or
-            BestEffortIsr is unavailable.
+            makeDefaultButler is unavailable.
         ValueError
             If vignetting data is missing required columns.
 
         Notes
         -----
         Operating mode:
-        - Summit/DM environment via BestEffortIsr (required). Butler is
-          obtained from BestEffortIsr, and HEALPix settings are derived from
+        - Summit/DM environment via makeDefaultButler (required). Butler is
+          obtained from makeDefaultButler with the specified instrument
+          (LSSTCam or LATISS), and HEALPix settings are derived from
           the repository.
         """
         if not DM_STACK_AVAILABLE:
             raise RuntimeError(
-                "DM Stack not available. BestEffortIsr mode is required for GuiderROIs."
-            )
-        if not BEST_EFFORT_ISR_AVAILABLE or BestEffortIsr is None:
-            raise RuntimeError(
-                "BestEffortIsr is required but not available in this environment."
+                "DM Stack not available. Summit Butler mode is required for GuiderROIs."
             )
 
         # Store configuration
         self.catalog_name = catalog_name
         self.vignetting_dataset = vignetting_dataset
         self.collection = collection
+        self.repo_name = repo_name
 
-        # Butler via BestEffortIsr only
-        self.best_effort_isr: "BestEffortIsrType | None" = BestEffortIsr()
-        self.butler: Butler | None = (
-            self.best_effort_isr.butler if self.best_effort_isr is not None else None
-        )
+        # Create Butler using makeDefaultButler (supports LSSTCam,
+        # LATISS, etc.)
+        if makeDefaultButler is None:
+            raise RuntimeError(
+                "summit_utils is required but not available. "
+                "This package is needed to create a Butler for LSSTCam or LATISS."
+            )
+
+        try:
+            self.butler: Butler | None = makeDefaultButler(
+                repo_name,
+                writeable=False,
+                extraCollections=[collection] if collection else None,
+            )
+        except Exception as e:
+            raise RuntimeError(
+                f"Failed to create Butler for instrument '{repo_name}': {e}"
+            )
+
         if self.butler is None:
-            raise RuntimeError("Failed to obtain Butler from BestEffortIsr.")
+            raise RuntimeError(f"Failed to obtain Butler for instrument '{repo_name}'.")
 
         self.log = (
             logging.getLogger(type(self).__name__)
@@ -233,6 +248,9 @@ class GuiderROIs:
         self.camera = None
         if DM_STACK_AVAILABLE:
             self.camera = LsstCam.getCamera()
+
+        # Register custom storage classes (must happen before vignetting init)
+        self._register_storage_classes()
 
         # Initialize vignetting correction
         self._init_vignetting_correction()
@@ -271,33 +289,57 @@ class GuiderROIs:
         self.nside = derived_nside
         self.healpix_level = level
         self.healpix_dim = hp_name
+        self.npix = hp.nside2npix(self.nside)
 
     def _init_vignetting_correction(self) -> None:
-        """Initialize vignetting correction spline.
+        """Initialize vignetting correction.
 
         Raises
         ------
         RuntimeError
-            If vignetting data is not available from any source.
-        ValueError
-            If vignetting data is missing required columns.
-        FileNotFoundError
-            If no vignetting file is found when butler data is not available.
+            If Butler is not available or vignetting data is not found.
         """
         if self.butler is None:
             raise RuntimeError("Butler is not available")
 
-        vignetting_data = get_vignetting_data_from_butler(
+        # Get VignettingCorrection object from Butler
+        self.vignetting_correction_obj = get_vignetting_correction_from_butler(
             self.butler, self.vignetting_dataset, self.collection
         )
 
+        self.log.info("Loaded VignettingCorrection object from Butler")
+
+    def _register_storage_classes(self) -> None:
+        """Register custom storage classes required for GuiderROIs.
+
+        This method ensures that custom storage classes (like
+        VignettingCorrection) are registered with Butler before they are
+        needed. It's safe to call multiple times - already registered
+        classes will be ignored.
+
+        Raises
+        ------
+        RuntimeError
+            If Butler is not available or storage class registration fails.
+        """
+        if self.butler is None:
+            raise RuntimeError("Butler is not available for storage class registration")
+
         try:
-            # Create interpolation spline with the validated data
-            self.vigspline = make_interp_spline(
-                vignetting_data["theta"], vignetting_data["vignetting"], k=3
-            )
-        except Exception as e:
-            raise RuntimeError("Failed to create vignetting correction spline.") from e
+            factory = StorageClassFactory()
+
+            try:
+                factory.getStorageClass("VignettingCorrection")
+                self.log.debug("VignettingCorrection storage class already registered")
+                return
+            except KeyError:
+                pass
+
+            register_vignetting_storage_class(self.butler)
+            self.log.debug("VignettingCorrection storage class registered successfully")
+
+        except Exception:
+            self.log.exception("Storage class registration failed")
 
     def vignetting_correction(self, angle: float) -> float:
         """Calculate vignetting correction.
@@ -312,9 +354,7 @@ class GuiderROIs:
         deltam : float
             Change in magnitude due to vignetting
         """
-        vigfraction = self.vigspline(angle)
-        deltam = -2.5 * np.log10(vigfraction)
-        return deltam
+        return self.vignetting_correction_obj.delta_magnitude(angle)
 
     def _get_catalog_data_from_butler(self, hp_indices: list[int]) -> list[Table]:
         """Get catalog data from butler using HEALPix dimensions."""
@@ -389,7 +429,7 @@ class GuiderROIs:
         use_guider: bool = True,
         use_wavefront: bool = False,
         use_science: bool = False,
-    ) -> tuple[str, Table]:
+    ) -> tuple[ROISpec, Table]:
         """Get guider ROI configuration.
 
         Parameters
@@ -419,8 +459,8 @@ class GuiderROIs:
 
         Returns
         -------
-        config_text : str
-            ROI configuration text
+        roi_spec : ROISpec
+            ROI specification object with common settings and per-detector ROIs
         cat_all : Table
             Table of chosen Guider stars
 
@@ -520,6 +560,10 @@ class GuiderROIs:
             # get BBox for this detector
             ccd_bbox = detector.getBBox()
             ccd_nx, ccd_ny = ccd_bbox.getDimensions()
+            ccd_xmin = ccd_bbox.getMinX()  # starts at 0
+            ccd_xmax = ccd_bbox.getMaxX()  # last pixel (4071 for ITL)
+            ccd_ymin = ccd_bbox.getMinY()
+            ccd_ymax = ccd_bbox.getMaxY()  # last pixel (3999 for ITL)
             ccd_nyhalf = ccd_ny // 2
 
             # build BBox for top and bottom halves of the CCD
@@ -549,13 +593,25 @@ class GuiderROIs:
                     self.log.warning(f"No catalog data found for detector {idet}")
                     continue
 
-                star_cat = vstack(tables)
+                # Strip metadata from all tables to avoid merge warnings
+                # ROI selection doesn't need metadata, only star data
+                clean_tables = []
+                for table in tables:
+                    clean_table = table.copy()
+                    clean_table.meta = {}
+                    clean_tables.append(clean_table)
+
+                star_cat = vstack(clean_tables)
+
+                self.log.debug(
+                    f"Merged {len(tables)} catalogs with {len(star_cat)} total stars for detector {idet}"
+                )
 
             except Exception as e:
                 self.log.warning(f"Error reading catalog for detector {idet}: {e}")
                 continue
 
-                # check that stars are isolated and are inside the CCD
+            # check that stars are isolated and are inside the CCD
             isolated = star_cat["guide_flag"] > 63
 
             # using the wcs to locate the stars inside the CCD minus npix_edge
@@ -645,34 +701,70 @@ class GuiderROIs:
                 # does not cross the midline break
 
                 # first check and adjust the ROI in x
-                if ccdxLL < 0:
-                    ccdxLL = 0
+                if ccdxLL < ccd_xmin:
+                    ccdxLL = 1  # start at 1
                     ccdxUR = ccdxLL + roi_size
-                elif ccdxUR > ccd_nx:
-                    ccdxUR = ccd_nx
+                elif ccdxUR > ccd_xmax:
+                    ccdxUR = ccd_nx - 1  # maximum allowed is nx-1
                     ccdxLL = ccdxUR - roi_size
 
                 # then check and adjust the ROI in y
                 # first see if the star is in the upper
                 # or lower half of the CCD
+                # (note that this code will not work for WF CCDs)
                 if arow["ccdy"] < ccd_nyhalf:
-                    if ccdyLL < 0:
-                        ccdyLL = 0
+                    if ccdyLL < ccd_ymin:
+                        ccdyLL = 1  # start at 1
                         ccdyUR = ccdyLL + roi_size
-                    elif ccdyUR > ccd_nyhalf:
-                        ccdyUR = ccd_nyhalf
+                    elif ccdyUR > ccd_nyhalf - 1:
+                        ccdyUR = ccd_nyhalf - 1  # maximum allowed is nyhalf-1
                         ccdyLL = ccdyUR - roi_size
                 else:
-                    if ccdyLL < ccd_nyhalf:
-                        ccdyLL = ccd_nyhalf
+                    if ccdyLL < ccd_nyhalf + 1:
+                        ccdyLL = ccd_nyhalf + 1  # start at 1
                         ccdyUR = ccdyLL + roi_size
-                    elif ccdyUR > ccd_ny:
-                        ccdyUR = ccd_ny
+                    elif ccdyUR > ccd_ymax:
+                        ccdyUR = ccd_ny - 1  # maximum allowed is ny-1
                         ccdyLL = ccdyUR - roi_size
 
-                ampNameLL, ampxLL, ampyLL = lct.ccdPixelToAmpPixel(ccdxLL, ccdyLL)
-                ccdxLLs.append(ccdxLL)
-                ccdyLLs.append(ccdyLL)
+                # convert from ccd LL,UR to ampxLL,ampyLL
+                #
+                # this conversion depends on the amplifier geometry of
+                # ITL vs. e2v and the orientation of the amplifiers which is
+                # different in the lower and upper half of the CCDs
+                #
+                # note that we want the corner of ROI that is closest to the
+                # amplifier readout node
+                #
+                # for the ITL guiders, if the ROI is in the lower 8 amps
+                # (C00 to C07) then the Amp LL corner should derive from the
+                # CCD LR corner, and the LR corner is xUR,yLL
+                #
+                # for e2v science sensors the Amp LL corner is given by the
+                # CCD LL corner
+                #
+                # but, if we are in the upper 8 amps (C10 to C17) then
+                # the Amp LL corner should derive from the CCD UR corner, for
+                # both ITL and e2v
+                #
+                if arow["ccdy"] < ccd_nyhalf:
+                    if detector.getPhysicalType()[0:3] == "ITL":
+                        ampNameLL, ampxLL, ampyLL = lct.ccdPixelToAmpPixel(
+                            ccdxUR, ccdyLL
+                        )
+                        ccdxLLs.append(ccdxUR)
+                        ccdyLLs.append(ccdyLL)
+                    else:
+                        ampNameLL, ampxLL, ampyLL = lct.ccdPixelToAmpPixel(
+                            ccdxLL, ccdyLL
+                        )
+                        ccdxLLs.append(ccdxLL)
+                        ccdyLLs.append(ccdyLL)
+                else:
+                    ampNameLL, ampxLL, ampyLL = lct.ccdPixelToAmpPixel(ccdxUR, ccdyUR)
+                    ccdxLLs.append(ccdxUR)
+                    ccdyLLs.append(ccdyUR)
+
                 ampNameLLs.append(ampNameLL)
                 ampxLLs.append(ampxLL)
                 ampyLLs.append(ampyLL)
@@ -713,13 +805,18 @@ class GuiderROIs:
                     f"Requested band '{band}' not available in catalog columns."
                 )
 
-            # Require at least one valid magnitude in the requested band
+            # if there are no valid magnitudes in the requested band,
+            # then use Gaia
             mag_values = cat_select2[themag]
             magok = ~np.isnan(mag_values)
             if len(cat_select2[magok]) == 0:
-                raise ValueError(
-                    f"No valid magnitudes for band '{band}' found in catalog."
-                )
+                themag = "gaia_G"
+                mag_values = cat_select2[themag]
+                magok = ~np.isnan(mag_values)
+                if len(cat_select2[magok]) == 0:
+                    raise ValueError(
+                        f"No valid magnitudes for band '{band}' or Gaia found in catalog."
+                    )
 
             mags = mag_values + cat_select2["delta_mag"]
             ibrightest = np.argmin(mags)
@@ -730,10 +827,21 @@ class GuiderROIs:
                 first = False
                 cat_all = Table(cat_thestar)
             else:
-                cat_all = vstack([cat_thestar, cat_all])
+                # Strip metadata to avoid merge warnings when
+                # combining stars from different detectors
+                # Handle both Table and Row cases
+                if hasattr(cat_thestar, "copy"):
+                    cat_thestar_clean = cat_thestar.copy()
+                    cat_thestar_clean.meta = {}
+                else:
+                    cat_thestar_clean = Table(cat_thestar)
+                    cat_thestar_clean.meta = {}
 
-        # build the configuration string for the ROIs from the catalog with
-        # all stars
+                cat_all_clean = cat_all.copy()
+                cat_all_clean.meta = {}
+                cat_all = vstack([cat_thestar_clean, cat_all_clean])
+
+        # build the ROI specification from the catalog with all stars
 
         # Check if any guide stars were found
         if len(cat_all) == 0:
@@ -744,30 +852,32 @@ class GuiderROIs:
                 f"restrictive selection criteria."
             )
 
-        config_text = f"""
-roi_spec:
- common:
-  rows: {int(roi_size)}
-  cols: {int(roi_size)}
-  integration_time_millis: {int(roi_time)}"""
+        # Create ROICommon with shared settings
+        roi_common = ROICommon(
+            rows=int(roi_size),
+            cols=int(roi_size),
+            integration_time_millis=int(roi_time),
+        )
 
+        # Build dictionary of ROIs for each detector
+        roi_dict = {}
         for arow in cat_all:
             ccdname = arow["ccdName"]
-            # Remove underscore from CCD name
+            # Remove underscore from CCD name (e.g., "R00_SG0" -> "R00SG0")
             ccd_guider_name = ccdname[0:3] + ccdname[4:]
             ampname = arow["ampNameLL"]
-            amp_guider_name = ampname[1:]  # remove the C in Cxy
+            amp_guider_name = int(ampname[1:])  # remove the C in Cxy and convert to int
             start_col = int(arow["ampxLL"])
             start_row = int(arow["ampyLL"])
 
-            ccd_text = f"""
-roi:
- {ccd_guider_name}:
-  segment: {amp_guider_name}
-  start_row: {start_row}
-  start_col: {start_col}"""
+            roi_dict[ccd_guider_name] = ROI(
+                segment=amp_guider_name,
+                start_row=start_row,
+                start_col=start_col,
+            )
 
-            config_text = config_text + ccd_text
+        # Create and return ROISpec
+        roi_spec = ROISpec(common=roi_common, roi=roi_dict)
 
         # done!
-        return config_text, cat_all
+        return roi_spec, cat_all
