@@ -1,0 +1,1 @@
+Fixed ``MTCS.get_boresight`` method.

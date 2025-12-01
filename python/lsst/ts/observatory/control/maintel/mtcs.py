@@ -1640,18 +1640,11 @@ class MTCS(BaseTCS):
         axis.
         """
 
-        el = await self.rem.mtmount.tel_elevation.aget(timeout=self.fast_timeout)
-
         rotation_data = await self.rem.mtrotator.tel_rotation.aget(
             timeout=self.fast_timeout
         )
-        # xml 7.1/8.0 backward compatibility.
-        tel_el_actual_position = (
-            el.actualPosition if hasattr(el, "actualPosition") else el.angleActual
-        )
-        angle = tel_el_actual_position - rotation_data.actualPosition
 
-        return angle
+        return rotation_data.actualPosition + 90
 
     async def raise_m1m3(self) -> None:
         """Raise M1M3."""
@@ -3908,7 +3901,11 @@ class MTCS(BaseTCS):
             )
 
             usages[self.valid_use_cases.AOS] = UsagesResources(
-                components_attr=["mtaos"],
+                components_attr=[
+                    "mtaos",
+                    "mthexapod_1",
+                    "mthexapod_2",
+                ],
                 readonly=False,
                 mtaos=[
                     "degreeOfFreedom",
@@ -3916,6 +3913,12 @@ class MTCS(BaseTCS):
                     "startClosedLoop",
                     "stopClosedLoop",
                     "closedLoopState",
+                ],
+                mthexapod_1=[
+                    "application",
+                ],
+                mthexapod_2=[
+                    "application",
                 ],
             )
 

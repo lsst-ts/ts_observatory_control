@@ -640,10 +640,7 @@ class TestMTCS(MTCSAsyncMock):
             az=az_offset, el=el_offset, relative=True, absorb=True
         )
 
-        bore_sight_angle = (
-            self._mtmount_tel_elevation.actualPosition
-            - self._mtrotator_tel_rotation.actualPosition
-        )
+        bore_sight_angle = self._mtrotator_tel_rotation.actualPosition + 90
 
         x, y, _ = np.matmul(
             [el_offset, az_offset, 0.0],
@@ -662,10 +659,7 @@ class TestMTCS(MTCSAsyncMock):
             az=az_offset, el=el_offset, relative=False, absorb=True
         )
 
-        bore_sight_angle = (
-            self._mtmount_tel_elevation.actualPosition
-            - self._mtrotator_tel_rotation.actualPosition
-        )
+        bore_sight_angle = self._mtrotator_tel_rotation.actualPosition + 90
 
         x, y, _ = np.matmul(
             [el_offset, az_offset, 0.0],
@@ -727,10 +721,7 @@ class TestMTCS(MTCSAsyncMock):
         # Default call should yield relative=True, absorb=False
         await self.mtcs.offset_xy(x=x_offset, y=y_offset)
 
-        bore_sight_angle = (
-            self._mtmount_tel_elevation.actualPosition
-            - self._mtrotator_tel_rotation.actualPosition
-        )
+        bore_sight_angle = self._mtrotator_tel_rotation.actualPosition + 90
 
         el, az, _ = np.matmul(
             [x_offset, y_offset, 0.0],
@@ -754,10 +745,7 @@ class TestMTCS(MTCSAsyncMock):
         # Same as default but now pass the parameters
         await self.mtcs.offset_xy(x=x_offset, y=y_offset, relative=True, absorb=False)
 
-        bore_sight_angle = (
-            self._mtmount_tel_elevation.actualPosition
-            - self._mtrotator_tel_rotation.actualPosition
-        )
+        bore_sight_angle = self._mtrotator_tel_rotation.actualPosition + 90
 
         el, az, _ = np.matmul(
             [x_offset, y_offset, 0.0],
@@ -774,10 +762,7 @@ class TestMTCS(MTCSAsyncMock):
         # Call with relative=False
         await self.mtcs.offset_xy(x=x_offset, y=y_offset, relative=False, absorb=False)
 
-        bore_sight_angle = (
-            self._mtmount_tel_elevation.actualPosition
-            - self._mtrotator_tel_rotation.actualPosition
-        )
+        bore_sight_angle = self._mtrotator_tel_rotation.actualPosition + 90
 
         el, az, _ = np.matmul(
             [x_offset, y_offset, 0.0],
