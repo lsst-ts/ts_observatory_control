@@ -3765,16 +3765,27 @@ class MTCS(BaseTCS):
                     "mirrorCoversMotionState",
                     "mirrorCoversSystemState",
                     "mirrorCoverLocksMotionState",
+                    "azimuthHomed",
+                    "elevationHomed",
                 ],
                 mtm1m3=[
                     "boosterValveStatus",
                     "forceActuatorState",
                     "detailedState",
                     "forceControllerState",
+                    "slewControllerSettings",
                 ],
-                mtdome=["azimuth", "lightWindScreen", "azMotion", "azEnabled"],
+                mtdome=[
+                    "azimuth",
+                    "lightWindScreen",
+                    "azMotion",
+                    "azEnabled",
+                    "shutterMotion",
+                ],
                 mthexapod_1=["compensationMode"],
                 mthexapod_2=["compensationMode"],
+                mtm2=["forceBalanceSystemStatus"],
+                mtaos=["closedLoopState"],
             )
 
             usages[self.valid_use_cases.Slew] = UsagesResources(
