@@ -125,6 +125,25 @@ cbp_none_all:
   electrometer_integration_time: 2
   electrometer_range: 0.0000002
 
+cbpcal_all:
+  use_camera: False
+  wavelength: 770
+  wavelength_width: 940
+  wavelength_resolution: 10
+  exposure_times:
+    - 30.0
+  nburst: 5
+  use_cbp_electrometer: True
+  use_cbpcal_electrometer: True
+  use_flatfield_electrometer: False
+  laser_mode: 4
+  laser_wait_time: 5
+  optical_configuration: F2 SCU
+  calib_type: CBP
+  electrometer_mode: 'CHARGE'
+  electrometer_integration_time: 2
+  electrometer_range: 0.0000002
+
 cbp_u_2nm:
   mtcamera_filter: u_24
   wavelength_list: [300, 302, 304, 306, 308, 310, 312, 314, 316, 318, 320, 322, 324, 326, 328, 330, 335, 340, 345, 350, 355, 360, 365, 370, 375, 377, 379, 381, 383, 385, 387, 389, 391, 393, 395, 397, 399, 401, 403, 405]
