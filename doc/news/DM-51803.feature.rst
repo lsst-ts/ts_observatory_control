@@ -1,0 +1,1 @@
+In ``mtcs.py``, add a ``prepare_for_flatfield`` method.
