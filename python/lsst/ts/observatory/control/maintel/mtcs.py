@@ -142,8 +142,8 @@ class MTCS(BaseTCS):
         self.tel_park_el = 80.0
         self.tel_park_az = 0.0
         self.tel_park_rot = 0.0
-        self.tel_flat_el = 39.0
-        self.tel_flat_az = 205.7
+        self.tel_flat_el = 22.7
+        self.tel_flat_az = -126.2
         self.tel_settle_time = 3.0
         self.tel_operate_mirror_covers_el = 20.0
         self.tel_operate_dome_shutter_el = 5.0
@@ -1385,8 +1385,123 @@ class MTCS(BaseTCS):
         await self.rem.mtmount.cmd_unpark.start(timeout=self.long_timeout)
 
     async def prepare_for_flatfield(self, check: typing.Any = None) -> None:
-        # TODO: Implement (DM-21336).
-        raise NotImplementedError("# TODO: Implement (DM-21336).")
+        """Prepare Simonyi Telescope for flat-field operations.
+
+        This method performs the an end-to-end operation to prepare the MTCS
+        components for in dome flat-field. It is mostly used at the end of the
+        night to prepare the telescope for flat-field calibration, but can be
+        also used during the day.
+
+        The high-level steps are:
+
+        1. Assert all MTCS components are enabled; enable if needed.
+        2. Enable the M2 balance system.
+        3. Close mirror covers, then close the dome shutter.
+        4. Park the dome.
+        5. Check elevation and raise M1M3 if safe; otherwise fail.
+        6. Open mirror covers for calibration.
+        7. Disable dome following (if not ignored).
+        8. Home both mount axes.
+        9. Enter M1M3 engineering mode, enable force balance, exit engineering.
+        10. Enable camera cable wrap following.
+        11. Slew to the flat-field target (rotator at 0 deg).
+        12. Stop tracking.
+        13. Enable hexapod compensation mode if not ignored.
+
+        Parameters
+        ----------
+        check : `types.SimpleNamespace` or `None`
+            Override `self.check` for defining which resources are used.
+        """
+
+        _check = copy.copy(self.check) if check is None else copy.copy(check)
+
+        try:
+            self.log.info("Ensuring all MTCS components are enabled.")
+            await self.assert_all_enabled(
+                message=("All MTCS components need to be enabled to prepare for flats.")
+            )
+        except AssertionError as err:
+            self.log.warning(
+                "Some MTCS CSCs are not enabled. %s Enabling all MTCS components.",
+                err,
+            )
+            await self.enable()
+        except Exception as err:
+            self.log.error("Unexpected error while checking MTCS components: %s", err)
+            raise
+
+        await self.enable_m2_balance_system()
+
+        # Safely close the dome shutter: covers first, then shutter, then park.
+        await self.close_m1_cover()
+
+        await self.close_dome(force=False)
+        await asyncio.sleep(15)  # Safety guard to fully close shutter
+
+        await self.park_dome()
+
+        elevation = (
+            await self.rem.mtmount.tel_elevation.aget(timeout=self.fast_timeout)
+        ).actualPosition
+
+        safe = elevation >= self.m1m3_tel_min_el_to_raise
+
+        if not safe:
+            raise RuntimeError(
+                f"Telescope El = {elevation} deg is below the minimum "
+                f"safe elevation to raise M1M3: {self.m1m3_tel_min_el_to_raise}."
+            )
+        else:
+            self.log.info("Raising mirror.")
+            await self.raise_m1m3()
+
+        # Open mirror covers for calibration.
+        await self.open_m1_cover()
+
+        if getattr(_check, self.dome_trajectory_name, False):
+            await self.disable_dome_following(check)
+        else:
+            self.log.warning(
+                f"{self.dome_trajectory_name} is ignored; skipping dome following disable."
+            )
+
+        self.log.info("Homing both axes.")
+        await self.rem.mtmount.cmd_homeBothAxes.start(
+            timeout=self.home_both_axes_timeout
+        )
+
+        await self.enter_m1m3_engineering_mode()
+        await self.enable_m1m3_balance_system()
+        await self.exit_m1m3_engineering_mode()
+
+        await self.enable_ccw_following()
+
+        await self.point_azel(
+            target_name="prepare_for_flat",
+            az=self.tel_flat_az,
+            el=self.tel_flat_el,
+            rot_tel=0.0,
+            wait_dome=False,
+        )
+
+        await self.stop_tracking()
+
+        enabled_hexapods = [
+            component
+            for component in self.compensation_mode_components
+            if getattr(_check, component, False)
+        ]
+
+        if enabled_hexapods:
+            await asyncio.gather(
+                *[
+                    self.enable_compensation_mode(component)
+                    for component in enabled_hexapods
+                ]
+            )
+
+        self.log.info("Prepare for flat finished.")
 
     @staticmethod
     def get_critical_components_for_prepare_for_onsky() -> list[str]:
