@@ -1223,6 +1223,7 @@ ptc_daily:
       - 0.5
       - 0.8
     random_seed: null
+    exp_list_start_idx: 0
 
 ptc_daily_test:
   mtcamera_filter: i_39
@@ -1246,6 +1247,7 @@ ptc_daily_test:
       - 0.5
       - 0.8
     random_seed: null
+    exp_list_start_idx: 0
 
 ptc_i_39_100:
   mtcamera_filter: i_39
@@ -1270,7 +1272,8 @@ ptc_i_39_100:
       - 0.15
       - 0.5
       - 0.8
-    random_seed: 12345
+    random_seed: null
+    exp_list_start_idx: 0
 
 ptc_i_39_500:
   mtcamera_filter: i_39
@@ -1296,7 +1299,8 @@ ptc_i_39_500:
       - 0.15
       - 0.5
       - 0.8
-    random_seed: 12345
+    random_seed: null
+    exp_list_start_idx: 0
 
 ptc_i_39_750:
   mtcamera_filter: i_39
@@ -1321,7 +1325,8 @@ ptc_i_39_750:
       - 0.15
       - 0.5
       - 0.8
-    random_seed: 12345
+    random_seed: null
+    exp_list_start_idx: 0
 
 laser_ptc:
   calib_type: Mono
@@ -1338,4 +1343,5 @@ laser_ptc:
       - [1.0, 60.0]
     bin_dac_values:
       - 1.0
-    random_seed: 12345
+    random_seed: null
+    exp_list_start_idx: 0
