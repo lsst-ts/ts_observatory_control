@@ -977,6 +977,7 @@ class MTCalsys(BaseCalsys):
         """
         exposure_times_list: list[NDArray[np.float_]] = []
         bin_edges = np.array(bin_edges, dtype=float)
+        self.log.info(f"Random Seed for PTC: {random_seed}")
         self.log.debug(f"Bin Edges: {bin_edges}")
         self.log.debug(f"Dac Values: {bin_dac_values}")
         assert len(bin_dac_values) == len(bin_edges)
@@ -995,7 +996,7 @@ class MTCalsys(BaseCalsys):
             exposure_times_list.append(paired)
 
         exposure_times: NDArray[np.float_] = np.vstack(exposure_times_list)
-        np.random.shuffle(exposure_times)
+        rng.shuffle(exposure_times)
         self.log.debug(exposure_times)
         return exposure_times[:, 0].tolist(), exposure_times[:, 1].tolist()
 
@@ -1027,13 +1028,17 @@ class MTCalsys(BaseCalsys):
         if random_exptimes is not None:
             if random_exptimes["random_seed"] is None:
                 t = time.localtime()
-                date_int = int(time.strftime("%Y%m%d", t))
-                config["constrained_random_exposure_times"]["random_seed"] = date_int
+                datetime_int = int(time.strftime("%y%m%d%H%M", t))
+                config["constrained_random_exposure_times"][
+                    "random_seed"
+                ] = datetime_int
             exptimes, levels = self.generate_random_exposure_times(
                 random_exptimes["samples_per_bin"],
                 random_exptimes["bin_edges"],
                 random_exptimes["bin_dac_values"],
-                random_exptimes["random_seed"],
+                random_exptimes[
+                    "random_seed"
+                ],  # is this picking up that change? Not confident of that
             )
             config["exposure_times"] = exptimes
             config["ptc_dac_values"] = levels
@@ -1066,6 +1071,8 @@ class MTCalsys(BaseCalsys):
         exptimes = config_data["exposure_times"]
         if config_data.get("ptc_dac_values") is not None:
             levels = config_data["ptc_dac_values"]
+            if config_data.get("exp_list_start_idx") is not None:
+                exptimes = exptimes[config_data.get("exp_list_start_idx") :]
         else:
             levels = [config_data["dac_value"]] * len(exptimes)
 
