@@ -332,16 +332,55 @@ class MTCS(BaseTCS):
 
             self.log.debug("Scheduling check coroutines")
 
-            self.scheduled_coro.append(
-                asyncio.create_task(
-                    self.wait_for_inposition(
-                        timeout=slew_timeout, wait_settle=wait_settle, check=_check
+            # We wait for the mount to be in position first.
+            if _check.mtmount:
+                self.scheduled_coro.append(
+                    asyncio.create_task(
+                        self.wait_for_mtmount_inposition(
+                            timeout=slew_timeout, wait_settle=wait_settle
+                        )
                     )
                 )
+
+            check_mtdome = _check.mtdome
+            _check.mtdome = False
+            _check.mtmount = False
+            check_tcs_no_dome_no_mount_task = asyncio.create_task(
+                self.wait_for_inposition(
+                    timeout=slew_timeout, wait_settle=wait_settle, check=_check
+                )
             )
+
             self.scheduled_coro.append(asyncio.create_task(self.monitor_position()))
 
-            await self.process_as_completed(self.scheduled_coro)
+            for task in asyncio.as_completed(self.scheduled_coro):
+                try:
+                    await task
+                except BaseException as e:
+                    await self.cancel_not_done(self.scheduled_coro)
+                    check_tcs_no_dome_no_mount_task.cancel()
+                    raise e
+                else:
+                    self.log.info("Mount in position.")
+                    break
+
+            # Now that the mount is in position we wait for everything else
+            # on TCS minus dome.
+            self.scheduled_coro = [
+                task for task in self.scheduled_coro if not task.done()
+            ]
+
+            self.scheduled_coro.append(check_tcs_no_dome_no_mount_task)
+
+        wait_for_dome_inposition_task = (
+            asyncio.create_task(self.wait_for_dome_inposition(timeout=slew_timeout))
+            if check_mtdome
+            else utils.make_done_future()
+        )
+        await self.process_as_completed(self.scheduled_coro)
+        self.scheduled_coro = [task for task in self.scheduled_coro if not task.done()]
+        self.scheduled_coro.append(wait_for_dome_inposition_task)
+        await self.process_as_completed(self.scheduled_coro)
 
     async def wait_for_inposition(
         self,
