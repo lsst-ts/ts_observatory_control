@@ -463,9 +463,7 @@ class TestMTCS(MTCSAsyncMock):
 
         self._mtmount_evt_cameraCableWrapFollowing.enabled = 0
 
-        # TODO DM-32545: Restore exception in slew method if dome
-        # following is disabled.
-        with self.assertLogs(self.log.name, level=logging.WARNING):
+        with self.assertRaisesRegex(RuntimeError, r"CCW Following Disabled"):
             await self.mtcs.slew_icrs(
                 ra=ra, dec=dec, target_name=name, rot_type=RotType.Sky
             )
@@ -495,14 +493,12 @@ class TestMTCS(MTCSAsyncMock):
 
         self.mtcs.rem.mtptg.cmd_stopTracking.start.assert_not_awaited()
 
-        self.mtcs.rem.mtmount.evt_elevationInPosition.flush.assert_called_once()
-        self.mtcs.rem.mtmount.evt_azimuthInPosition.flush.assert_called_once()
-        self.mtcs.rem.mtrotator.evt_inPosition.flush.assert_called_once()
+        self.mtcs.rem.mtmount.evt_elevationInPosition.flush.assert_not_called()
+        self.mtcs.rem.mtmount.evt_azimuthInPosition.flush.assert_not_called()
+        self.mtcs.rem.mtrotator.evt_inPosition.flush.assert_not_called()
 
-        self.mtcs.rem.mtptg.cmd_raDecTarget.start.assert_called()
-        self.mtcs.rem.mtptg.cmd_poriginOffset.start.assert_called_with(
-            timeout=self.mtcs.fast_timeout
-        )
+        self.mtcs.rem.mtptg.cmd_raDecTarget.start.assert_not_called()
+        self.mtcs.rem.mtptg.cmd_poriginOffset.start.assert_not_called()
 
     async def test_point_azel(self) -> None:
         await self.mtcs.enable()
