@@ -32,7 +32,16 @@ import numpy as np
 from astropy.coordinates import Angle
 from lsst.ts import salobj, utils
 from lsst.ts.utils import angle_diff
-from lsst.ts.xml.enums import MTAOS, MTM1M3, MTM2, MTDome, MTMount, MTPtg, MTRotator
+from lsst.ts.xml.enums import (
+    MTAOS,
+    MTM1M3,
+    MTM2,
+    MTDome,
+    MTDomeTrajectory,
+    MTMount,
+    MTPtg,
+    MTRotator,
+)
 from lsst.ts.xml.tables.m1m3 import FATable, ForceActuatorData, force_actuator_from_id
 
 from ..base_tcs import BaseTCS
@@ -626,24 +635,41 @@ class MTCS(BaseTCS):
         ret_val : `str`
             String indicating that dome is in position.
         """
-        assert self._dome_az_in_position is not None
-        assert self._dome_el_in_position is not None
-        self.log.debug("Wait for dome in position event.")
+        self.rem.mtdometrajectory.evt_telescopeVignetted.flush()
 
-        self._dome_az_in_position.clear()
-        self._dome_el_in_position.clear()
+        telescope_vignetted = (
+            await self.rem.mtdometrajectory.evt_telescopeVignetted.aget(
+                timeout=self.fast_timeout
+            )
+        )
+        vignetted = MTDomeTrajectory.TelescopeVignetted(telescope_vignetted.vignetted)
+        azimuth = MTDomeTrajectory.TelescopeVignetted(telescope_vignetted.azimuth)
+        elevation = MTDomeTrajectory.TelescopeVignetted(telescope_vignetted.elevation)
+        shutter = MTDomeTrajectory.TelescopeVignetted(telescope_vignetted.shutter)
 
-        tasks = [
-            asyncio.create_task(self.dome_az_in_position()),
-            asyncio.create_task(self.dome_el_in_position()),
-        ]
-        ret_val = ""
-        for completed in asyncio.as_completed(tasks):
-            val = await completed
-            self.log.debug(val)
-            ret_val += f"{val} "
+        while vignetted != MTDomeTrajectory.TelescopeVignetted.NO:
+            self.log.debug(
+                f"Telescope vignetted: {vignetted=!r}, {azimuth=!r}, {elevation!r} and {shutter!r}."
+            )
+            telescope_vignetted = (
+                await self.rem.mtdometrajectory.evt_telescopeVignetted.next(
+                    flush=False, timeout=timeout
+                )
+            )
+            vignetted = MTDomeTrajectory.TelescopeVignetted(
+                telescope_vignetted.vignetted
+            )
+            azimuth = MTDomeTrajectory.TelescopeVignetted(telescope_vignetted.azimuth)
+            elevation = MTDomeTrajectory.TelescopeVignetted(
+                telescope_vignetted.elevation
+            )
+            shutter = MTDomeTrajectory.TelescopeVignetted(telescope_vignetted.shutter)
 
-        return ret_val
+        self.log.info(
+            f"MTDome in position: {vignetted=!r}, {azimuth=!r}, {elevation!r} and {shutter!r}."
+        )
+
+        return "MTDome in position."
 
     async def wait_for_rotator_inposition(
         self,
@@ -3821,6 +3847,10 @@ class MTCS(BaseTCS):
                     "azEnabled",
                     "shutterMotion",
                 ],
+                mtdometrajectory=[
+                    "followingMode",
+                    "telescopeVignetted",
+                ],
                 mthexapod_1=["compensationMode"],
                 mthexapod_2=["compensationMode"],
                 mtm2=["forceBalanceSystemStatus"],
@@ -3871,7 +3901,10 @@ class MTCS(BaseTCS):
                     "shutterMotion",
                     "azEnabled",
                 ],
-                mtdometrajectory=["followingMode"],
+                mtdometrajectory=[
+                    "followingMode",
+                    "telescopeVignetted",
+                ],
                 mtm1m3=[
                     "boosterValveStatus",
                     "forceActuatorState",
