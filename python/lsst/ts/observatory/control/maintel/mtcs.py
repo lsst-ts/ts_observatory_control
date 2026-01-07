@@ -285,9 +285,10 @@ class MTCS(BaseTCS):
         )
 
         if not ccw_following.enabled:
-            # TODO DM-32545: Restore exception in slew method if dome
-            # following is disabled.
-            self.log.warning("Camera cable wrap following disabled in MTMount.")
+            raise RuntimeError(
+                "CCW Following Disabled (MTMount). "
+                "Check telemetry; re-enable to resume."
+            )
 
         if stop_before_slew:
             try:
