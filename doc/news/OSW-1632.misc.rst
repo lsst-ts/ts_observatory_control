@@ -1,0 +1,1 @@
+Promoted diagnostic logging in ``BaseTCS._handle_in_position`` from debug to info level, providing better visibility into telescope positioning events during standard operation.

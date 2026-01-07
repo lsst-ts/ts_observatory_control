@@ -1,0 +1,1 @@
+Refactored ``MTCS._slew_to`` to handle the mount "in position" event independently, allowing the M1M3 slew flag to be disabled as soon as the mount is settled rather than waiting for all components.
