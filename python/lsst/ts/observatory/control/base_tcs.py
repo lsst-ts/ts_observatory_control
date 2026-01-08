@@ -483,7 +483,7 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
         offset_y: float = 0.0,
         az_wrap_strategy: enum.IntEnum | None = None,
         time_on_target: float = 0.0,
-        slew_timeout: float = 240.0,
+        slew_timeout: float = 600.0,
         stop_before_slew: bool = False,
         wait_settle: bool = True,
     ) -> typing.Tuple[ICRS, Angle]:
@@ -940,7 +940,7 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
         await self._slew_to(ptg.cmd_ephemTarget, slew_timeout=slew_timeout)
         self.log.info(f"Telescope slewed to target {target_name} using ephemeris data.")
 
-    async def offset_radec(self, ra: float, dec: float) -> None:
+    async def offset_radec(self, ra: float, dec: float, absorb: bool = False) -> None:
         """Offset telescope in RA and Dec.
 
         Perform arc-length offset in sky coordinates. The magnitude of the
@@ -952,6 +952,9 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
             Offset in ra (arcsec).
         dec : `float` or `str`
             Offset in dec (arcsec).
+        absorb : `bool`, optional
+            Should the offset be absorbed and persisted between slews?
+            (default: `False`)
 
         See Also
         --------
@@ -959,13 +962,21 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
         offset_xy : Offsets in the detector X/Y plane.
 
         """
-        self.log.debug(f"Applying RA/Dec offset: {ra}/{dec} ")
+        self.log.debug(
+            f"Applying RA/Dec offset: {ra}/{dec}{' (absorb)' if absorb else ''}"
+        )
 
         await self._offset(
             offset_cmd=getattr(self.rem, self.ptg_name).cmd_offsetRADec.set_start(
                 type=1, off1=ra, off2=dec, num=0
             )
         )
+
+        if absorb:
+            self.log.debug("Absorbing RA/Dec offset into pointing model")
+            await getattr(self.rem, self.ptg_name).cmd_offsetAbsorb.set_start(
+                num=0, timeout=self.fast_timeout
+            )
 
     async def offset_azel(
         self,
@@ -1967,7 +1978,7 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
         str
             Message indicating the component is in position.
         """
-        self.log.debug(
+        self.log.info(
             f"Wait for {component_name} in position event, (timeout={timeout}s)."
         )
 
@@ -1979,12 +1990,12 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
                 f"Timed out waiting for initial in position event from {component_name}."
             ) from e
 
-        self.log.debug(f"{component_name} in position: {in_position.inPosition}.")
+        self.log.info(f"{component_name} in position: {in_position.inPosition}.")
 
         _settle_time = max([settle_time, race_condition_timeout])
 
         if in_position.inPosition:
-            self.log.debug(
+            self.log.info(
                 f"{component_name} already in position. Handling potential race condition."
             )
             try:
@@ -1996,7 +2007,7 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
                     f"{component_name} in position: {in_position.inPosition}."
                 )
             except asyncio.TimeoutError:
-                self.log.debug(
+                self.log.info(
                     "No new in position event in the last "
                     f"{_settle_time}s. "
                     f"Assuming {component_name} in position."
@@ -2027,7 +2038,7 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
                     f"{component_name} in position: {in_position.inPosition}."
                 )
 
-        self.log.debug(
+        self.log.info(
             f"{component_name} in position {in_position.inPosition}. "
             f"Waiting settle time {settle_time}s"
         )

@@ -1,0 +1,1 @@
+Updated ``MTCS._slew_to`` to raise an exception if CCW following is disabled, preventing the telescope from slewing in an unsafe state.

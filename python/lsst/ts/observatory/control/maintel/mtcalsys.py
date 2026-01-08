@@ -145,14 +145,14 @@ class MTCalsys(BaseCalsys):
             ((None, 410), 4000),
             ((410, 420), 2000),
             ((420, 540), 40),
-            ((540, 570), 100),
-            ((570, 600), 400),
+            ((540, 590), 100),
+            ((590, 600), 400),
             ((600, 650), 500),
             ((650, 700), 1000),
             ((700, 720), 2000),
             ((720, 770), 1000),
-            ((770, 1070), 400),
-            ((1070, 1100), 2000),
+            ((770, 1090), 400),
+            ((1090, 1100), 2000),
             ((1100, None), 3000),
         ]
 
@@ -232,19 +232,27 @@ class MTCalsys(BaseCalsys):
                 )
 
             if config_data["use_cbp_electrometer"]:
+                if config_data["use_cbpcal_electrometer"]:
+                    electrometer_names = [
+                        f"electrometer_{self.electrometer_cbp_index}",
+                        f"electrometer_{self.electrometer_cbpcal_index}",
+                    ]
+                else:
+                    electrometer_names = [f"electrometer_{self.electrometer_cbp_index}"]
                 await self.setup_electrometers(
                     mode=str(config_data["electrometer_mode"]),
                     range=float(config_data["electrometer_range"]),
                     integration_time=float(
                         config_data["electrometer_integration_time"]
                     ),
-                    electrometer_names=[f"electrometer_{self.electrometer_cbp_index}"],
+                    electrometer_names=electrometer_names,
                 )
 
             await self.setup_laser(
                 config_data["laser_mode"],
                 config_data["wavelength"],
                 config_data["optical_configuration"],
+                use_projector=False,
             )
             await self.laser_start_propagate()
 
@@ -877,7 +885,12 @@ class MTCalsys(BaseCalsys):
                 )
 
             elif calibration_type == CalibrationType.CBP:
-                await self.change_laser_wavelength(wavelength=exposure.wavelength)
+                if config_data["use_camera"] is False:
+                    self.mtcamera = None
+                await self.change_laser_wavelength(
+                    wavelength=exposure.wavelength,
+                    use_projector=False,
+                )
                 if exposure.wavelength < 410:
                     camera_exposure_time = exposure.camera + 8
                     if exposure.electrometer is not None:
@@ -901,6 +914,7 @@ class MTCalsys(BaseCalsys):
                     wavelength=int(exposure.wavelength),
                     wait_time=config_data["laser_wait_time"],
                     delay_after=float(round(1 + npulse / 1000, 2)),
+                    cbp_cal=config_data["use_cbpcal_electrometer"],
                 )
             else:
                 self.log.info("Calibration Type is WhiteLight")
@@ -1190,6 +1204,7 @@ class MTCalsys(BaseCalsys):
         sequence_name: str | None = None,
         wavelength: int | None = None,
         wait_time: int = 10,
+        cbp_cal: bool = False,
     ) -> dict:
 
         if self.mtcamera is not None:
@@ -1219,6 +1234,16 @@ class MTCalsys(BaseCalsys):
             sequence_name=sequence_name,
         )
 
+        if cbp_cal:
+            cbpcal_electrometer_exposure_coroutine = self.take_electrometer_scan(
+                exposure_time=electrometer_exposure_time,
+                exposures_done=exposures_done,
+                group_id=group_id,
+                calibration_type=calibration_type,
+                sequence_name=sequence_name,
+                cbp_cal=True,
+            )
+
         if calibration_type == CalibrationType.CBP:
             if laser_mode == 4:
                 laser_burst_coroutine = self.take_bursts(
@@ -1231,6 +1256,10 @@ class MTCalsys(BaseCalsys):
                     electrometer_exposure_task = asyncio.create_task(
                         electrometer_exposure_coroutine
                     )
+                    if cbp_cal:
+                        cbpcal_exposure_task = asyncio.create_task(
+                            cbpcal_electrometer_exposure_coroutine
+                        )
                     laser_burst_task = asyncio.create_task(laser_burst_coroutine)
                     if self.mtcamera is not None:
                         mtcamera_exposure_id = await mtcamera_exposure_task
@@ -1238,18 +1267,36 @@ class MTCalsys(BaseCalsys):
                         mtcamera_exposure_id = [0]
                 finally:
                     exposures_done.set_result(True)
-                    (electrometer_exposure_result, laser_burst_result) = (
-                        await asyncio.gather(
+                    if cbp_cal:
+                        (
+                            electrometer_exposure_result,
+                            cbpcal_exposure_result,
+                            laser_burst_result,
+                        ) = await asyncio.gather(
                             electrometer_exposure_task,
+                            cbpcal_exposure_task,
                             laser_burst_task,
                         )
-                    )
-
-                return {
-                    mtcamera_exposure_id[0]: dict(
-                        electrometer_exposure_result=electrometer_exposure_result,
-                    )
-                }
+                    else:
+                        (electrometer_exposure_result, laser_burst_result) = (
+                            await asyncio.gather(
+                                electrometer_exposure_task,
+                                laser_burst_task,
+                            )
+                        )
+                if cbp_cal:
+                    return {
+                        mtcamera_exposure_id[0]: dict(
+                            cbp_electrometer_exposure_result=electrometer_exposure_result,
+                            cbpcal_electrometer_exposure_result=cbpcal_exposure_result,
+                        )
+                    }
+                else:
+                    return {
+                        mtcamera_exposure_id[0]: dict(
+                            electrometer_exposure_result=electrometer_exposure_result,
+                        )
+                    }
             else:
                 try:
                     electrometer_exposure_task = asyncio.create_task(
@@ -1328,6 +1375,7 @@ class MTCalsys(BaseCalsys):
         group_id: str,
         exposures_done: asyncio.Future,
         calibration_type: CalibrationType = CalibrationType.WhiteLight,
+        cbp_cal: bool = False,
     ) -> list[str]:
         """Perform an electrometer scan for the specified duration.
 
@@ -1337,6 +1385,8 @@ class MTCalsys(BaseCalsys):
             Exposure time for the fiber spectrum (seconds).
         exposures_done : `asyncio.Future`
             A future indicating when the camera exposures where complete.
+        cbp_cal : `bool`
+            Whether the electrometer for this scan is the cbp cal electrometer.
 
         Returns
         -------
@@ -1347,7 +1397,10 @@ class MTCalsys(BaseCalsys):
         electrometer_exposures = list()
 
         if calibration_type == CalibrationType.CBP:
-            electrometer = self.electrometer_cbp
+            if cbp_cal:
+                electrometer = self.electrometer_cbpcal
+            else:
+                electrometer = self.electrometer_cbp
         else:
             electrometer = self.electrometer_flatfield
 
@@ -1383,6 +1436,10 @@ class MTCalsys(BaseCalsys):
                     if config_data["use_flatfield_electrometer"]:
                         electrometer_name = (
                             f"electrometer_{self.electrometer_projector_index}"
+                        )
+                    elif cbp_cal:
+                        electrometer_name = (
+                            f"electrometer_{self.electrometer_cbpcal_index}"
                         )
                     elif config_data["use_cbp_electrometer"]:
                         electrometer_name = (

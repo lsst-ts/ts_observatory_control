@@ -1,0 +1,1 @@
+Introduced the ``hexapod_race_condition_timeout`` attribute in ``MTCS``, which is now used within the ``wait_for_in_position`` method to more robustly handle hexapod timing issues.

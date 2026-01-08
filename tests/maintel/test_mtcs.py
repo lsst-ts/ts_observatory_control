@@ -463,9 +463,7 @@ class TestMTCS(MTCSAsyncMock):
 
         self._mtmount_evt_cameraCableWrapFollowing.enabled = 0
 
-        # TODO DM-32545: Restore exception in slew method if dome
-        # following is disabled.
-        with self.assertLogs(self.log.name, level=logging.WARNING):
+        with self.assertRaisesRegex(RuntimeError, r"CCW Following Disabled"):
             await self.mtcs.slew_icrs(
                 ra=ra, dec=dec, target_name=name, rot_type=RotType.Sky
             )
@@ -495,14 +493,12 @@ class TestMTCS(MTCSAsyncMock):
 
         self.mtcs.rem.mtptg.cmd_stopTracking.start.assert_not_awaited()
 
-        self.mtcs.rem.mtmount.evt_elevationInPosition.flush.assert_called_once()
-        self.mtcs.rem.mtmount.evt_azimuthInPosition.flush.assert_called_once()
-        self.mtcs.rem.mtrotator.evt_inPosition.flush.assert_called_once()
+        self.mtcs.rem.mtmount.evt_elevationInPosition.flush.assert_not_called()
+        self.mtcs.rem.mtmount.evt_azimuthInPosition.flush.assert_not_called()
+        self.mtcs.rem.mtrotator.evt_inPosition.flush.assert_not_called()
 
-        self.mtcs.rem.mtptg.cmd_raDecTarget.start.assert_called()
-        self.mtcs.rem.mtptg.cmd_poriginOffset.start.assert_called_with(
-            timeout=self.mtcs.fast_timeout
-        )
+        self.mtcs.rem.mtptg.cmd_raDecTarget.start.assert_not_called()
+        self.mtcs.rem.mtptg.cmd_poriginOffset.start.assert_not_called()
 
     async def test_point_azel(self) -> None:
         await self.mtcs.enable()
@@ -572,6 +568,26 @@ class TestMTCS(MTCSAsyncMock):
             timeout=self.mtcs.fast_timeout,
         )
 
+    async def test_offset_radec_with_absorb(self) -> None:
+        # Test offset_radec with absorb=True
+        ra_offset, dec_offset = 10.0, -10.0
+        await self.mtcs.offset_radec(ra=ra_offset, dec=dec_offset, absorb=True)
+
+        self.mtcs.rem.mtptg.cmd_offsetRADec.set_start.assert_called_with(
+            type=1, off1=ra_offset, off2=dec_offset, num=0
+        )
+
+        self.mtcs.rem.mtptg.cmd_offsetAbsorb.set_start.assert_called_with(
+            num=0, timeout=self.mtcs.fast_timeout
+        )
+
+        self.mtcs.rem.mtm1m3.cmd_setSlewFlag.set_start.assert_awaited_with(
+            timeout=self.mtcs.fast_timeout,
+        )
+        self.mtcs.rem.mtm1m3.cmd_clearSlewFlag.set_start.assert_awaited_with(
+            timeout=self.mtcs.fast_timeout,
+        )
+
     async def test_offset_azel(self) -> None:
         az_offset, el_offset = 10.0, -10.0
 
@@ -620,10 +636,7 @@ class TestMTCS(MTCSAsyncMock):
             az=az_offset, el=el_offset, relative=True, absorb=True
         )
 
-        bore_sight_angle = (
-            self._mtmount_tel_elevation.actualPosition
-            - self._mtrotator_tel_rotation.actualPosition
-        )
+        bore_sight_angle = self._mtrotator_tel_rotation.actualPosition + 90
 
         x, y, _ = np.matmul(
             [el_offset, az_offset, 0.0],
@@ -642,10 +655,7 @@ class TestMTCS(MTCSAsyncMock):
             az=az_offset, el=el_offset, relative=False, absorb=True
         )
 
-        bore_sight_angle = (
-            self._mtmount_tel_elevation.actualPosition
-            - self._mtrotator_tel_rotation.actualPosition
-        )
+        bore_sight_angle = self._mtrotator_tel_rotation.actualPosition + 90
 
         x, y, _ = np.matmul(
             [el_offset, az_offset, 0.0],
@@ -707,10 +717,7 @@ class TestMTCS(MTCSAsyncMock):
         # Default call should yield relative=True, absorb=False
         await self.mtcs.offset_xy(x=x_offset, y=y_offset)
 
-        bore_sight_angle = (
-            self._mtmount_tel_elevation.actualPosition
-            - self._mtrotator_tel_rotation.actualPosition
-        )
+        bore_sight_angle = self._mtrotator_tel_rotation.actualPosition + 90
 
         el, az, _ = np.matmul(
             [x_offset, y_offset, 0.0],
@@ -734,10 +741,7 @@ class TestMTCS(MTCSAsyncMock):
         # Same as default but now pass the parameters
         await self.mtcs.offset_xy(x=x_offset, y=y_offset, relative=True, absorb=False)
 
-        bore_sight_angle = (
-            self._mtmount_tel_elevation.actualPosition
-            - self._mtrotator_tel_rotation.actualPosition
-        )
+        bore_sight_angle = self._mtrotator_tel_rotation.actualPosition + 90
 
         el, az, _ = np.matmul(
             [x_offset, y_offset, 0.0],
@@ -754,10 +758,7 @@ class TestMTCS(MTCSAsyncMock):
         # Call with relative=False
         await self.mtcs.offset_xy(x=x_offset, y=y_offset, relative=False, absorb=False)
 
-        bore_sight_angle = (
-            self._mtmount_tel_elevation.actualPosition
-            - self._mtrotator_tel_rotation.actualPosition
-        )
+        bore_sight_angle = self._mtrotator_tel_rotation.actualPosition + 90
 
         el, az, _ = np.matmul(
             [x_offset, y_offset, 0.0],
@@ -2384,6 +2385,44 @@ class TestMTCS(MTCSAsyncMock):
         )
         self.mtcs.rem.mtrotator.evt_inPosition.aget.assert_not_awaited()
         self.mtcs.rem.mtrotator.evt_inPosition.next.assert_not_awaited()
+
+    async def test_move_rotator_with_ccw_following_disabled_and_check_mtmount_enabled(
+        self,
+    ) -> None:
+        position = 10.0
+
+        self._mtmount_evt_cameraCableWrapFollowing.enabled = 0
+        self.mtcs.check.mtmount = True
+
+        with pytest.raises(
+            RuntimeError,
+            match="Trying to move rotator while camera cable wrap following is disabled.",
+        ):
+            await self.mtcs.move_rotator(position=position)
+
+        self.mtcs.rem.mtrotator.cmd_move.set_start.assert_not_awaited()
+
+    async def test_move_rotator_with_ccw_following_and_check_mtmount_disabled(
+        self,
+    ) -> None:
+        position = 10.0
+
+        self._mtmount_evt_cameraCableWrapFollowing.enabled = 0
+        self.mtcs.check.mtmount = False
+
+        await self.mtcs.move_rotator(position=position)
+
+        self.mtcs.rem.mtrotator.cmd_move.set_start.assert_awaited_with(
+            position=position, timeout=self.mtcs.long_timeout
+        )
+        self.mtcs.rem.mtrotator.evt_inPosition.aget.assert_awaited_with(
+            timeout=self.mtcs.fast_timeout
+        )
+        self.mtcs.rem.mtrotator.evt_inPosition.flush.assert_called()
+
+        self.mtcs.rem.mtrotator.evt_inPosition.next.assert_awaited_with(
+            timeout=self.mtcs.long_long_timeout, flush=False
+        )
 
     async def test_move_camera_hexapod(self) -> None:
         hexapod_positions = dict([(axis, np.random.rand()) for axis in "xyzuv"])
