@@ -145,6 +145,10 @@ class MTCS(BaseTCS):
         self.hexapod_movement_timeout = 300.0
         # Similar to the mtmount_race_condition_timeout, this is
         # used to check the in position event race condition for
+        # the hexapods when checking if it is in position.
+        self.hexapod_race_condition_timeout = 1.0
+        # Similar to the mtmount_race_condition_timeout, this is
+        # used to check the in position event race condition for
         # the rotator when checking if it is in position.
         self.mtrotator_race_condition_timeout = 3.0
 
@@ -448,6 +452,7 @@ class MTCS(BaseTCS):
                         timeout=timeout,
                         settle_time=0.0,
                         component_name="Camera Hexapod",
+                        race_condition_timeout=self.hexapod_race_condition_timeout,
                     )
                 )
             )
@@ -460,6 +465,7 @@ class MTCS(BaseTCS):
                         timeout=timeout,
                         settle_time=0.0,
                         component_name="M2 Hexapod",
+                        race_condition_timeout=self.hexapod_race_condition_timeout,
                     )
                 )
             )
