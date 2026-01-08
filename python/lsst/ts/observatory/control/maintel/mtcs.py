@@ -32,7 +32,16 @@ import numpy as np
 from astropy.coordinates import Angle
 from lsst.ts import salobj, utils
 from lsst.ts.utils import angle_diff
-from lsst.ts.xml.enums import MTAOS, MTM1M3, MTM2, MTDome, MTMount, MTPtg, MTRotator
+from lsst.ts.xml.enums import (
+    MTAOS,
+    MTM1M3,
+    MTM2,
+    MTDome,
+    MTDomeTrajectory,
+    MTMount,
+    MTPtg,
+    MTRotator,
+)
 from lsst.ts.xml.tables.m1m3 import FATable, ForceActuatorData, force_actuator_from_id
 
 from ..base_tcs import BaseTCS
@@ -134,6 +143,10 @@ class MTCS(BaseTCS):
         self.hexapod_ready_to_take_data_timeout = 0.5
         # Timeout specific to the hexapods move.
         self.hexapod_movement_timeout = 300.0
+        # Similar to the mtmount_race_condition_timeout, this is
+        # used to check the in position event race condition for
+        # the hexapods when checking if it is in position.
+        self.hexapod_race_condition_timeout = 1.0
         # Similar to the mtmount_race_condition_timeout, this is
         # used to check the in position event race condition for
         # the rotator when checking if it is in position.
@@ -276,9 +289,10 @@ class MTCS(BaseTCS):
         )
 
         if not ccw_following.enabled:
-            # TODO DM-32545: Restore exception in slew method if dome
-            # following is disabled.
-            self.log.warning("Camera cable wrap following disabled in MTMount.")
+            raise RuntimeError(
+                "CCW Following Disabled (MTMount). "
+                "Check telemetry; re-enable to resume."
+            )
 
         if stop_before_slew:
             try:
@@ -332,16 +346,55 @@ class MTCS(BaseTCS):
 
             self.log.debug("Scheduling check coroutines")
 
-            self.scheduled_coro.append(
-                asyncio.create_task(
-                    self.wait_for_inposition(
-                        timeout=slew_timeout, wait_settle=wait_settle, check=_check
+            # We wait for the mount to be in position first.
+            if _check.mtmount:
+                self.scheduled_coro.append(
+                    asyncio.create_task(
+                        self.wait_for_mtmount_inposition(
+                            timeout=slew_timeout, wait_settle=wait_settle
+                        )
                     )
                 )
+
+            check_mtdome = _check.mtdome
+            _check.mtdome = False
+            _check.mtmount = False
+            check_tcs_no_dome_no_mount_task = asyncio.create_task(
+                self.wait_for_inposition(
+                    timeout=slew_timeout, wait_settle=wait_settle, check=_check
+                )
             )
+
             self.scheduled_coro.append(asyncio.create_task(self.monitor_position()))
 
-            await self.process_as_completed(self.scheduled_coro)
+            for task in asyncio.as_completed(self.scheduled_coro):
+                try:
+                    await task
+                except BaseException as e:
+                    await self.cancel_not_done(self.scheduled_coro)
+                    check_tcs_no_dome_no_mount_task.cancel()
+                    raise e
+                else:
+                    self.log.info("Mount in position.")
+                    break
+
+            # Now that the mount is in position we wait for everything else
+            # on TCS minus dome.
+            self.scheduled_coro = [
+                task for task in self.scheduled_coro if not task.done()
+            ]
+
+            self.scheduled_coro.append(check_tcs_no_dome_no_mount_task)
+
+        wait_for_dome_inposition_task = (
+            asyncio.create_task(self.wait_for_dome_inposition(timeout=slew_timeout))
+            if check_mtdome
+            else utils.make_done_future()
+        )
+        await self.process_as_completed(self.scheduled_coro)
+        self.scheduled_coro = [task for task in self.scheduled_coro if not task.done()]
+        self.scheduled_coro.append(wait_for_dome_inposition_task)
+        await self.process_as_completed(self.scheduled_coro)
 
     async def wait_for_inposition(
         self,
@@ -399,6 +452,7 @@ class MTCS(BaseTCS):
                         timeout=timeout,
                         settle_time=0.0,
                         component_name="Camera Hexapod",
+                        race_condition_timeout=self.hexapod_race_condition_timeout,
                     )
                 )
             )
@@ -411,6 +465,7 @@ class MTCS(BaseTCS):
                         timeout=timeout,
                         settle_time=0.0,
                         component_name="M2 Hexapod",
+                        race_condition_timeout=self.hexapod_race_condition_timeout,
                     )
                 )
             )
@@ -587,24 +642,41 @@ class MTCS(BaseTCS):
         ret_val : `str`
             String indicating that dome is in position.
         """
-        assert self._dome_az_in_position is not None
-        assert self._dome_el_in_position is not None
-        self.log.debug("Wait for dome in position event.")
+        self.rem.mtdometrajectory.evt_telescopeVignetted.flush()
 
-        self._dome_az_in_position.clear()
-        self._dome_el_in_position.clear()
+        telescope_vignetted = (
+            await self.rem.mtdometrajectory.evt_telescopeVignetted.aget(
+                timeout=self.fast_timeout
+            )
+        )
+        vignetted = MTDomeTrajectory.TelescopeVignetted(telescope_vignetted.vignetted)
+        azimuth = MTDomeTrajectory.TelescopeVignetted(telescope_vignetted.azimuth)
+        elevation = MTDomeTrajectory.TelescopeVignetted(telescope_vignetted.elevation)
+        shutter = MTDomeTrajectory.TelescopeVignetted(telescope_vignetted.shutter)
 
-        tasks = [
-            asyncio.create_task(self.dome_az_in_position()),
-            asyncio.create_task(self.dome_el_in_position()),
-        ]
-        ret_val = ""
-        for completed in asyncio.as_completed(tasks):
-            val = await completed
-            self.log.debug(val)
-            ret_val += f"{val} "
+        while vignetted != MTDomeTrajectory.TelescopeVignetted.NO:
+            self.log.debug(
+                f"Telescope vignetted: {vignetted=!r}, {azimuth=!r}, {elevation!r} and {shutter!r}."
+            )
+            telescope_vignetted = (
+                await self.rem.mtdometrajectory.evt_telescopeVignetted.next(
+                    flush=False, timeout=timeout
+                )
+            )
+            vignetted = MTDomeTrajectory.TelescopeVignetted(
+                telescope_vignetted.vignetted
+            )
+            azimuth = MTDomeTrajectory.TelescopeVignetted(telescope_vignetted.azimuth)
+            elevation = MTDomeTrajectory.TelescopeVignetted(
+                telescope_vignetted.elevation
+            )
+            shutter = MTDomeTrajectory.TelescopeVignetted(telescope_vignetted.shutter)
 
-        return ret_val
+        self.log.info(
+            f"MTDome in position: {vignetted=!r}, {azimuth=!r}, {elevation!r} and {shutter!r}."
+        )
+
+        return "MTDome in position."
 
     async def wait_for_rotator_inposition(
         self,
@@ -3782,6 +3854,10 @@ class MTCS(BaseTCS):
                     "azEnabled",
                     "shutterMotion",
                 ],
+                mtdometrajectory=[
+                    "followingMode",
+                    "telescopeVignetted",
+                ],
                 mthexapod_1=["compensationMode"],
                 mthexapod_2=["compensationMode"],
                 mtm2=["forceBalanceSystemStatus"],
@@ -3832,7 +3908,10 @@ class MTCS(BaseTCS):
                     "shutterMotion",
                     "azEnabled",
                 ],
-                mtdometrajectory=["followingMode"],
+                mtdometrajectory=[
+                    "followingMode",
+                    "telescopeVignetted",
+                ],
                 mtm1m3=[
                     "boosterValveStatus",
                     "forceActuatorState",

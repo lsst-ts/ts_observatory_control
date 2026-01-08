@@ -1978,7 +1978,7 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
         str
             Message indicating the component is in position.
         """
-        self.log.debug(
+        self.log.info(
             f"Wait for {component_name} in position event, (timeout={timeout}s)."
         )
 
@@ -1990,12 +1990,12 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
                 f"Timed out waiting for initial in position event from {component_name}."
             ) from e
 
-        self.log.debug(f"{component_name} in position: {in_position.inPosition}.")
+        self.log.info(f"{component_name} in position: {in_position.inPosition}.")
 
         _settle_time = max([settle_time, race_condition_timeout])
 
         if in_position.inPosition:
-            self.log.debug(
+            self.log.info(
                 f"{component_name} already in position. Handling potential race condition."
             )
             try:
@@ -2007,7 +2007,7 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
                     f"{component_name} in position: {in_position.inPosition}."
                 )
             except asyncio.TimeoutError:
-                self.log.debug(
+                self.log.info(
                     "No new in position event in the last "
                     f"{_settle_time}s. "
                     f"Assuming {component_name} in position."
@@ -2038,7 +2038,7 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
                     f"{component_name} in position: {in_position.inPosition}."
                 )
 
-        self.log.debug(
+        self.log.info(
             f"{component_name} in position {in_position.inPosition}. "
             f"Waiting settle time {settle_time}s"
         )

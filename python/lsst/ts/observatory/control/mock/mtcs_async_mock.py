@@ -29,7 +29,7 @@ from lsst.ts import utils, xml
 from lsst.ts.observatory.control.maintel.mtcs import MTCS, MTCSUsages
 from lsst.ts.observatory.control.mock import RemoteGroupAsyncMock
 from lsst.ts.xml import type_hints
-from lsst.ts.xml.enums import MTM1M3, MTDome
+from lsst.ts.xml.enums import MTM1M3, MTDome, MTDomeTrajectory
 
 
 class MTCSAsyncMock(RemoteGroupAsyncMock):
@@ -159,7 +159,15 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
         )
 
         # MTDomeTrajectory data
-        self._mtdometrajectory_dome_following = types.SimpleNamespace(enabled=False)
+        self._mtdometrajectory_dome_following = types.SimpleNamespace(enabled=True)
+        self._mtdometrajectory_telescope_vignetted = types.SimpleNamespace(
+            vignetted=MTDomeTrajectory.TelescopeVignetted.UNKNOWN,
+            azimuth=MTDomeTrajectory.TelescopeVignetted.UNKNOWN,
+            elevation=MTDomeTrajectory.TelescopeVignetted.UNKNOWN,
+            shutter=MTDomeTrajectory.TelescopeVignetted.UNKNOWN,
+        )
+        self.next_telescope_vignetted_event = asyncio.Event()
+        self.telescope_vignetted_task = utils.make_done_future()
 
         # MTM1M3 data
         self._mtm1m3_evt_detailed_state = types.SimpleNamespace(
@@ -317,6 +325,9 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
         mtdometrajectory_mocks = {
             "evt_followingMode.aget.side_effect": self.mtdometrajectory_following_mode,
             "cmd_setFollowingMode.set_start.side_effect": self.mtdometrajectory_cmd_set_following_mode,
+            "evt_telescopeVignetted.aget.side_effect": self.mtdometrajectory_aget_telescope_vignetted,
+            "evt_telescopeVignetted.next.side_effect": self.mtdometrajectory_next_telescope_vignetted,
+            "evt_telescopeVignetted.flush.side_effect": self.mtdometrajectory_flush_telescope_vignetted,
         }
 
         self.mtcs.rem.mtdometrajectory.configure_mock(**mtdometrajectory_mocks)
@@ -809,6 +820,81 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
             f"{self._mtdometrajectory_dome_following}"
         )
         return self._mtdometrajectory_dome_following
+
+    async def mtdometrajectory_aget_telescope_vignetted(
+        self, timeout: float
+    ) -> types.SimpleNamespace:
+        return self._mtdometrajectory_telescope_vignetted
+
+    async def mtdometrajectory_next_telescope_vignetted(
+        self, flush: bool, timeout: float
+    ) -> types.SimpleNamespace:
+        if flush:
+            self.next_telescope_vignetted_event.clear()
+
+        async with asyncio.timeout(timeout):
+            await self.next_telescope_vignetted_event.wait()
+            self.next_telescope_vignetted_event.clear()
+            return self._mtdometrajectory_telescope_vignetted
+
+    def mtdometrajectory_flush_telescope_vignetted(self) -> None:
+        self.next_telescope_vignetted_event.clear()
+        if (
+            self._mtdometrajectory_dome_following.enabled
+            and self.telescope_vignetted_task.done()
+        ):
+            self.log.debug("Mocking telescope vignetted task.")
+            self.telescope_vignetted_task = asyncio.create_task(
+                self.mock_telescope_vignette()
+            )
+        else:
+            self.log.debug("Not mocking telescope vignetted task.")
+
+    async def mock_telescope_vignette(self) -> None:
+        await asyncio.sleep(0.5)
+        self._mtdometrajectory_telescope_vignetted.vignetted = (
+            MTDomeTrajectory.TelescopeVignetted.FULLY
+        )
+        self._mtdometrajectory_telescope_vignetted.azimuth = (
+            MTDomeTrajectory.TelescopeVignetted.FULLY
+        )
+        self._mtdometrajectory_telescope_vignetted.elevation = (
+            MTDomeTrajectory.TelescopeVignetted.FULLY
+        )
+        self._mtdometrajectory_telescope_vignetted.shutter = (
+            MTDomeTrajectory.TelescopeVignetted.FULLY
+        )
+        self.next_telescope_vignetted_event.set()
+
+        await asyncio.sleep(2.0)
+        self._mtdometrajectory_telescope_vignetted.vignetted = (
+            MTDomeTrajectory.TelescopeVignetted.PARTIALLY
+        )
+        self._mtdometrajectory_telescope_vignetted.azimuth = (
+            MTDomeTrajectory.TelescopeVignetted.PARTIALLY
+        )
+        self._mtdometrajectory_telescope_vignetted.elevation = (
+            MTDomeTrajectory.TelescopeVignetted.PARTIALLY
+        )
+        self._mtdometrajectory_telescope_vignetted.shutter = (
+            MTDomeTrajectory.TelescopeVignetted.PARTIALLY
+        )
+        self.next_telescope_vignetted_event.set()
+
+        await asyncio.sleep(0.5)
+        self._mtdometrajectory_telescope_vignetted.vignetted = (
+            MTDomeTrajectory.TelescopeVignetted.NO
+        )
+        self._mtdometrajectory_telescope_vignetted.azimuth = (
+            MTDomeTrajectory.TelescopeVignetted.NO
+        )
+        self._mtdometrajectory_telescope_vignetted.elevation = (
+            MTDomeTrajectory.TelescopeVignetted.NO
+        )
+        self._mtdometrajectory_telescope_vignetted.shutter = (
+            MTDomeTrajectory.TelescopeVignetted.NO
+        )
+        self.next_telescope_vignetted_event.set()
 
     async def mtdometrajectory_cmd_set_following_mode(
         self, enable: bool, *args: typing.Any, **kwargs: typing.Any
