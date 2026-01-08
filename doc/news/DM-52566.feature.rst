@@ -1,1 +1,0 @@
-Add protection against moving rotator if CCW following is disabled unless check MTMount is also disabled.

@@ -1,1 +1,0 @@
-Add metadata support and set a real python class to Guider ROI supporting butler datasets

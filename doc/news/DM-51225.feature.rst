@@ -1,1 +1,0 @@
-Add absorb parameter to offset_radec method
