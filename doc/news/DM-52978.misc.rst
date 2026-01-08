@@ -1,1 +1,0 @@
-In base_tcs.py, increase slew_timeout to 600s to avoid timeouts for large azimuth slews at low velocity settings.

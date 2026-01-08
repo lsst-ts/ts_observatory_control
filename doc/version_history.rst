@@ -8,6 +8,40 @@ Version History
 
 .. towncrier release notes start
 
+v0.46.0 (2026-01-07)
+====================
+
+New Features
+------------
+
+- Add absorb parameter to offset_radec method (`DM-51225 <https://rubinobs.atlassian.net/browse/DM-51225>`_)
+- Add protection against moving rotator if CCW following is disabled unless check MTMount is also disabled. (`DM-52566 <https://rubinobs.atlassian.net/browse/DM-52566>`_)
+- Add metadata support and set a real python class to Guider ROI supporting butler datasets (`OSW-1064 <https://rubinobs.atlassian.net/browse/OSW-1064>`_)
+- Refactored ``MTCS._slew_to`` to handle the mount "in position" event independently, allowing the M1M3 slew flag to be disabled as soon as the mount is settled rather than waiting for all components. (`OSW-1632 <https://rubinobs.atlassian.net/browse/OSW-1632>`_)
+- Introduced the ``hexapod_race_condition_timeout`` attribute in ``MTCS``, which is now used within the ``wait_for_in_position`` method to more robustly handle hexapod timing issues. (`OSW-1632 <https://rubinobs.atlassian.net/browse/OSW-1632>`_)
+- Updated ``MTCS._slew_to`` to raise an exception if CCW following is disabled, preventing the telescope from slewing in an unsafe state. (`OSW-1632 <https://rubinobs.atlassian.net/browse/OSW-1632>`_)
+- Updated ``MTCS.wait_for_dome_inposition`` to use the MTDomeTrajectory telescope vignetted event to determine dome readiness, providing a more reliable estimate for data acquisition. (`OSW-1632 <https://rubinobs.atlassian.net/browse/OSW-1632>`_)
+- Add CBP cal electrometer as an option for CBP scans and adjust the npulses for the laser. (`RSO-35 <https://rubinobs.atlassian.net/browse/RSO-35>`_)
+
+
+Bug Fixes
+---------
+
+- Add missing topics to the ``MTCSUsages.ALL`` usages. (`DM-53159 <https://rubinobs.atlassian.net/browse/DM-53159>`_)
+- Fixed ``MTCS.get_boresight`` method. (`OSW-1485 <https://rubinobs.atlassian.net/browse/OSW-1485>`_)
+- Update ``MTCSUsages.AOS``  to add the camera and m2 hexapod ``application`` topic. (`OSW-1485 <https://rubinobs.atlassian.net/browse/OSW-1485>`_)
+
+
+Other Changes and Additions
+---------------------------
+
+- Update conda recipe to use ts-conda-build 0.5, replace ts-idl with ts-xml (`DM-51225 <https://rubinobs.atlassian.net/browse/DM-51225>`_)
+- In base_tcs.py, increase slew_timeout to 600s to avoid timeouts for large azimuth slews at low velocity settings. (`DM-52978 <https://rubinobs.atlassian.net/browse/DM-52978>`_)
+- Make it so that CBP does not use projector in MTCalSys and change wavelength step size of the CBP QE sweep. (`DM-53095 <https://rubinobs.atlassian.net/browse/DM-53095>`_)
+- Changed 1050nm y-band LED exposure time to 30 seconds and reduced n_flat on monochromatic flats from 4 to 2. (`DM-53100 <https://rubinobs.atlassian.net/browse/DM-53100>`_)
+- Promoted diagnostic logging in ``BaseTCS._handle_in_position`` from debug to info level, providing better visibility into telescope positioning events during standard operation. (`OSW-1632 <https://rubinobs.atlassian.net/browse/OSW-1632>`_)
+
+
 v0.45.0 (2025-10-27)
 ====================
 

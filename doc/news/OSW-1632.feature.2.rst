@@ -1,1 +1,0 @@
-Updated ``MTCS.wait_for_dome_inposition`` to use the MTDomeTrajectory telescope vignetted event to determine dome readiness, providing a more reliable estimate for data acquisition.
