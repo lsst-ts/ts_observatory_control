@@ -583,6 +583,46 @@ class TestLSSTCam(BaseCameraAsyncMock):
 
         assert self.lsstcam._roi_spec_json == expected_roi_spec_json
 
+    async def test_set_init_guider(self) -> None:
+        roi = ROI(
+            segment=3,
+            start_row=260,
+            start_col=162,
+        )
+
+        roi_common = ROICommon(
+            rows=100,
+            cols=100,
+            integration_time_millis=200,
+        )
+
+        roi_spec = ROISpec(
+            common=roi_common,
+            roi=dict(
+                R40_SG0=roi,
+                R01_SG0=roi,
+                R02_SG0=roi,
+                R03_SG0=roi,
+            ),
+        )
+
+        # initialize guiders
+        await self.lsstcam.init_guider(roi_spec=roi_spec)
+
+        await self.lsstcam.set_init_guider()
+        await self.lsstcam.take_object(n=2, exptime=30)
+        roi_spec_dict = roi_spec.model_dump()
+        roi = roi_spec_dict.pop("roi")
+        roi_spec_dict.update(roi)
+        expected_roi_spec_json = json.dumps(roi_spec_dict, separators=(",", ":"))
+        expected_calls = [
+            call(roiSpec=expected_roi_spec_json, timeout=self.lsstcam.long_timeout),
+        ]
+        self.lsstcam.rem.mtcamera.cmd_initGuiders.set_start.assert_has_awaits(
+            expected_calls
+        )
+        assert self.lsstcam.rem.mtcamera.cmd_initGuiders.set_start.call_count == 2
+
     def assert_setup_instrument(
         self, entry: typing.Dict[str, typing.Union[int, float, str, None]]
     ) -> None:
