@@ -1,1 +1,0 @@
-Introduced a mechanism in ``BaseCamera`` to set the guider Region of Interest (ROI) ahead of time, allowing for more efficient pre-configuration of the guiding system.

@@ -1,1 +1,0 @@
-Improved concurrency in ``MTCS._slew_to`` by moving the creation of the dome in-position task inside the ``m1m3_booster_valve`` context, allowing it to begin running in the background while the slew flag is cleared.

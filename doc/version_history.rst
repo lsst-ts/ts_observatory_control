@@ -8,6 +8,18 @@ Version History
 
 .. towncrier release notes start
 
+v0.47.0 (2026-01-09)
+====================
+
+New Features
+------------
+
+- Introduced a mechanism in ``BaseCamera`` to set the guider Region of Interest (ROI) ahead of time, allowing for more efficient pre-configuration of the guiding system. (`OSW-1632 <https://rubinobs.atlassian.net/browse/OSW-1632>`_)
+- Enhanced diagnostic logging in the MTCS slew operation to provide better visibility into system state transitions after the ``m1m3_booster_valve`` context is finalized. (`OSW-1632 <https://rubinobs.atlassian.net/browse/OSW-1632>`_)
+- Optimized ``BaseTCS._handle_in_position`` to skip redundant settling times when dealing with unreliable in-position states, as the additional wait already accounts for the required settling period. (`OSW-1632 <https://rubinobs.atlassian.net/browse/OSW-1632>`_)
+- Improved concurrency in ``MTCS._slew_to`` by moving the creation of the dome in-position task inside the ``m1m3_booster_valve`` context, allowing it to begin running in the background while the slew flag is cleared. (`OSW-1632 <https://rubinobs.atlassian.net/browse/OSW-1632>`_)
+
+
 v0.46.0 (2026-01-07)
 ====================
 
