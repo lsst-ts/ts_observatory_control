@@ -1,0 +1,1 @@
+Optimized ``BaseTCS._handle_in_position`` to skip redundant settling times when dealing with unreliable in-position states, as the additional wait already accounts for the required settling period.
