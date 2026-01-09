@@ -2038,11 +2038,17 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
                     f"{component_name} in position: {in_position.inPosition}."
                 )
 
-        self.log.info(
-            f"{component_name} in position {in_position.inPosition}. "
-            f"Waiting settle time {settle_time}s"
-        )
-        await asyncio.sleep(settle_time)
+        if not unreliable_in_position:
+            self.log.info(
+                f"{component_name} in position {in_position.inPosition}. "
+                f"Waiting settle time {settle_time}s"
+            )
+            await asyncio.sleep(settle_time)
+        else:
+            self.log.info(
+                f"{component_name} in position {in_position.inPosition}. "
+                "Unreliable in position, skip settling time."
+            )
 
         return f"{component_name} in position."
 
