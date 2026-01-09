@@ -386,14 +386,16 @@ class MTCS(BaseTCS):
 
             self.scheduled_coro.append(check_tcs_no_dome_no_mount_task)
 
-        wait_for_dome_inposition_task = (
-            asyncio.create_task(self.wait_for_dome_inposition(timeout=slew_timeout))
-            if check_mtdome
-            else utils.make_done_future()
-        )
+            wait_for_dome_inposition_task = (
+                asyncio.create_task(self.wait_for_dome_inposition(timeout=slew_timeout))
+                if check_mtdome
+                else utils.make_done_future()
+            )
+        self.log.info("Waiting for remaining TCS components to be in position.")
         await self.process_as_completed(self.scheduled_coro)
         self.scheduled_coro = [task for task in self.scheduled_coro if not task.done()]
         self.scheduled_coro.append(wait_for_dome_inposition_task)
+        self.log.info("Waiting for dome to be in position.")
         await self.process_as_completed(self.scheduled_coro)
 
     async def wait_for_inposition(
