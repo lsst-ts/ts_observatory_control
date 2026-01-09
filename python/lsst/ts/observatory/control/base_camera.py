@@ -98,6 +98,7 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
         self.max_n_snaps_warning = 2
 
         self._roi_spec_json: None | str = None
+        self._init_guider_set: bool = False
 
     @classmethod
     def get_image_types(cls) -> typing.List[str]:
@@ -1563,6 +1564,22 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
         roi = roi_spec_dict.pop("roi")
         roi_spec_dict.update(roi)
         self._roi_spec_json = json.dumps(roi_spec_dict, separators=(",", ":"))
+        self._init_guider_set = False
+
+    async def set_init_guider(self) -> None:
+        """Wait until the camera is IDLE and send the init guiders command."""
+        self._init_guider_set = True
+        try:
+            await self.wait_for_camera_state(CameraSubstate.IDLE)
+            await self.camera.cmd_initGuiders.set_start(
+                roiSpec=self._roi_spec_json,
+                timeout=self.long_timeout,
+            )
+        except salobj.AckError as ack_error:
+            if "not configured as a guider" in ack_error.ackcmd.result:
+                self.log.warning(
+                    "Ignoring init guider failure; detectors not configured as guider."
+                )
 
     async def _handle_take_images(
         self, camera_exposure: CameraExposure
@@ -1587,19 +1604,15 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
 
         exp_ids = []
         for _ in range(camera_exposure.n):
-            if self._roi_spec_json is not None and camera_exposure.exp_time > 0:
-                try:
-                    await self.camera.cmd_initGuiders.set_start(
-                        roiSpec=self._roi_spec_json,
-                        timeout=self.long_timeout,
-                    )
-                except salobj.AckError as ack_error:
-                    if "not configured as a guider" in ack_error.ackcmd.result:
-                        self.log.warning(
-                            "Ignoring init guider failure; detectors not configured as guider."
-                        )
+            if (
+                self._roi_spec_json is not None
+                and camera_exposure.exp_time > 0
+                and not self._init_guider_set
+            ):
+                await self.set_init_guider()
 
             exp_ids += await self._handle_snaps(camera_exposure)
+            self._init_guider_set = False
 
         return exp_ids
 
@@ -1637,28 +1650,7 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
         ) * camera_exposure.n + self.long_long_timeout
 
         await self.wait_for_camera_readiness()
-        if hasattr(self.camera, "evt_ccsCommandState"):
-            self.log.info("Handling ccs command state.")
-            try:
-                ccs_command_state = await self.camera.evt_ccsCommandState.aget(
-                    timeout=self.fast_timeout
-                )
-                self.camera.evt_ccsCommandState.flush()
-                self.log.info(
-                    f"CCS Command State: {CameraSubstate(ccs_command_state.substate).name}."
-                )
-                while ccs_command_state.substate != CameraSubstate.IDLE:
-                    ccs_command_state = await self.camera.evt_ccsCommandState.next(
-                        flush=False, timeout=self.fast_timeout
-                    )
-                    self.log.info(
-                        f"CCS command state: {CameraSubstate(ccs_command_state.substate).name}"
-                    )
-
-            except asyncio.TimeoutError:
-                self.log.warning("Could not determine CCS Command State; ignoring.")
-        else:
-            self.log.info("Not handling CCS Command State.")
+        await self.wait_for_camera_state(substate=CameraSubstate.IDLE)
         await self.camera.cmd_takeImages.start(timeout=take_images_timeout)
 
         exp_ids: typing.List[int] = []
@@ -1712,6 +1704,38 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
                 )
 
         self.camera.evt_startIntegration.flush()
+
+    async def wait_for_camera_state(self, substate: CameraSubstate) -> None:
+        """Wait for the camera command state to match the specified one.
+
+        Parameters
+        ----------
+        substate : `CameraSubstate`
+            Which substate to wait the camera to be.
+        """
+
+        if hasattr(self.camera, "evt_ccsCommandState"):
+            self.log.info("Handling ccs command state.")
+            try:
+                ccs_command_state = await self.camera.evt_ccsCommandState.aget(
+                    timeout=self.fast_timeout
+                )
+                self.camera.evt_ccsCommandState.flush()
+                self.log.info(
+                    f"CCS Command State: {CameraSubstate(ccs_command_state.substate).name}."
+                )
+                while ccs_command_state.substate != substate:
+                    ccs_command_state = await self.camera.evt_ccsCommandState.next(
+                        flush=False, timeout=self.fast_timeout
+                    )
+                    self.log.info(
+                        f"CCS command state: {CameraSubstate(ccs_command_state.substate).name}"
+                    )
+
+            except asyncio.TimeoutError:
+                self.log.warning("Could not determine CCS Command State; ignoring.")
+        else:
+            self.log.info("Not handling CCS Command State.")
 
     async def _handle_take_stuttered(
         self, camera_exposure: CameraExposure
