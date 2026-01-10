@@ -178,6 +178,7 @@ properties:
           - samples_per_bin
           - bin_dac_values
           - random_seed
+          - exp_list_start_idx
         properties:
           bin_edges:
             description: List of lists with min and max for each bin
@@ -195,12 +196,15 @@ properties:
               minimum: 1
           bin_dac_values:
             type: array
-            minimum: 1
+            minItems: 1
             items: 
               type: number 
           random_seed:
             description: random seed to create random exposure set
             type: [integer, "null"]
+          exp_list_start_idx:
+            description: index of exposure list to start on if part of way through
+            type: integer
   laser_mode:
     type: integer
   laser_wait_time:
