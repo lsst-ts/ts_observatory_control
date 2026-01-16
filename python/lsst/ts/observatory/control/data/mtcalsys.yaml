@@ -350,6 +350,54 @@ whitelight_z_20_daily:
   exposure_times:
     - 15.0
 
+whitelight_z_M850L3_daily:
+  mtcamera_filter: z_20
+  led_name:
+    - M850L3
+  dac_value: 1.0
+  wavelength: 850.0
+  led_location: 295.61
+  led_focus: 6.85
+  n_flat: 3
+  exposure_times:
+    - 15.0
+
+whitelight_z_M940L3_daily:
+  mtcamera_filter: z_20
+  led_name:
+    - M940L3
+  dac_value: 1.0
+  wavelength: 940.0
+  led_location: 295.432
+  led_focus: 6.66
+  n_flat: 3
+  exposure_times:
+    - 15.0
+
+whitelight_y_M940L3_daily:
+  mtcamera_filter: y_10
+  led_name:
+    - M940L3
+  dac_value: 1.0
+  wavelength: 940.0
+  led_location: 295.432
+  led_focus: 6.66
+  n_flat: 3
+  exposure_times:
+    - 30.0
+
+whitelight_y_M1050L4_daily:
+  mtcamera_filter: y_10
+  led_name:
+    - M1050L4
+  dac_value: 1.0
+  wavelength: 1050.0
+  led_location: 171.24
+  led_focus: 6.47
+  n_flat: 3
+  exposure_times:
+    - 30.0
+
 whitelight_y_10_daily:
   mtcamera_filter: y_10
   led_name:
