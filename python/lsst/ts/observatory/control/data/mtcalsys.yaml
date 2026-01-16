@@ -422,7 +422,6 @@ whitelight_i_39_dark:
   wavelength: 755.0
   led_location: 233.83
   led_focus: 7.07
-  use_flatfield_electrometer: False
   n_flat: 20
   exposure_times:
     - 10.0
@@ -1257,7 +1256,6 @@ ptc_i_39_100:
   led_location: 233.83
   led_focus: 7.07
   use_camera: True
-  use_flatfield_electrometer: False
   n_flat: 2
   constrained_random_exposure_times:
     samples_per_bin:
