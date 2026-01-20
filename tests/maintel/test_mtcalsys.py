@@ -25,7 +25,6 @@ import unittest.mock
 
 import numpy as np
 from lsst.ts.observatory.control.maintel.comcam import ComCam, ComCamUsages
-from lsst.ts.observatory.control.maintel.lsstcam import LSSTCam, LSSTCamUsages
 from lsst.ts.observatory.control.maintel.mtcalsys import MTCalsys, MTCalsysUsages
 from lsst.ts.observatory.control.mock import RemoteGroupAsyncMock
 from lsst.ts.utils import index_generator
@@ -167,21 +166,22 @@ class TestMTCalsys(RemoteGroupAsyncMock):
         )
 
     async def test_prepare_for_whitelight_flat(self) -> None:
-        mock_comcam = ComCam(
+        mock_lsst = ComCam(
             "FakeDomain", log=self.log, intended_usage=ComCamUsages.DryTest
         )
-        mock_comcam.rem.cccamera = unittest.mock.AsyncMock()
-        mock_comcam.rem.cccamera.evt_startIntegration.aget.configure_mock(
+        mock_lsst.rem.cccamera = unittest.mock.AsyncMock()
+        mock_lsst.rem.cccamera.evt_startIntegration.aget.configure_mock(
             side_effect=self.mock_aget_start_integration
         )
-        mock_comcam.rem.cccamera.evt_startIntegration.next.configure_mock(
+        mock_lsst.rem.cccamera.evt_startIntegration.next.configure_mock(
             side_effect=self.mock_start_integration
         )
-        mock_comcam.rem.cccamera.evt_endReadout.next.configure_mock(
+        mock_lsst.rem.cccamera.evt_endReadout.next.configure_mock(
             side_effect=self.mock_end_readout
         )
+        mock_lsst.rem.cccamera.evt_endSetFilter.next.configure_mock(filterName="r_57")
 
-        self.mtcalsys.mtcamera = mock_comcam
+        self.mtcalsys.mtcamera = mock_lsst
         self.mtcalsys.linearstage_projector_select.tel_position.position = (
             unittest.mock.Mock(return_value=9.96)
         )
@@ -247,12 +247,17 @@ class TestMTCalsys(RemoteGroupAsyncMock):
 
     async def test_run_calibration_sequence_white_light(self) -> None:
 
-        mock_comcam = ComCam(
+        mock_lsst = ComCam(
             "FakeDomain", log=self.log, intended_usage=ComCamUsages.DryTest
         )
-        mock_comcam.take_flats = unittest.mock.AsyncMock()
+        mock_lsst.take_flats = unittest.mock.AsyncMock()
+        mock_lsst.rem.cccamera = unittest.mock.AsyncMock()
+        mock_lsst.rem.cccamera.evt_endSetFilter.next.configure_mock(filterName="u_24")
+        mock_lsst.get_available_filters = unittest.mock.AsyncMock(
+            return_value=["u_24,g_6,r_57,i_39,z_20"]
+        )
 
-        self.mtcalsys.mtcamera = mock_comcam
+        self.mtcalsys.mtcamera = mock_lsst
 
         try:
             calibration_summary = await self.mtcalsys.run_calibration_sequence(
@@ -280,12 +285,17 @@ class TestMTCalsys(RemoteGroupAsyncMock):
 
     async def test_run_calibration_sequence_ptc(self) -> None:
 
-        mock_comcam = ComCam(
+        mock_lsst = ComCam(
             "FakeDomain", log=self.log, intended_usage=ComCamUsages.DryTest
         )
-        mock_comcam.take_flats = unittest.mock.AsyncMock()
+        mock_lsst.take_flats = unittest.mock.AsyncMock()
+        mock_lsst.rem.cccamera = unittest.mock.AsyncMock()
+        mock_lsst.rem.cccamera.evt_endSetFilter.next.configure_mock(filterName="u_24")
+        mock_lsst.get_available_filters = unittest.mock.AsyncMock(
+            return_value=["u_24,g_6,r_57,i_39,z_20"]
+        )
 
-        self.mtcalsys.mtcamera = mock_comcam
+        self.mtcalsys.mtcamera = mock_lsst
 
         try:
             calibration_summary = await self.mtcalsys.run_calibration_sequence(
@@ -314,12 +324,17 @@ class TestMTCalsys(RemoteGroupAsyncMock):
 
     async def test_run_calibration_sequence_mono(self) -> None:
 
-        mock_comcam = ComCam(
+        mock_lsst = ComCam(
             "FakeDomain", log=self.log, intended_usage=ComCamUsages.DryTest
         )
-        mock_comcam.take_flats = unittest.mock.AsyncMock()
+        mock_lsst.take_flats = unittest.mock.AsyncMock()
+        mock_lsst.rem.cccamera = unittest.mock.AsyncMock()
+        mock_lsst.rem.cccamera.evt_endSetFilter.next.configure_mock(filterName="r_57")
+        mock_lsst.get_available_filters = unittest.mock.AsyncMock(
+            return_value=["u_24,g_6,r_57,i_39,z_20"]
+        )
 
-        self.mtcalsys.mtcamera = mock_comcam
+        self.mtcalsys.mtcamera = mock_lsst
 
         sequence_name = "scan_r_unittest"
 
@@ -364,12 +379,17 @@ class TestMTCalsys(RemoteGroupAsyncMock):
 
     async def test_run_calibration_sequence_cbp(self) -> None:
 
-        mock_lsstcam = LSSTCam(
-            "FakeDomain", log=self.log, intended_usage=LSSTCamUsages.DryTest
+        mock_lsst = ComCam(
+            "FakeDomain", log=self.log, intended_usage=ComCamUsages.DryTest
         )
-        mock_lsstcam.take_flats = unittest.mock.AsyncMock()
+        mock_lsst.take_flats = unittest.mock.AsyncMock()
+        mock_lsst.rem.cccamera = unittest.mock.AsyncMock()
+        mock_lsst.rem.cccamera.evt_endSetFilter.next.configure_mock(filterName="g_6")
+        mock_lsst.get_available_filters = unittest.mock.AsyncMock(
+            return_value=["u_24,g_6,r_57,i_39,z_20"]
+        )
 
-        self.mtcalsys.mtcamera = mock_lsstcam
+        self.mtcalsys.mtcamera = mock_lsst
 
         try:
             calibration_summary = await self.mtcalsys.run_calibration_sequence(

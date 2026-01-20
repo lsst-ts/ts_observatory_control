@@ -1215,12 +1215,22 @@ class MTCalsys(BaseCalsys):
     ) -> dict:
 
         if self.mtcamera is not None:
-            mtcamera_exposure_task = self.mtcamera.take_flats(
-                mtcamera_exptime,
-                nflats=1,
-                filter=mtcamera_filter,
-                **exposure_metadata,
-            )
+            avail_filters = await self.mtcamera.get_available_filters()
+            avail_filters = avail_filters[0].split(",")
+
+            standard_filters = {"u_24", "g_6", "r_57", "i_39", "z_20", "y_10"}
+            avail_filters = [f for f in avail_filters if f in standard_filters]
+            if mtcamera_filter in avail_filters:
+                mtcamera_exposure_task = self.mtcamera.take_flats(
+                    mtcamera_exptime,
+                    nflats=1,
+                    filter=mtcamera_filter,
+                    **exposure_metadata,
+                )
+            else:
+                self.log.info(
+                    f"Filter {mtcamera_filter} not installed. Skipping sequence {sequence_name}"
+                )
         else:
             self.log.debug("Taking Data without MTCamera")
 
