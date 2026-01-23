@@ -1566,6 +1566,10 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
         self._roi_spec_json = json.dumps(roi_spec_dict, separators=(",", ":"))
         self._init_guider_set = False
 
+    def reset_guider_roi(self) -> None:
+        """Clear guider roi and reset it."""
+        self._roi_spec_json = None
+
     async def set_init_guider(self) -> None:
         """Wait until the camera is IDLE and send the init guiders command."""
         self._init_guider_set = True
