@@ -1,0 +1,4 @@
+Updated the default MTCS on-sky open positions used by ``prepare_for_onsky``:
+
+* Dome opens at Az=150 deg.
+* TMA slews to Az=150 deg, El=70 deg.
