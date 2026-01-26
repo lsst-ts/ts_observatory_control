@@ -1,0 +1,1 @@
+In ``maintel/mtcs.py``, add new methods ``set_park_position`` and ``set_dome_park_position``.
