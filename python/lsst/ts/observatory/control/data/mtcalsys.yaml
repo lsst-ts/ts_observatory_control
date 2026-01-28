@@ -1393,3 +1393,42 @@ laser_ptc:
       - 1.0
     random_seed: null
     exp_list_start_idx: 0
+
+electrometer_ptc_stability_low:
+  mtcamera_filter: i_39
+  led_name:
+    - M730L5
+    - M810L3
+  dac_value: 0.15
+  wavelength: 755.0
+  led_location: 233.83
+  led_focus: 7.07
+  n_flat: 60
+  exposure_times:
+    - 30.0
+
+electrometer_ptc_stability_mid_1:
+  mtcamera_filter: i_39
+  led_name:
+    - M730L5
+    - M810L3
+  dac_value: 0.5
+  wavelength: 755.0
+  led_location: 233.83
+  led_focus: 7.07
+  n_flat: 2
+  exposure_times:
+    - 1.0
+
+electrometer_ptc_stability_mid_2:
+  mtcamera_filter: i_39
+  led_name:
+    - M730L5
+    - M810L3
+  dac_value: 0.5
+  wavelength: 755.0
+  led_location: 233.83
+  led_focus: 7.07
+  n_flat: 60
+  exposure_times:
+    - 30.0
