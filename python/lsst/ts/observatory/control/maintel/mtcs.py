@@ -155,6 +155,9 @@ class MTCS(BaseTCS):
         self.tel_park_el = 80.0
         self.tel_park_az = 0.0
         self.tel_park_rot = 0.0
+
+        self.tel_open_az = 150.0
+        self.tel_open_el = 70.0
         self.tel_flat_el = 39.0
         self.tel_flat_az = 205.7
         self.tel_settle_time = 3.0
@@ -164,7 +167,7 @@ class MTCS(BaseTCS):
         # Tolerance to the rotator position for move commands.
         self.rotator_position_tolerance = 0.1
 
-        self.dome_open_az = 90.0
+        self.dome_open_az = 150.0
         self.dome_park_az = 285.0
         self.dome_park_el = 80.0
         self.dome_flat_az = 20.0
@@ -1583,14 +1586,15 @@ class MTCS(BaseTCS):
 
         1. Assert that all MTCS components are enabled.
         2. Assert that critical components are not ignored.
-        3. Slew the dome to the open position.
+        3. Slew the dome to the open position (az=150).
         4. Ensure the M2 balance system is enabled.
         5. Check telescope elevation and raise M1M3 if safe.
         6. Home both axes of the mount.
         7. Enable M1M3 engineering mode and force balance system, then exit
         engineering mode.
         8. Enable camera cable wrap following.
-        9. Slew the telescope to the open position. Rotator set to 0 deg.
+        9. Slew the telescope to the open position (az=150, el=70).
+           Rotator set to 0 deg.
         10. Stop tracking.
         11. Ensure mirror covers are closed before opening the dome.
         12. Open the dome shutter.
@@ -1646,16 +1650,14 @@ class MTCS(BaseTCS):
         await self.enable_m1m3_balance_system()
         await self.exit_m1m3_engineering_mode()
 
-        # Note: Slew flags are going to be set in a the sal script
-
         self.log.info("Ensuring CCW is following before slewing to open position.")
         await self.enable_ccw_following()
 
         self.log.info("Slewing telescope to open position.")
         await self.point_azel(
             target_name="Prepare for on-sky",
-            az=self.dome_open_az,
-            el=self.tel_park_el,
+            az=self.tel_open_az,
+            el=self.tel_open_el,
             rot_tel=self.tel_park_rot,
             wait_dome=False,
         )
@@ -1698,8 +1700,6 @@ class MTCS(BaseTCS):
             self.log.warning(
                 f"{self.dome_trajectory_name} is ignored; skipping dome following operations."
             )
-
-        self.log.info("Prepare for on-sky finished.")
 
     async def shutdown(self) -> None:
         # TODO: Implement (DM-21336).
