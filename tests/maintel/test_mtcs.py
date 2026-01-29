@@ -1380,8 +1380,8 @@ class TestMTCS(MTCSAsyncMock):
         # Assert ccw is following
         assert self._mtmount_evt_cameraCableWrapFollowing.enabled == 1
 
-        assert self._mtmount_tel_azimuth.actualPosition == self.mtcs.dome_open_az
-        assert self._mtmount_tel_elevation.actualPosition == self.mtcs.tel_park_el
+        assert self._mtmount_tel_azimuth.actualPosition == self.mtcs.tel_open_az
+        assert self._mtmount_tel_elevation.actualPosition == self.mtcs.tel_open_el
         assert self._mtrotator_tel_rotation.actualPosition == self.mtcs.tel_park_rot
 
         # Assert not tracking, rotator stationary

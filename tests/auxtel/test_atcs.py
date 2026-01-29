@@ -851,7 +851,7 @@ class TestATTCS(ATCSAsyncMock):
 
     async def test_prepare_for_vent_fully_open_dome(self) -> None:
         await self.atcs.enable()
-        self.dome_slit_positioning_time = 120.0
+        self.dome_slit_positioning_time = 1.0
         self.atcs.dome_vent_open_shutter_time = 0.5
         (
             telescope_vent_position,

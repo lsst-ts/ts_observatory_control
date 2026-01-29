@@ -7,8 +7,9 @@ source:
   path: ../
 
 build:
-  noarch: generic
+  noarch: python
   script: {{ PYTHON }} -m pip install --no-deps --ignore-installed .
+  string: "py{{ PY_VER | replace('.', '') }}_{{ PKG_HASH }}_{{ PKG_BUILDNUM }}"
 
 test:
   requires:
@@ -18,7 +19,6 @@ test:
     - pydantic
     - scipy
     - healpy
-    - ts-criopy
     - ts-xml {{ xml_version }}
     - ts-salobj {{ salobj_version }}
   source_files:
@@ -34,13 +34,13 @@ requirements:
     - numpy {{ numpy }}
     - pip
     - python {{ python }}
-    - setuptools
-    - setuptools_scm
+    - setuptools {{ setuptools }}
+    - setuptools_scm {{ setuptools_scm }}
   build:
     - numpy {{ numpy }}
     - python {{ python }}
-    - setuptools
-    - setuptools_scm
+    - setuptools {{ setuptools }}
+    - setuptools_scm {{ setuptools_scm }}
     - ts-conda-build =0.5
   run:
     - astroquery
@@ -50,7 +50,6 @@ requirements:
     - python {{ python }}
     - healpy
     - scipy
-    - ts-criopy
     - ts-xml
     - ts-salobj
 
