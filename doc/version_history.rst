@@ -8,6 +8,43 @@ Version History
 
 .. towncrier release notes start
 
+v0.48.0 (2026-01-29)
+====================
+
+New Features
+------------
+
+- Change random seed in mtcalsys PTC exposure time creation to datetime rather than date. (`DM-53736 <https://rubinobs.atlassian.net/browse/DM-53736>`_)
+- Added exp_list_start_idx to mtcalsys_yaml PTC configuration so that the exposure list can be started part way through in the event that a random seed is started again. (`DM-53736 <https://rubinobs.atlassian.net/browse/DM-53736>`_)
+- Making flatfield_electrometer default to true in mtcalsys_schema.yaml (`RSO-77 <https://rubinobs.atlassian.net/browse/RSO-77>`_)
+- Added check for installed filter in mtcalsys. (`RSO-78 <https://rubinobs.atlassian.net/browse/RSO-78>`_)
+- Added daily sequences for single LED flats for z and y band in mtcalsys.yaml. (`RSO-78 <https://rubinobs.atlassian.net/browse/RSO-78>`_)
+- Added sequences to mtcalsys.yaml for Electrometer PTC test case BLOCK-T682. (`RSO-92 <https://rubinobs.atlassian.net/browse/RSO-92>`_)
+
+
+Bug Fixes
+---------
+
+- Prevent premature mirror cover opening by hardening the dome shutter wait:
+
+  * Added MotionState-based helpers in ``MTCS``:
+    * ``wait_for_shutter_open_state(timeout)`` waits until both leaves are in {``OPEN``, ``STOPPED_BRAKED``}.
+    * ``wait_for_shutter_close_state(timeout)`` waits until both leaves are in {``CLOSED``, ``STOPPED_BRAKED``}.
+  * ``open_dome_shutter`` and ``close_dome`` now call these helpers as the single source of truth for shutter final state. (`DM-53044 <https://rubinobs.atlassian.net/browse/DM-53044>`_)
+
+
+Other Changes and Additions
+---------------------------
+
+- Updated conda recipe. (`OSW-1715 <https://rubinobs.atlassian.net/browse/OSW-1715>`_)
+- Minor changes to ATCS mock and unit tests to reduce test time. (`OSW-1715 <https://rubinobs.atlassian.net/browse/OSW-1715>`_)
+- Updated the default MTCS on-sky open positions used by ``prepare_for_onsky``:
+
+  * Dome opens at Az=150 deg.
+  * TMA slews to Az=150 deg, El=70 deg. (`OSW-1719 <https://rubinobs.atlassian.net/browse/OSW-1719>`_)
+- In ``atcs.py``, disable azimuth overslew feature. (`OSW-1756 <https://rubinobs.atlassian.net/browse/OSW-1756>`_)
+
+
 v0.47.0 (2026-01-09)
 ====================
 

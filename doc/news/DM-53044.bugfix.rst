@@ -1,6 +1,0 @@
-Prevent premature mirror cover opening by hardening the dome shutter wait:
-
-* Added MotionState-based helpers in ``MTCS``:
-  * ``wait_for_shutter_open_state(timeout)`` waits until both leaves are in {``OPEN``, ``STOPPED_BRAKED``}.
-  * ``wait_for_shutter_close_state(timeout)`` waits until both leaves are in {``CLOSED``, ``STOPPED_BRAKED``}.
-* ``open_dome_shutter`` and ``close_dome`` now call these helpers as the single source of truth for shutter final state.
