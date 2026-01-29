@@ -374,8 +374,8 @@ class ATCSAsyncMock(RemoteGroupAsyncMock):
         asyncio.create_task(self._atdome_move_azimuth(target_position))
 
     async def _atdome_move_azimuth(self, target_position: float) -> None:
-        dome_positions = np.arange(
-            self._atdome_position.azimuthPosition, target_position, 1.0
+        dome_positions = np.linspace(
+            self._atdome_position.azimuthPosition, target_position, 5
         )
         for position in dome_positions:
             self._atdome_position.azimuthPosition = position
