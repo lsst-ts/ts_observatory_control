@@ -13,9 +13,6 @@ dynamic = [ "version" ]
 [tools.setuptools]
 package-data = { "" = "*.csv"}
  
-[tool.setuptools.dynamic]
-version = { attr = "setuptools_scm.get_version" }
- 
 [tool.setuptools.packages.find]
 where = [ "python" ]
  
