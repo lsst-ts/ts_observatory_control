@@ -1,1 +1,0 @@
-Added exp_list_start_idx to mtcalsys_yaml PTC configuration so that the exposure list can be started part way through in the event that a random seed is started again. 
