@@ -1696,13 +1696,13 @@ class MTCS(BaseTCS):
         7. Enable M1M3 engineering mode and force balance system, then exit
         engineering mode.
         8. Enable camera cable wrap following.
-        9. Slew the telescope to the open position (az=150, el=70).
-           Rotator set to 0 deg.
-        10. Stop tracking.
-        11. Ensure mirror covers are closed before opening the dome.
-        12. Open the dome shutter.
-        13. Open the mirror covers.
-        14. Enable hexapod compensation mode if not ignored.
+        9. Enable hexapod compensation mode if not ignored.
+        10. Slew the telescope to the open position (az=150, el=70).
+            Rotator set to 0 deg.
+        11. Stop tracking.
+        12. Ensure mirror covers are closed before opening the dome.
+        13. Open the dome shutter.
+        14. Open the mirror covers.
         15. Enable dome following if not ignored.
 
         Parameters
@@ -1717,14 +1717,12 @@ class MTCS(BaseTCS):
 
         self._assert_critical_components_in_prepare_for_onsky()
 
-        # Slew dome to open position
         if self.check.mtdome:
             self.log.info("Slewing dome to open position.")
             await self.slew_dome_to(az=self.dome_open_az)
         else:
             self.log.warning("mtdome is ignored; skipping dome operations.")
 
-        # Ensure M2 balance system is enabled
         await self.enable_m2_balance_system()
 
         # Get telescope elevation and raise mirror if it is safe to do so.
@@ -1736,8 +1734,11 @@ class MTCS(BaseTCS):
 
         if not safe:
             raise RuntimeError(
-                f"Telescope El = {elevation} deg is below the minimum "
-                f"safe elevation to raise M1M3: {self.m1m3_tel_min_el_to_raise}."
+                f"Telescope elevation (El = {elevation} deg) is below the minimum "
+                f"safe elevation to raise M1M3 ({self.m1m3_tel_min_el_to_raise}). "
+                "Slew the telescope to a higher elevation using appropriate "
+                "safe/reduced-speed motion settings (with M1M3 lowered), then "
+                "rerun prepare_for_onsky."
             )
         else:
             self.log.info("Raising mirror.")
@@ -1748,13 +1749,30 @@ class MTCS(BaseTCS):
             timeout=self.home_both_axes_timeout
         )
 
-        # Enable m1m3 force balance system
+        self.log.info("Enabling M1M3 force balance system.")
         await self.enter_m1m3_engineering_mode()
         await self.enable_m1m3_balance_system()
         await self.exit_m1m3_engineering_mode()
 
         self.log.info("Ensuring CCW is following before slewing to open position.")
         await self.enable_ccw_following()
+
+        enabled_hexapods = [
+            component
+            for component in self.compensation_mode_components
+            if getattr(self.check, component, False)
+        ]
+        if enabled_hexapods:
+            self.log.info(
+                "Enabling hexapods compensation mode for: "
+                f"{', '.join(enabled_hexapods)}."
+            )
+            await asyncio.gather(
+                *[
+                    self.enable_compensation_mode(component)
+                    for component in enabled_hexapods
+                ]
+            )
 
         self.log.info("Slewing telescope to open position.")
         await self.point_azel(
@@ -1779,22 +1797,6 @@ class MTCS(BaseTCS):
 
         self.log.info("Opening mirror covers.")
         await self.open_m1_cover()
-
-        enabled_hexapods = [
-            component
-            for component in self.compensation_mode_components
-            if getattr(self.check, component, False)
-        ]
-        if enabled_hexapods:
-            self.log.info(
-                f"Enabling hexapods compensation mode for: {', '.join(enabled_hexapods)}."
-            )
-            await asyncio.gather(
-                *[
-                    self.enable_compensation_mode(component)
-                    for component in enabled_hexapods
-                ]
-            )
 
         if getattr(self.check, self.dome_trajectory_name):
             self.log.info("Enabling dome following mode.")
