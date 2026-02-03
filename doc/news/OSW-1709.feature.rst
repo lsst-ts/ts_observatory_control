@@ -1,0 +1,1 @@
+Add method in BaseCamera to reset guider_roi to None
