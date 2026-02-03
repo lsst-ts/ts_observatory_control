@@ -1304,8 +1304,136 @@ class TestMTCS(MTCSAsyncMock):
         self.mtcs.rem.mtdome.cmd_openShutter.start.assert_awaited()
 
     async def test_prepare_for_flatfield(self) -> None:
-        with pytest.raises(NotImplementedError):
+        await self.mtcs.enable()
+
+        original_check = copy.copy(self.mtcs.check)
+        self.mtcs.check = self.get_all_checks()
+
+        # Assert it raises if below safe elevation.
+        self._mtmount_tel_elevation.actualPosition = (
+            self.mtcs.m1m3_tel_min_el_to_raise - 5.0
+        )
+        self._mtdome_evt_shutter_motion.state = [
+            MTDome.MotionState.OPEN,
+            MTDome.MotionState.OPEN,
+        ]
+        with pytest.raises(RuntimeError):
+            with unittest.mock.patch.object(
+                self.mtcs,
+                "close_m1_cover",
+                new=unittest.mock.AsyncMock(),
+            ):
+                await self.mtcs.prepare_for_flatfield()
+
+        # Make shutter state look open so close_dome path is valid and keep
+        # the telescope above the safe elevation for raising M1M3.
+        self._mtdome_evt_shutter_motion.state = [
+            MTDome.MotionState.OPEN,
+            MTDome.MotionState.OPEN,
+        ]
+        # Start dome in a valid, non-parked state to exercise the park logic
+        # (and ensure flush gets called) while avoiding UNDETERMINED.
+        self._mtdome_evt_az_motion.state = MTDome.MotionState.MOVING
+        self._mtdome_evt_az_motion.inPosition = False
+        self._mtmount_tel_elevation.actualPosition = (
+            self.mtcs.m1m3_tel_min_el_to_raise + 5.0
+        )
+
+        try:
             await self.mtcs.prepare_for_flatfield()
+        finally:
+            self.mtcs.check = original_check
+
+        # Assert dome reaches the parked azimuth position
+        self.mtcs.rem.mtdome.evt_azMotion.flush.assert_called()
+        self.mtcs.rem.mtdome.cmd_park.start.assert_awaited_with(
+            timeout=self.mtcs.long_timeout
+        )
+
+        # Assert mtdome final state is PARKED
+        az_motion = await self.mtcs.rem.mtdome.evt_azMotion.aget(
+            timeout=self.mtcs.fast_timeout
+        )
+        assert self.mtcs.rem.mtdome.evt_azMotion.inPosition
+        assert az_motion.state == MTDome.MotionState.PARKED
+
+        # Assert dome following mode is disabled
+        self.mtcs.rem.mtdometrajectory.cmd_setFollowingMode.set_start.assert_awaited_with(
+            enable=False, timeout=self.mtcs.fast_timeout
+        )
+        assert not await self.mtcs.check_dome_following()
+
+        # Assert mtm2 balance system final state is set
+        assert self._mtm2_evt_force_balance_system_status.status
+
+        # Assert final state of dome shutter is CLOSED
+        assert self._mtdome_evt_shutter_motion.state == [
+            MTDome.MotionState.CLOSED,
+            MTDome.MotionState.CLOSED,
+        ]
+
+        # Assert mtm1m3 is raised
+        self.mtcs.rem.mtm1m3.cmd_raiseM1M3.set_start.assert_awaited_with(
+            raiseM1M3=True, timeout=self.mtcs.long_timeout
+        )
+        self.mtcs.rem.mtm1m3.evt_detailedState.next.assert_awaited_with(
+            flush=False, timeout=self.mtcs.long_timeout
+        )
+        assert self._mtm1m3_evt_detailed_state.detailedState in (
+            MTM1M3.DetailedStates.ACTIVE,
+            MTM1M3.DetailedStates.ACTIVEENGINEERING,
+        )
+
+        # Assert home both axes command is called
+        self.mtcs.rem.mtmount.cmd_homeBothAxes.start.assert_awaited_with(
+            timeout=self.mtcs.home_both_axes_timeout
+        )
+
+        # Assert m1m3 force balance system is enabled and not in eng mode
+        assert self._mtm1m3_evt_force_actuator_state.balanceForcesApplied
+        assert not await self.mtcs.is_m1m3_in_engineering_mode()
+
+        # Assert ccw is following
+        assert self._mtmount_evt_cameraCableWrapFollowing.enabled == 1
+
+        # Assert telescope pointed to flat target and rotator stationary
+        assert self._mtmount_tel_azimuth.actualPosition == self.mtcs.tel_flat_az
+        assert self._mtmount_tel_elevation.actualPosition == self.mtcs.tel_flat_el
+        assert self._mtrotator_tel_rotation.actualPosition == 0.0
+
+        # Assert not tracking, rotator stationary
+        assert (
+            self._mtmount_evt_azimuth_motion_state.state
+            == MTMount.AxisMotionState.STOPPED
+        )
+        assert (
+            self._mtmount_evt_elevation_motion_state.state
+            == MTMount.AxisMotionState.STOPPED
+        )
+        assert (
+            self._mtrotator_evt_controller_state.enabledSubstate
+            == MTRotator.EnabledSubstate.STATIONARY
+        )
+
+        # Assert mirror covers are open (retracted)
+        assert (
+            self._mtmount_evt_mirror_covers_motion_state.state
+            == MTMount.DeployableMotionState.RETRACTED
+        )
+
+        # Assert compensation mode is enabled
+        if getattr(self.mtcs.check, "mthexapod_1", False):
+            assert self._mthexapod_1_evt_compensation_mode.enabled
+        if getattr(self.mtcs.check, "mthexapod_2", False):
+            assert self._mthexapod_2_evt_compensation_mode.enabled
+
+        # Assert target command sent for flat configuration
+        self.mtcs.rem.mtptg.cmd_azElTarget.set.assert_called_with(
+            targetName="Flat Field",
+            azDegs=pytest.approx(self.mtcs.tel_flat_az),
+            elDegs=pytest.approx(self.mtcs.tel_flat_el),
+            rotPA=pytest.approx(0.0),
+        )
 
     async def test_prepare_for_onsky(self) -> None:
         await self.mtcs.enable()
