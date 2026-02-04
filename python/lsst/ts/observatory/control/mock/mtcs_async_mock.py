@@ -722,11 +722,12 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
         )
 
     async def mtdome_cmd_move_az(self, *args: typing.Any, **kwargs: typing.Any) -> None:
-        asyncio.create_task(self._mtdome_move_az())
+        asyncio.create_task(self._mtdome_move_az(*args, **kwargs))
 
     async def _mtdome_move_az(self, *args: typing.Any, **kwargs: typing.Any) -> None:
         # Mock implementation of dome park , unpark and slew_dome_to
         self.log.info("Dome moveAz command executed")
+        self._mtdome_tel_azimuth.positionCommanded = kwargs["position"]
         await asyncio.sleep(self.heartbeat_time * 2)
         # This wait time and Dome MotionSate MOVING is to mock the
         # test_unpark_dome
@@ -740,6 +741,7 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
         # expects at some point an ENABLED and inPosition.
         await asyncio.sleep(self.heartbeat_time * 3)
         self.log.info("Slew dome to azimuth command executed")
+        self._mtdome_tel_azimuth.positionActual = kwargs["position"]
         self._mtdome_evt_az_motion = types.SimpleNamespace(
             state=MTDome.MotionState.ENABLED, inPosition=True
         )
@@ -751,13 +753,19 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
         return self._mtdome_evt_az_motion
 
     async def mtdome_cmd_stop(self, *args: typing.Any, **kwargs: typing.Any) -> None:
-        asyncio.create_task(self._mtdome_stop())
+        asyncio.create_task(self._mtdome_stop(*args, **kwargs))
 
-    async def _mtdome_stop(self) -> None:
+    async def _mtdome_stop(self, *args: typing.Any, **kwargs: typing.Any) -> None:
         self.log.info("Stopping dome.")
-        self._mtdome_evt_az_motion.state = xml.enums.MTDome.MotionState.STOPPING_BRAKING
+        self._mtdome_evt_az_motion.state = getattr(
+            xml.enums.MTDome.MotionState,
+            "STOPPING_BRAKING" if kwargs["engageBrakes"] else "STOPPING",
+        )
         await asyncio.sleep(self.heartbeat_time * 10)
-        self._mtdome_evt_az_motion.state = xml.enums.MTDome.MotionState.STOPPED_BRAKED
+        self._mtdome_evt_az_motion.state = getattr(
+            xml.enums.MTDome.MotionState,
+            "STOPPED_BRAKED" if kwargs["engageBrakes"] else "STOPPED",
+        )
         self.log.info("Dome stopped.")
 
     async def mtdome_cmd_set_zero_az(
@@ -1366,11 +1374,15 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
     async def mthexapod_2_cmd_set_compensation_mode(
         self, *args: typing.Any, **kwargs: typing.Any
     ) -> None:
-        if self._mthexapod_2_evt_compensation_mode.enabled:
-            raise RuntimeError("Hexapod 2 compensation mode already enabled.")
+        target_compensation_mode = kwargs["enable"] == 1
+        if self._mthexapod_2_evt_compensation_mode.enabled == target_compensation_mode:
+            raise RuntimeError(
+                "Hexapod 2 compensation mode is already"
+                f" {'enabled' if target_compensation_mode else 'disabled'}."
+            )
         else:
             await asyncio.sleep(self.heartbeat_time)
-            self._mthexapod_2_evt_compensation_mode.enabled = True
+            self._mthexapod_2_evt_compensation_mode.enabled = target_compensation_mode
 
     async def mthexapod_1_cmd_move_in_steps(
         self, *args: typing.Any, **kwargs: typing.Any
