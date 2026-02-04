@@ -687,6 +687,20 @@ straylight_flats:
     - 30.0
     - 60.0  #this will need to be updated to give us ~100 counts
 
+mono_i_stability:
+  calib_type: Mono
+  laser_mode: 1
+  optical_configuration: F1 SCU
+  use_camera: True
+  mtcamera_filter: i_39
+  wavelength_list: [780.0]
+  set_wavelength_range: true
+  use_fiberspectrograph_red: False
+  use_fiberspectrograph_blue: False
+  n_flat: 10
+  exposure_times:
+    - 5.0 #this will need to be updated to give us ~100 counts
+
 scan_z_init:
   calib_type: Mono
   laser_mode: 1
