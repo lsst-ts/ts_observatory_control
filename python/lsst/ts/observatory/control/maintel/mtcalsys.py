@@ -201,7 +201,7 @@ class MTCalsys(BaseCalsys):
         # system is ready for flats.
         return True
 
-    async def setup_calsys(self, sequence_name: str) -> None:
+    async def preparesys(self, sequence_name: str) -> None:
         """Setup the calibration system.
 
         If monochromatic flats, check that laser can be enabled,
