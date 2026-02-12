@@ -875,8 +875,8 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
         note : `str`
             Optional observer note to be added to the image header.
         checkpoint : `coro`
-            A optional awaitable callback that accepts one string argument
-            that is called before each bias is taken.
+            An awaitable callback that accepts one string argument
+            that is called to shift the focus.
         **kwargs
             Arbitrary keyword arguments.
 
@@ -1388,9 +1388,6 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
         else:
             self.log.debug(f"imagetype: {imgtype}, skip TCS synchronization.")
 
-        if checkpoint is not None:
-            await checkpoint(f"Expose {n} {imgtype}")
-
         camera_exposure = CameraExposure(
             exp_time=exptime if imgtype != "BIAS" else 0.0,
             shutter=imgtype not in ["BIAS", "DARK"],
@@ -1400,6 +1397,7 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
             n_snaps=n_snaps,
             n_shift=n_shift,
             row_shift=row_shift,
+            checkpoint=checkpoint,
             test_type=test_type,
             reason=reason,
             program=program,
@@ -1814,6 +1812,10 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
         assert isinstance(camera_exposure.n_shift, int)
 
         for i in range(camera_exposure.n_shift - 1):
+            if (camera_exposure.checkpoint is not None) and (i % 2 == 1):
+                # shift focus on odd numbered shifts
+                await camera_exposure.checkpoint("Shifting hexapod z")
+
             self.log.debug(
                 f"Exposing {i+1} of {camera_exposure.n_shift} for {camera_exposure.exp_time} seconds."
             )
