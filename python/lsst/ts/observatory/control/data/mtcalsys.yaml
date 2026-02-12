@@ -1,6 +1,25 @@
 # Configuration for calibration hardware setup
 # Created 2024-07-15
 
+setup_cbp:
+  mtcamera_filter: g_6
+  wavelength: 545
+  cbp_mask: 1
+  cbp_rotation: 96.5
+  cbp_azimuth: -0.05
+  cbp_elevation: -46.5
+  cbp_focus: 3800
+  exposure_times:
+    - 30.0
+  use_cbp_electrometer: True
+  use_flatfield_electrometer: False
+  laser_mode: 1
+  optical_configuration: F2 SCU
+  calib_type: CBP
+  electrometer_mode: 'CHARGE'
+  electrometer_integration_time: 1
+  electrometer_range: 0.0000002
+
 cbp_g_leak:
   mtcamera_filter: g_6
   wavelength: 1100.0
