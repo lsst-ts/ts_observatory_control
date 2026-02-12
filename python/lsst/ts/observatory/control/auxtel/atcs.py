@@ -444,11 +444,6 @@ class ATCS(BaseTCS):
                 wait_dome=False,
             )
 
-            try:
-                await self.stop_tracking()
-            except asyncio.TimeoutError:
-                self.log.debug("Timeout in stopping tracking. Continuing.")
-
             await self.slew_dome_to(self.dome_flat_az, check_ops)
         finally:
             # recover check
