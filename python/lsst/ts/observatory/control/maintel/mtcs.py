@@ -1024,7 +1024,13 @@ class MTCS(BaseTCS):
         check.mtdometrajectory = wait_dome and self.check.mtdometrajectory
         return check
 
-    async def slew_dome_to(self, az: float, check: typing.Any = None) -> None:
+    async def slew_dome_to(
+        self,
+        az: float,
+        check: typing.Any = None,
+        *,
+        timeout: float | None = None,
+    ) -> None:
         """Utility method to slew dome to a specified position.
 
         Parameters
@@ -1033,6 +1039,9 @@ class MTCS(BaseTCS):
             Azimuth angle for the dome (in deg).
         check : `types.SimpleNamespace` or `None`
             Override `self.check` for defining which resources are used.
+        timeout : `float`, optional
+            How long to wait for dome to arrive in position.
+            Defaults to ``self.move_dome_timeout`` if not provided.
 
         Raises
         ------
@@ -1051,6 +1060,9 @@ class MTCS(BaseTCS):
                     f"from the ignore list."
                 )
 
+        if timeout is None:
+            timeout = self.move_dome_timeout
+
         self.log.info(f"Slewing MT dome to position az = {az}.")
         await self.assert_all_enabled()
 
@@ -1066,7 +1078,7 @@ class MTCS(BaseTCS):
         # Wait for MT Dome to reach final position
         await self._handle_in_position(
             self.rem.mtdome.evt_azMotion,
-            timeout=self.move_dome_timeout,
+            timeout=timeout,
             settle_time=self.tel_settle_time,
             component_name="MTDome",
         )
