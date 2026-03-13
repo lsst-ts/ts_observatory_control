@@ -522,7 +522,20 @@ class ATCS(BaseTCS):
     async def stop_dome(self) -> None:
         """Stop all dome motion."""
 
-        await self.rem.atdome.cmd_stopMotion.start(timeout=self.fast_timeout)
+        for i in range(self._dome_slew_max_iter):
+
+            try:
+                await self.rem.atdome.cmd_stopMotion.start(timeout=self.fast_timeout)
+            except salobj.AckTimeoutError:
+                self.log.info(
+                    "Timeout trying to stop dome motion. Attempt {i+1} of {self._dome_slew_max_iter}."
+                )
+            else:
+                break
+        else:
+            raise RuntimeError(
+                "Failed to stop dome motion. Command timed out in all {self._dome_slew_max_iter} attempts."
+            )
 
     async def prepare_for_vent(self, partially_open_dome: bool = False) -> None:
         """Prepare Auxiliary Telescope for venting.
