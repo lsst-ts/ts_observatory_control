@@ -825,7 +825,7 @@ whitelight_g_6_M385L3:
   led_focus: 9.42
   n_flat: 20
   exposure_times:
-    - 10.0
+    - 30.0
 
 whitelight_i_39_M730L5:
   mtcamera_filter: i_39
@@ -849,7 +849,7 @@ whitelight_r_57_M730L5:
   led_focus: 7.15
   n_flat: 20
   exposure_times:
-    - 10.0
+    - 30.0
 
 whitelight_i_39_M730L5_stability:
   mtcamera_filter: i_39
@@ -885,7 +885,7 @@ whitelight_z_20_M810L3:
   led_focus: 6.94
   n_flat: 20
   exposure_times:
-    - 10.0
+    - 30.0
 
 whitelight_g_6_M455L4:
   mtcamera_filter: g_6
@@ -921,7 +921,7 @@ whitelight_r_57_M505L4:
   led_focus: 8.12
   n_flat: 20
   exposure_times:
-    - 20.0
+    - 30.0
 
 whitelight_g_6_M565L3:
   mtcamera_filter: g_6
@@ -933,7 +933,7 @@ whitelight_g_6_M565L3:
   led_focus: 7.79
   n_flat: 20
   exposure_times:
-    - 20.0
+    - 30.0
 
 whitelight_r_57_M565L3:
   mtcamera_filter: r_57
@@ -969,7 +969,7 @@ whitelight_i_39_M660L4:
   led_focus: 7.52
   n_flat: 20
   exposure_times:
-    - 10.0
+    - 30.0
 
 whitelight_i_39_M850L3:
   mtcamera_filter: i_39
@@ -981,7 +981,7 @@ whitelight_i_39_M850L3:
   led_focus: 6.85
   n_flat: 20
   exposure_times:
-    - 9.0
+    - 30.0
 
 whitelight_z_20_M850L3:
   mtcamera_filter: z_20
