@@ -182,6 +182,15 @@ class MTCalsys(BaseCalsys):
         self.linearstage_projector_pos_tolerance = 0.2
         self.led_focus_axis = 2
         self.linearstage_axis = 0
+        self.use_electrometer: bool = True
+        self.electrometers = {
+            "flatfield": self.electrometer_projector_index,
+            "cbp": self.electrometer_cbp_index,
+            "cbpcal": self.electrometer_cbpcal_index,
+        }
+        self.electrometer_names: list[str] | None = None
+        self.use_fiberspectrograph_blue: bool = False
+        self.use_fiberspectrograph_red: bool = False
 
         self.laser_enclosure_temp = 20.0  # C
         self.laser_warmup = 20.0  # sec
@@ -221,6 +230,22 @@ class MTCalsys(BaseCalsys):
 
         calibration_type = getattr(CalibrationType, str(config_data["calib_type"]))
 
+        if self.use_electrometer:
+            electrometer_names = []
+            for name, index in self.electrometers.items():
+                if config_data[f"use_{name}_electrometer"]:
+                    electrometer_names.append(f"electrometer_{index}")
+
+            if len(electrometer_names) > 0:
+                self.electrometer_names = electrometer_names
+
+            await self.setup_electrometers(
+                mode=str(config_data["electrometer_mode"]),
+                range=float(config_data["electrometer_range"]),
+                integration_time=float(config_data["electrometer_integration_time"]),
+                electrometer_names=self.electrometer_names,
+            )
+
         if calibration_type == CalibrationType.CBP:
             if config_data["use_cbp"]:
                 await self.setup_cbp(
@@ -229,23 +254,6 @@ class MTCalsys(BaseCalsys):
                     mask=config_data["cbp_mask"],
                     focus=config_data["cbp_focus"],
                     rotation=config_data["cbp_rotation"],
-                )
-
-            if config_data["use_cbp_electrometer"]:
-                if config_data["use_cbpcal_electrometer"]:
-                    electrometer_names = [
-                        f"electrometer_{self.electrometer_cbp_index}",
-                        f"electrometer_{self.electrometer_cbpcal_index}",
-                    ]
-                else:
-                    electrometer_names = [f"electrometer_{self.electrometer_cbp_index}"]
-                await self.setup_electrometers(
-                    mode=str(config_data["electrometer_mode"]),
-                    range=float(config_data["electrometer_range"]),
-                    integration_time=float(
-                        config_data["electrometer_integration_time"]
-                    ),
-                    electrometer_names=electrometer_names,
                 )
 
             await self.setup_laser(
@@ -257,18 +265,6 @@ class MTCalsys(BaseCalsys):
             await self.laser_start_propagate()
 
         else:
-
-            if config_data["use_flatfield_electrometer"]:
-                await self.setup_electrometers(
-                    mode=str(config_data["electrometer_mode"]),
-                    range=float(config_data["electrometer_range"]),
-                    integration_time=float(
-                        config_data["electrometer_integration_time"]
-                    ),
-                    electrometer_names=[
-                        f"electrometer_{self.electrometer_projector_index}"
-                    ],
-                )
 
             # Home all linear stages.
             await self.linearstage_projector_select.cmd_getHome.set_start(
@@ -1083,26 +1079,25 @@ class MTCalsys(BaseCalsys):
 
                 electrometer_exptime = (
                     await self._calculate_electrometer_exposure_times(
-                        exptimes=[exptime],
+                        exptimes=config_data["exposure_times"],
                         electrometer_integration_time=config_data[
                             "electrometer_integration_time"
                         ],
-                        use_electrometer=config_data["use_flatfield_electrometer"]
-                        or config_data["use_cbp_electrometer"],
+                        use_electrometer=self.use_electrometer,
                     )
                 )
 
                 fiberspectrograph_exptime_red = (
                     await self._calculate_fiberspectrograph_exposure_times(
-                        exptimes=[exptime],
-                        use_fiberspectrograph=config_data["use_fiberspectrograph_red"],
+                        exptimes=config_data["exposure_times"],
+                        use_fiberspectrograph=self.use_fiberspectrograph_red,
                     )
                 )
 
                 fiberspectrograph_exptime_blue = (
                     await self._calculate_fiberspectrograph_exposure_times(
-                        exptimes=[exptime],
-                        use_fiberspectrograph=config_data["use_fiberspectrograph_blue"],
+                        exptimes=config_data["exposure_times"],
+                        use_fiberspectrograph=self.use_fiberspectrograph_blue,
                     )
                 )
 
@@ -1385,6 +1380,22 @@ class MTCalsys(BaseCalsys):
                 )
             }
 
+    async def _resolve_electrometers(self, sequence_name: str | None) -> list:
+        if self.electrometer_names is None:
+            names = []
+
+            if sequence_name is not None:
+                config_data = self.get_calibration_configuration(sequence_name)
+                for name, index in self.electrometers.items():
+                    if config_data[f"use_{name}_electrometer"]:
+                        names.append(f"electrometer_{index}")
+            else:
+                names.append(f"electrometer_{self.electrometer_projector_index}")
+
+            self.electrometer_names = names
+
+        return [getattr(self.rem, name) for name in self.electrometer_names]
+
     async def take_electrometer_scan(
         self,
         exposure_time: float | None,
@@ -1411,34 +1422,49 @@ class MTCalsys(BaseCalsys):
             List of large file urls.
         """
 
-        electrometer_exposures = list()
+        electrometer_exposures: list[str] = []
 
-        if calibration_type == CalibrationType.CBP:
-            if cbp_cal:
-                electrometer = self.electrometer_cbpcal
-            else:
-                electrometer = self.electrometer_cbp
-        else:
-            electrometer = self.electrometer_flatfield
+        electrometers = await self._resolve_electrometers(sequence_name)
 
         if exposure_time is not None:
-            electrometer.evt_largeFileObjectAvailable.flush()
 
-            try:
-                await electrometer.cmd_startScanDt.set_start(
+            # Flush all first
+            for electrometer in electrometers:
+                electrometer.evt_largeFileObjectAvailable.flush()
+
+            # Start all scans
+            scan_tasks = [
+                electrometer.cmd_startScanDt.set_start(
                     scanDuration=exposure_time,
                     groupId=group_id,
                     timeout=exposure_time + self.long_timeout,
                 )
-            except salobj.AckTimeoutError:
-                self.log.exception("Timed out waiting for the command ack. Continuing.")
+                for electrometer in electrometers
+            ]
 
-            # Make sure that a new lfo was created
-            try:
-                lfo = await electrometer.evt_largeFileObjectAvailable.next(
+            scan_results = await asyncio.gather(*scan_tasks, return_exceptions=True)
+
+            for result in scan_results:
+                if isinstance(result, salobj.AckTimeoutError):
+                    self.log.exception("Timed out waiting for command ack.")
+
+            # Wait for all LFOs
+            lfo_tasks = [
+                electrometer.evt_largeFileObjectAvailable.next(
                     timeout=self.long_timeout, flush=False
                 )
-                electrometer_exposures.append(lfo.url)
+                for electrometer in electrometers
+            ]
+
+            try:
+                results = await asyncio.gather(*lfo_tasks, return_exceptions=True)
+
+                for result in results:
+                    if isinstance(result, Exception):
+                        self.log.warning("Electrometer LFO timeout.")
+                    assert not isinstance(result, BaseException)
+                    electrometer_exposures.append(result.url)
+
             except asyncio.TimeoutError:
                 # TODO (DM-44634): Remove this work around to electrometer
                 # going to FAULT when issue is resolved.
@@ -1450,26 +1476,16 @@ class MTCalsys(BaseCalsys):
                 await salobj.set_summary_state(electrometer, salobj.State.ENABLED)
                 if sequence_name is not None:
                     config_data = self.get_calibration_configuration(sequence_name)
-                    if config_data["use_flatfield_electrometer"]:
-                        electrometer_name = (
-                            f"electrometer_{self.electrometer_projector_index}"
+
+                    if self.use_electrometer:
+                        await self.setup_electrometers(
+                            mode=str(config_data["electrometer_mode"]),
+                            range=float(config_data["electrometer_range"]),
+                            integration_time=float(
+                                config_data["electrometer_integration_time"]
+                            ),
+                            electrometer_names=self.electrometer_names,
                         )
-                    elif cbp_cal:
-                        electrometer_name = (
-                            f"electrometer_{self.electrometer_cbpcal_index}"
-                        )
-                    elif config_data["use_cbp_electrometer"]:
-                        electrometer_name = (
-                            f"electrometer_{self.electrometer_cbp_index}"
-                        )
-                    await self.setup_electrometers(
-                        mode=str(config_data["electrometer_mode"]),
-                        range=float(config_data["electrometer_range"]),
-                        integration_time=float(
-                            config_data["electrometer_integration_time"]
-                        ),
-                        electrometer_names=[electrometer_name],
-                    )
 
         return electrometer_exposures
 
