@@ -815,8 +815,32 @@ whitelight_u_24_M385L3:
   exposure_times:
     - 10.0
 
+whitelight_g_6_M385L3:
+  mtcamera_filter: g_6
+  led_name: 
+    - M385L3
+  dac_value: 1.0
+  wavelength: 385.0
+  led_location: 174.18
+  led_focus: 9.42
+  n_flat: 20
+  exposure_times:
+    - 10.0
+
 whitelight_i_39_M730L5:
   mtcamera_filter: i_39
+  led_name:
+    - M730L5
+  dac_value: 0.8
+  wavelength: 730.0
+  led_location: 233.91
+  led_focus: 7.15
+  n_flat: 20
+  exposure_times:
+    - 10.0
+
+whitelight_r_57_M730L5:
+  mtcamera_filter: r_57
   led_name:
     - M730L5
   dac_value: 0.8
@@ -851,6 +875,18 @@ whitelight_i_39_M810L3:
   exposure_times:
     - 10.0
 
+whitelight_z_20_M810L3:
+  mtcamera_filter: z_20
+  led_name:
+    - M810L3
+  dac_value: 0.8
+  wavelength: 810.
+  led_location: 233.71
+  led_focus: 6.94
+  n_flat: 20
+  exposure_times:
+    - 10.0
+
 whitelight_g_6_M455L4:
   mtcamera_filter: g_6
   led_name:
@@ -871,6 +907,30 @@ whitelight_g_6_M505L4:
   wavelength: 505.0
   led_location: 5.48
   led_focus: 8.12
+  n_flat: 20
+  exposure_times:
+    - 20.0
+
+whitelight_r_57_M505L4:
+  mtcamera_filter: r_57
+  led_name:
+    - M505L4
+  dac_value: 1.0
+  wavelength: 505.0
+  led_location: 5.48
+  led_focus: 8.12
+  n_flat: 20
+  exposure_times:
+    - 20.0
+
+whitelight_g_6_M565L3:
+  mtcamera_filter: g_6
+  led_name:
+    - M565L3
+  dac_value: 1.0
+  wavelength: 565.0
+  led_location: 67.14
+  led_focus: 7.79
   n_flat: 20
   exposure_times:
     - 20.0
@@ -898,6 +958,30 @@ whitelight_r_57_M660L4:
   n_flat: 20
   exposure_times:
     - 10.0
+
+whitelight_i_39_M660L4:
+  mtcamera_filter: i_39
+  led_name:
+    - M660L4
+  dac_value: 1.0
+  wavelength: 660.0
+  led_location: 66.87
+  led_focus: 7.52
+  n_flat: 20
+  exposure_times:
+    - 10.0
+
+whitelight_i_39_M850L3:
+  mtcamera_filter: i_39
+  led_name:
+    - M850L3
+  dac_value: 1.0
+  wavelength: 850.0
+  led_location: 295.61
+  led_focus: 6.85
+  n_flat: 20
+  exposure_times:
+    - 9.0
 
 whitelight_z_20_M850L3:
   mtcamera_filter: z_20
