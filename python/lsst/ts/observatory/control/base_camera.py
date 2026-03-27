@@ -1653,7 +1653,7 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
             float(camera_exposure.exp_time) + self.read_out_time
         ) * camera_exposure.n + self.long_long_timeout
 
-        await self.wait_for_camera_readiness()
+        # await self.wait_for_camera_readiness()
         await self.wait_for_camera_state(substate=CameraSubstate.IDLE)
         await self.camera.cmd_takeImages.start(timeout=take_images_timeout)
 
