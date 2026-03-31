@@ -267,6 +267,10 @@ class TestATCalsys(RemoteGroupAsyncMock):
             assert len(latiss_exposure_info["electrometer_exposure_result"]) >= 1
             assert len(latiss_exposure_info["fiber_spectrum_exposure_result"]) >= 1
 
+        entries = await self.atcalsys.exposure_log.get_entries()
+        assert len(entries) == len(calibration_summary["steps"])
+        assert all(e["status"] == "success" for e in entries)
+
     async def test_run_calibration_sequence_mono(self) -> None:
 
         mock_latiss = LATISS(
@@ -314,3 +318,35 @@ class TestATCalsys(RemoteGroupAsyncMock):
         self.atcalsys.rem.atmonochromator.cmd_changeWavelength.set_start.assert_has_awaits(
             expected_change_wavelegths_calls
         )
+
+        entries = await self.atcalsys.exposure_log.get_entries()
+        assert len(entries) == len(calibration_summary["steps"])
+        assert all(e["status"] == "success" for e in entries)
+
+    async def test_exposure_log_on_failure(self) -> None:
+        """Verify that run_calibration_sequence records
+        a failed entry in the exposure log when _take_data
+        raises an exception.
+        """
+        mock_latiss = LATISS(
+            "FakeDomain", log=self.log, intended_usage=LATISSUsages.DryTest
+        )
+        mock_latiss.take_flats = unittest.mock.AsyncMock(
+            side_effect=RuntimeError("Camera error")
+        )
+        self.atcalsys.latiss = mock_latiss
+
+        try:
+            result = await self.atcalsys.run_calibration_sequence(
+                "at_whitelight_r", exposure_metadata=dict()
+            )
+        finally:
+            self.atcalsys.latiss = None
+
+        assert len(result["steps"]) > 0
+        assert all("error" in step for step in result["steps"])
+
+        entries = await self.atcalsys.exposure_log.get_entries()
+        assert len(entries) > 0
+        assert all(e["status"] == "failed" for e in entries)
+        assert all("Camera error" in e["error_message"] for e in entries)

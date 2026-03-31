@@ -283,6 +283,10 @@ class TestMTCalsys(RemoteGroupAsyncMock):
         ].values():
             assert len(mtcamera_exposure_info["electrometer_exposure_result"]) == 1
 
+        entries = await self.mtcalsys.exposure_log.get_entries()
+        assert len(entries) == len(calibration_summary["steps"])
+        assert all(e["status"] == "success" for e in entries)
+
     async def test_run_calibration_sequence_ptc(self) -> None:
 
         mock_lsst = ComCam(
@@ -321,6 +325,10 @@ class TestMTCalsys(RemoteGroupAsyncMock):
             "mtcamera_exposure_info"
         ].values():
             assert len(mtcamera_exposure_info["electrometer_exposure_result"]) == 1
+
+        entries = await self.mtcalsys.exposure_log.get_entries()
+        assert len(entries) == len(calibration_summary["steps"])
+        assert all(e["status"] == "success" for e in entries)
 
     async def test_run_calibration_sequence_mono(self) -> None:
 
@@ -377,6 +385,10 @@ class TestMTCalsys(RemoteGroupAsyncMock):
         for wavelength in calibration_wavelengths:
             await self.mtcalsys.change_laser_wavelength(wavelength=wavelength)
 
+        entries = await self.mtcalsys.exposure_log.get_entries()
+        assert len(entries) == len(calibration_summary["steps"])
+        assert all(e["status"] == "success" for e in entries)
+
     async def test_run_calibration_sequence_cbp(self) -> None:
 
         mock_lsst = ComCam(
@@ -429,3 +441,7 @@ class TestMTCalsys(RemoteGroupAsyncMock):
             assert len(mtcamera_exposure_info["electrometer_exposure_result"]) >= 1
         for wavelength in calibration_wavelengths:
             await self.mtcalsys.change_laser_wavelength(wavelength=wavelength)
+
+        entries = await self.mtcalsys.exposure_log.get_entries()
+        assert len(entries) == len(calibration_summary["steps"])
+        assert all(e["status"] == "success" for e in entries)

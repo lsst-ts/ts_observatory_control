@@ -27,12 +27,14 @@ import logging
 import typing
 
 import jsonschema
+import numpy as np
 import yaml
 from lsst.ts import salobj
 from lsst.ts.xml.enums.Electrometer import UnitToRead
 
+from .exposure_log import ExposureLog
 from .remote_group import RemoteGroup
-from .utils import get_data_path
+from .utils import CalibrationType, get_data_path
 
 
 class BaseCalsys(RemoteGroup, metaclass=abc.ABCMeta):
@@ -73,6 +75,7 @@ class BaseCalsys(RemoteGroup, metaclass=abc.ABCMeta):
         )
 
         self.calibration_config: dict[str, dict[str, typing.Any]] = dict()
+        self.exposure_log = ExposureLog()
 
     async def setup_electrometers(
         self,
@@ -152,27 +155,6 @@ class BaseCalsys(RemoteGroup, metaclass=abc.ABCMeta):
         raise NotImplementedError()
 
     @abc.abstractmethod
-    async def run_calibration_sequence(
-        self, sequence_name: str, exposure_metadata: dict
-    ) -> dict:
-        """Perform full calibration sequence, taking flats with the
-        camera and all ancillary instruments.
-
-        Parameters
-        ----------
-        sequence_name : `str`
-            Name of the calibration sequence to execute.
-        exposure_metadata : `dict`
-            Metadata to be passed to the LATISS.take_flats method.
-
-        Returns
-        -------
-        calibration_summary : `dict`
-            Dictionary with summary information about the sequence.
-        """
-        raise NotImplementedError()
-
-    @abc.abstractmethod
     async def calculate_optimized_exposure_times(
         self, wavelengths: list, config_data: dict
     ) -> list:
@@ -195,6 +177,247 @@ class BaseCalsys(RemoteGroup, metaclass=abc.ABCMeta):
         """
         # TO-DO: DM-44777
         raise NotImplementedError()
+
+    # ---- Exposure log helpers ----
+
+    async def register_exposure(self, exposure_id: str, wavelength: float) -> None:
+        """Register a new pending exposure in the log.
+
+        Parameters
+        ----------
+        exposure_id : `str`
+            Unique identifier for this exposure.
+        wavelength : `float`
+            Wavelength of the exposure in nm.
+        """
+        await self.exposure_log.add_entry(
+            exposure_id,
+            {"wavelength": wavelength, "status": "pending"},
+        )
+
+    async def mark_exposure_success(
+        self,
+        exposure_id: str,
+        metadata: dict[str, typing.Any] | None = None,
+    ) -> None:
+        """Mark an exposure as successful in the log.
+
+        Parameters
+        ----------
+        exposure_id : `str`
+            Unique identifier for the exposure.
+        metadata : `dict`, optional
+            Additional metadata to record alongside
+            the success status.
+        """
+        update: dict[str, typing.Any] = {"status": "success"}
+        if metadata:
+            update.update(metadata)
+        await self.exposure_log.update_entry(exposure_id, update)
+
+    async def mark_exposure_failed(self, exposure_id: str, error: Exception) -> None:
+        """Mark an exposure as failed in the log.
+
+        Parameters
+        ----------
+        exposure_id : `str`
+            Unique identifier for the exposure.
+        error : `Exception`
+            The exception that caused the failure.
+        """
+        await self.exposure_log.update_entry(
+            exposure_id,
+            {"status": "failed", "error_message": str(error)},
+        )
+
+    # ---- Template hooks for subclasses ----
+
+    def make_exposure_id(self, index: int, exposure: typing.Any) -> str:
+        """Build an exposure identifier.
+
+        Subclasses may override to include additional
+        information such as wavelength.
+
+        Parameters
+        ----------
+        index : `int`
+            Zero-based index of the exposure in the
+            sequence.
+        exposure : exposure dataclass
+            The exposure dataclass instance (e.g.
+            ATCalsysExposure or MTCalsysExposure).
+
+        Returns
+        -------
+        exposure_id : `str`
+            A unique string identifier for this exposure.
+        """
+        return f"exposure_{index + 1}"
+
+    def compute_calibration_wavelengths(
+        self,
+        calibration_type: CalibrationType,
+        config_data: dict[str, typing.Any],
+    ) -> np.ndarray:
+        """Compute the array of wavelengths for a
+        calibration sequence.
+
+        Subclasses may override for telescope-specific
+        wavelength logic.
+
+        .. note::
+            ATCalsys uses ``wavelength_end + resolution``
+            (inclusive), MTCalsys uses ``wavelength_end``
+            (exclusive) in ``np.arange``. If the configs
+            are homogenized (e.g. adding
+            ``set_wavelength_range`` to ATCalsys schema),
+            the MTCalsys override could replace this
+            base implementation and serve both without
+            subclass overrides.
+
+        Parameters
+        ----------
+        calibration_type : `CalibrationType`
+            The type of calibration being performed.
+        config_data : `dict`
+            The calibration configuration dictionary.
+
+        Returns
+        -------
+        wavelengths : `np.ndarray`
+            Array of calibration wavelengths in nm.
+        """
+        if calibration_type == CalibrationType.WhiteLight:
+            return np.array([float(config_data["wavelength"])])
+
+        wavelength = float(config_data["wavelength"])
+        wavelength_width = float(config_data["wavelength_width"])
+        wavelength_resolution = float(config_data["wavelength_resolution"])
+        wavelength_start = wavelength - wavelength_width / 2.0
+        wavelength_end = wavelength + wavelength_width / 2.0
+
+        return np.arange(
+            wavelength_start,
+            wavelength_end + wavelength_resolution,
+            wavelength_resolution,
+        )
+
+    @abc.abstractmethod
+    async def execute_exposure_step(
+        self,
+        exposure: typing.Any,
+        exposure_metadata: dict,
+        config_data: dict[str, typing.Any],
+        calibration_type: CalibrationType,
+        sequence_name: str,
+    ) -> dict:
+        """Execute a single exposure step.
+
+        This method contains all subclass-specific logic:
+        hardware pre-steps (wavelength changes, LED
+        adjustments, etc.) and the call to ``_take_data``.
+
+        Parameters
+        ----------
+        exposure : exposure dataclass
+            The exposure dataclass instance containing
+            wavelength, camera exposure time, and
+            ancillary instrument exposure times.
+        exposure_metadata : `dict`
+            Metadata to pass to the camera take_flats
+            method (group_id, reason, program, etc.).
+        config_data : `dict`
+            The full calibration configuration dictionary.
+        calibration_type : `CalibrationType`
+            The type of calibration being performed.
+        sequence_name : `str`
+            Name of the calibration sequence.
+
+        Returns
+        -------
+        step : `dict`
+            Dictionary with step summary information to
+            be appended to the calibration summary.
+        """
+        raise NotImplementedError()
+
+    async def run_calibration_sequence(
+        self, sequence_name: str, exposure_metadata: dict
+    ) -> dict:
+        """Perform full calibration sequence with exposure
+        log tracking.
+
+        Handles the shared loop, metadata, and exposure
+        log bookkeeping. Subclass-specific hardware
+        interaction is delegated to
+        ``execute_exposure_step``.
+
+        Parameters
+        ----------
+        sequence_name : `str`
+            Name of the calibration sequence to execute.
+        exposure_metadata : `dict`
+            Metadata for exposures (group_id, reason,
+            program, note, etc.).
+
+        Returns
+        -------
+        calibration_summary : `dict`
+            Dictionary with summary information about the
+            sequence, including exposure log entries.
+        """
+        calibration_summary: dict = dict(
+            steps=[],
+            sequence_name=sequence_name,
+        )
+
+        config_data = self.get_calibration_configuration(sequence_name)
+        calibration_type = getattr(CalibrationType, str(config_data["calib_type"]))
+
+        calibration_wavelengths = self.compute_calibration_wavelengths(
+            calibration_type, config_data
+        )
+
+        exposure_table = await self.calculate_optimized_exposure_times(
+            wavelengths=calibration_wavelengths, config_data=config_data
+        )
+
+        await self.exposure_log.clear()
+
+        for i, exposure in enumerate(exposure_table):
+            self.log.debug(
+                f"Performing {calibration_type.name} calibration with {exposure.wavelength=}."
+            )
+
+            exposure_id = self.make_exposure_id(i, exposure)
+            await self.register_exposure(exposure_id, exposure.wavelength)
+
+            _exposure_metadata = exposure_metadata.copy()
+            if "group_id" in _exposure_metadata:
+                _exposure_metadata["group_id"] += f"#{i+1}"
+
+            try:
+                step = await self.execute_exposure_step(
+                    exposure=exposure,
+                    exposure_metadata=_exposure_metadata,
+                    config_data=config_data,
+                    calibration_type=calibration_type,
+                    sequence_name=sequence_name,
+                )
+                await self.mark_exposure_success(exposure_id)
+            except Exception as e:
+                self.log.exception(
+                    f"Failed to take exposure at wavelength {exposure.wavelength}"
+                )
+                await self.mark_exposure_failed(exposure_id, e)
+                step = dict(
+                    wavelength=exposure.wavelength,
+                    error=str(e),
+                )
+
+            calibration_summary["steps"].append(step)
+
+        return calibration_summary
 
     def load_calibration_config_file(self, filename: str | None = None) -> None:
         """Load the calibration configuration file.
