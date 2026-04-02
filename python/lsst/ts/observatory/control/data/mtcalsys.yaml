@@ -875,6 +875,18 @@ whitelight_i_39_M810L3:
   exposure_times:
     - 10.0
 
+whitelight_z_20_M730L5:
+  mtcamera_filter: z_20
+  led_name:
+    - M730L5
+  dac_value: 0.8
+  wavelength: 730.0
+  led_location: 233.91
+  led_focus: 7.15
+  n_flat: 20
+  exposure_times:
+    - 30.0
+
 whitelight_z_20_M810L3:
   mtcamera_filter: z_20
   led_name:
