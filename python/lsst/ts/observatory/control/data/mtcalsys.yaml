@@ -12,7 +12,7 @@ cbp_g_leak:
   use_cbp_electrometer: True
   use_flatfield_electrometer: False
   laser_mode: 4
-  optical_configuration: F2 SCU
+  optical_configuration: F1 SCU
   calib_type: CBP
   electrometer_mode: 'CHARGE'
   electrometer_integration_time: 1
@@ -30,7 +30,7 @@ cbp_g_leak_unittest:
   use_cbp_electrometer: True
   use_flatfield_electrometer: False
   laser_mode: 4
-  optical_configuration: F2 SCU
+  optical_configuration: F1 SCU
   calib_type: CBP
   electrometer_mode: 'CHARGE'
   electrometer_integration_time: 1
@@ -48,7 +48,7 @@ cbp_u_leak:
   use_cbp_electrometer: True
   use_flatfield_electrometer: False
   laser_mode: 4
-  optical_configuration: F2 SCU
+  optical_configuration: F1 SCU
   calib_type: CBP
   electrometer_mode: 'CHARGE'
   electrometer_integration_time: 1
@@ -67,7 +67,7 @@ cbp_g:
   use_flatfield_electrometer: False
   laser_mode: 4
   laser_wait_time: 10
-  optical_configuration: F2 SCU
+  optical_configuration: F1 SCU
   calib_type: CBP
   electrometer_mode: 'CHARGE'
   electrometer_integration_time: 1
@@ -84,7 +84,7 @@ cbp_u_24:
   use_cbp_electrometer: True
   use_flatfield_electrometer: False
   laser_mode: 4
-  optical_configuration: F2 SCU
+  optical_configuration: F1 SCU
   calib_type: CBP
   electrometer_mode: 'CHARGE'
   electrometer_integration_time: 1
@@ -101,7 +101,7 @@ cbp_none_leak:
   use_cbp_electrometer: True
   use_flatfield_electrometer: False
   laser_mode: 4
-  optical_configuration: F2 SCU
+  optical_configuration: F1 SCU
   calib_type: CBP
   electrometer_mode: 'CHARGE'
   electrometer_integration_time: 1
@@ -119,7 +119,7 @@ cbp_none_all:
   use_flatfield_electrometer: False
   laser_mode: 4
   laser_wait_time: 5
-  optical_configuration: F2 SCU
+  optical_configuration: F1 SCU
   calib_type: CBP
   electrometer_mode: 'CHARGE'
   electrometer_integration_time: 2
@@ -138,7 +138,7 @@ cbpcal_all:
   use_flatfield_electrometer: False
   laser_mode: 4
   laser_wait_time: 5
-  optical_configuration: F2 SCU
+  optical_configuration: F1 SCU
   calib_type: CBP
   electrometer_mode: 'CHARGE'
   electrometer_integration_time: 2
@@ -153,7 +153,7 @@ cbp_u_2nm:
   use_cbp_electrometer: True
   use_flatfield_electrometer: False
   laser_mode: 4
-  optical_configuration: F2 SCU
+  optical_configuration: F1 SCU
   calib_type: CBP
   electrometer_mode: 'CHARGE'
   electrometer_integration_time: 1
@@ -169,7 +169,7 @@ cbp_g_2nm:
   use_cbp_electrometer: True
   use_flatfield_electrometer: False
   laser_mode: 4
-  optical_configuration: F2 SCU
+  optical_configuration: F1 SCU
   calib_type: CBP
   electrometer_mode: 'CHARGE'
   electrometer_integration_time: 2
@@ -185,7 +185,7 @@ cbp_r_2nm:
   use_cbp_electrometer: True
   use_flatfield_electrometer: False
   laser_mode: 4
-  optical_configuration: F2 SCU
+  optical_configuration: F1 SCU
   calib_type: CBP
   electrometer_mode: 'CHARGE'
   electrometer_integration_time: 1
@@ -201,7 +201,7 @@ cbp_r_2nm_remainder:
   use_cbp_electrometer: True
   use_flatfield_electrometer: False
   laser_mode: 4
-  optical_configuration: F2 SCU
+  optical_configuration: F1 SCU
   calib_type: CBP
   electrometer_mode: 'CHARGE'
   electrometer_integration_time: 1
@@ -217,7 +217,7 @@ cbp_i_2nm:
   use_cbp_electrometer: True
   use_flatfield_electrometer: False
   laser_mode: 4
-  optical_configuration: F2 SCU
+  optical_configuration: F1 SCU
   calib_type: CBP
   electrometer_mode: 'CHARGE'
   electrometer_integration_time: 1
@@ -233,7 +233,7 @@ cbp_z_2nm:
   use_cbp_electrometer: True
   use_flatfield_electrometer: False
   laser_mode: 4
-  optical_configuration: F2 SCU
+  optical_configuration: F1 SCU
   calib_type: CBP
   electrometer_mode: 'CHARGE'
   electrometer_integration_time: 1
@@ -249,7 +249,7 @@ cbp_y_2nm:
   use_cbp_electrometer: True
   use_flatfield_electrometer: False
   laser_mode: 4
-  optical_configuration: F2 SCU
+  optical_configuration: F21SCU
   calib_type: CBP
   electrometer_mode: 'CHARGE'
   electrometer_integration_time: 1
@@ -515,7 +515,7 @@ whitelight_y_10_dark:
 scan_u_init:
   calib_type: Mono
   laser_mode: 1
-  optical_configuration: F1 SCU
+  optical_configuration: F2 SCU
   use_camera: True
   mtcamera_filter: u_24
   wavelength_list: [340.,350.,360.,370.]
@@ -526,7 +526,7 @@ scan_u_init:
 scan_g_init:
   calib_type: Mono
   laser_mode: 1
-  optical_configuration: F1 SCU
+  optical_configuration: F2 SCU
   use_camera: True
   mtcamera_filter: g_6
   wavelength_list: [400.,420.,440.,450.,470.,490.,510.,530.,550.]
@@ -537,7 +537,7 @@ scan_g_init:
 scan_r_init:
   calib_type: Mono
   laser_mode: 1
-  optical_configuration: F1 SCU
+  optical_configuration: F2 SCU
   use_camera: True
   mtcamera_filter: r_57
   wavelength_list: [550.,570.,590.,610.,630.,650.,670.,690.]
@@ -548,7 +548,7 @@ scan_r_init:
 scan_u:
   calib_type: Mono
   laser_mode: 1
-  optical_configuration: F1 SCU
+  optical_configuration: F2 SCU
   use_camera: True
   mtcamera_filter: u_24
   wavelength: 355.
@@ -561,7 +561,7 @@ scan_u:
 scan_g:
   calib_type: Mono
   laser_mode: 1
-  optical_configuration: F1 SCU
+  optical_configuration: F2 SCU
   use_camera: True
   mtcamera_filter: g_6
   wavelength: 480.0
@@ -574,7 +574,7 @@ scan_g:
 scan_r:
   calib_type: Mono
   laser_mode: 1
-  optical_configuration: F1 SCU
+  optical_configuration: F2 SCU
   use_camera: True
   mtcamera_filter: r_57
   wavelength: 620.0
@@ -587,7 +587,7 @@ scan_r:
 scan_r_unittest:
   calib_type: Mono
   laser_mode: 1
-  optical_configuration: F1 SCU
+  optical_configuration: F2 SCU
   use_camera: True
   mtcamera_filter: r_57
   wavelength: 625.0
@@ -600,7 +600,7 @@ scan_r_unittest:
 scan_i:
   calib_type: Mono
   laser_mode: 1
-  optical_configuration: F1 SCU
+  optical_configuration: F2 SCU
   use_camera: True
   mtcamera_filter: i_39
   wavelength: 755.0
@@ -613,7 +613,7 @@ scan_i:
 scan_z:
   calib_type: Mono
   laser_mode: 1
-  optical_configuration: F1 SCU
+  optical_configuration: F2 SCU
   use_camera: True
   mtcamera_filter: z_20
   wavelength: 870.0
@@ -626,7 +626,7 @@ scan_z:
 scan_y:
   calib_type: Mono
   laser_mode: 1
-  optical_configuration: F1 SCU
+  optical_configuration: F2 SCU
   use_camera: True
   mtcamera_filter: y_10
   wavelength: 1025.0
@@ -639,7 +639,7 @@ scan_y:
 scan_none:
   calib_type: Mono
   laser_mode: 1
-  optical_configuration: F1 SCU
+  optical_configuration: F2 SCU
   use_camera: True
   mtcamera_filter: NONE
   wavelength: 770
@@ -653,7 +653,7 @@ scan_none:
 scan_i_init:
   calib_type: Mono
   laser_mode: 1
-  optical_configuration: F1 SCU
+  optical_configuration: F2 SCU
   use_camera: True
   mtcamera_filter: i_39
   wavelength_list: [690.,710., 730., 750., 770., 790., 800.,820.]
@@ -664,7 +664,7 @@ scan_i_init:
 mono_i_stability:
   calib_type: Mono
   laser_mode: 1
-  optical_configuration: F1 SCU
+  optical_configuration: F2 SCU
   use_camera: True
   mtcamera_filter: i_39
   wavelength_list: [780.0]
@@ -677,7 +677,7 @@ straylight_flats:
   mtcamera_filter: NONE
   calib_type: Mono
   laser_mode: 1
-  optical_configuration: F1 SCU
+  optical_configuration: F2 SCU
   use_camera: True
   wavelength_list: [460., 760., 860.]
   set_wavelength_range: false
@@ -690,7 +690,7 @@ straylight_flats:
 scan_z_init:
   calib_type: Mono
   laser_mode: 1
-  optical_configuration: F1 SCU
+  optical_configuration: F2 SCU
   use_camera: True
   mtcamera_filter: z_20
   wavelength_list: [820.,840., 860., 880., 900., 915., 930.]
@@ -701,7 +701,7 @@ scan_z_init:
 scan_y_init:
   calib_type: Mono
   laser_mode: 1
-  optical_configuration: F1 SCU
+  optical_configuration: F2 SCU
   use_camera: True
   mtcamera_filter: y_10
   wavelength_list: [930.,1100.]
@@ -713,7 +713,7 @@ laser_functional:
   calib_type: Mono
   laser_mode: 1
   use_camera: False
-  optical_configuration: F1 SCU
+  optical_configuration: F2 SCU
   electrometer_integration_time: 1
   wavelength: 700.0
   wavelength_width: 800
@@ -1488,7 +1488,7 @@ laser_ptc:
   calib_type: Mono
   laser_mode: 1
   mtcamera_filter: i_39
-  optical_configuration: F1 SCU
+  optical_configuration: F2 SCU
   wavelength_list: [780.0]
   set_wavelength_range: false
   n_flat: 2
