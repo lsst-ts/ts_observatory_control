@@ -249,7 +249,7 @@ cbp_y_2nm:
   use_cbp_electrometer: True
   use_flatfield_electrometer: False
   laser_mode: 4
-  optical_configuration: F21SCU
+  optical_configuration: F1 SCU
   calib_type: CBP
   electrometer_mode: 'CHARGE'
   electrometer_integration_time: 1
