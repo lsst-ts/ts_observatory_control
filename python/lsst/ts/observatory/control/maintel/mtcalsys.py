@@ -515,7 +515,8 @@ class MTCalsys(BaseCalsys):
             LaserDetailedState.PROPAGATING_BURST_MODE,
         }:
             await self.rem.tunablelaser.cmd_setBurstMode.start(
-                timeout=self.long_timeout
+                count=1,
+                timeout=self.long_timeout,
             )
         else:
             raise RuntimeError(
