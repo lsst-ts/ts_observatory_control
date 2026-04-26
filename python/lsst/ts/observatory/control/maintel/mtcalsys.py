@@ -1214,7 +1214,7 @@ class MTCalsys(BaseCalsys):
             avail_filters = await self.mtcamera.get_available_filters()
             avail_filters = avail_filters[0].split(",")
 
-            standard_filters = {"u_24", "g_6", "r_57", "i_39", "z_20", "y_10"}
+            standard_filters = {"u_24", "g_6", "r_57", "i_39", "z_20", "y_10", "NONE"}
             avail_filters = [f for f in avail_filters if f in standard_filters]
             if mtcamera_filter in avail_filters:
                 mtcamera_exposure_task = self.mtcamera.take_flats(
