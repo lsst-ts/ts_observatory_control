@@ -109,6 +109,78 @@ cbp_g:
   electrometer_integration_time: 1
   electrometer_range: 0.0000002
 
+cbp_r:
+  mtcamera_filter: r_57
+  wavelength: 620
+  wavelength_width: 180
+  wavelength_resolution: 10
+  exposure_times:
+    - 30.0
+  nburst: 5
+  use_cbp_electrometer: True
+  use_flatfield_electrometer: False
+  laser_mode: 4
+  laser_wait_time: 10
+  optical_configuration: F1 SCU
+  calib_type: CBP
+  electrometer_mode: 'CHARGE'
+  electrometer_integration_time: 1
+  electrometer_range: 0.0000002
+
+cbp_i:
+  mtcamera_filter: i_39
+  wavelength: 750
+  wavelength_width: 180
+  wavelength_resolution: 10
+  exposure_times:
+    - 30.0
+  nburst: 5
+  use_cbp_electrometer: True
+  use_flatfield_electrometer: False
+  laser_mode: 4
+  laser_wait_time: 10
+  optical_configuration: F1 SCU
+  calib_type: CBP
+  electrometer_mode: 'CHARGE'
+  electrometer_integration_time: 1
+  electrometer_range: 0.0000002
+
+cbp_z:
+  mtcamera_filter: z_20
+  wavelength: 870
+  wavelength_width: 150
+  wavelength_resolution: 10
+  exposure_times:
+    - 30.0
+  nburst: 5
+  use_cbp_electrometer: True
+  use_flatfield_electrometer: False
+  laser_mode: 4
+  laser_wait_time: 10
+  optical_configuration: F1 SCU
+  calib_type: CBP
+  electrometer_mode: 'CHARGE'
+  electrometer_integration_time: 1
+  electrometer_range: 0.0000002
+
+cbp_y:
+  mtcamera_filter: y_10
+  wavelength: 1000
+  wavelength_width: 200
+  wavelength_resolution: 20
+  exposure_times:
+    - 30.0
+  nburst: 5
+  use_cbp_electrometer: True
+  use_flatfield_electrometer: False
+  laser_mode: 4
+  laser_wait_time: 10
+  optical_configuration: F1 SCU
+  calib_type: CBP
+  electrometer_mode: 'CHARGE'
+  electrometer_integration_time: 1
+  electrometer_range: 0.0000002
+
 cbp_u_24:
   mtcamera_filter: u_24
   wavelength: 375
