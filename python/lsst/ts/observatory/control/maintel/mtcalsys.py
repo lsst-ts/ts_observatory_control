@@ -514,7 +514,7 @@ class MTCalsys(BaseCalsys):
             LaserDetailedState.NONPROPAGATING_BURST_MODE,
             LaserDetailedState.PROPAGATING_BURST_MODE,
         }:
-            await self.rem.tunablelaser.cmd_setBurstMode.start(
+            await self.rem.tunablelaser.cmd_setBurstMode.set_start(
                 count=1,
                 timeout=self.long_timeout,
             )
