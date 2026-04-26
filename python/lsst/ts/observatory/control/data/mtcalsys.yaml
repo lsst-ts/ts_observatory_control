@@ -604,6 +604,7 @@ scan_u:
   use_camera: True
   mtcamera_filter: u_24
   wavelength_list: [310.,320.,330.,340.,345.,350.,355.,360.,365.,370.,375.,380.,385.,390.,395.,400.,405.,410.]
+  set_wavelength_range: false
   n_flat: 4
   exposure_times:
     - 60.0
@@ -615,6 +616,7 @@ scan_u_320:
   use_camera: True
   mtcamera_filter: u_24
   wavelength_list: [320.,330.,340.,345.,350.,355.,360.,365.,370.,375.,380.,385.,390.,395.,400.,405.,410.]
+  set_wavelength_range: false
   n_flat: 4
   exposure_times:
     - 60.0
@@ -626,6 +628,7 @@ scan_u_330:
   use_camera: True
   mtcamera_filter: u_24
   wavelength_list: [330.,340.,345.,350.,355.,360.,365.,370.,375.,380.,385.,390.,395.,400.,405.,410.]
+  set_wavelength_range: false
   n_flat: 4
   exposure_times:
     - 60.0
@@ -637,6 +640,7 @@ scan_u_340:
   use_camera: True
   mtcamera_filter: u_24
   wavelength_list: [340.,345.,350.,355.,360.,365.,370.,375.,380.,385.,390.,395.,400.,405.,410.]
+  set_wavelength_range: false
   n_flat: 4
   exposure_times:
     - 60.0
@@ -648,6 +652,7 @@ scan_u_345:
   use_camera: True
   mtcamera_filter: u_24
   wavelength_list: [345.,350.,355.,360.,365.,370.,375.,380.,385.,390.,395.,400.,405.,410.]
+  set_wavelength_range: false
   n_flat: 4
   exposure_times:
     - 60.0
@@ -659,6 +664,7 @@ scan_u_350:
   use_camera: True
   mtcamera_filter: u_24
   wavelength_list: [350.,355.,360.,365.,370.,375.,380.,385.,390.,395.,400.,405.,410.]
+  set_wavelength_range: false
   n_flat: 4
   exposure_times:
     - 60.0
@@ -670,6 +676,7 @@ scan_u_355:
   use_camera: True
   mtcamera_filter: u_24
   wavelength_list: [355.,360.,365.,370.,375.,380.,385.,390.,395.,400.,405.,410.]
+  set_wavelength_range: false
   n_flat: 4
   exposure_times:
     - 60.0
@@ -681,6 +688,7 @@ scan_u_360:
   use_camera: True
   mtcamera_filter: u_24
   wavelength_list: [360.,365.,370.,375.,380.,385.,390.,395.,400.,405.,410.]
+  set_wavelength_range: false
   n_flat: 4
   exposure_times:
     - 60.0
@@ -692,6 +700,7 @@ scan_u_365:
   use_camera: True
   mtcamera_filter: u_24
   wavelength_list: [365.,370.,375.,380.,385.,390.,395.,400.,405.,410.]
+  set_wavelength_range: false
   n_flat: 4
   exposure_times:
     - 60.0
@@ -703,6 +712,7 @@ scan_u_370:
   use_camera: True
   mtcamera_filter: u_24
   wavelength_list: [370.,375.,380.,385.,390.,395.,400.,405.,410.]
+  set_wavelength_range: false
   n_flat: 4
   exposure_times:
     - 60.0
@@ -714,6 +724,7 @@ scan_u_375:
   use_camera: True
   mtcamera_filter: u_24
   wavelength_list: [375.,380.,385.,390.,395.,400.,405.,410.]
+  set_wavelength_range: false
   n_flat: 4
   exposure_times:
     - 60.0
@@ -725,6 +736,7 @@ scan_u_380:
   use_camera: True
   mtcamera_filter: u_24
   wavelength_list: [380.,385.,390.,395.,400.,405.,410.]
+  set_wavelength_range: false
   n_flat: 4
   exposure_times:
     - 60.0
@@ -736,6 +748,7 @@ scan_u_385:
   use_camera: True
   mtcamera_filter: u_24
   wavelength_list: [385.,390.,395.,400.,405.,410.]
+  set_wavelength_range: false
   n_flat: 4
   exposure_times:
     - 60.0
@@ -747,6 +760,7 @@ scan_u_390:
   use_camera: True
   mtcamera_filter: u_24
   wavelength_list: [390.,395.,400.,405.,410.]
+  set_wavelength_range: false
   n_flat: 4
   exposure_times:
     - 60.0
@@ -758,6 +772,7 @@ scan_u_395:
   use_camera: True
   mtcamera_filter: u_24
   wavelength_list: [395.,400.,405.,410.]
+  set_wavelength_range: false
   n_flat: 4
   exposure_times:
     - 60.0
@@ -769,6 +784,7 @@ scan_u_400:
   use_camera: True
   mtcamera_filter: u_24
   wavelength_list: [400.,405.,410.]
+  set_wavelength_range: false
   n_flat: 4
   exposure_times:
     - 60.0
@@ -780,6 +796,7 @@ scan_u_405:
   use_camera: True
   mtcamera_filter: u_24
   wavelength_list: [405.,410.]
+  set_wavelength_range: false
   n_flat: 4
   exposure_times:
     - 60.0
@@ -791,6 +808,7 @@ scan_u_410:
   use_camera: True
   mtcamera_filter: u_24
   wavelength_list: [410.]
+  set_wavelength_range: false
   n_flat: 4
   exposure_times:
     - 60.0
