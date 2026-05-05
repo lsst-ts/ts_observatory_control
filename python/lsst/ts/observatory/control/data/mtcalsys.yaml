@@ -21,6 +21,22 @@ setup_cbp:
   exposure_times:
     - 30.0
 
+laser_cbp:
+  calib_type: CBP
+  use_camera: False
+  use_cbp_electrometer: True
+  use_flatfield_electrometer: False
+  laser_mode: 1
+  optical_configuration: F1 SCU
+  electrometer_mode: 'CHARGE'
+  electrometer_integration_time: 1
+  electrometer_range: 0.0000002
+  wavelength: 700.0
+  wavelength_width: 800
+  wavelength_resolution: 100.
+  exposure_times:
+    - 2.0
+
 cbp_g_leak:
   mtcamera_filter: g_6
   wavelength: 1100.0
