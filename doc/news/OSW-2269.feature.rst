@@ -1,0 +1,2 @@
+Added a new handle_aos_close_loop method to maintel/mtcs.py, calling it just before the slew, after M1M3 slew flags were switched on.
+This ensures corrections happen before the slew begins while the system is ready to handle potential slew induced by the AOS corrections.
