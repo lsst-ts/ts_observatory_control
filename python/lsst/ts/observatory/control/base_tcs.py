@@ -2170,7 +2170,13 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
         raise NotImplementedError()
 
     @abc.abstractmethod
-    async def slew_dome_to(self, az: float, check: typing.Any = None) -> None:
+    async def slew_dome_to(
+        self,
+        az: float,
+        check: typing.Any = None,
+        *,
+        timeout: float | None = None,
+    ) -> None:
         """Utility method to slew dome to a specified position.
 
         Parameters
@@ -2179,6 +2185,9 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
             Azimuth angle for the dome (in deg).
         check : `types.SimpleNamespace` or `None`
             Override `self.check` for defining which resources are used.
+        timeout : `float`, optional
+            How long to wait for dome to arrive in position.
+            If `None`, use the implementation default.
         """
         raise NotImplementedError()
 

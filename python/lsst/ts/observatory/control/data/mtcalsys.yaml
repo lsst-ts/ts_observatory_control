@@ -1,6 +1,42 @@
 # Configuration for calibration hardware setup
 # Created 2024-07-15
 
+setup_cbp:
+  use_cbp: True
+  calib_type: CBP
+  use_camera: False
+  wavelength: 545
+  cbp_mask: 1
+  cbp_rotation: 96.5
+  cbp_azimuth: -0.05
+  cbp_elevation: -46.5
+  cbp_focus: 3800
+  use_cbp_electrometer: True
+  use_flatfield_electrometer: False
+  laser_mode: 1
+  optical_configuration: F1 SCU
+  electrometer_mode: 'CHARGE'
+  electrometer_integration_time: 0.1
+  electrometer_range: 0.0000002
+  exposure_times:
+    - 30.0
+
+laser_cbp:
+  calib_type: CBP
+  use_camera: False
+  use_cbp_electrometer: True
+  use_flatfield_electrometer: False
+  laser_mode: 1
+  optical_configuration: F1 SCU
+  electrometer_mode: 'CHARGE'
+  electrometer_integration_time: 1
+  electrometer_range: 0.0000002
+  wavelength: 700.0
+  wavelength_width: 800
+  wavelength_resolution: 100.
+  exposure_times:
+    - 2.0
+
 cbp_g_leak:
   mtcamera_filter: g_6
   wavelength: 1100.0
@@ -12,10 +48,10 @@ cbp_g_leak:
   use_cbp_electrometer: True
   use_flatfield_electrometer: False
   laser_mode: 4
-  optical_configuration: F2 SCU
+  optical_configuration: F1 SCU
   calib_type: CBP
   electrometer_mode: 'CHARGE'
-  electrometer_integration_time: 1
+  electrometer_integration_time: 0.1
   electrometer_range: 0.0000002
   use_camera: True
 
@@ -30,10 +66,10 @@ cbp_g_leak_unittest:
   use_cbp_electrometer: True
   use_flatfield_electrometer: False
   laser_mode: 4
-  optical_configuration: F2 SCU
+  optical_configuration: F1 SCU
   calib_type: CBP
   electrometer_mode: 'CHARGE'
-  electrometer_integration_time: 1
+  electrometer_integration_time: 0.1
   electrometer_range: 0.0000002
   use_camera: True
 
@@ -48,10 +84,10 @@ cbp_u_leak:
   use_cbp_electrometer: True
   use_flatfield_electrometer: False
   laser_mode: 4
-  optical_configuration: F2 SCU
+  optical_configuration: F1 SCU
   calib_type: CBP
   electrometer_mode: 'CHARGE'
-  electrometer_integration_time: 1
+  electrometer_integration_time: 0.1
   electrometer_range: 0.0000002
   use_camera: True
 
@@ -67,10 +103,82 @@ cbp_g:
   use_flatfield_electrometer: False
   laser_mode: 4
   laser_wait_time: 10
-  optical_configuration: F2 SCU
+  optical_configuration: F1 SCU
   calib_type: CBP
   electrometer_mode: 'CHARGE'
-  electrometer_integration_time: 1
+  electrometer_integration_time: 0.1
+  electrometer_range: 0.0000002
+
+cbp_r:
+  mtcamera_filter: r_57
+  wavelength: 620
+  wavelength_width: 180
+  wavelength_resolution: 10
+  exposure_times:
+    - 30.0
+  nburst: 5
+  use_cbp_electrometer: True
+  use_flatfield_electrometer: False
+  laser_mode: 4
+  laser_wait_time: 10
+  optical_configuration: F1 SCU
+  calib_type: CBP
+  electrometer_mode: 'CHARGE'
+  electrometer_integration_time: 0.1
+  electrometer_range: 0.0000002
+
+cbp_i:
+  mtcamera_filter: i_39
+  wavelength: 750
+  wavelength_width: 180
+  wavelength_resolution: 10
+  exposure_times:
+    - 30.0
+  nburst: 5
+  use_cbp_electrometer: True
+  use_flatfield_electrometer: False
+  laser_mode: 4
+  laser_wait_time: 10
+  optical_configuration: F1 SCU
+  calib_type: CBP
+  electrometer_mode: 'CHARGE'
+  electrometer_integration_time: 0.1
+  electrometer_range: 0.0000002
+
+cbp_z:
+  mtcamera_filter: z_20
+  wavelength: 870
+  wavelength_width: 150
+  wavelength_resolution: 10
+  exposure_times:
+    - 30.0
+  nburst: 5
+  use_cbp_electrometer: True
+  use_flatfield_electrometer: False
+  laser_mode: 4
+  laser_wait_time: 10
+  optical_configuration: F1 SCU
+  calib_type: CBP
+  electrometer_mode: 'CHARGE'
+  electrometer_integration_time: 0.1
+  electrometer_range: 0.0000002
+
+cbp_y:
+  mtcamera_filter: y_10
+  wavelength: 1000
+  wavelength_width: 200
+  wavelength_resolution: 20
+  exposure_times:
+    - 30.0
+  nburst: 5
+  use_cbp_electrometer: True
+  use_flatfield_electrometer: False
+  laser_mode: 4
+  laser_wait_time: 10
+  optical_configuration: F1 SCU
+  calib_type: CBP
+  electrometer_mode: 'CHARGE'
+  electrometer_integration_time: 0.1
   electrometer_range: 0.0000002
 
 cbp_u_24:
@@ -84,10 +192,10 @@ cbp_u_24:
   use_cbp_electrometer: True
   use_flatfield_electrometer: False
   laser_mode: 4
-  optical_configuration: F2 SCU
+  optical_configuration: F1 SCU
   calib_type: CBP
   electrometer_mode: 'CHARGE'
-  electrometer_integration_time: 1
+  electrometer_integration_time: 0.1
   electrometer_range: 0.0000002
   
 cbp_none_leak:
@@ -101,10 +209,10 @@ cbp_none_leak:
   use_cbp_electrometer: True
   use_flatfield_electrometer: False
   laser_mode: 4
-  optical_configuration: F2 SCU
+  optical_configuration: F1 SCU
   calib_type: CBP
   electrometer_mode: 'CHARGE'
-  electrometer_integration_time: 1
+  electrometer_integration_time: 0.1
   electrometer_range: 0.0000002
 
 cbp_none_all:
@@ -119,10 +227,10 @@ cbp_none_all:
   use_flatfield_electrometer: False
   laser_mode: 4
   laser_wait_time: 5
-  optical_configuration: F2 SCU
+  optical_configuration: F1 SCU
   calib_type: CBP
   electrometer_mode: 'CHARGE'
-  electrometer_integration_time: 2
+  electrometer_integration_time: 0.1
   electrometer_range: 0.0000002
 
 cbpcal_all:
@@ -138,10 +246,10 @@ cbpcal_all:
   use_flatfield_electrometer: False
   laser_mode: 4
   laser_wait_time: 5
-  optical_configuration: F2 SCU
+  optical_configuration: F1 SCU
   calib_type: CBP
   electrometer_mode: 'CHARGE'
-  electrometer_integration_time: 2
+  electrometer_integration_time: 0.1
   electrometer_range: 0.0000002
 
 cbp_u_2nm:
@@ -153,10 +261,26 @@ cbp_u_2nm:
   use_cbp_electrometer: True
   use_flatfield_electrometer: False
   laser_mode: 4
-  optical_configuration: F2 SCU
+  optical_configuration: F1 SCU
   calib_type: CBP
   electrometer_mode: 'CHARGE'
-  electrometer_integration_time: 1
+  electrometer_integration_time: 0.1
+  electrometer_range: 0.0000002
+  set_wavelength_range: False
+
+cbp_u_4nm:
+  mtcamera_filter: u_24
+  wavelength_list: [300, 304, 308, 312, 316, 320, 324, 335, 345, 355, 365, 375, 379, 383, 385, 389, 393, 397, 401, 405]
+  exposure_times:
+    - 30.0
+  nburst: 8
+  use_cbp_electrometer: True
+  use_flatfield_electrometer: False
+  laser_mode: 4
+  optical_configuration: F1 SCU
+  calib_type: CBP
+  electrometer_mode: 'CHARGE'
+  electrometer_integration_time: 0.1
   electrometer_range: 0.0000002
   set_wavelength_range: False
 
@@ -169,10 +293,10 @@ cbp_g_2nm:
   use_cbp_electrometer: True
   use_flatfield_electrometer: False
   laser_mode: 4
-  optical_configuration: F2 SCU
+  optical_configuration: F1 SCU
   calib_type: CBP
   electrometer_mode: 'CHARGE'
-  electrometer_integration_time: 2
+  electrometer_integration_time: 0.1
   electrometer_range: 0.0000002
   set_wavelength_range: False
 
@@ -185,10 +309,10 @@ cbp_r_2nm:
   use_cbp_electrometer: True
   use_flatfield_electrometer: False
   laser_mode: 4
-  optical_configuration: F2 SCU
+  optical_configuration: F1 SCU
   calib_type: CBP
   electrometer_mode: 'CHARGE'
-  electrometer_integration_time: 1
+  electrometer_integration_time: 0.1
   electrometer_range: 0.0000002
   set_wavelength_range: False
 
@@ -201,10 +325,10 @@ cbp_r_2nm_remainder:
   use_cbp_electrometer: True
   use_flatfield_electrometer: False
   laser_mode: 4
-  optical_configuration: F2 SCU
+  optical_configuration: F1 SCU
   calib_type: CBP
   electrometer_mode: 'CHARGE'
-  electrometer_integration_time: 1
+  electrometer_integration_time: 0.1
   electrometer_range: 0.0000002
   set_wavelength_range: False
 
@@ -217,10 +341,10 @@ cbp_i_2nm:
   use_cbp_electrometer: True
   use_flatfield_electrometer: False
   laser_mode: 4
-  optical_configuration: F2 SCU
+  optical_configuration: F1 SCU
   calib_type: CBP
   electrometer_mode: 'CHARGE'
-  electrometer_integration_time: 1
+  electrometer_integration_time: 0.1
   electrometer_range: 0.0000002
   set_wavelength_range: False
 
@@ -233,10 +357,10 @@ cbp_z_2nm:
   use_cbp_electrometer: True
   use_flatfield_electrometer: False
   laser_mode: 4
-  optical_configuration: F2 SCU
+  optical_configuration: F1 SCU
   calib_type: CBP
   electrometer_mode: 'CHARGE'
-  electrometer_integration_time: 1
+  electrometer_integration_time: 0.1
   electrometer_range: 0.0000002
   set_wavelength_range: False
 
@@ -249,10 +373,10 @@ cbp_y_2nm:
   use_cbp_electrometer: True
   use_flatfield_electrometer: False
   laser_mode: 4
-  optical_configuration: F2 SCU
+  optical_configuration: F1 SCU
   calib_type: CBP
   electrometer_mode: 'CHARGE'
-  electrometer_integration_time: 1
+  electrometer_integration_time: 0.1
   electrometer_range: 0.0000002
   set_wavelength_range: False
 
@@ -515,7 +639,7 @@ whitelight_y_10_dark:
 scan_u_init:
   calib_type: Mono
   laser_mode: 1
-  optical_configuration: F1 SCU
+  optical_configuration: F2 SCU
   use_camera: True
   mtcamera_filter: u_24
   wavelength_list: [340.,350.,360.,370.]
@@ -526,7 +650,7 @@ scan_u_init:
 scan_g_init:
   calib_type: Mono
   laser_mode: 1
-  optical_configuration: F1 SCU
+  optical_configuration: F2 SCU
   use_camera: True
   mtcamera_filter: g_6
   wavelength_list: [400.,420.,440.,450.,470.,490.,510.,530.,550.]
@@ -537,7 +661,7 @@ scan_g_init:
 scan_r_init:
   calib_type: Mono
   laser_mode: 1
-  optical_configuration: F1 SCU
+  optical_configuration: F2 SCU
   use_camera: True
   mtcamera_filter: r_57
   wavelength_list: [550.,570.,590.,610.,630.,650.,670.,690.]
@@ -548,20 +672,223 @@ scan_r_init:
 scan_u:
   calib_type: Mono
   laser_mode: 1
-  optical_configuration: F1 SCU
+  optical_configuration: F2 SCU
   use_camera: True
   mtcamera_filter: u_24
-  wavelength: 355.
-  wavelength_width: 90
-  wavelength_resolution: 5.0
-  n_flat: 2
+  wavelength_list: [310.,320.,330.,340.,345.,350.,355.,360.,365.,370.,375.,380.,385.,390.,395.,400.,405.,410.]
+  set_wavelength_range: false
+  n_flat: 4
   exposure_times:
-    - 120.0
+    - 60.0
+
+scan_u_320:
+  calib_type: Mono
+  laser_mode: 1
+  optical_configuration: F2 SCU
+  use_camera: True
+  mtcamera_filter: u_24
+  wavelength_list: [320.,330.,340.,345.,350.,355.,360.,365.,370.,375.,380.,385.,390.,395.,400.,405.,410.]
+  set_wavelength_range: false
+  n_flat: 4
+  exposure_times:
+    - 60.0
+
+scan_u_330:
+  calib_type: Mono
+  laser_mode: 1
+  optical_configuration: F2 SCU
+  use_camera: True
+  mtcamera_filter: u_24
+  wavelength_list: [330.,340.,345.,350.,355.,360.,365.,370.,375.,380.,385.,390.,395.,400.,405.,410.]
+  set_wavelength_range: false
+  n_flat: 4
+  exposure_times:
+    - 60.0
+
+scan_u_340:
+  calib_type: Mono
+  laser_mode: 1
+  optical_configuration: F2 SCU
+  use_camera: True
+  mtcamera_filter: u_24
+  wavelength_list: [340.,345.,350.,355.,360.,365.,370.,375.,380.,385.,390.,395.,400.,405.,410.]
+  set_wavelength_range: false
+  n_flat: 4
+  exposure_times:
+    - 60.0
+
+scan_u_345:
+  calib_type: Mono
+  laser_mode: 1
+  optical_configuration: F2 SCU
+  use_camera: True
+  mtcamera_filter: u_24
+  wavelength_list: [345.,350.,355.,360.,365.,370.,375.,380.,385.,390.,395.,400.,405.,410.]
+  set_wavelength_range: false
+  n_flat: 4
+  exposure_times:
+    - 60.0
+
+scan_u_350:
+  calib_type: Mono
+  laser_mode: 1
+  optical_configuration: F2 SCU
+  use_camera: True
+  mtcamera_filter: u_24
+  wavelength_list: [350.,355.,360.,365.,370.,375.,380.,385.,390.,395.,400.,405.,410.]
+  set_wavelength_range: false
+  n_flat: 4
+  exposure_times:
+    - 60.0
+
+scan_u_355:
+  calib_type: Mono
+  laser_mode: 1
+  optical_configuration: F2 SCU
+  use_camera: True
+  mtcamera_filter: u_24
+  wavelength_list: [355.,360.,365.,370.,375.,380.,385.,390.,395.,400.,405.,410.]
+  set_wavelength_range: false
+  n_flat: 4
+  exposure_times:
+    - 60.0
+
+scan_u_360:
+  calib_type: Mono
+  laser_mode: 1
+  optical_configuration: F2 SCU
+  use_camera: True
+  mtcamera_filter: u_24
+  wavelength_list: [360.,365.,370.,375.,380.,385.,390.,395.,400.,405.,410.]
+  set_wavelength_range: false
+  n_flat: 4
+  exposure_times:
+    - 60.0
+
+scan_u_365:
+  calib_type: Mono
+  laser_mode: 1
+  optical_configuration: F2 SCU
+  use_camera: True
+  mtcamera_filter: u_24
+  wavelength_list: [365.,370.,375.,380.,385.,390.,395.,400.,405.,410.]
+  set_wavelength_range: false
+  n_flat: 4
+  exposure_times:
+    - 60.0
+
+scan_u_370:
+  calib_type: Mono
+  laser_mode: 1
+  optical_configuration: F2 SCU
+  use_camera: True
+  mtcamera_filter: u_24
+  wavelength_list: [370.,375.,380.,385.,390.,395.,400.,405.,410.]
+  set_wavelength_range: false
+  n_flat: 4
+  exposure_times:
+    - 60.0
+
+scan_u_375:
+  calib_type: Mono
+  laser_mode: 1
+  optical_configuration: F2 SCU
+  use_camera: True
+  mtcamera_filter: u_24
+  wavelength_list: [375.,380.,385.,390.,395.,400.,405.,410.]
+  set_wavelength_range: false
+  n_flat: 4
+  exposure_times:
+    - 60.0
+
+scan_u_380:
+  calib_type: Mono
+  laser_mode: 1
+  optical_configuration: F2 SCU
+  use_camera: True
+  mtcamera_filter: u_24
+  wavelength_list: [380.,385.,390.,395.,400.,405.,410.]
+  set_wavelength_range: false
+  n_flat: 4
+  exposure_times:
+    - 60.0
+
+scan_u_385:
+  calib_type: Mono
+  laser_mode: 1
+  optical_configuration: F2 SCU
+  use_camera: True
+  mtcamera_filter: u_24
+  wavelength_list: [385.,390.,395.,400.,405.,410.]
+  set_wavelength_range: false
+  n_flat: 4
+  exposure_times:
+    - 60.0
+
+scan_u_390:
+  calib_type: Mono
+  laser_mode: 1
+  optical_configuration: F2 SCU
+  use_camera: True
+  mtcamera_filter: u_24
+  wavelength_list: [390.,395.,400.,405.,410.]
+  set_wavelength_range: false
+  n_flat: 4
+  exposure_times:
+    - 60.0
+
+scan_u_395:
+  calib_type: Mono
+  laser_mode: 1
+  optical_configuration: F2 SCU
+  use_camera: True
+  mtcamera_filter: u_24
+  wavelength_list: [395.,400.,405.,410.]
+  set_wavelength_range: false
+  n_flat: 4
+  exposure_times:
+    - 60.0
+
+scan_u_400:
+  calib_type: Mono
+  laser_mode: 1
+  optical_configuration: F2 SCU
+  use_camera: True
+  mtcamera_filter: u_24
+  wavelength_list: [400.,405.,410.]
+  set_wavelength_range: false
+  n_flat: 4
+  exposure_times:
+    - 60.0
+
+scan_u_405:
+  calib_type: Mono
+  laser_mode: 1
+  optical_configuration: F2 SCU
+  use_camera: True
+  mtcamera_filter: u_24
+  wavelength_list: [405.,410.]
+  set_wavelength_range: false
+  n_flat: 4
+  exposure_times:
+    - 60.0
+
+scan_u_410:
+  calib_type: Mono
+  laser_mode: 1
+  optical_configuration: F2 SCU
+  use_camera: True
+  mtcamera_filter: u_24
+  wavelength_list: [410.]
+  set_wavelength_range: false
+  n_flat: 4
+  exposure_times:
+    - 60.0
 
 scan_g:
   calib_type: Mono
   laser_mode: 1
-  optical_configuration: F1 SCU
+  optical_configuration: F2 SCU
   use_camera: True
   mtcamera_filter: g_6
   wavelength: 480.0
@@ -574,7 +901,7 @@ scan_g:
 scan_r:
   calib_type: Mono
   laser_mode: 1
-  optical_configuration: F1 SCU
+  optical_configuration: F2 SCU
   use_camera: True
   mtcamera_filter: r_57
   wavelength: 620.0
@@ -587,7 +914,7 @@ scan_r:
 scan_r_unittest:
   calib_type: Mono
   laser_mode: 1
-  optical_configuration: F1 SCU
+  optical_configuration: F2 SCU
   use_camera: True
   mtcamera_filter: r_57
   wavelength: 625.0
@@ -600,7 +927,7 @@ scan_r_unittest:
 scan_i:
   calib_type: Mono
   laser_mode: 1
-  optical_configuration: F1 SCU
+  optical_configuration: F2 SCU
   use_camera: True
   mtcamera_filter: i_39
   wavelength: 755.0
@@ -613,7 +940,7 @@ scan_i:
 scan_z:
   calib_type: Mono
   laser_mode: 1
-  optical_configuration: F1 SCU
+  optical_configuration: F2 SCU
   use_camera: True
   mtcamera_filter: z_20
   wavelength: 870.0
@@ -626,7 +953,7 @@ scan_z:
 scan_y:
   calib_type: Mono
   laser_mode: 1
-  optical_configuration: F1 SCU
+  optical_configuration: F2 SCU
   use_camera: True
   mtcamera_filter: y_10
   wavelength: 1025.0
@@ -639,7 +966,7 @@ scan_y:
 scan_none:
   calib_type: Mono
   laser_mode: 1
-  optical_configuration: F1 SCU
+  optical_configuration: F2 SCU
   use_camera: True
   mtcamera_filter: NONE
   wavelength: 770
@@ -653,7 +980,7 @@ scan_none:
 scan_i_init:
   calib_type: Mono
   laser_mode: 1
-  optical_configuration: F1 SCU
+  optical_configuration: F2 SCU
   use_camera: True
   mtcamera_filter: i_39
   wavelength_list: [690.,710., 730., 750., 770., 790., 800.,820.]
@@ -664,7 +991,7 @@ scan_i_init:
 mono_i_stability:
   calib_type: Mono
   laser_mode: 1
-  optical_configuration: F1 SCU
+  optical_configuration: F2 SCU
   use_camera: True
   mtcamera_filter: i_39
   wavelength_list: [780.0]
@@ -677,7 +1004,7 @@ straylight_flats:
   mtcamera_filter: NONE
   calib_type: Mono
   laser_mode: 1
-  optical_configuration: F1 SCU
+  optical_configuration: F2 SCU
   use_camera: True
   wavelength_list: [460., 760., 860.]
   set_wavelength_range: false
@@ -690,7 +1017,7 @@ straylight_flats:
 scan_z_init:
   calib_type: Mono
   laser_mode: 1
-  optical_configuration: F1 SCU
+  optical_configuration: F2 SCU
   use_camera: True
   mtcamera_filter: z_20
   wavelength_list: [820.,840., 860., 880., 900., 915., 930.]
@@ -701,7 +1028,7 @@ scan_z_init:
 scan_y_init:
   calib_type: Mono
   laser_mode: 1
-  optical_configuration: F1 SCU
+  optical_configuration: F2 SCU
   use_camera: True
   mtcamera_filter: y_10
   wavelength_list: [930.,1100.]
@@ -713,7 +1040,7 @@ laser_functional:
   calib_type: Mono
   laser_mode: 1
   use_camera: False
-  optical_configuration: F1 SCU
+  optical_configuration: F2 SCU
   electrometer_integration_time: 1
   wavelength: 700.0
   wavelength_width: 800
@@ -815,6 +1142,30 @@ whitelight_u_24_M385L3:
   exposure_times:
     - 10.0
 
+whitelight_u_24_M445L4:
+  mtcamera_filter: u_24
+  led_name:
+    - M455L4
+  dac_value: 1.0
+  wavelength: 455.0
+  led_location: 5.925
+  led_focus: 8.57
+  n_flat: 20
+  exposure_times:
+    - 30.0
+
+whitelight_g_6_M385L3:
+  mtcamera_filter: g_6
+  led_name: 
+    - M385L3
+  dac_value: 1.0
+  wavelength: 385.0
+  led_location: 174.18
+  led_focus: 9.42
+  n_flat: 20
+  exposure_times:
+    - 30.0
+
 whitelight_i_39_M730L5:
   mtcamera_filter: i_39
   led_name:
@@ -826,6 +1177,18 @@ whitelight_i_39_M730L5:
   n_flat: 20
   exposure_times:
     - 10.0
+
+whitelight_r_57_M730L5:
+  mtcamera_filter: r_57
+  led_name:
+    - M730L5
+  dac_value: 0.8
+  wavelength: 730.0
+  led_location: 233.91
+  led_focus: 7.15
+  n_flat: 20
+  exposure_times:
+    - 30.0
 
 whitelight_i_39_M730L5_stability:
   mtcamera_filter: i_39
@@ -851,6 +1214,30 @@ whitelight_i_39_M810L3:
   exposure_times:
     - 10.0
 
+whitelight_z_20_M730L5:
+  mtcamera_filter: z_20
+  led_name:
+    - M730L5
+  dac_value: 0.8
+  wavelength: 730.0
+  led_location: 233.91
+  led_focus: 7.15
+  n_flat: 20
+  exposure_times:
+    - 30.0
+
+whitelight_z_20_M810L3:
+  mtcamera_filter: z_20
+  led_name:
+    - M810L3
+  dac_value: 0.8
+  wavelength: 810.
+  led_location: 233.71
+  led_focus: 6.94
+  n_flat: 20
+  exposure_times:
+    - 30.0
+
 whitelight_g_6_M455L4:
   mtcamera_filter: g_6
   led_name:
@@ -875,6 +1262,30 @@ whitelight_g_6_M505L4:
   exposure_times:
     - 20.0
 
+whitelight_r_57_M505L4:
+  mtcamera_filter: r_57
+  led_name:
+    - M505L4
+  dac_value: 1.0
+  wavelength: 505.0
+  led_location: 5.48
+  led_focus: 8.12
+  n_flat: 20
+  exposure_times:
+    - 30.0
+
+whitelight_g_6_M565L3:
+  mtcamera_filter: g_6
+  led_name:
+    - M565L3
+  dac_value: 1.0
+  wavelength: 565.0
+  led_location: 67.14
+  led_focus: 7.79
+  n_flat: 20
+  exposure_times:
+    - 30.0
+
 whitelight_r_57_M565L3:
   mtcamera_filter: r_57
   led_name:
@@ -898,6 +1309,30 @@ whitelight_r_57_M660L4:
   n_flat: 20
   exposure_times:
     - 10.0
+
+whitelight_i_39_M660L4:
+  mtcamera_filter: i_39
+  led_name:
+    - M660L4
+  dac_value: 1.0
+  wavelength: 660.0
+  led_location: 66.87
+  led_focus: 7.52
+  n_flat: 20
+  exposure_times:
+    - 30.0
+
+whitelight_i_39_M850L3:
+  mtcamera_filter: i_39
+  led_name:
+    - M850L3
+  dac_value: 1.0
+  wavelength: 850.0
+  led_location: 295.61
+  led_focus: 6.85
+  n_flat: 20
+  exposure_times:
+    - 30.0
 
 whitelight_z_20_M850L3:
   mtcamera_filter: z_20
@@ -1380,7 +1815,7 @@ laser_ptc:
   calib_type: Mono
   laser_mode: 1
   mtcamera_filter: i_39
-  optical_configuration: F1 SCU
+  optical_configuration: F2 SCU
   wavelength_list: [780.0]
   set_wavelength_range: false
   n_flat: 2

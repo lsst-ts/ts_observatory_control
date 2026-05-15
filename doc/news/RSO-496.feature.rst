@@ -1,0 +1,1 @@
+Fix set burst mode command to include count.

@@ -1,0 +1,1 @@
+Updated ``MTCS.prepare_for_onsky`` to enable hexapod compensation mode before slewing and improved the unsafe-elevation error message when raising M1M3.

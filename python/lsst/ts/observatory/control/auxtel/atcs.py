@@ -314,7 +314,13 @@ class ATCS(BaseTCS):
     def telescope_target(self) -> salobj.type_hints.BaseDdsDataType:
         return self._tel_target
 
-    async def slew_dome_to(self, az: float, check: typing.Any = None) -> None:
+    async def slew_dome_to(
+        self,
+        az: float,
+        check: typing.Any = None,
+        *,
+        timeout: float | None = None,
+    ) -> None:
         """Utility method to slew dome to a specified position.
 
         This method works at cross purposes to ATDomeTrajectory, so this method
@@ -331,6 +337,9 @@ class ATCS(BaseTCS):
             Azimuth angle for the dome (in deg).
         check : `types.SimpleNamespace` or `None`
             Override `self.check` for defining which resources are used.
+        timeout : `float`, optional
+            How long to wait for dome to arrive in position.
+            Defaults to ``self.long_long_timeout`` if not provided.
 
         Raises
         ------
@@ -348,6 +357,9 @@ class ATCS(BaseTCS):
                 "In some cases users deactivate a component on purpose."
                 "Make sure it is clear to operate the dome before doing so."
             )
+
+        if timeout is None:
+            timeout = self.long_long_timeout
 
         await self.disable_dome_following(_check)
 
@@ -372,7 +384,7 @@ class ATCS(BaseTCS):
 
                 await self._handle_in_position(
                     in_position_event=self.rem.atdome.evt_azimuthInPosition,
-                    timeout=self.long_long_timeout,
+                    timeout=timeout,
                     settle_time=self.tel_settle_time,
                     component_name="ATDome",
                 )
@@ -444,11 +456,6 @@ class ATCS(BaseTCS):
                 wait_dome=False,
             )
 
-            try:
-                await self.stop_tracking()
-            except asyncio.TimeoutError:
-                self.log.debug("Timeout in stopping tracking. Continuing.")
-
             await self.slew_dome_to(self.dome_flat_az, check_ops)
         finally:
             # recover check
@@ -515,7 +522,20 @@ class ATCS(BaseTCS):
     async def stop_dome(self) -> None:
         """Stop all dome motion."""
 
-        await self.rem.atdome.cmd_stopMotion.start(timeout=self.fast_timeout)
+        for i in range(self._dome_slew_max_iter):
+
+            try:
+                await self.rem.atdome.cmd_stopMotion.start(timeout=self.fast_timeout)
+            except salobj.AckTimeoutError:
+                self.log.info(
+                    "Timeout trying to stop dome motion. Attempt {i+1} of {self._dome_slew_max_iter}."
+                )
+            else:
+                break
+        else:
+            raise RuntimeError(
+                "Failed to stop dome motion. Command timed out in all {self._dome_slew_max_iter} attempts."
+            )
 
     async def prepare_for_vent(self, partially_open_dome: bool = False) -> None:
         """Prepare Auxiliary Telescope for venting.

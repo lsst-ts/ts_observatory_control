@@ -583,6 +583,36 @@ class TestLSSTCam(BaseCameraAsyncMock):
 
         assert self.lsstcam._roi_spec_json == expected_roi_spec_json
 
+    async def test_reset_guider(self) -> None:
+        roi = ROI(
+            segment=3,
+            start_row=260,
+            start_col=162,
+        )
+
+        roi_common = ROICommon(
+            rows=100,
+            cols=100,
+            integration_time_millis=200,
+        )
+
+        roi_spec = ROISpec(
+            common=roi_common,
+            roi=dict(
+                R40_SG0=roi,
+                R01_SG0=roi,
+                R02_SG0=roi,
+                R03_SG0=roi,
+            ),
+        )
+
+        # initialize guiders
+        await self.lsstcam.init_guider(roi_spec=roi_spec)
+        # reset guiders
+        self.lsstcam.reset_guider_roi()
+
+        assert self.lsstcam._roi_spec_json is None
+
     async def test_set_init_guider(self) -> None:
         roi = ROI(
             segment=3,
