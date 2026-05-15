@@ -1,1 +1,0 @@
-Added laser_cbp sequence to measure the laser output with the CBP electrometer

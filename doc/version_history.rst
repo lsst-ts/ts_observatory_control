@@ -8,6 +8,46 @@ Version History
 
 .. towncrier release notes start
 
+v0.49.0 (2026-05-15)
+====================
+
+New Features
+------------
+
+- Add in use_electrometer, use_fiberspectrograph_blue/red and electrometer_names to definition of MTCalsys (`DM-51498 <https://rubinobs.atlassian.net/browse/DM-51498>`_)
+- Updated setup_calsys and take_electrometer_scan to determine which electrometers to use (`DM-51498 <https://rubinobs.atlassian.net/browse/DM-51498>`_)
+- Removing use_fiberspectrograph_blue/red from mtcalsys_schema.yaml and mtcalsys.yaml. (`DM-51498 <https://rubinobs.atlassian.net/browse/DM-51498>`_)
+- Implemented the ``MTCS.prepare_for_flatfield`` method. (`DM-51803 <https://rubinobs.atlassian.net/browse/DM-51803>`_)
+- Add method in BaseCamera to reset guider_roi to None (`OSW-1709 <https://rubinobs.atlassian.net/browse/OSW-1709>`_)
+- Updated the ``stop_dome`` command in ``auxtel/atcs.py`` to include a try loop for improved error handling and robustness. (`OSW-1822 <https://rubinobs.atlassian.net/browse/OSW-1822>`_)
+- Add CBP cal electrometer as an option for CBP scans and adjust the npulses for the laser. (`RSO-35 <https://rubinobs.atlassian.net/browse/RSO-35>`_, `RSO-252 <https://rubinobs.atlassian.net/browse/RSO-252>`_)
+- Added sequences to mtcalsys.yaml for out-of-band whitelight flats. (`RSO-176 <https://rubinobs.atlassian.net/browse/RSO-176>`_)
+- Added new sequence to mtcalsys.yaml for out-of-band whitelight flats. (`RSO-216 <https://rubinobs.atlassian.net/browse/RSO-216>`_)
+- Fix set burst mode command to include count. (`RSO-496 <https://rubinobs.atlassian.net/browse/RSO-496>`_)
+- Added laser_cbp sequence to measure the laser output with the CBP electrometer (`RSO-518 <https://rubinobs.atlassian.net/browse/RSO-518>`_)
+- Added setup_cbp to mtcalsys.yaml and added CBP to the prepare cals. (`RSO-T339 <https://rubinobs.atlassian.net/browse/RSO-T339>`_)
+
+
+Bug Fixes
+---------
+
+- Fixing a bug from RSO-462, adding set_wavelength_range: false for all sequences added (`RSO-462 <https://rubinobs.atlassian.net/browse/RSO-462>`_)
+- Remove use_cbp from cbp wavelength scans where cbp doesn't move. (`RSO-496 <https://rubinobs.atlassian.net/browse/RSO-496>`_)
+- Fix tunable laser command. (`RSO-496 <https://rubinobs.atlassian.net/browse/RSO-496>`_)
+
+
+Other Changes and Additions
+---------------------------
+
+- Updated ``MTCS.prepare_for_onsky`` to enable hexapod compensation mode before slewing and improved the unsafe-elevation error message when raising M1M3. (`DM-51803 <https://rubinobs.atlassian.net/browse/DM-51803>`_)
+- Add optional timeout argument to ``slew_dome_to`` methods. (`OSW-1968 <https://rubinobs.atlassian.net/browse/OSW-1968>`_)
+- In atcs.py, remove stop_tracking from prepare_for_flats to allow ATCS to track flat field position. (`RSO-91 <https://rubinobs.atlassian.net/browse/RSO-91>`_)
+- In mtcalsys_schema.yaml, make the default to ignore the Fiber Spectrographs. (`RSO-123 <https://rubinobs.atlassian.net/browse/RSO-123>`_)
+- Changed F1 SCU to F2 SCU for CBP and vice versa for the Mono flats in mtcalsys.yaml. (`RSO-445 <https://rubinobs.atlassian.net/browse/RSO-445>`_)
+- Adding a cbp_u_4nm for diagnostics (`RSO-446 <https://rubinobs.atlassian.net/browse/RSO-446>`_)
+- Adding u-band mono flats sequences to deal with Laser going to fault occasionally. (`RSO-461 <https://rubinobs.atlassian.net/browse/RSO-461>`_)
+
+
 v0.48.0 (2026-01-29)
 ====================
 
