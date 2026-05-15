@@ -1,1 +1,0 @@
-Add optional timeout argument to ``slew_dome_to`` methods.

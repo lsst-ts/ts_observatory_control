@@ -1,1 +1,0 @@
-Updated the ``stop_dome`` command in ``auxtel/atcs.py`` to include a try loop for improved error handling and robustness.

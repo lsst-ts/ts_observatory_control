@@ -1,1 +1,0 @@
-Removing use_fiberspectrograph_blue/red from mtcalsys_schema.yaml and mtcalsys.yaml.

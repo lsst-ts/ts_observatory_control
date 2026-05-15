@@ -1,1 +1,0 @@
-Changed F1 SCU to F2 SCU for CBP and vice versa for the Mono flats in mtcalsys.yaml.

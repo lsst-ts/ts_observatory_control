@@ -1,1 +1,0 @@
-Add in use_electrometer, use_fiberspectrograph_blue/red and electrometer_names to definition of MTCalsys
