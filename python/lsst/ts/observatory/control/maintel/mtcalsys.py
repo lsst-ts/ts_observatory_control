@@ -404,7 +404,7 @@ class MTCalsys(BaseCalsys):
         if mask is not None:
             self.log.debug(f"Setting mask to {mask}")
             await self.rem.cbp.cmd_changeMask.set_start(
-                mask=mask, timeout=self.long_long_timeout
+                mask=str(mask), timeout=self.long_long_timeout
             )
         if rotation is not None:
             self.log.debug(f"Setting mask rotation to {rotation}")
