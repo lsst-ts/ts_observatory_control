@@ -1695,16 +1695,20 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
                 f"last integration completed: {last_end_readout.imageName}."
             )
             next_end_readout_timeout = (
-                self.long_timeout + last_start_integration.exposureTime
+                self.long_timeout
+                + last_start_integration.exposureTime * 2.0
+                + self.read_out_time
             )
             try:
                 last_end_readout = await self.camera.evt_endReadout.next(
                     flush=False, timeout=next_end_readout_timeout
                 )
             except asyncio.TimeoutError:
-                raise RuntimeError(
+                self.log.warning(
                     f"No new end readout event in {next_end_readout_timeout}s. "
-                    f"Cannot determine if camera is ready to take data."
+                    "Cannot determine if camera is ready to take data. "
+                    "This is most likely due to a camera fault not producing the last "
+                    "end readout event. Continuing..."
                 )
 
         self.camera.evt_startIntegration.flush()
