@@ -275,7 +275,7 @@ class LSSTCam(BaseCamera):
         current_filter = await self.get_current_filter()
         if filter is not None and filter != current_filter:
             if self.mtcs is not None:
-                await self._setup_mtcs_for_filter_change()
+                await self._setup_mtcs_for_filter_change(filter_name=filter)
             else:
                 raise RuntimeError(
                     "Cannot change the LSSTCam filter without proper setup. "
@@ -300,7 +300,7 @@ class LSSTCam(BaseCamera):
 
             return None
 
-    async def _setup_mtcs_for_filter_change(self) -> None:
+    async def _setup_mtcs_for_filter_change(self, filter_name: str) -> None:
         assert self.mtcs is not None
         if (
             self.mtcs.check.mtmount
@@ -326,6 +326,18 @@ class LSSTCam(BaseCamera):
             self.log.warning(
                 "Rotator being ignored, skip moving rotator to filter change position."
             )
+
+        if self.mtcs.check.mtptg:
+            try:
+                await self.mtcs.rem.mtptg.cmd_wavelength.set_start(
+                    wavelength=self.get_effective_wavelength(filter_name=filter_name),
+                    timeout=self.mtcs.fast_timeout,
+                )
+            except Exception:
+                self.log.warning(
+                    "Failed to set target wavelength in the pointing component.",
+                    exc_info=True,
+                )
 
     async def get_current_filter(self) -> str:
         """Get the current filter.
