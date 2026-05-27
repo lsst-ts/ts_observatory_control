@@ -21,6 +21,7 @@
 
 from .base_camera import *
 from .base_tcs import *
+from .exposure_log import *
 from .remote_group import *
 from .utils import *
 

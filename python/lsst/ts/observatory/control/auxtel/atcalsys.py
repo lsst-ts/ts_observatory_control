@@ -26,7 +26,6 @@ import time
 import typing
 from dataclasses import dataclass
 
-import numpy as np
 from lsst.ts import salobj, utils
 from lsst.ts.xml.enums.ATMonochromator import Grating
 
@@ -395,92 +394,46 @@ class ATCalsys(BaseCalsys):
                 fiberspectrograph_exptimes.append(None)
         return fiberspectrograph_exptimes
 
-    async def run_calibration_sequence(
-        self, sequence_name: str, exposure_metadata: dict
+    async def execute_exposure_step(
+        self,
+        exposure: ATCalsysExposure,
+        exposure_metadata: dict,
+        config_data: dict,
+        calibration_type: CalibrationType,
+        sequence_name: str,
     ) -> dict:
-        """Perform full calibration sequence, taking flats with the
-        camera and all ancillary instruments.
 
-        Parameters
-        ----------
-        sequence_name : `str`
-            Name of the calibration sequence to execute.
+        if config_data["monochromator_grating"] is not None:
+            await self.change_wavelength(wavelength=exposure.wavelength)
 
-        Returns
-        -------
-        calibration_summary : `dict`
-            Dictionary with summary information about the sequence.
-        """
-        calibration_summary: dict = dict(
-            steps=[],
-            sequence_name=sequence_name,
+        latiss_exposure_info: dict = dict()
+
+        exposure_info = await self._take_data(
+            latiss_exptime=exposure.camera,
+            latiss_filter=str(config_data["atspec_filter"]),
+            latiss_grating=str(config_data["atspec_grating"]),
+            exposure_metadata=exposure_metadata,
+            fiber_spectrum_exposure_time=exposure.fiberspectrograph,
+            electrometer_exposure_time=exposure.electrometer,
         )
+        latiss_exposure_info.update(exposure_info)
 
-        config_data = self.get_calibration_configuration(sequence_name)
-
-        calibration_type = getattr(CalibrationType, str(config_data["calib_type"]))
-        if calibration_type == CalibrationType.WhiteLight:
-            calibration_wavelengths = np.array([float(config_data["wavelength"])])
-        else:
-            wavelength = float(config_data["wavelength"])
-            wavelength_width = float(config_data["wavelength_width"])
-            wavelength_resolution = float(config_data["wavelength_resolution"])
-            wavelength_start = wavelength - wavelength_width / 2.0
-            wavelength_end = wavelength + wavelength_width / 2.0
-
-            calibration_wavelengths = np.arange(
-                wavelength_start,
-                wavelength_end + wavelength_resolution,
-                wavelength_resolution,
-            )
-
-        exposure_table = await self.calculate_optimized_exposure_times(
-            wavelengths=calibration_wavelengths, config_data=config_data
-        )
-
-        for i, exposure in enumerate(exposure_table):
-            self.log.debug(
-                f"Performing {calibration_type.name} calibration with {exposure.wavelength=}."
-            )
-            if config_data["monochromator_grating"] is not None:
-                await self.change_wavelength(wavelength=exposure.wavelength)
-            _exposure_metadata = exposure_metadata.copy()
-            if "group_id" in _exposure_metadata:
-                _exposure_metadata["group_id"] += f"#{i+1}"
-
-            latiss_exposure_info: dict = dict()
-            self.log.debug("Taking data sequence.")
+        if calibration_type == CalibrationType.Mono:
+            self.log.debug("Taking data sequence without filter for monochromatic set.")
             exposure_info = await self._take_data(
                 latiss_exptime=exposure.camera,
-                latiss_filter=str(config_data["atspec_filter"]),
+                latiss_filter="empty_1",
                 latiss_grating=str(config_data["atspec_grating"]),
-                exposure_metadata=_exposure_metadata,
+                exposure_metadata=exposure_metadata,
                 fiber_spectrum_exposure_time=exposure.fiberspectrograph,
                 electrometer_exposure_time=exposure.electrometer,
             )
             latiss_exposure_info.update(exposure_info)
 
-            if calibration_type == CalibrationType.Mono:
-                self.log.debug(
-                    "Taking data sequence without filter for monochromatic set."
-                )
-                exposure_info = await self._take_data(
-                    latiss_exptime=exposure.camera,
-                    latiss_filter="empty_1",
-                    latiss_grating=str(config_data["atspec_grating"]),
-                    exposure_metadata=exposure_metadata,
-                    fiber_spectrum_exposure_time=exposure.fiberspectrograph,
-                    electrometer_exposure_time=exposure.electrometer,
-                )
-                latiss_exposure_info.update(exposure_info)
-
-            step = dict(
-                wavelength=exposure.wavelength,
-                latiss_exposure_info=latiss_exposure_info,
-            )
-
-            calibration_summary["steps"].append(step)
-        return calibration_summary
+        return dict(
+            wavelength=exposure.wavelength,
+            latiss_exposure_info=latiss_exposure_info,
+        )
 
     async def _take_data(
         self,
