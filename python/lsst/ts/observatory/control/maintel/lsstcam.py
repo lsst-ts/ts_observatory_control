@@ -130,6 +130,15 @@ class LSSTCam(BaseCamera):
         roi_spec_dict.update(roi)
         self._roi_spec_json = json.dumps(roi_spec_dict, separators=(",", ":"))
 
+        self._effective_wavelengths: dict[str, float] = {
+            "u_24": 0.372354597,
+            "g_6": 0.480687954,
+            "r_57": 0.622146782,
+            "i_39": 0.755898675,
+            "z_20": 0.867965175,
+            "y_10": 0.975343548,
+        }
+
     @classmethod
     def get_image_types(cls) -> typing.List[str]:
         return super().get_image_types() + ["SPOT"]
