@@ -624,23 +624,72 @@ class MTCalsys(BaseCalsys):
             str(led_state),
         )
 
+    async def _safe_aget(
+        self,
+        coro: typing.Any,
+        name: str,
+    ) -> typing.Any:
+        try:
+            return await coro
+        except Exception as e:
+            self.log.warning(f"Failed to get {name}: {e}")
+            return None
+
     async def get_laser_parameters(self) -> tuple:
-        """Get laser configuration
+        """Get tunable laser configuration parameters.
 
         Returns
         -------
-            list : configuration details
+        tuple
+            Tuple containing:
 
+            - optical configuration
+            - wavelength
+            - interlock state
+            - burst mode state
+            - continuous mode state
+
+            Each entry may be of type `Any` or `None`. A value of `None`
+            indicates that the corresponding `.aget()` call failed or timed
+            out.
+
+            This fault-tolerant behavior is required because the TunableLaser
+            CSC does not always publish all expected events.
         """
 
-        return await asyncio.gather(
-            self.rem.tunablelaser.evt_opticalConfiguration.aget(
-                timeout=self.long_timeout
-            ),
-            self.rem.tunablelaser.evt_wavelengthChanged.aget(timeout=self.long_timeout),
-            self.rem.tunablelaser.evt_interlockState.aget(timeout=self.long_timeout),
-            self.rem.tunablelaser.evt_burstModeSet.aget(timeout=self.long_timeout),
-            self.rem.tunablelaser.evt_continuousModeSet.aget(timeout=self.long_timeout),
+        return tuple(
+            await asyncio.gather(
+                self._safe_aget(
+                    self.rem.tunablelaser.evt_opticalConfiguration.aget(
+                        timeout=self.long_timeout
+                    ),
+                    "optical configuration",
+                ),
+                self._safe_aget(
+                    self.rem.tunablelaser.evt_wavelengthChanged.aget(
+                        timeout=self.long_timeout
+                    ),
+                    "wavelength",
+                ),
+                self._safe_aget(
+                    self.rem.tunablelaser.evt_interlockState.aget(
+                        timeout=self.long_timeout
+                    ),
+                    "interlock state",
+                ),
+                self._safe_aget(
+                    self.rem.tunablelaser.evt_burstModeSet.aget(
+                        timeout=self.long_timeout
+                    ),
+                    "burst mode",
+                ),
+                self._safe_aget(
+                    self.rem.tunablelaser.evt_continuousModeSet.aget(
+                        timeout=self.long_timeout
+                    ),
+                    "continuous mode",
+                ),
+            )
         )
 
     async def laser_start_propagate(self) -> None:
