@@ -792,7 +792,7 @@ class MTCalsys(BaseCalsys):
         await asyncio.sleep(delay_after)
 
     async def prepare_for_flat(self, sequence_name: str) -> None:
-        """Configure the ATMonochromator according to the flat parameters
+        """Configure the Projector and/or Laser for calibrations
 
         Parameters
         ----------
@@ -884,10 +884,18 @@ class MTCalsys(BaseCalsys):
 
                     raise result
 
-        elif calibration_type in [CalibrationType.Mono, CalibrationType.CBP]:
+        elif calibration_type == CalibrationType.Mono:
             wavelengths = [400.0]  # function of filter_name
             task_select_wavelength = self.change_laser_wavelength(
                 wavelength=wavelengths[0]
+            )
+
+            await asyncio.gather(task_select_wavelength, task_setup_camera)
+
+        elif calibration_type == CalibrationType.CBP:
+            wavelengths = [400.0]  # function of filter_name
+            task_select_wavelength = self.change_laser_wavelength(
+                wavelength=wavelengths[0], use_projector=False
             )
 
             await asyncio.gather(task_select_wavelength, task_setup_camera)
