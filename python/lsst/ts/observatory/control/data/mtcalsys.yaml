@@ -700,8 +700,8 @@ scan_r:
   optical_configuration: F2 SCU
   use_camera: True
   mtcamera_filter: r_57
-  wavelength: 620.0
-  wavelength_width: 180
+  wavelength: 615.0
+  wavelength_width: 190
   wavelength_resolution: 5.0
   n_flat: 2
   exposure_times:
@@ -726,7 +726,7 @@ scan_i:
   optical_configuration: F2 SCU
   use_camera: True
   mtcamera_filter: i_39
-  wavelength: 755.0
+  wavelength: 745.0
   wavelength_width: 190
   wavelength_resolution: 5.0
   n_flat: 2
@@ -739,7 +739,7 @@ scan_z:
   optical_configuration: F2 SCU
   use_camera: True
   mtcamera_filter: z_20
-  wavelength: 870.0
+  wavelength: 860.0
   wavelength_width: 160
   wavelength_resolution: 5.0
   n_flat: 2
@@ -752,8 +752,8 @@ scan_y:
   optical_configuration: F2 SCU
   use_camera: True
   mtcamera_filter: y_10
-  wavelength: 1025.0
-  wavelength_width: 250
+  wavelength: 1000.0
+  wavelength_width: 200
   wavelength_resolution: 5.0
   n_flat: 2
   exposure_times:
