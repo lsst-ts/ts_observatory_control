@@ -1365,7 +1365,7 @@ class TestMTCS(MTCSAsyncMock):
             raiseM1M3=True, timeout=self.mtcs.long_timeout
         )
         self.mtcs.rem.mtm1m3.evt_detailedState.next.assert_awaited_with(
-            flush=False, timeout=self.mtcs.long_timeout
+            flush=False, timeout=self.mtcs.m1m3_raise_timeout
         )
         assert self._mtm1m3_evt_detailed_state.detailedState in (
             MTM1M3.DetailedStates.ACTIVE,
@@ -1474,7 +1474,7 @@ class TestMTCS(MTCSAsyncMock):
         )
 
         self.mtcs.rem.mtm1m3.evt_detailedState.next.assert_awaited_with(
-            flush=False, timeout=self.mtcs.long_timeout
+            flush=False, timeout=self.mtcs.m1m3_raise_timeout
         )
 
         assert self._mtm1m3_evt_detailed_state.detailedState in (
@@ -3000,6 +3000,18 @@ class TestMTCS(MTCSAsyncMock):
             assert (
                 actual_settings[setting] == expected_value
             ), f"Setting {setting} expected to be {expected_value} but was {actual_settings[setting]}"
+
+    async def test_assert_m1m3_force_balance_system_enabled_passes(self) -> None:
+        """Test that assertion passes when force balance is enabled."""
+        self._mtm1m3_evt_force_actuator_state.balanceForcesApplied = True
+        await self.mtcs.assert_m1m3_force_balance_system_enabled()
+
+    async def test_assert_m1m3_force_balance_system_enabled_fails(self) -> None:
+        """Test that assertion raises when force balance is not enabled."""
+        self._mtm1m3_evt_force_actuator_state.balanceForcesApplied = False
+        with self.assertRaises(RuntimeError) as context:
+            await self.mtcs.assert_m1m3_force_balance_system_enabled()
+        assert "M1M3 force balance system is not enabled" in str(context.exception)
 
     async def test_m1m3_in_engineering_mode(self) -> None:
         async with self.mtcs.m1m3_in_engineering_mode():
