@@ -1707,6 +1707,7 @@ class MTCS(BaseTCS):
         11. Enable hexapod compensation mode if not ignored.
         12. Slew to the flat-field target (rotator at 0 deg).
         13. Stop tracking.
+        14. Ensure M1M3 is not in engineering mode.
 
         Parameters
         ----------
@@ -1786,8 +1787,7 @@ class MTCS(BaseTCS):
         )
 
         await self.stop_tracking()
-
-        self.log.info("Prepare for flat finished.")
+        await self.ensure_m1m3_not_in_engineering_mode()
 
     @staticmethod
     def get_critical_components_for_prepare_for_onsky() -> list[str]:
@@ -1826,6 +1826,7 @@ class MTCS(BaseTCS):
         14. Open the dome shutter.
         15. Open the mirror covers.
         16. Enable dome following if not ignored.
+        17. Ensure M1M3 is not in engineering mode.
 
         Parameters
         ----------
@@ -1932,6 +1933,8 @@ class MTCS(BaseTCS):
             self.log.warning(
                 f"{self.dome_trajectory_name} is ignored; skipping dome following operations."
             )
+
+        await self.ensure_m1m3_not_in_engineering_mode()
 
     async def shutdown(self) -> None:
         # TODO: Implement (DM-21336).
@@ -2878,6 +2881,19 @@ class MTCS(BaseTCS):
             )
         else:
             self.log.warning("M1M3 not in engineering mode.")
+
+    async def ensure_m1m3_not_in_engineering_mode(self) -> None:
+        """Ensure M1M3 is not in engineering mode.
+
+        If M1M3 is in engineering mode, this method will exit engineering mode.
+        If M1M3 is not in engineering mode, this method does nothing.
+        """
+        self.log.info("Ensuring M1M3 is not in engineering mode.")
+        if await self.is_m1m3_in_engineering_mode():
+            self.log.warning("M1M3 is in engineering mode. Exiting engineering mode.")
+            await self.exit_m1m3_engineering_mode()
+        else:
+            self.log.debug("M1M3 is not in engineering mode. Nothing to do.")
 
     @contextlib.asynccontextmanager
     async def m1m3_in_engineering_mode(self) -> typing.AsyncIterator[None]:
