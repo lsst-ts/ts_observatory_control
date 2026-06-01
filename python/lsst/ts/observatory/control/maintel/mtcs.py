@@ -1669,9 +1669,10 @@ class MTCS(BaseTCS):
             )
 
         self.log.info("Homing both axes.")
-        await self.rem.mtmount.cmd_homeBothAxes.start(
-            timeout=self.home_both_axes_timeout
-        )
+        async with self.m1m3_booster_valve():
+            await self.rem.mtmount.cmd_homeBothAxes.start(
+                timeout=self.home_both_axes_timeout
+            )
 
         await self.enable_ccw_following()
 
@@ -1788,9 +1789,10 @@ class MTCS(BaseTCS):
             )
 
         self.log.info("Homing both axes.")
-        await self.rem.mtmount.cmd_homeBothAxes.start(
-            timeout=self.home_both_axes_timeout
-        )
+        async with self.m1m3_booster_valve():
+            await self.rem.mtmount.cmd_homeBothAxes.start(
+                timeout=self.home_both_axes_timeout
+            )
 
         self.log.info("Ensuring CCW is following before slewing to open position.")
         await self.enable_ccw_following()
