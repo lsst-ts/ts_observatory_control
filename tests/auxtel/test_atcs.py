@@ -1163,7 +1163,7 @@ class TestATTCS(ATCSAsyncMock):
             rotMode=self.atcs.RotMode.FIELD,
         )
 
-        self.atcs.rem.atptg.cmd_poriginOffset.set.assert_called_with(dx=0, dy=0, num=0)
+        self.atcs.rem.atptg.cmd_poriginOffset.set.assert_not_called()
 
         self.atcs.rem.atptg.cmd_stopTracking.start.assert_not_awaited()
 
@@ -1201,7 +1201,7 @@ class TestATTCS(ATCSAsyncMock):
             rotMode=self.atcs.RotMode.FIELD,
         )
 
-        self.atcs.rem.atptg.cmd_poriginOffset.set.assert_called_with(dx=0, dy=0, num=0)
+        self.atcs.rem.atptg.cmd_poriginOffset.set.assert_not_called()
 
     async def test_slew_icrs_no_stop(self) -> None:
         await self.atcs.enable()
@@ -1236,14 +1236,11 @@ class TestATTCS(ATCSAsyncMock):
             rotMode=self.atcs.RotMode.FIELD,
         )
 
-        self.atcs.rem.atptg.cmd_poriginOffset.set.assert_called_with(dx=0, dy=0, num=0)
+        self.atcs.rem.atptg.cmd_poriginOffset.set.assert_not_called()
 
-        self.atcs.rem.atptg.cmd_stopTracking.start.assert_not_called()
+        self.atcs.rem.atptg.cmd_stopTracking.start.assert_not_awaited()
 
         self.atcs.rem.atptg.cmd_raDecTarget.start.assert_called()
-        self.atcs.rem.atptg.cmd_poriginOffset.start.assert_called_with(
-            timeout=self.atcs.fast_timeout
-        )
 
     async def test_slew_icrs_rot(self) -> None:
         await self.atcs.enable()
@@ -1280,14 +1277,11 @@ class TestATTCS(ATCSAsyncMock):
             rotMode=self.atcs.RotMode.FIELD,
         )
 
-        self.atcs.rem.atptg.cmd_poriginOffset.set.assert_called_with(dx=0, dy=0, num=0)
+        self.atcs.rem.atptg.cmd_poriginOffset.set.assert_not_called()
 
         self.atcs.rem.atptg.cmd_stopTracking.start.assert_not_awaited()
 
         self.atcs.rem.atptg.cmd_raDecTarget.start.assert_awaited()
-        self.atcs.rem.atptg.cmd_poriginOffset.start.assert_awaited_with(
-            timeout=self.atcs.fast_timeout
-        )
 
     async def test_slew_icrs_rot_physical(self) -> None:
         await self.atcs.enable()
@@ -1324,12 +1318,9 @@ class TestATTCS(ATCSAsyncMock):
             rotMode=self.atcs.RotMode.FIELD,
         )
 
-        self.atcs.rem.atptg.cmd_poriginOffset.set.assert_called_with(dx=0, dy=0, num=0)
+        self.atcs.rem.atptg.cmd_poriginOffset.set.assert_not_called()
 
         self.atcs.rem.atptg.cmd_raDecTarget.start.assert_awaited()
-        self.atcs.rem.atptg.cmd_poriginOffset.start.assert_awaited_with(
-            timeout=self.atcs.fast_timeout
-        )
 
     async def test_slew_icrs_rot_physical_sky(self) -> None:
         await self.atcs.enable()
@@ -1366,14 +1357,11 @@ class TestATTCS(ATCSAsyncMock):
             rotMode=self.atcs.RotMode.FIELD,
         )
 
-        self.atcs.rem.atptg.cmd_poriginOffset.set.assert_called_with(dx=0, dy=0, num=0)
+        self.atcs.rem.atptg.cmd_poriginOffset.set.assert_not_called()
 
         self.atcs.rem.atptg.cmd_stopTracking.start.assert_not_awaited()
 
         self.atcs.rem.atptg.cmd_raDecTarget.start.assert_awaited()
-        self.atcs.rem.atptg.cmd_poriginOffset.start.assert_awaited_with(
-            timeout=self.atcs.fast_timeout
-        )
 
     async def test_slew_icrs_rot_sky_init_angle_out_of_range(self) -> None:
         await self.atcs.enable()
@@ -1437,14 +1425,11 @@ class TestATTCS(ATCSAsyncMock):
             atptg_cmd_ra_dec_target_expected_calls
         )
 
-        self.atcs.rem.atptg.cmd_poriginOffset.set.assert_called_with(dx=0, dy=0, num=0)
+        self.atcs.rem.atptg.cmd_poriginOffset.set.assert_not_called()
 
         self.atcs.rem.atptg.cmd_stopTracking.start.assert_not_awaited()
 
         self.atcs.rem.atptg.cmd_raDecTarget.start.assert_awaited()
-        self.atcs.rem.atptg.cmd_poriginOffset.start.assert_awaited_with(
-            timeout=self.atcs.fast_timeout
-        )
 
     async def test_slew_icrs_fail_runtimeerror(self) -> None:
         await self.atcs.enable()
