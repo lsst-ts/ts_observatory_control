@@ -1,0 +1,1 @@
+Updated ``mtcs.prepare_for_onsky()`` and ``mtcs.prepare_for_flatfield()`` to use the ``mtcs.m1m3_booster_valve()`` context manager when homing both axes, following the same pattern used in ``maintel/home_both_axes.py`` and ``maintel/ensure_onsky_readiness.py`` scripts.
