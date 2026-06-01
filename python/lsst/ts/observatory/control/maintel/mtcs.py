@@ -1343,6 +1343,93 @@ class MTCS(BaseTCS):
         azimuth = await self.rem.mtdome.tel_azimuth.aget(timeout=self.fast_timeout)
         self.log.debug(f"{azimuth.positionActual=}, {azimuth.positionCommanded=}")
 
+    async def home_both_axes(self, homing_attempts: int = 10) -> None:
+        """Home both axes of the MTMount with retry logic.
+
+        This method attempts to home both axes multiple times, checking that
+        MTMount is enabled and M1M3 is raised before each attempt. The M1M3
+        booster valve is activated during homing to protect the mirror.
+
+        Parameters
+        ----------
+        homing_attempts : `int`, optional
+            Number of attempts to home both axes (default: 10, minimum: 1).
+
+        Raises
+        ------
+        RuntimeError
+            If MTMount is not enabled.
+            If M1M3 is not raised (ACTIVE or ACTIVEENGINEERING).
+            If homing fails after all attempts.
+        """
+        homing_attempts = max(1, homing_attempts)
+
+        async with self.m1m3_booster_valve():
+            for attempt in range(1, homing_attempts + 1):
+                await self._assert_mtmount_enabled()
+                await self._assert_m1m3_raised()
+
+                self.log.info(
+                    f"Homing both axes (attempt {attempt} of {homing_attempts})."
+                )
+                try:
+                    await self.rem.mtmount.cmd_homeBothAxes.start(
+                        timeout=self.home_both_axes_timeout
+                    )
+                    self.log.info("Homing both axes completed successfully.")
+                    break
+                except Exception:
+                    self.log.warning(
+                        f"Homing failed on attempt {attempt} of {homing_attempts}. "
+                        f"Waiting {self.fast_timeout} s before retrying.",
+                        exc_info=True,
+                    )
+                    await asyncio.sleep(self.fast_timeout)
+            else:
+                raise RuntimeError(
+                    f"Failed to home both axes after {homing_attempts} attempts."
+                )
+
+    async def _assert_mtmount_enabled(self) -> None:
+        """Assert that MTMount is in the ENABLED state.
+
+        Raises
+        ------
+        RuntimeError
+            If MTMount is not in the ENABLED state.
+        """
+        summary_state = await self.rem.mtmount.evt_summaryState.aget(
+            timeout=self.fast_timeout
+        )
+        if summary_state.summaryState != salobj.State.ENABLED:
+            raise RuntimeError(
+                f"MTMount is not enabled (state={salobj.State(summary_state.summaryState)!r}). "
+                "Cannot proceed with homing."
+            )
+
+    async def _assert_m1m3_raised(self) -> None:
+        """Assert that M1M3 is raised (ACTIVE or ACTIVEENGINEERING).
+
+        Raises
+        ------
+        RuntimeError
+            If M1M3 is not in a raised detailed state.
+        """
+        detailed_state = MTM1M3.DetailedStates(
+            (
+                await self.rem.mtm1m3.evt_detailedState.aget(timeout=self.fast_timeout)
+            ).detailedState
+        )
+        raised_states = {
+            MTM1M3.DetailedStates.ACTIVE,
+            MTM1M3.DetailedStates.ACTIVEENGINEERING,
+        }
+        if detailed_state not in raised_states:
+            raise RuntimeError(
+                f"M1M3 mirror is not raised (detailed state is {detailed_state.name}). "
+                "Please raise M1M3 before homing MTMount."
+            )
+
     async def open_dome_shutter(self, force: bool = False) -> None:
         """Method to open dome shutter.
 
@@ -1595,7 +1682,9 @@ class MTCS(BaseTCS):
 
         await self.rem.mtmount.cmd_unpark.start(timeout=self.long_timeout)
 
-    async def prepare_for_flatfield(self, check: typing.Any = None) -> None:
+    async def prepare_for_flatfield(
+        self, check: typing.Any = None, homing_attempts: int = 10
+    ) -> None:
         """Prepare Simonyi Telescope for flat-field operations.
 
         This method performs an end-to-end operation to prepare the MTCS
@@ -1613,7 +1702,7 @@ class MTCS(BaseTCS):
         6. Assert M1M3 force balance system is enabled.
         7. Open mirror covers for calibration.
         8. Disable dome following (if not ignored).
-        9. Home both mount axes.
+        9. Home both mount axes (with retry logic).
         10. Enable camera cable wrap following.
         11. Enable hexapod compensation mode if not ignored.
         12. Slew to the flat-field target (rotator at 0 deg).
@@ -1623,6 +1712,8 @@ class MTCS(BaseTCS):
         ----------
         check : `types.SimpleNamespace` or `None`
             Override `self.check` for defining which resources are used.
+        homing_attempts : `int`, optional
+            Number of attempts to home both axes (default: 10).
         """
 
         _check = copy.copy(self.check) if check is None else copy.copy(check)
@@ -1668,11 +1759,7 @@ class MTCS(BaseTCS):
                 f"{self.dome_trajectory_name} is ignored; skipping dome following disable."
             )
 
-        self.log.info("Homing both axes.")
-        async with self.m1m3_booster_valve():
-            await self.rem.mtmount.cmd_homeBothAxes.start(
-                timeout=self.home_both_axes_timeout
-            )
+        await self.home_both_axes(homing_attempts=homing_attempts)
 
         await self.enable_ccw_following()
 
@@ -1713,7 +1800,9 @@ class MTCS(BaseTCS):
                 raise RuntimeError(f"Cannot ignore {comp} for prepare_for_onsky.")
 
     async def prepare_for_onsky(
-        self, overrides: typing.Optional[typing.Dict[str, str]] = None
+        self,
+        overrides: typing.Optional[typing.Dict[str, str]] = None,
+        homing_attempts: int = 10,
     ) -> None:
         """Prepare Simonyi Telescope for on-sky operations
 
@@ -1727,7 +1816,7 @@ class MTCS(BaseTCS):
         5. Check telescope elevation and raise M1M3 if safe.
         6. Assert M1M3 force balance system is enabled.
         7. Assert M1M3 slew controller flags are enabled (warning if not).
-        8. Home both axes of the mount.
+        8. Home both axes of the mount (with retry logic).
         9. Enable camera cable wrap following.
         10. Enable hexapod compensation mode if not ignored.
         11. Slew the telescope to the open position (az=150, el=70).
@@ -1742,6 +1831,8 @@ class MTCS(BaseTCS):
         ----------
         overrides : typing.Optional[typing.Dict[str, str]], optional
             Dictionary of component overrides, by default None
+        homing_attempts : `int`, optional
+            Number of attempts to home both axes (default: 10).
         """
 
         await self.assert_all_enabled(
@@ -1788,11 +1879,7 @@ class MTCS(BaseTCS):
                 "This may affect slew performance."
             )
 
-        self.log.info("Homing both axes.")
-        async with self.m1m3_booster_valve():
-            await self.rem.mtmount.cmd_homeBothAxes.start(
-                timeout=self.home_both_axes_timeout
-            )
+        await self.home_both_axes(homing_attempts=homing_attempts)
 
         self.log.info("Ensuring CCW is following before slewing to open position.")
         await self.enable_ccw_following()

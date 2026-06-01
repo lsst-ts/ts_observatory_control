@@ -28,7 +28,7 @@ import astropy.units as units
 import numpy as np
 import pytest
 from astropy.coordinates import Angle
-from lsst.ts import utils, xml
+from lsst.ts import salobj, utils, xml
 from lsst.ts.observatory.control.mock.mtcs_async_mock import MTCSAsyncMock
 from lsst.ts.observatory.control.utils import RotType
 from lsst.ts.xml.enums import MTM1M3, MTM2, MTDome, MTMount, MTRotator
@@ -3046,3 +3046,72 @@ class TestMTCS(MTCSAsyncMock):
         self.mtcs.rem.mtaos.cmd_startClosedLoop.set_start.assert_awaited_once_with(
             config=config, timeout=self.mtcs.aos_closed_loop_timeout
         )
+
+    async def test_home_both_axes_success(self) -> None:
+        """Test successful homing with M1M3 raised and MTMount enabled."""
+        await self.mtcs.enable()
+        await self.mtcs.raise_m1m3()
+
+        await self.mtcs.home_both_axes()
+
+        self.mtcs.rem.mtmount.cmd_homeBothAxes.start.assert_awaited_once_with(
+            timeout=self.mtcs.home_both_axes_timeout
+        )
+
+    async def test_home_both_axes_with_retries(self) -> None:
+        """Test homing retries on failure and eventually succeeds."""
+        await self.mtcs.enable()
+        await self.mtcs.raise_m1m3()
+
+        self.mtcs.rem.mtmount.cmd_homeBothAxes.start.side_effect = [
+            RuntimeError("Simulated homing failure"),
+            RuntimeError("Simulated homing failure"),
+            None,
+        ]
+
+        await self.mtcs.home_both_axes(homing_attempts=3)
+
+        assert self.mtcs.rem.mtmount.cmd_homeBothAxes.start.call_count == 3
+
+    async def test_home_both_axes_fails_after_max_attempts(self) -> None:
+        """Test homing fails after exhausting all attempts."""
+        await self.mtcs.enable()
+        await self.mtcs.raise_m1m3()
+
+        self.mtcs.rem.mtmount.cmd_homeBothAxes.start.side_effect = RuntimeError(
+            "Simulated homing failure"
+        )
+
+        with pytest.raises(RuntimeError) as exc_info:
+            await self.mtcs.home_both_axes(homing_attempts=3)
+
+        assert "Failed to home both axes after 3 attempts" in str(exc_info.value)
+        assert self.mtcs.rem.mtmount.cmd_homeBothAxes.start.call_count == 3
+
+    async def test_home_both_axes_m1m3_not_raised(self) -> None:
+        """Test homing fails when M1M3 is not raised."""
+        await self.mtcs.enable()
+        # M1M3 starts in PARKED state by default (not raised)
+
+        with pytest.raises(RuntimeError) as exc_info:
+            await self.mtcs.home_both_axes()
+
+        assert "M1M3 mirror is not raised" in str(exc_info.value)
+        self.mtcs.rem.mtmount.cmd_homeBothAxes.start.assert_not_awaited()
+
+    async def test_home_both_axes_mtmount_not_enabled(self) -> None:
+        """Test homing fails when MTMount is not enabled."""
+        await self.mtcs.enable()
+        await self.mtcs.raise_m1m3()
+
+        # Now disable MTMount
+        await self.mtcs.set_state(
+            salobj.State.DISABLED,
+            components=["mtmount"],
+        )
+
+        with pytest.raises(RuntimeError) as exc_info:
+            await self.mtcs.home_both_axes()
+
+        assert "MTMount is not enabled" in str(exc_info.value)
+        self.mtcs.rem.mtmount.cmd_homeBothAxes.start.assert_not_awaited()
