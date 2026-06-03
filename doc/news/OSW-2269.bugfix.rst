@@ -1,1 +1,0 @@
-Updated BaseCamera.wait_for_camera_readiness to log a warning instead of raising an exception if there was no end readout event, allowing the process to continue even if the camera faulted during exposure.

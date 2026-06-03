@@ -1,1 +1,0 @@
-Updated MTCS.slew method to have default values for offset x and y of None, and only send the offset if they are defined. Otherwise skip sending the offset.

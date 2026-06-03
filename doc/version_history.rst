@@ -8,6 +8,42 @@ Version History
 
 .. towncrier release notes start
 
+v0.50.0 (2026-06-03)
+====================
+
+New Features
+------------
+
+- Added a new handle_aos_close_loop method to maintel/mtcs.py, calling it just before the slew, after M1M3 slew flags were switched on.
+  This ensures corrections happen before the slew begins while the system is ready to handle potential slew induced by the AOS corrections. (`OSW-2269 <https://rubinobs.atlassian.net/browse/OSW-2269>`_)
+- Added a mechanism to retrieve effective wavelength for a given filter name in base_camera.py. (`OSW-2269 <https://rubinobs.atlassian.net/browse/OSW-2269>`_)
+- Added effective wavelength dictionary to lsstcam.py with information about the existing LSSTCam filters. (`OSW-2269 <https://rubinobs.atlassian.net/browse/OSW-2269>`_)
+- Updated LSSTCam._setup_mtcs_for_filter_change in lsstcam.py to handle setting the observation wavelength in the pointing component. (`OSW-2269 <https://rubinobs.atlassian.net/browse/OSW-2269>`_)
+- Added a new handle_aos_close_loop method and called it just before the slew, after M1M3 slew flags were switched on, ensuring corrections happened before the slew began. (`OSW-2269 <https://rubinobs.atlassian.net/browse/OSW-2269>`_)
+
+
+Bug Fixes
+---------
+
+- Updated BaseCamera.wait_for_camera_readiness to log a warning instead of raising an exception if there was no end readout event, allowing the process to continue even if the camera faulted during exposure. (`OSW-2269 <https://rubinobs.atlassian.net/browse/OSW-2269>`_)
+- Added use_projector=False to change_laser_wavelength for CBP related changes so no linear stage is needed. (`RSO-585 <https://rubinobs.atlassian.net/browse/RSO-585>`_)
+
+
+Other Changes and Additions
+---------------------------
+
+- Updated MTCS.slew method to have default values for offset x and y of None, and only send the offset if they are defined. Otherwise skip sending the offset. (`OSW-2269 <https://rubinobs.atlassian.net/browse/OSW-2269>`_)
+- Updated MTCS.slew_icrs method to have default values for offset x and y of None. (`OSW-2269 <https://rubinobs.atlassian.net/browse/OSW-2269>`_)
+- Updated BaseTCS.slew_object to have default values of None for offset x and y. (`OSW-2269 <https://rubinobs.atlassian.net/browse/OSW-2269>`_)
+- Updated get_laser_parameters logic. (`OSW-2269 <https://rubinobs.atlassian.net/browse/OSW-2269>`_)
+- Cast a string when setting the CBP mask in mtcalsys. (`OSW-2269 <https://rubinobs.atlassian.net/browse/OSW-2269>`_)
+- Changed parameters of mono flats. (`OSW-2269 <https://rubinobs.atlassian.net/browse/OSW-2269>`_)
+- Updated MTCS unit tests to take into account the new feature of setting offsets to None, which no longer triggers a no-op. (`OSW-2269 <https://rubinobs.atlassian.net/browse/OSW-2269>`_)
+- Changed wavelength range for mtcalsys mono flat sequences. (`RSO-572 <https://rubinobs.atlassian.net/browse/RSO-572>`_)
+- Improving get_laser_parameters so that power_on and power_off_tunablelaser don't fail. (`RSO-575 <https://rubinobs.atlassian.net/browse/RSO-575>`_)
+- Updated some mono flat sequences in mtcalsys.yaml (`RSO-585 <https://rubinobs.atlassian.net/browse/RSO-585>`_)
+
+
 v0.49.0 (2026-05-15)
 ====================
 
