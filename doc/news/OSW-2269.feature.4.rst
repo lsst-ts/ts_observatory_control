@@ -1,1 +1,0 @@
-Added a mechanism to retrieve effective wavelength for a given filter name in base_camera.py.

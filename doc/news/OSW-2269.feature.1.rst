@@ -1,1 +1,0 @@
-Added a new handle_aos_close_loop method and called it just before the slew, after M1M3 slew flags were switched on, ensuring corrections happened before the slew began.
