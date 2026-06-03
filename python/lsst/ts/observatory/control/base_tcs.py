@@ -398,8 +398,8 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
         rot_type: RotType = RotType.SkyAuto,
         dra: float = 0.0,
         ddec: float = 0.0,
-        offset_x: float = 0.0,
-        offset_y: float = 0.0,
+        offset_x: float | None = None,
+        offset_y: float | None = None,
         az_wrap_strategy: typing.Optional[enum.IntEnum] = None,
         time_on_target: float = 0.0,
         slew_timeout: float = 240.0,
@@ -479,8 +479,8 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
         target_name: str = "slew_icrs",
         dra: float = 0.0,
         ddec: float = 0.0,
-        offset_x: float = 0.0,
-        offset_y: float = 0.0,
+        offset_x: float | None = None,
+        offset_y: float | None = None,
         az_wrap_strategy: enum.IntEnum | None = None,
         time_on_target: float = 0.0,
         slew_timeout: float = 600.0,
@@ -731,8 +731,8 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
         slew_timeout: float = 1200.0,
         stop_before_slew: bool = False,
         wait_settle: bool = True,
-        offset_x: float = 0.0,
-        offset_y: float = 0.0,
+        offset_x: float | None = None,
+        offset_y: float | None = None,
     ) -> None:
         """Slew the telescope and start tracking an Ra/Dec target.
 
@@ -849,17 +849,24 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
                     f"Recived {rot_track_frame!r}. Rotator tracking frame only available in xml 8 and up."
                 )
 
-        getattr(self.rem, self.ptg_name).cmd_poriginOffset.set(
-            dx=offset_x * self.plate_scale,
-            dy=offset_y * self.plate_scale,
-            num=0,
-        )
+        set_offset = False
+        if offset_x is not None and offset_y is not None:
+            set_offset = True
+            getattr(self.rem, self.ptg_name).cmd_poriginOffset.set(
+                dx=offset_x * self.plate_scale,
+                dy=offset_y * self.plate_scale,
+                num=0,
+            )
 
         try:
             await self._slew_to(
                 getattr(self.rem, self.ptg_name).cmd_raDecTarget,
                 slew_timeout=slew_timeout,
-                offset_cmd=getattr(self.rem, self.ptg_name).cmd_poriginOffset,
+                offset_cmd=(
+                    getattr(self.rem, self.ptg_name).cmd_poriginOffset
+                    if set_offset
+                    else None
+                ),
                 stop_before_slew=stop_before_slew,
                 wait_settle=wait_settle,
             )

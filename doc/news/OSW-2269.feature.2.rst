@@ -1,0 +1,1 @@
+Updated LSSTCam._setup_mtcs_for_filter_change in lsstcam.py to handle setting the observation wavelength in the pointing component.

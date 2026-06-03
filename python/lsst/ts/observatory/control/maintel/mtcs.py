@@ -342,6 +342,7 @@ class MTCS(BaseTCS):
                         asyncio.create_task(self.check_component_state(comp))
                     )
 
+            await self.handle_aos_close_loop()
             await slew_cmd.start(timeout=slew_timeout)
             self._dome_az_in_position.clear()
             if offset_cmd is not None:
@@ -400,6 +401,26 @@ class MTCS(BaseTCS):
         self.scheduled_coro.append(wait_for_dome_inposition_task)
         self.log.info("Waiting for dome to be in position.")
         await self.process_as_completed(self.scheduled_coro)
+
+    async def handle_aos_close_loop(self) -> None:
+        """Handle MTAOS close loop.
+
+        This method checks if MTAOS corrections are ready to be applied
+        and instruct the MTAOS to apply them.
+
+        It is a no-op if MTAOS is idle.
+        """
+        closed_loop_state = await self.rem.mtaos.evt_closedLoopState.aget(
+            timeout=self.fast_timeout
+        )
+
+        if closed_loop_state.state == MTAOS.ClosedLoopState.WAITING_APPLY:
+            self.log.info("Closed loop state is WAITING_APPLY; issuing correction.")
+            await self.rem.mtaos.cmd_issueCorrection.start(timeout=self.long_timeout)
+        else:
+            self.log.info(
+                f"Closed loop state is {MTAOS.ClosedLoopState(closed_loop_state.state)!r}; nothing to do."
+            )
 
     async def wait_for_inposition(
         self,

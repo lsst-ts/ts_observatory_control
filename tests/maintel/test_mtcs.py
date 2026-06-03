@@ -142,7 +142,7 @@ class TestMTCS(MTCSAsyncMock):
             rotMode=self.mtcs.RotMode.FIELD,
         )
 
-        self.mtcs.rem.mtptg.cmd_poriginOffset.set.assert_called_with(dx=0, dy=0, num=0)
+        self.mtcs.rem.mtptg.cmd_poriginOffset.set.assert_not_called()
 
         self.mtcs.rem.mtptg.cmd_stopTracking.start.assert_not_awaited()
 
@@ -151,9 +151,7 @@ class TestMTCS(MTCSAsyncMock):
         self.mtcs.rem.mtrotator.evt_inPosition.flush.assert_called_once()
 
         self.mtcs.rem.mtptg.cmd_raDecTarget.start.assert_called()
-        self.mtcs.rem.mtptg.cmd_poriginOffset.start.assert_called_with(
-            timeout=self.mtcs.fast_timeout
-        )
+        self.mtcs.rem.mtptg.cmd_poriginOffset.start.assert_not_awaited()
 
     async def test_slew_icrs(self) -> None:
         await self.mtcs.enable()
@@ -188,7 +186,7 @@ class TestMTCS(MTCSAsyncMock):
             rotMode=self.mtcs.RotMode.FIELD,
         )
 
-        self.mtcs.rem.mtptg.cmd_poriginOffset.set.assert_called_with(dx=0, dy=0, num=0)
+        self.mtcs.rem.mtptg.cmd_poriginOffset.set.assert_not_called()
 
         self.mtcs.rem.mtptg.cmd_stopTracking.start.assert_not_awaited()
 
@@ -197,9 +195,7 @@ class TestMTCS(MTCSAsyncMock):
         self.mtcs.rem.mtrotator.evt_inPosition.flush.assert_called_once()
 
         self.mtcs.rem.mtptg.cmd_raDecTarget.start.assert_called()
-        self.mtcs.rem.mtptg.cmd_poriginOffset.start.assert_called_with(
-            timeout=self.mtcs.fast_timeout
-        )
+        self.mtcs.rem.mtptg.cmd_poriginOffset.start.assert_not_called()
 
         self.assert_m1m3_booster_valve()
         self.assert_compensation_mode()
@@ -241,7 +237,7 @@ class TestMTCS(MTCSAsyncMock):
             rotMode=self.mtcs.RotMode.FIELD,
         )
 
-        self.mtcs.rem.mtptg.cmd_poriginOffset.set.assert_called_with(dx=0, dy=0, num=0)
+        self.mtcs.rem.mtptg.cmd_poriginOffset.set.assert_not_called()
 
         self.mtcs.rem.mtptg.cmd_stopTracking.start.assert_awaited()
 
@@ -251,9 +247,7 @@ class TestMTCS(MTCSAsyncMock):
         self.mtcs.rem.mtrotator.evt_inPosition.flush.assert_called()
 
         self.mtcs.rem.mtptg.cmd_raDecTarget.start.assert_called()
-        self.mtcs.rem.mtptg.cmd_poriginOffset.start.assert_called_with(
-            timeout=self.mtcs.fast_timeout
-        )
+        self.mtcs.rem.mtptg.cmd_poriginOffset.start.assert_not_awaited()
 
     async def test_slew_icrs_rot(self) -> None:
         await self.mtcs.enable()
@@ -289,7 +283,7 @@ class TestMTCS(MTCSAsyncMock):
             rotMode=self.mtcs.RotMode.FIELD,
         )
 
-        self.mtcs.rem.mtptg.cmd_poriginOffset.set.assert_called_with(dx=0, dy=0, num=0)
+        self.mtcs.rem.mtptg.cmd_poriginOffset.set.assert_not_called()
 
         self.mtcs.rem.mtptg.cmd_stopTracking.start.assert_not_awaited()
 
@@ -298,9 +292,7 @@ class TestMTCS(MTCSAsyncMock):
         self.mtcs.rem.mtrotator.evt_inPosition.flush.assert_called_once()
 
         self.mtcs.rem.mtptg.cmd_raDecTarget.start.assert_called()
-        self.mtcs.rem.mtptg.cmd_poriginOffset.start.assert_called_with(
-            timeout=self.mtcs.fast_timeout
-        )
+        self.mtcs.rem.mtptg.cmd_poriginOffset.start.assert_not_awaited()
 
     async def test_slew_icrs_rot_physical(self) -> None:
         await self.mtcs.enable()
@@ -336,7 +328,7 @@ class TestMTCS(MTCSAsyncMock):
             rotMode=self.mtcs.RotMode.FIELD,
         )
 
-        self.mtcs.rem.mtptg.cmd_poriginOffset.set.assert_called_with(dx=0, dy=0, num=0)
+        self.mtcs.rem.mtptg.cmd_poriginOffset.set.assert_not_called()
 
         self.mtcs.rem.mtptg.cmd_stopTracking.start.assert_not_called()
 
@@ -345,9 +337,7 @@ class TestMTCS(MTCSAsyncMock):
         self.mtcs.rem.mtrotator.evt_inPosition.flush.assert_called_once()
 
         self.mtcs.rem.mtptg.cmd_raDecTarget.start.assert_called()
-        self.mtcs.rem.mtptg.cmd_poriginOffset.start.assert_called_with(
-            timeout=self.mtcs.fast_timeout
-        )
+        self.mtcs.rem.mtptg.cmd_poriginOffset.start.assert_not_awaited()
 
     async def test_slew_icrs_rot_physical_sky(self) -> None:
         await self.mtcs.enable()
@@ -383,7 +373,7 @@ class TestMTCS(MTCSAsyncMock):
             rotMode=self.mtcs.RotMode.FIELD,
         )
 
-        self.mtcs.rem.mtptg.cmd_poriginOffset.set.assert_called_with(dx=0, dy=0, num=0)
+        self.mtcs.rem.mtptg.cmd_poriginOffset.set.assert_not_called()
 
         self.mtcs.rem.mtptg.cmd_stopTracking.start.assert_not_called()
 
@@ -392,9 +382,7 @@ class TestMTCS(MTCSAsyncMock):
         self.mtcs.rem.mtrotator.evt_inPosition.flush.assert_called_once()
 
         self.mtcs.rem.mtptg.cmd_raDecTarget.start.assert_called()
-        self.mtcs.rem.mtptg.cmd_poriginOffset.start.assert_called_with(
-            timeout=self.mtcs.fast_timeout
-        )
+        self.mtcs.rem.mtptg.cmd_poriginOffset.start.assert_not_awaited()
 
     async def test_slew_icrs_with_offset(self) -> None:
         await self.mtcs.enable()
@@ -489,7 +477,7 @@ class TestMTCS(MTCSAsyncMock):
             rotMode=self.mtcs.RotMode.FIELD,
         )
 
-        self.mtcs.rem.mtptg.cmd_poriginOffset.set.assert_called_with(dx=0, dy=0, num=0)
+        self.mtcs.rem.mtptg.cmd_poriginOffset.set.assert_not_called()
 
         self.mtcs.rem.mtptg.cmd_stopTracking.start.assert_not_awaited()
 
