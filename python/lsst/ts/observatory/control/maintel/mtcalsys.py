@@ -404,7 +404,7 @@ class MTCalsys(BaseCalsys):
         if mask is not None:
             self.log.debug(f"Setting mask to {mask}")
             await self.rem.cbp.cmd_changeMask.set_start(
-                mask=mask, timeout=self.long_long_timeout
+                mask=str(mask), timeout=self.long_long_timeout
             )
         if rotation is not None:
             self.log.debug(f"Setting mask rotation to {rotation}")
@@ -624,23 +624,72 @@ class MTCalsys(BaseCalsys):
             str(led_state),
         )
 
+    async def _safe_aget(
+        self,
+        coro: typing.Any,
+        name: str,
+    ) -> typing.Any:
+        try:
+            return await coro
+        except Exception as e:
+            self.log.warning(f"Failed to get {name}: {e}")
+            return None
+
     async def get_laser_parameters(self) -> tuple:
-        """Get laser configuration
+        """Get tunable laser configuration parameters.
 
         Returns
         -------
-            list : configuration details
+        tuple
+            Tuple containing:
 
+            - optical configuration
+            - wavelength
+            - interlock state
+            - burst mode state
+            - continuous mode state
+
+            Each entry may be of type `Any` or `None`. A value of `None`
+            indicates that the corresponding `.aget()` call failed or timed
+            out.
+
+            This fault-tolerant behavior is required because the TunableLaser
+            CSC does not always publish all expected events.
         """
 
-        return await asyncio.gather(
-            self.rem.tunablelaser.evt_opticalConfiguration.aget(
-                timeout=self.long_timeout
-            ),
-            self.rem.tunablelaser.evt_wavelengthChanged.aget(timeout=self.long_timeout),
-            self.rem.tunablelaser.evt_interlockState.aget(timeout=self.long_timeout),
-            self.rem.tunablelaser.evt_burstModeSet.aget(timeout=self.long_timeout),
-            self.rem.tunablelaser.evt_continuousModeSet.aget(timeout=self.long_timeout),
+        return tuple(
+            await asyncio.gather(
+                self._safe_aget(
+                    self.rem.tunablelaser.evt_opticalConfiguration.aget(
+                        timeout=self.long_timeout
+                    ),
+                    "optical configuration",
+                ),
+                self._safe_aget(
+                    self.rem.tunablelaser.evt_wavelengthChanged.aget(
+                        timeout=self.long_timeout
+                    ),
+                    "wavelength",
+                ),
+                self._safe_aget(
+                    self.rem.tunablelaser.evt_interlockState.aget(
+                        timeout=self.long_timeout
+                    ),
+                    "interlock state",
+                ),
+                self._safe_aget(
+                    self.rem.tunablelaser.evt_burstModeSet.aget(
+                        timeout=self.long_timeout
+                    ),
+                    "burst mode",
+                ),
+                self._safe_aget(
+                    self.rem.tunablelaser.evt_continuousModeSet.aget(
+                        timeout=self.long_timeout
+                    ),
+                    "continuous mode",
+                ),
+            )
         )
 
     async def laser_start_propagate(self) -> None:
@@ -743,7 +792,7 @@ class MTCalsys(BaseCalsys):
         await asyncio.sleep(delay_after)
 
     async def prepare_for_flat(self, sequence_name: str) -> None:
-        """Configure the ATMonochromator according to the flat parameters
+        """Configure the Projector and/or Laser for calibrations
 
         Parameters
         ----------
@@ -835,10 +884,18 @@ class MTCalsys(BaseCalsys):
 
                     raise result
 
-        elif calibration_type in [CalibrationType.Mono, CalibrationType.CBP]:
+        elif calibration_type == CalibrationType.Mono:
             wavelengths = [400.0]  # function of filter_name
             task_select_wavelength = self.change_laser_wavelength(
                 wavelength=wavelengths[0]
+            )
+
+            await asyncio.gather(task_select_wavelength, task_setup_camera)
+
+        elif calibration_type == CalibrationType.CBP:
+            wavelengths = [400.0]  # function of filter_name
+            task_select_wavelength = self.change_laser_wavelength(
+                wavelength=wavelengths[0], use_projector=False
             )
 
             await asyncio.gather(task_select_wavelength, task_setup_camera)

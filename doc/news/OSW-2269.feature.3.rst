@@ -1,0 +1,1 @@
+Added effective wavelength dictionary to lsstcam.py with information about the existing LSSTCam filters.

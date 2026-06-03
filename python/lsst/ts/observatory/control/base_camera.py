@@ -100,6 +100,9 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
         self._roi_spec_json: None | str = None
         self._init_guider_set: bool = False
 
+        self._effective_wavelengths: dict[str, float] = {}
+        self.reference_effective_wavelength = 0.8
+
     @classmethod
     def get_image_types(cls) -> typing.List[str]:
         """List of valid image types accepted by the `take_imgtype` method."""
@@ -1695,16 +1698,20 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
                 f"last integration completed: {last_end_readout.imageName}."
             )
             next_end_readout_timeout = (
-                self.long_timeout + last_start_integration.exposureTime
+                self.long_timeout
+                + last_start_integration.exposureTime * 2.0
+                + self.read_out_time
             )
             try:
                 last_end_readout = await self.camera.evt_endReadout.next(
                     flush=False, timeout=next_end_readout_timeout
                 )
             except asyncio.TimeoutError:
-                raise RuntimeError(
+                self.log.warning(
                     f"No new end readout event in {next_end_readout_timeout}s. "
-                    f"Cannot determine if camera is ready to take data."
+                    "Cannot determine if camera is ready to take data. "
+                    "This is most likely due to a camera fault not producing the last "
+                    "end readout event. Continuing..."
                 )
 
         self.camera.evt_startIntegration.flush()
@@ -1909,3 +1916,33 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
             f"Missing commands: {', '.join(missing_stuttered_commands)}. "
             "Instrument does not support stuttered images. "
         )
+
+    def get_effective_wavelength(self, filter_name: str) -> float:
+        """Retrieve the effective wavelength for the specified filter name.
+
+        Parameters
+        ----------
+        filter_name : `str`
+            The full filter name (e.g. i_39).
+
+        Returns
+        -------
+        effective_wavelength : `float`
+            The filter effective wavelength (in microns).
+        """
+        if not self._effective_wavelengths:
+            self.log.info(
+                "Effective wavelength dictionary is empty. "
+                f"Using reference wavelength: {self.reference_effective_wavelength}nm."
+            )
+            return self.reference_effective_wavelength
+        elif filter_name not in self._effective_wavelengths:
+            valid_filter_names = ",".join(self._effective_wavelengths.keys())
+            self.log.warning(
+                f"The provided filter name ({filter_name}), "
+                f"is not in the list of valid filters: {valid_filter_names}. "
+                f"Using reference value: {self.reference_effective_wavelength}nm."
+            )
+            return self.reference_effective_wavelength
+
+        return self._effective_wavelengths[filter_name]
