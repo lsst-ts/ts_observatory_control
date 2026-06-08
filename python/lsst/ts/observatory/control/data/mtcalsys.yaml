@@ -1045,7 +1045,7 @@ whitelight_u_24_M385L3:
   exposure_times:
     - 10.0
 
-whitelight_u_24_M445L4:
+whitelight_u_24_M455L4:
   mtcamera_filter: u_24
   led_name:
     - M455L4
