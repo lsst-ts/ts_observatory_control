@@ -866,6 +866,20 @@ scan_none:
   exposure_times:
     - 30.0
 
+scan_none_long:
+  calib_type: Mono
+  laser_mode: 1
+  optical_configuration: F2 SCU
+  use_camera: True
+  mtcamera_filter: NONE
+  wavelength: 700
+  wavelength_width: 720
+  wavelength_resolution: 5.0
+  electrometer_integration_time: 1
+  n_flat: 2
+  exposure_times:
+    - 30.0
+
 scan_i_init:
   calib_type: Mono
   laser_mode: 1
