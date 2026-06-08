@@ -28,7 +28,7 @@ import astropy.units as units
 import numpy as np
 import pytest
 from astropy.coordinates import Angle
-from lsst.ts import utils, xml
+from lsst.ts import salobj, utils, xml
 from lsst.ts.observatory.control.mock.mtcs_async_mock import MTCSAsyncMock
 from lsst.ts.observatory.control.utils import RotType
 from lsst.ts.xml.enums import MTM1M3, MTM2, MTDome, MTMount, MTRotator
@@ -1365,7 +1365,7 @@ class TestMTCS(MTCSAsyncMock):
             raiseM1M3=True, timeout=self.mtcs.long_timeout
         )
         self.mtcs.rem.mtm1m3.evt_detailedState.next.assert_awaited_with(
-            flush=False, timeout=self.mtcs.long_timeout
+            flush=False, timeout=self.mtcs.m1m3_raise_timeout
         )
         assert self._mtm1m3_evt_detailed_state.detailedState in (
             MTM1M3.DetailedStates.ACTIVE,
@@ -1474,7 +1474,7 @@ class TestMTCS(MTCSAsyncMock):
         )
 
         self.mtcs.rem.mtm1m3.evt_detailedState.next.assert_awaited_with(
-            flush=False, timeout=self.mtcs.long_timeout
+            flush=False, timeout=self.mtcs.m1m3_raise_timeout
         )
 
         assert self._mtm1m3_evt_detailed_state.detailedState in (
@@ -3001,6 +3001,18 @@ class TestMTCS(MTCSAsyncMock):
                 actual_settings[setting] == expected_value
             ), f"Setting {setting} expected to be {expected_value} but was {actual_settings[setting]}"
 
+    async def test_assert_m1m3_force_balance_system_enabled_passes(self) -> None:
+        """Test that assertion passes when force balance is enabled."""
+        self._mtm1m3_evt_force_actuator_state.balanceForcesApplied = True
+        await self.mtcs.assert_m1m3_force_balance_system_enabled()
+
+    async def test_assert_m1m3_force_balance_system_enabled_fails(self) -> None:
+        """Test that assertion raises when force balance is not enabled."""
+        self._mtm1m3_evt_force_actuator_state.balanceForcesApplied = False
+        with self.assertRaises(RuntimeError) as context:
+            await self.mtcs.assert_m1m3_force_balance_system_enabled()
+        assert "M1M3 force balance system is not enabled" in str(context.exception)
+
     async def test_m1m3_in_engineering_mode(self) -> None:
         async with self.mtcs.m1m3_in_engineering_mode():
             await asyncio.sleep(0)
@@ -3034,3 +3046,72 @@ class TestMTCS(MTCSAsyncMock):
         self.mtcs.rem.mtaos.cmd_startClosedLoop.set_start.assert_awaited_once_with(
             config=config, timeout=self.mtcs.aos_closed_loop_timeout
         )
+
+    async def test_home_both_axes_success(self) -> None:
+        """Test successful homing with M1M3 raised and MTMount enabled."""
+        await self.mtcs.enable()
+        await self.mtcs.raise_m1m3()
+
+        await self.mtcs.home_both_axes()
+
+        self.mtcs.rem.mtmount.cmd_homeBothAxes.start.assert_awaited_once_with(
+            timeout=self.mtcs.home_both_axes_timeout
+        )
+
+    async def test_home_both_axes_with_retries(self) -> None:
+        """Test homing retries on failure and eventually succeeds."""
+        await self.mtcs.enable()
+        await self.mtcs.raise_m1m3()
+
+        self.mtcs.rem.mtmount.cmd_homeBothAxes.start.side_effect = [
+            RuntimeError("Simulated homing failure"),
+            RuntimeError("Simulated homing failure"),
+            None,
+        ]
+
+        await self.mtcs.home_both_axes(homing_attempts=3)
+
+        assert self.mtcs.rem.mtmount.cmd_homeBothAxes.start.call_count == 3
+
+    async def test_home_both_axes_fails_after_max_attempts(self) -> None:
+        """Test homing fails after exhausting all attempts."""
+        await self.mtcs.enable()
+        await self.mtcs.raise_m1m3()
+
+        self.mtcs.rem.mtmount.cmd_homeBothAxes.start.side_effect = RuntimeError(
+            "Simulated homing failure"
+        )
+
+        with pytest.raises(RuntimeError) as exc_info:
+            await self.mtcs.home_both_axes(homing_attempts=3)
+
+        assert "Failed to home both axes after 3 attempts" in str(exc_info.value)
+        assert self.mtcs.rem.mtmount.cmd_homeBothAxes.start.call_count == 3
+
+    async def test_home_both_axes_m1m3_not_raised(self) -> None:
+        """Test homing fails when M1M3 is not raised."""
+        await self.mtcs.enable()
+        # M1M3 starts in PARKED state by default (not raised)
+
+        with pytest.raises(RuntimeError) as exc_info:
+            await self.mtcs.home_both_axes()
+
+        assert "M1M3 mirror is not raised" in str(exc_info.value)
+        self.mtcs.rem.mtmount.cmd_homeBothAxes.start.assert_not_awaited()
+
+    async def test_home_both_axes_mtmount_not_enabled(self) -> None:
+        """Test homing fails when MTMount is not enabled."""
+        await self.mtcs.enable()
+        await self.mtcs.raise_m1m3()
+
+        # Now disable MTMount
+        await self.mtcs.set_state(
+            salobj.State.DISABLED,
+            components=["mtmount"],
+        )
+
+        with pytest.raises(RuntimeError) as exc_info:
+            await self.mtcs.home_both_axes()
+
+        assert "MTMount is not enabled" in str(exc_info.value)
+        self.mtcs.rem.mtmount.cmd_homeBothAxes.start.assert_not_awaited()

@@ -1194,6 +1194,7 @@ class MTCalsys(BaseCalsys):
                     await self._calculate_fiberspectrograph_exposure_times(
                         exptimes=config_data["exposure_times"],
                         use_fiberspectrograph=self.use_fiberspectrograph_red,
+                        color="red",
                     )
                 )
 
@@ -1201,6 +1202,7 @@ class MTCalsys(BaseCalsys):
                     await self._calculate_fiberspectrograph_exposure_times(
                         exptimes=config_data["exposure_times"],
                         use_fiberspectrograph=self.use_fiberspectrograph_blue,
+                        color="blue",
                     )
                 )
 
@@ -1266,6 +1268,7 @@ class MTCalsys(BaseCalsys):
         self,
         exptimes: list,
         use_fiberspectrograph: bool,
+        color: str,
     ) -> list[float | None]:
         """Calculates the optimal exposure time for the electrometer
 
@@ -1277,6 +1280,8 @@ class MTCalsys(BaseCalsys):
         exit_slit : `float`
         use_fiberspectrograph : `bool`
             Identifies if the fiberspectrograph will be used in the exposure
+        color: `str`
+            Color of fiber spectrograph
 
         Returns
         -------
@@ -1285,9 +1290,10 @@ class MTCalsys(BaseCalsys):
         """
         # TODO (DM-44777): Update optimized exposure times
         fiberspectrograph_exptimes: list[float | None] = []
+        base_exptimes = {"blue": 30, "red": 20}
         for exptime in exptimes:
             if use_fiberspectrograph:
-                base_exptime = 10  # sec
+                base_exptime = base_exptimes[color]
                 fiberspectrograph_exptimes.append(base_exptime)
             else:
                 fiberspectrograph_exptimes.append(None)
@@ -1393,7 +1399,7 @@ class MTCalsys(BaseCalsys):
                             laser_burst_task,
                         )
                     else:
-                        (electrometer_exposure_result, laser_burst_result) = (
+                        electrometer_exposure_result, laser_burst_result = (
                             await asyncio.gather(
                                 electrometer_exposure_task,
                                 laser_burst_task,

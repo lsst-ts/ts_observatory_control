@@ -1091,6 +1091,8 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
         self._mtm1m3_evt_detailed_state.detailedState = (
             xml.enums.MTM1M3.DetailedStates.ACTIVE
         )
+        # Force balance is automatically enabled when mirror is raised
+        self._mtm1m3_evt_force_actuator_state.balanceForcesApplied = True
 
     async def mtm1m3_cmd_lower_m1m3(
         self, *args: typing.Any, **kwargs: typing.Any
@@ -1118,6 +1120,8 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
         self._mtm1m3_evt_detailed_state.detailedState = (
             xml.enums.MTM1M3.DetailedStates.PARKED
         )
+        # Force balance is automatically disabled when mirror is lowered
+        self._mtm1m3_evt_force_actuator_state.balanceForcesApplied = False
 
     async def execute_abort_raise_m1m3(self) -> None:
         if not self._mtm1m3_raise_task.done():

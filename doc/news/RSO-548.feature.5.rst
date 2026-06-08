@@ -1,0 +1,1 @@
+Updated ``mtcs.prepare_for_onsky()`` to use a slew controller flags assertion check instead of explicit configuration, since slew controller flags are now automatically enabled at the CSC level when the mirror is raised.

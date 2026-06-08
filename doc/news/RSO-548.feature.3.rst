@@ -1,0 +1,1 @@
+Updated ``mtcs.prepare_for_flatfield()`` to use a force balance assertion check instead of an explicit enable command, since force balance is now automatically enabled at the CSC level when the mirror is raised.

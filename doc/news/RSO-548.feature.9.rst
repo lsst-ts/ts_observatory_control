@@ -1,0 +1,1 @@
+Updated ``mtcs.prepare_for_onsky()`` and ``mtcs.prepare_for_flatfield()`` to use ``mtcs.home_both_axes()`` and to accept a ``homing_attempts`` parameter (default: 10).
