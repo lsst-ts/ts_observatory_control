@@ -199,7 +199,7 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
                 )
 
             # Get RA and DEC keyword from table
-            (ra_key, ra_coordinates) = (
+            ra_key, ra_coordinates = (
                 ("RA", u.hourangle) if "RA" in object_table.columns else ("ra", u.deg)
             )
             dec_key = "DEC" if "DEC" in object_table.columns else "dec"

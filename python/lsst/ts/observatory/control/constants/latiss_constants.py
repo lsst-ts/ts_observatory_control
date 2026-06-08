@@ -19,6 +19,7 @@
 # You should have received a copy of the GNU General Public License
 
 """Useful constants for running auxTel"""
+
 from lsst.geom import PointD
 
 # pixel_scale was measured astrometrically in tickets/DM-24592
