@@ -1,2 +1,0 @@
-Added ``home_both_axes()`` to the ``MTCS`` class with configurable retry logic.
-It verifies that ``MTMount`` is enabled and ``M1M3`` is raised before each homing attempt, and uses the ``M1M3`` booster valve context manager during homing.

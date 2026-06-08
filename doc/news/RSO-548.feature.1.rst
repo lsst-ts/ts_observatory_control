@@ -1,1 +1,0 @@
-Added ``assert_m1m3_force_balance_system_enabled()`` to the ``MTCS`` class.
