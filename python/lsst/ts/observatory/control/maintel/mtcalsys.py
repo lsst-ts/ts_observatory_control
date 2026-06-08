@@ -1393,7 +1393,7 @@ class MTCalsys(BaseCalsys):
                             laser_burst_task,
                         )
                     else:
-                        (electrometer_exposure_result, laser_burst_result) = (
+                        electrometer_exposure_result, laser_burst_result = (
                             await asyncio.gather(
                                 electrometer_exposure_task,
                                 laser_burst_task,
