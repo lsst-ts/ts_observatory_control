@@ -1343,6 +1343,93 @@ class MTCS(BaseTCS):
         azimuth = await self.rem.mtdome.tel_azimuth.aget(timeout=self.fast_timeout)
         self.log.debug(f"{azimuth.positionActual=}, {azimuth.positionCommanded=}")
 
+    async def home_both_axes(self, homing_attempts: int = 10) -> None:
+        """Home both axes of the MTMount with retry logic.
+
+        This method attempts to home both axes multiple times, checking that
+        MTMount is enabled and M1M3 is raised before each attempt. The M1M3
+        booster valve is activated during homing to protect the mirror.
+
+        Parameters
+        ----------
+        homing_attempts : `int`, optional
+            Number of attempts to home both axes (default: 10, minimum: 1).
+
+        Raises
+        ------
+        RuntimeError
+            If MTMount is not enabled.
+            If M1M3 is not raised (ACTIVE or ACTIVEENGINEERING).
+            If homing fails after all attempts.
+        """
+        homing_attempts = max(1, homing_attempts)
+
+        async with self.m1m3_booster_valve():
+            for attempt in range(1, homing_attempts + 1):
+                await self._assert_mtmount_enabled()
+                await self._assert_m1m3_raised()
+
+                self.log.info(
+                    f"Homing both axes (attempt {attempt} of {homing_attempts})."
+                )
+                try:
+                    await self.rem.mtmount.cmd_homeBothAxes.start(
+                        timeout=self.home_both_axes_timeout
+                    )
+                    self.log.info("Homing both axes completed successfully.")
+                    break
+                except Exception:
+                    self.log.warning(
+                        f"Homing failed on attempt {attempt} of {homing_attempts}. "
+                        f"Waiting {self.fast_timeout} s before retrying.",
+                        exc_info=True,
+                    )
+                    await asyncio.sleep(self.fast_timeout)
+            else:
+                raise RuntimeError(
+                    f"Failed to home both axes after {homing_attempts} attempts."
+                )
+
+    async def _assert_mtmount_enabled(self) -> None:
+        """Assert that MTMount is in the ENABLED state.
+
+        Raises
+        ------
+        RuntimeError
+            If MTMount is not in the ENABLED state.
+        """
+        summary_state = await self.rem.mtmount.evt_summaryState.aget(
+            timeout=self.fast_timeout
+        )
+        if summary_state.summaryState != salobj.State.ENABLED:
+            raise RuntimeError(
+                f"MTMount is not enabled (state={salobj.State(summary_state.summaryState)!r}). "
+                "Cannot proceed with homing."
+            )
+
+    async def _assert_m1m3_raised(self) -> None:
+        """Assert that M1M3 is raised (ACTIVE or ACTIVEENGINEERING).
+
+        Raises
+        ------
+        RuntimeError
+            If M1M3 is not in a raised detailed state.
+        """
+        detailed_state = MTM1M3.DetailedStates(
+            (
+                await self.rem.mtm1m3.evt_detailedState.aget(timeout=self.fast_timeout)
+            ).detailedState
+        )
+        raised_states = {
+            MTM1M3.DetailedStates.ACTIVE,
+            MTM1M3.DetailedStates.ACTIVEENGINEERING,
+        }
+        if detailed_state not in raised_states:
+            raise RuntimeError(
+                f"M1M3 mirror is not raised (detailed state is {detailed_state.name}). "
+                "Please raise M1M3 before homing MTMount."
+            )
+
     async def open_dome_shutter(self, force: bool = False) -> None:
         """Method to open dome shutter.
 
@@ -1595,7 +1682,9 @@ class MTCS(BaseTCS):
 
         await self.rem.mtmount.cmd_unpark.start(timeout=self.long_timeout)
 
-    async def prepare_for_flatfield(self, check: typing.Any = None) -> None:
+    async def prepare_for_flatfield(
+        self, check: typing.Any = None, homing_attempts: int = 10
+    ) -> None:
         """Prepare Simonyi Telescope for flat-field operations.
 
         This method performs an end-to-end operation to prepare the MTCS
@@ -1610,19 +1699,22 @@ class MTCS(BaseTCS):
         3. Close mirror covers, then close the dome shutter.
         4. Park the dome.
         5. Check elevation and raise M1M3 if safe; otherwise fail.
-        6. Open mirror covers for calibration.
-        7. Disable dome following (if not ignored).
-        8. Home both mount axes.
-        9. Enter M1M3 engineering mode, enable force balance, exit engineering.
+        6. Assert M1M3 force balance system is enabled.
+        7. Open mirror covers for calibration.
+        8. Disable dome following (if not ignored).
+        9. Home both mount axes (with retry logic).
         10. Enable camera cable wrap following.
         11. Enable hexapod compensation mode if not ignored.
         12. Slew to the flat-field target (rotator at 0 deg).
         13. Stop tracking.
+        14. Ensure M1M3 is not in engineering mode.
 
         Parameters
         ----------
         check : `types.SimpleNamespace` or `None`
             Override `self.check` for defining which resources are used.
+        homing_attempts : `int`, optional
+            Number of attempts to home both axes (default: 10).
         """
 
         _check = copy.copy(self.check) if check is None else copy.copy(check)
@@ -1656,6 +1748,9 @@ class MTCS(BaseTCS):
             self.log.info("Raising mirror.")
             await self.raise_m1m3()
 
+        self.log.info("Asserting M1M3 force balance system is enabled.")
+        await self.assert_m1m3_force_balance_system_enabled()
+
         await self.open_m1_cover()
 
         if getattr(_check, self.dome_trajectory_name, False):
@@ -1665,14 +1760,7 @@ class MTCS(BaseTCS):
                 f"{self.dome_trajectory_name} is ignored; skipping dome following disable."
             )
 
-        self.log.info("Homing both axes.")
-        await self.rem.mtmount.cmd_homeBothAxes.start(
-            timeout=self.home_both_axes_timeout
-        )
-
-        await self.enter_m1m3_engineering_mode()
-        await self.enable_m1m3_balance_system()
-        await self.exit_m1m3_engineering_mode()
+        await self.home_both_axes(homing_attempts=homing_attempts)
 
         await self.enable_ccw_following()
 
@@ -1699,8 +1787,7 @@ class MTCS(BaseTCS):
         )
 
         await self.stop_tracking()
-
-        self.log.info("Prepare for flat finished.")
+        await self.ensure_m1m3_not_in_engineering_mode()
 
     @staticmethod
     def get_critical_components_for_prepare_for_onsky() -> list[str]:
@@ -1713,7 +1800,9 @@ class MTCS(BaseTCS):
                 raise RuntimeError(f"Cannot ignore {comp} for prepare_for_onsky.")
 
     async def prepare_for_onsky(
-        self, overrides: typing.Optional[typing.Dict[str, str]] = None
+        self,
+        overrides: typing.Optional[typing.Dict[str, str]] = None,
+        homing_attempts: int = 10,
     ) -> None:
         """Prepare Simonyi Telescope for on-sky operations
 
@@ -1725,23 +1814,26 @@ class MTCS(BaseTCS):
         3. Slew the dome to the open position (az=150).
         4. Ensure the M2 balance system is enabled.
         5. Check telescope elevation and raise M1M3 if safe.
-        6. Home both axes of the mount.
-        7. Enable M1M3 engineering mode and force balance system, then exit
-        engineering mode.
-        8. Enable camera cable wrap following.
-        9. Enable hexapod compensation mode if not ignored.
-        10. Slew the telescope to the open position (az=150, el=70).
+        6. Assert M1M3 force balance system is enabled.
+        7. Assert M1M3 slew controller flags are enabled (warning if not).
+        8. Home both axes of the mount (with retry logic).
+        9. Enable camera cable wrap following.
+        10. Enable hexapod compensation mode if not ignored.
+        11. Slew the telescope to the open position (az=150, el=70).
             Rotator set to 0 deg.
-        11. Stop tracking.
-        12. Ensure mirror covers are closed before opening the dome.
-        13. Open the dome shutter.
-        14. Open the mirror covers.
-        15. Enable dome following if not ignored.
+        12. Stop tracking.
+        13. Ensure mirror covers are closed before opening the dome.
+        14. Open the dome shutter.
+        15. Open the mirror covers.
+        16. Enable dome following if not ignored.
+        17. Ensure M1M3 is not in engineering mode.
 
         Parameters
         ----------
         overrides : typing.Optional[typing.Dict[str, str]], optional
             Dictionary of component overrides, by default None
+        homing_attempts : `int`, optional
+            Number of attempts to home both axes (default: 10).
         """
 
         await self.assert_all_enabled(
@@ -1777,15 +1869,18 @@ class MTCS(BaseTCS):
             self.log.info("Raising mirror.")
             await self.raise_m1m3()
 
-        self.log.info("Homing both axes.")
-        await self.rem.mtmount.cmd_homeBothAxes.start(
-            timeout=self.home_both_axes_timeout
-        )
+        self.log.info("Asserting M1M3 force balance system is enabled.")
+        await self.assert_m1m3_force_balance_system_enabled()
 
-        self.log.info("Enabling M1M3 force balance system.")
-        await self.enter_m1m3_engineering_mode()
-        await self.enable_m1m3_balance_system()
-        await self.exit_m1m3_engineering_mode()
+        slew_controller_warnings = await self.assert_m1m3_slew_controller_settings()
+        if slew_controller_warnings:
+            self.log.warning(
+                "Some M1M3 slew controller flags are not enabled. "
+                f"Disabled flags: {', '.join(slew_controller_warnings)}. "
+                "This may affect slew performance."
+            )
+
+        await self.home_both_axes(homing_attempts=homing_attempts)
 
         self.log.info("Ensuring CCW is following before slewing to open position.")
         await self.enable_ccw_following()
@@ -1838,6 +1933,8 @@ class MTCS(BaseTCS):
             self.log.warning(
                 f"{self.dome_trajectory_name} is ignored; skipping dome following operations."
             )
+
+        await self.ensure_m1m3_not_in_engineering_mode()
 
     async def shutdown(self) -> None:
         # TODO: Implement (DM-21336).
@@ -2547,6 +2644,66 @@ class MTCS(BaseTCS):
 
         await self._handle_m1m3_hardpoint_correction_command(cmd, enable)
 
+    async def assert_m1m3_force_balance_system_enabled(self) -> None:
+        """Assert that the M1M3 force balance system is enabled.
+
+        This method checks the current state of the M1M3 force balance system
+        (hardpoint corrections) and raises an error if it is not enabled.
+
+        Raises
+        ------
+        RuntimeError
+            If the force balance system is not enabled.
+        """
+        force_actuator_state = await self.rem.mtm1m3.evt_forceControllerState.aget(
+            timeout=self.fast_timeout
+        )
+
+        if not force_actuator_state.balanceForcesApplied:
+            raise RuntimeError(
+                "M1M3 force balance system is not enabled.\n"
+                "The force balance system should be automatically enabled when "
+                "the mirror is raised.\n"
+                "Please check the M1M3 CSC for errors."
+            )
+
+        self.log.info("M1M3 force balance system is enabled.")
+
+    async def assert_m1m3_slew_controller_settings(self) -> list[str]:
+        """Assert that all M1M3 slew controller flags are enabled.
+
+        This method checks the current state of the M1M3 slew controller
+        settings and returns a list of warning messages for any flags that
+        are not enabled.
+
+        Returns
+        -------
+        list of str
+            List of warning messages for flags that are not enabled.
+            Empty list if all flags are enabled.
+        """
+        settings = await self.get_m1m3_slew_controller_settings()
+
+        # Build status summary for all flags
+        status_items = [
+            f"{flag_name}: {enabled}" for flag_name, enabled in settings.items()
+        ]
+        status_summary = " | ".join(status_items)
+
+        warnings = []
+        for flag_name, enabled in settings.items():
+            if not enabled:
+                warnings.append(flag_name)
+
+        if warnings:
+            self.log.warning(f"M1M3 slew controller flags status: {status_summary}")
+        else:
+            self.log.info(
+                f"All M1M3 slew controller flags are enabled: {status_summary}"
+            )
+
+        return warnings
+
     async def _handle_m1m3_hardpoint_correction_command(
         self, cmd: salobj.topics.RemoteCommand, enable: bool
     ) -> None:
@@ -2724,6 +2881,19 @@ class MTCS(BaseTCS):
             )
         else:
             self.log.warning("M1M3 not in engineering mode.")
+
+    async def ensure_m1m3_not_in_engineering_mode(self) -> None:
+        """Ensure M1M3 is not in engineering mode.
+
+        If M1M3 is in engineering mode, this method will exit engineering mode.
+        If M1M3 is not in engineering mode, this method does nothing.
+        """
+        self.log.info("Ensuring M1M3 is not in engineering mode.")
+        if await self.is_m1m3_in_engineering_mode():
+            self.log.warning("M1M3 is in engineering mode. Exiting engineering mode.")
+            await self.exit_m1m3_engineering_mode()
+        else:
+            self.log.debug("M1M3 is not in engineering mode. Nothing to do.")
 
     @contextlib.asynccontextmanager
     async def m1m3_in_engineering_mode(self) -> typing.AsyncIterator[None]:
