@@ -8,6 +8,34 @@ Version History
 
 .. towncrier release notes start
 
+v0.51.0 (2026-06-08)
+====================
+
+New Features
+------------
+
+- Added ``home_both_axes()`` to the ``MTCS`` class with configurable retry logic.
+  It verifies that ``MTMount`` is enabled and ``M1M3`` is raised before each homing attempt, and uses the ``M1M3`` booster valve context manager during homing. (`RSO-548 <https://rubinobs.atlassian.net/browse/RSO-548>`_)
+- Updated ``mtcs.prepare_for_onsky()`` and ``mtcs.prepare_for_flatfield()`` to use ``mtcs.home_both_axes()`` and to accept a ``homing_attempts`` parameter (default: 10). (`RSO-548 <https://rubinobs.atlassian.net/browse/RSO-548>`_)
+- Updated ``mtcs.prepare_for_onsky()`` and ``mtcs.prepare_for_flatfield()`` to ensure ``M1M3`` exited engineering mode at the end of the procedure. (`RSO-548 <https://rubinobs.atlassian.net/browse/RSO-548>`_)
+- Added ``ensure_m1m3_not_in_engineering_mode()`` to the ``MTCS`` class. (`RSO-548 <https://rubinobs.atlassian.net/browse/RSO-548>`_)
+- Updated ``mtcs.prepare_for_onsky()`` and ``mtcs.prepare_for_flatfield()`` to use the ``mtcs.m1m3_booster_valve()`` context manager when homing both axes, following the same pattern used in ``maintel/home_both_axes.py`` and ``maintel/ensure_onsky_readiness.py`` scripts. (`RSO-548 <https://rubinobs.atlassian.net/browse/RSO-548>`_)
+- Updated ``MTCSAsyncMock`` to automatically enable/disable the force balance system when the mirror is raised/lowered, matching the real CSC behavior. (`RSO-548 <https://rubinobs.atlassian.net/browse/RSO-548>`_)
+- Added ``assert_m1m3_slew_controller_settings()`` to the ``MTCS`` class. (`RSO-548 <https://rubinobs.atlassian.net/browse/RSO-548>`_)
+- Updated ``mtcs.prepare_for_onsky()`` to use a slew controller flags assertion check instead of explicit configuration, since slew controller flags are now automatically enabled at the CSC level when the mirror is raised. (`RSO-548 <https://rubinobs.atlassian.net/browse/RSO-548>`_)
+- Added ``assert_m1m3_force_balance_system_enabled()`` to the ``MTCS`` class. (`RSO-548 <https://rubinobs.atlassian.net/browse/RSO-548>`_)
+- Updated ``mtcs.prepare_for_onsky()`` to use a force balance assertion check instead of an explicit enable command, since force balance is now automatically enabled at the CSC level when the mirror is raised. (`RSO-548 <https://rubinobs.atlassian.net/browse/RSO-548>`_)
+- Updated ``mtcs.prepare_for_flatfield()`` to use a force balance assertion check instead of an explicit enable command, since force balance is now automatically enabled at the CSC level when the mirror is raised. (`RSO-548 <https://rubinobs.atlassian.net/browse/RSO-548>`_)
+- Add new CBP scan configs. (`RSO-607 <https://rubinobs.atlassian.net/browse/RSO-607>`_)
+
+
+Other Changes and Additions
+---------------------------
+
+- Adding FiberSpectrographs back into mtcalsys. Update exposure times for spectrographs. (`RSO-552 <https://rubinobs.atlassian.net/browse/RSO-552>`_)
+- Added a scan_none_long in mtcalsys for 5nm steps across the whole wavelength range. (`RSO-608 <https://rubinobs.atlassian.net/browse/RSO-608>`_)
+
+
 v0.50.0 (2026-06-03)
 ====================
 

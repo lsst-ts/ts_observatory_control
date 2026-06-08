@@ -1,1 +1,0 @@
-Added ``assert_m1m3_slew_controller_settings()`` to the ``MTCS`` class.

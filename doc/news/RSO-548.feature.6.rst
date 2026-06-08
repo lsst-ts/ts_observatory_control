@@ -1,1 +1,0 @@
-Updated ``MTCSAsyncMock`` to automatically enable/disable the force balance system when the mirror is raised/lowered, matching the real CSC behavior.
