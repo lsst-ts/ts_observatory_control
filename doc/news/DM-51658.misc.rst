@@ -1,0 +1,1 @@
+Updated ``LSSTCamUsages.All`` in ``maintel/lsstcam.py`` to include the ``imageInOODS`` event.
