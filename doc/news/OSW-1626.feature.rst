@@ -1,0 +1,1 @@
+Add ``ATBuilding`` class with vent gate control methods and extraction fan control methods and ``ATBuildingAsyncMock`` for unit testing.
