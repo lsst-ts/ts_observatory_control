@@ -875,6 +875,7 @@ class MTCalsys(BaseCalsys):
                 task_setup_camera,
                 return_exceptions=True,
             )
+            _ = await self.get_projector_setup()
 
             for i, result in enumerate(results):
                 if isinstance(result, Exception):
@@ -891,6 +892,7 @@ class MTCalsys(BaseCalsys):
             )
 
             await asyncio.gather(task_select_wavelength, task_setup_camera)
+            _ = await self.get_projector_setup()
 
         elif calibration_type == CalibrationType.CBP:
             wavelengths = [400.0]  # function of filter_name
