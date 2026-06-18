@@ -1637,14 +1637,14 @@ class MTCalsys(BaseCalsys):
                     duration=exposure_time,
                     numExposures=1,
                     groupId=group_id,
-                    timeout=exposure_time + self.long_timeout,
+                    timeout=exposure_time + self.long_long_timeout,
                 )
 
             except salobj.AckTimeoutError:
                 self.log.exception("Timed out waiting for the command ack. Continuing.")
 
             lfo = await fiberspec.evt_largeFileObjectAvailable.next(
-                timeout=self.long_timeout, flush=False
+                timeout=self.long_long_timeout, flush=False
             )
 
             fiber_spectrum_exposures.append(lfo.url)
