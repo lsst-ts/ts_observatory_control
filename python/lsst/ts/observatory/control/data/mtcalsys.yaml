@@ -951,6 +951,42 @@ laser_functional:
   exposure_times:
     - 15.0
 
+laser_fiberspec_1:
+  calib_type: Mono
+  laser_mode: 1
+  use_camera: False
+  optical_configuration: F2 SCU
+  electrometer_integration_time: 1
+  wavelength: 650.0
+  wavelength_width: 300
+  wavelength_resolution: 1.0
+  exposure_times:
+    - 30.0
+
+laser_fiberspec_2:
+  calib_type: Mono
+  laser_mode: 1
+  use_camera: False
+  optical_configuration: F2 SCU
+  electrometer_integration_time: 1
+  wavelength: 400.0
+  wavelength_width: 200
+  wavelength_resolution: 1.0
+  exposure_times:
+    - 30.0
+
+laser_fiberspec_3:
+  calib_type: Mono
+  laser_mode: 1
+  use_camera: False
+  optical_configuration: F2 SCU
+  electrometer_integration_time: 1
+  wavelength: 162.0
+  wavelength_width: 325
+  wavelength_resolution: 1.0
+  exposure_times:
+    - 30.0
+
 whitelight_u_source:
   led_name: 
     - M385L3
