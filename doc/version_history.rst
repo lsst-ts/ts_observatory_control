@@ -8,6 +8,21 @@ Version History
 
 .. towncrier release notes start
 
+v0.52.0 (2026-06-18)
+====================
+
+New Features
+------------
+
+- Added ``ATBuilding`` class with vent gate control methods and extraction fan control methods and ``ATBuildingAsyncMock`` for unit testing. (`OSW-1626 <https://rubinobs.atlassian.net/browse/OSW-1626>`_)
+
+
+Other Changes and Additions
+---------------------------
+
+- Added some sequences to mtcalsys.yaml for fiber spectrograph tests (`RSO-659 <https://rubinobs.atlassian.net/browse/RSO-659>`_)
+
+
 v0.51.0 (2026-06-08)
 ====================
 
