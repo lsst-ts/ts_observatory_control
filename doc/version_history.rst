@@ -8,6 +8,15 @@ Version History
 
 .. towncrier release notes start
 
+v0.52.1 (2026-06-18)
+====================
+
+Other Changes and Additions
+---------------------------
+
+- Increased timeout for fiberspec exposures (`RSO-659 <https://rubinobs.atlassian.net/browse/RSO-659>`_)
+
+
 v0.52.0 (2026-06-18)
 ====================
 
