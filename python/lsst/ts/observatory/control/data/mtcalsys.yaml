@@ -460,6 +460,24 @@ cbp_none_2nm_y:
   electrometer_range: 0.0000002
   set_wavelength_range: False
 
+cbp_none_ir_1nm:
+  mtcamera_filter: NONE
+  exposure_times:
+    - 30.0
+  nburst: 5
+  use_cbp_electrometer: True
+  use_flatfield_electrometer: False
+  laser_mode: 4
+  optical_configuration: F1 SCU
+  use_camera: True
+  wavelength: 1000
+  wavelength_width: 202
+  wavelength_resolution: 1.0
+  calib_type: CBP
+  electrometer_mode: 'CHARGE'
+  electrometer_integration_time: 0.1
+  electrometer_range: 0.0000002
+
 whitelight_u_24_daily:
   mtcamera_filter: u_24
   led_name: 

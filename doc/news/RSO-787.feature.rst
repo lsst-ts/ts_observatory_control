@@ -1,0 +1,1 @@
+Updated ``MTCalSys.npulse_lookup`` with optimized number-of-pulses values across wavelength and add CBP config options.
