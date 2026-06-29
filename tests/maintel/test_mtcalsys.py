@@ -52,6 +52,10 @@ class TestMTCalsys(RemoteGroupAsyncMock):
 
         self.mtcalsys.rem.cbp.configure_mock()
 
+        self.mtcalsys.rem.cbp.configure_mock(
+            **{"tel_parked.next.side_effect": self.mock_cbp_parked_telemetry}
+        )
+
     async def setup_types(self) -> None:
         pass
 
@@ -429,3 +433,9 @@ class TestMTCalsys(RemoteGroupAsyncMock):
             assert len(mtcamera_exposure_info["electrometer_exposure_result"]) >= 1
         for wavelength in calibration_wavelengths:
             await self.mtcalsys.change_laser_wavelength(wavelength=wavelength)
+
+    async def mock_cbp_parked_telemetry(
+        self, flush: bool, timeout: float
+    ) -> types.SimpleNamespace:
+        await asyncio.sleep(1.0)
+        return types.SimpleNamespace(parked=False)

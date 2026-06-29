@@ -147,20 +147,25 @@ class ATBuilding(RemoteGroup):
     async def open_vent_gates(
         self,
         gates: typing.List[int],
+        expected_state: VentGateState = VentGateState.OPENED,
     ) -> None:
-        """Open the specified vent gates and wait for them to report open.
+        """Open the specified vent gates and wait for them to report
+        expected_state.
 
         Parameters
         ----------
         gates : `list` of `int`
             Indices of the gates to open (0-3, counter-clockwise from door).
+        expected_state : `VentGateState`
+            State to wait for, default VentGateState.OPENED.
 
         Raises
         ------
         ValueError
             If any gate index is outside the range [0, N_VENT_GATES).
         RuntimeError
-            If a gate does not reach `VentGateState.OPENED` after the command.
+            If a gate does not reach expected_state after the
+            command.
         """
         self._validate_gate_indices(gates)
 
@@ -175,7 +180,7 @@ class ATBuilding(RemoteGroup):
             timeout=self.long_timeout,
         )
 
-        await self._wait_for_vent_gate_state(gates, VentGateState.OPENED)
+        await self._wait_for_vent_gate_state(gates, expected_state)
 
     async def close_vent_gates(
         self,
@@ -280,7 +285,7 @@ class ATBuilding(RemoteGroup):
         expected_state : `VentGateState`
             State to wait for.
         timeout : `float`, optional
-            Seconds to wait. Defaults to ``self.long_timeout``.
+            Seconds to wait. Defaults to ``self.long_long_timeout``.
 
         Raises
         ------
@@ -288,7 +293,7 @@ class ATBuilding(RemoteGroup):
             If the gates do not reach the expected state within ``timeout``.
         """
         if timeout is None:
-            timeout = self.long_timeout
+            timeout = self.long_long_timeout
 
         self.rem.atbuilding.evt_ventGateState.flush()
 
