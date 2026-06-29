@@ -1,1 +1,0 @@
-Updated documentation build configuration to build with the latest version of documenteer.

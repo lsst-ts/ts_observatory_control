@@ -1,1 +1,0 @@
-Updated setup_cbp in mtcalsys.py to handle condition when CBP is parked by unparking it if necessary.
