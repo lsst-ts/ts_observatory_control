@@ -1,2 +1,3 @@
 # Assumes using develop-env image
+documenteer[pipelines,guide]
 sphinx-jsonschema

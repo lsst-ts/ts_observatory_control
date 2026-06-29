@@ -534,6 +534,25 @@ class MTCalsys(BaseCalsys):
 
         self.log.info("Beginning CBP setup")
 
+        cbp_parked = await self.rem.cbp.tel_parked.next(
+            flush=True, timeout=self.long_timeout
+        )
+        if cbp_parked.parked:
+            self.log.info("CBP currently parked, unparking...")
+            await self.rem.cbp.cmd_unpark.start(
+                timeout=self.long_timeout,
+                wait_done=False,
+            )
+            time_start = utils.current_tai()
+            while cbp_parked.parked:
+                cbp_parked = await self.rem.cbp.tel_parked.next(
+                    flush=True, timeout=self.long_timeout
+                )
+                self.log.debug(f"CBP parked {cbp_parked.parked}.")
+                unpark_delay = utils.current_tai() - time_start
+                if unpark_delay > self.long_long_timeout:
+                    raise TimeoutError(f"CBP did not unparked after {unpark_delay}s.")
+
         self.log.debug(f"Setting CBP az and el to {azimuth} and {elevation}")
         await self.rem.cbp.cmd_move.set_start(
             azimuth=azimuth,
@@ -839,8 +858,10 @@ class MTCalsys(BaseCalsys):
     async def laser_start_propagate(self) -> None:
         """Start the propagation of the Tunable Laser"""
 
-        laser_state = await self.rem.tunablelaser.evt_detailedState.next(
-            flush=False, timeout=self.long_timeout
+        self.rem.tunablelaser.evt_detailedState.flush()
+
+        laser_state = await self.rem.tunablelaser.evt_detailedState.aget(
+            timeout=self.long_timeout
         )
         self.log.debug(f"HERE: {laser_state.detailedState}")
 
@@ -1102,6 +1123,7 @@ class MTCalsys(BaseCalsys):
 
             mtcamera_exposure_info: dict = dict()
 
+            npulse = 0
             if (
                 calibration_type == CalibrationType.CBP
                 and int(config_data["laser_mode"]) == 4

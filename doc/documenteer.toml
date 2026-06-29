@@ -1,0 +1,16 @@
+
+[project]
+title = "Observatory Control Package Documentation."
+copyright = "2015-2024 Association of Universities for Research in Astronomy, Inc. (AURA)"
+github_url = "https://github.com/lsst-ts/ts_observatory_control"
+
+[project.python]
+package = "ts_observatory_control"
+documentation_url_key = "documentation"
+github_url_key = "repository"
+
+[sphinx.intersphinx.projects]
+ts_xml = "https://ts-xml.lsst.io"
+ts_salobj = "https://ts-salobj.lsst.io"
+ts_scriptqueue = "https://ts-scriptqueue.lsst.io"
+python = "https://docs.python.org/3.13/"
