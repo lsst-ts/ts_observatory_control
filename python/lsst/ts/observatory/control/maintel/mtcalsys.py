@@ -1104,6 +1104,7 @@ class MTCalsys(BaseCalsys):
 
             mtcamera_exposure_info: dict = dict()
 
+            npulse = 0
             if (
                 calibration_type == CalibrationType.CBP
                 and int(config_data["laser_mode"]) == 4
