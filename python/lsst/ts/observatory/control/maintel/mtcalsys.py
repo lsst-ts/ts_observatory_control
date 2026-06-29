@@ -839,8 +839,10 @@ class MTCalsys(BaseCalsys):
     async def laser_start_propagate(self) -> None:
         """Start the propagation of the Tunable Laser"""
 
-        laser_state = await self.rem.tunablelaser.evt_detailedState.next(
-            flush=False, timeout=self.long_timeout
+        self.rem.tunablelaser.evt_detailedState.flush()
+
+        laser_state = await self.rem.tunablelaser.evt_detailedState.aget(
+            timeout=self.long_timeout
         )
         self.log.debug(f"HERE: {laser_state.detailedState}")
 
