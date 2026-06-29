@@ -8,6 +8,31 @@ Version History
 
 .. towncrier release notes start
 
+v0.52.2 (2026-06-29)
+====================
+
+New Features
+------------
+
+- In ATBuilding class, added option to pass expected vent gate state to open_vent_gate method, and increased timeout. (`OSW-1626 <https://rubinobs.atlassian.net/browse/OSW-1626>`_)
+- Updated ``MTCalSys.npulse_lookup`` with optimized number-of-pulses values across wavelength and add CBP config options. (`RSO-787 <https://rubinobs.atlassian.net/browse/RSO-787>`_)
+
+
+Bug Fixes
+---------
+
+- Updated MTCalsys unit tests to take into account the handling the CBP unparking procedure in the setup_cbp method. (`OSW-2574 <https://rubinobs.atlassian.net/browse/OSW-2574>`_)
+- Updated setup_cbp in mtcalsys.py to handle condition when CBP is parked by unparking it if necessary. (`OSW-2574 <https://rubinobs.atlassian.net/browse/OSW-2574>`_)
+- Fixed run_calibration_sequence in mtcalsys.py for the case of CBP calibration in continuous laser mode by creating a local variable with value 0 to derive the delay. (`OSW-2574 <https://rubinobs.atlassian.net/browse/OSW-2574>`_)
+- Fixed issue with laser_start_propagate in mtcalsys.py by changing the state retrieval mechanism from 'next' call to aget. (`OSW-2574 <https://rubinobs.atlassian.net/browse/OSW-2574>`_)
+
+
+Documentation
+-------------
+
+- Updated documentation build configuration to build with the latest version of documenteer. (`OSW-2574 <https://rubinobs.atlassian.net/browse/OSW-2574>`_)
+
+
 v0.52.1 (2026-06-18)
 ====================
 

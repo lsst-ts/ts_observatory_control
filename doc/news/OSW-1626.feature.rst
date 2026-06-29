@@ -1,1 +1,0 @@
-In ATBuilding class, added option to pass expected vent gate state to open_vent_gate method, and increased timeout.

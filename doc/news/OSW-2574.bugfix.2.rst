@@ -1,1 +1,0 @@
-Fixed run_calibration_sequence in mtcalsys.py for the case of CBP calibration in continuous laser mode by creating a local variable with value 0 to derive the delay.
