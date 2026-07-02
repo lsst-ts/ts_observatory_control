@@ -1549,6 +1549,48 @@ class TestMTCS(MTCSAsyncMock):
             >= self.mtcs.tel_operate_dome_shutter_el
         )
 
+    async def test_prepare_for_onsky_with_target_position(self) -> None:
+        await self.mtcs.enable()
+        await self.mtcs.assert_all_enabled()
+
+        target_az = 155.0
+        target_el = 65.0
+        target_rot = 5.0
+
+        original_check = copy.copy(self.mtcs.check)
+        self.mtcs.check = self.get_all_checks()
+
+        try:
+            await self.mtcs.prepare_for_onsky(
+                target_az=target_az,
+                target_el=target_el,
+                target_rot=target_rot,
+            )
+        finally:
+            self.mtcs.check = original_check
+
+        self.mtcs.rem.mtdome.cmd_moveAz.set_start.assert_awaited_with(
+            position=target_az,
+            velocity=0.0,
+            timeout=self.mtcs.long_long_timeout,
+        )
+
+        assert self._mtmount_tel_azimuth.actualPosition == target_az
+        assert self._mtmount_tel_elevation.actualPosition == target_el
+        assert self._mtrotator_tel_rotation.actualPosition == target_rot
+
+    async def test_prepare_for_onsky_rejects_low_target_elevation(self) -> None:
+        with pytest.raises(ValueError):
+            await self.mtcs.prepare_for_onsky(
+                target_el=self.mtcs.tel_operate_mirror_covers_el - 1.0,
+            )
+
+    async def test_prepare_for_onsky_rejects_high_target_elevation(self) -> None:
+        with pytest.raises(ValueError):
+            await self.mtcs.prepare_for_onsky(
+                target_el=self.mtcs.tel_max_el + 1.0,
+            )
+
     async def test_shutdown(self) -> None:
         with pytest.raises(NotImplementedError):
             await self.mtcs.shutdown()
