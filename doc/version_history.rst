@@ -8,6 +8,15 @@ Version History
 
 .. towncrier release notes start
 
+v0.52.3 (2026-07-02)
+====================
+
+Bug Fixes
+---------
+
+- changed wavelength and range for laser_fiberspec_3 so that it goes from 800-1126nm. (`RSO-807 <https://rubinobs.atlassian.net/browse/RSO-807>`_)
+
+
 v0.52.2 (2026-06-29)
 ====================
 
