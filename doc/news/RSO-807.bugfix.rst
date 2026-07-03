@@ -1,1 +1,0 @@
-changed wavelength and range for laser_fiberspec_3 so that it goes from 800-1126nm.
