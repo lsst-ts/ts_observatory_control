@@ -85,7 +85,7 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
         self.shutter_time = 1.0  # time to open or close shutter (sec)
         self.min_exptime = 0.1  # minimum open-shutter exposure time
         # Maximum time to wait for the tcs to report as ready to take data
-        self.max_tcs_wait_time = 30.0
+        self.max_tcs_wait_time = 60.0
 
         self._stuttered_imgtype = {"STUTTERED"}
 
