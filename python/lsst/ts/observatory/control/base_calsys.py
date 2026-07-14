@@ -23,6 +23,7 @@ __all__ = [
 ]
 
 import abc
+import copy
 import logging
 import typing
 
@@ -73,6 +74,9 @@ class BaseCalsys(RemoteGroup, metaclass=abc.ABCMeta):
         )
 
         self.calibration_config: dict[str, dict[str, typing.Any]] = dict()
+        self._raw_calibration_config: dict[str, dict[str, typing.Any]] = dict()
+        self._config_data_path: str | None = None
+        self._config_validator: salobj.DefaultingValidator | None = None
 
     async def setup_electrometers(
         self,
@@ -246,8 +250,12 @@ class BaseCalsys(RemoteGroup, metaclass=abc.ABCMeta):
         with open(data_path, "r") as f:
             self.calibration_config = yaml.safe_load(f)
 
+        self._raw_calibration_config = copy.deepcopy(self.calibration_config)
+        self._config_data_path = data_path
+
         with open(schema_path, "r") as f:
             config_validator = salobj.DefaultingValidator(schema=yaml.safe_load(f))
+        self._config_validator = config_validator
 
         validation_errors = ""
         log_defaults = ""
@@ -313,6 +321,101 @@ class BaseCalsys(RemoteGroup, metaclass=abc.ABCMeta):
         """Will read the yaml file and detail configurations available"""
 
         return list(self.calibration_config.keys())
+
+    def update_calibration_configuration(
+        self, name: str, updates: dict[str, typing.Any]
+    ) -> None:
+        """Update specific fields of an existing calibration configuration.
+
+        Changes are validated against the schema and applied to the
+        in-memory configuration. They are not persisted to disk until
+        `save_calibration_config_file` is called.
+
+        Parameters
+        ----------
+        name : `str`
+            Name of the configuration to update.
+        updates : `dict`
+            Key-value pairs to merge into the existing configuration.
+
+        Raises
+        ------
+        RuntimeError
+            If ``name`` is not a known configuration or the updated
+            configuration fails schema validation.
+        """
+        if len(self.calibration_config) == 0:
+            self.log.warning("Calibration configuration not loaded, loading.")
+            self.load_calibration_config_file()
+
+        if name not in self.calibration_config:
+            raise RuntimeError(
+                f"Calibration {name} is not in the list of available calibrations. "
+                f"Must be one of {', '.join(self.calibration_config.keys())}"
+            )
+
+        updated_raw = dict(self._raw_calibration_config[name])
+        updated_raw.update(updates)
+
+        if self._config_validator is None:
+            raise RuntimeError(
+                "Config validator not available. "
+                "Call load_calibration_config_file first."
+            )
+
+        try:
+            self.calibration_config[name] = self._config_validator.validate(updated_raw)
+        except jsonschema.ValidationError as e:
+            raise RuntimeError(
+                f"Updated configuration for '{name}' failed validation: {e.message}"
+            )
+
+        self._raw_calibration_config[name] = updated_raw
+        self.log.info(
+            f"Updated calibration configuration '{name}' with {list(updates.keys())}."
+        )
+
+    def save_calibration_config_file(self, filename: str | None = None) -> None:
+        """Save the current calibration configuration to the yaml file.
+
+        Writes the raw (pre-defaults) in-memory configuration so that the
+        saved file is not inflated with schema default values.
+
+        Parameters
+        ----------
+        filename : `str`, optional
+            Destination file path. If `None`, writes back to the path used
+            by the last call to `load_calibration_config_file`, falling back
+            to the default path derived from the class name.
+
+        Raises
+        ------
+        RuntimeError
+            If no calibration configuration has been loaded.
+        """
+        if len(self._raw_calibration_config) == 0:
+            raise RuntimeError(
+                "No calibration configuration loaded. "
+                "Call load_calibration_config_file first."
+            )
+
+        if filename is not None:
+            data_path = filename
+        elif self._config_data_path is not None:
+            data_path = self._config_data_path
+        else:
+            base_name = type(self).__name__.lower()
+            data_path = (get_data_path() / f"{base_name}.yaml").as_posix()
+
+        with open(data_path, "w") as f:
+            yaml.dump(
+                self._raw_calibration_config,
+                f,
+                default_flow_style=False,
+                sort_keys=False,
+            )
+
+        self.log.info(f"Saved calibration configuration to {data_path}.")
 
     def assert_valid_configuration_option(self, name: str) -> None:
         """Assert that the configuration name is valid.
