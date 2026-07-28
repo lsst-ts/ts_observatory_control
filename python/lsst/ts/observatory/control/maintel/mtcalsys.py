@@ -1439,14 +1439,12 @@ class MTCalsys(BaseCalsys):
         use_fiberspectrograph: bool,
         color: str,
     ) -> list[float | None]:
-        """Calculates the optimal exposure time for the electrometer
+        """Calculates the optimal exposure time for the fiberspectrograph
 
         Parameters
         ----------
-        exptime : `list`
+        exptimes : `list`
             List of Camera exposure times
-        entrance_slit : `float`
-        exit_slit : `float`
         use_fiberspectrograph : `bool`
             Identifies if the fiberspectrograph will be used in the exposure
         color: `str`
@@ -1457,7 +1455,13 @@ class MTCalsys(BaseCalsys):
         `list`[`float` | `None`]
             Exposure times for the fiberspectrograph
         """
-        # TODO (DM-44777): Update optimized exposure times
+        # TODO (DM-44777): Update optimized exposure times. Currently the
+        # result only depends on use_fiberspectrograph/color, not on the
+        # values in exptimes (only its length is used), which is why
+        # take_fiber_spectrograph_dark can call this with a placeholder
+        # exptimes list. If this is updated to derive exposure times from
+        # the camera exptimes, take_fiber_spectrograph_dark will need its
+        # own dark-specific calculation instead.
         fiberspectrograph_exptimes: list[float | None] = []
         base_exptimes = {"blue": 30, "red": 20}
         for exptime in exptimes:
@@ -1766,6 +1770,97 @@ class MTCalsys(BaseCalsys):
                         )
 
         return electrometer_exposures
+
+    async def take_fiber_spectrograph_dark(
+        self,
+        group_id: str,
+    ) -> dict[str, list[str]]:
+        """Take dark exposures with the enabled fiber spectrographs.
+
+        Stops the TunableLaser if it is propagating before taking the
+        dark exposures and restarts it afterwards. Also turns off all LEDs.
+        The laser restart is guaranteed via a ``finally`` block.
+
+        Exposure times are determined by
+        `_calculate_fiberspectrograph_exposure_times`.
+
+        Parameters
+        ----------
+        group_id : `str`
+            Group ID for the exposures.
+
+        Returns
+        -------
+        dark_exposures : `dict` [`str`, `list` [`str`]]
+            Dictionary with keys ``"red"`` and ``"blue"`` containing
+            lists of large file object URLs from the dark exposures.
+        """
+        laser_state = await self.rem.tunablelaser.evt_detailedState.aget(
+            timeout=self.long_timeout
+        )
+        laser_was_propagating = laser_state.detailedState in {
+            LaserDetailedState.PROPAGATING_CONTINUOUS_MODE,
+            LaserDetailedState.PROPAGATING_BURST_MODE,
+        }
+
+        if laser_was_propagating:
+            self.log.info("Stopping laser propagation for fiber spectrograph dark.")
+            await self.laser_stop_propagate()
+
+        exposures_done: asyncio.Future = asyncio.Future()
+        exposures_done.set_result(True)
+
+        try:
+            # Turn off all LEDs (cmd_switchAllOn turns them off per
+            # DM-50206 TODO). Done inside the try so a failure here still
+            # restarts the laser in the finally block below.
+            await self.rem.ledprojector.cmd_switchAllOn.start(timeout=self.long_timeout)
+
+            # exptimes=[None] is a placeholder: the exposure time values
+            # currently have no effect on the result (see TODO in
+            # _calculate_fiberspectrograph_exposure_times), only the list
+            # length does, so a single-element list is enough to get one
+            # dark exposure time per color.
+            red_exposure_time = (
+                await self._calculate_fiberspectrograph_exposure_times(
+                    exptimes=[None],
+                    use_fiberspectrograph=self.use_fiberspectrograph_red,
+                    color="red",
+                )
+            )[0]
+            blue_exposure_time = (
+                await self._calculate_fiberspectrograph_exposure_times(
+                    exptimes=[None],
+                    use_fiberspectrograph=self.use_fiberspectrograph_blue,
+                    color="blue",
+                )
+            )[0]
+
+            red_task = asyncio.create_task(
+                self.take_fiber_spectrum(
+                    fiberspectrograph_color="red",
+                    exposure_time=red_exposure_time,
+                    group_id=group_id,
+                    exposures_done=exposures_done,
+                )
+            )
+            blue_task = asyncio.create_task(
+                self.take_fiber_spectrum(
+                    fiberspectrograph_color="blue",
+                    exposure_time=blue_exposure_time,
+                    group_id=group_id,
+                    exposures_done=exposures_done,
+                )
+            )
+            red_result, blue_result = await asyncio.gather(red_task, blue_task)
+        finally:
+            if laser_was_propagating:
+                self.log.info(
+                    "Restarting laser propagation after fiber spectrograph dark."
+                )
+                await self.laser_start_propagate()
+
+        return {"red": red_result, "blue": blue_result}
 
     async def take_fiber_spectrum(
         self,
