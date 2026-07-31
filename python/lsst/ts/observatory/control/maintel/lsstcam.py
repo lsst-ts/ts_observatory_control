@@ -425,6 +425,7 @@ class LSSTCam(BaseCamera):
                     "availableFilters",
                 ],
                 mtheaderservice=["largeFileObjectAvailable"],
+                mtoods=["imageInOODS"],
             )
 
             usages[self.valid_use_cases.TakeImage] = UsagesResources(
