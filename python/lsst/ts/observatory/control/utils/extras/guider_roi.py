@@ -73,11 +73,6 @@ except ImportError:
         "DM Stack not available. GuiderROIs will work in file-based mode only."
     )
 
-try:
-    from lsst.summit.utils.butlerUtils import makeDefaultButler
-except ImportError:
-    makeDefaultButler = None  # type: ignore
-
 
 def get_vignetting_correction_from_butler(
     butler: Any,
@@ -208,6 +203,11 @@ class GuiderROIs:
         self.vignetting_dataset = vignetting_dataset
         self.collection = collection
         self.repo_name = repo_name
+
+        try:
+            from lsst.summit.utils.butlerUtils import makeDefaultButler
+        except ImportError:
+            makeDefaultButler = None  # type: ignore
 
         # Create Butler using makeDefaultButler (supports LSSTCam,
         # LATISS, etc.)
