@@ -36,7 +36,6 @@ try:
     from lsst.geom import SpherePoint
     from lsst.meas.algorithms import ReferenceObjectLoader
     from lsst.sphgeom import Angle, Vector3d
-    from lsst.summit.utils.bestEffort import BestEffortIsr
 except ImportError:
     DM_STACK_AVAILABLE = False
     import warnings
@@ -108,6 +107,8 @@ def find_target_radec(
         Coordinate of the brightest target in the specified region/magnitude
         limit.
     """
+    from lsst.summit.utils.bestEffort import BestEffortIsr
+
     best_effort_isr = BestEffortIsr()
 
     reference_object_loader = get_reference_object_loader_from_butler(
