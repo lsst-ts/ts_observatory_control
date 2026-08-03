@@ -74,7 +74,7 @@ except ImportError:
     )
 
 try:
-    from lsst.summit.utils import makeDefaultButler
+    from lsst.summit.utils.butlerUtils import makeDefaultButler
 except ImportError:
     makeDefaultButler = None  # type: ignore
 
