@@ -36,7 +36,7 @@ try:
     from lsst.geom import SpherePoint
     from lsst.meas.algorithms import ReferenceObjectLoader
     from lsst.sphgeom import Angle, Vector3d
-    from lsst.summit.utils import BestEffortIsr
+    from lsst.summit.utils.bestEffort import BestEffortIsr
 except ImportError:
     DM_STACK_AVAILABLE = False
     import warnings
