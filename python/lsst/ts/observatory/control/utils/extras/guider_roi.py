@@ -1,6 +1,6 @@
-# This file is part of ts_observatory_control.
+# This file is part of ts-observatory-control.
 #
-# Developed for the Vera Rubin Observatory Telescope and Site.
+# Developed for the Vera C. Rubin Observatory Telescope and Site Systems.
 # This product includes software developed by the LSST Project
 # (https://www.lsst.org).
 # See the COPYRIGHT file at the top-level directory of this distribution
@@ -13,11 +13,11 @@
 #
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 # GNU General Public License for more details.
 #
 # You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+# along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 """Guider ROI selection for LSSTCam.
 
@@ -36,7 +36,7 @@ __all__ = [
 
 import logging
 import warnings
-from typing import Any
+from typing import Any, Iterable
 
 import healpy as hp
 import numpy as np
@@ -49,7 +49,7 @@ from lsst.ts.observatory.control.utils.extras.vignetting_storage import (
     register_vignetting_storage_class,
 )
 
-from .. import ROI, ROICommon, ROISpec
+from .. import ROI, ROICommon, ROISpec, get_default_guider_rois
 
 DEFAULT_CATALOG_DATASET_NAME = "guider_roi_monster_guide_catalog"
 DEFAULT_VIGNETTING_DATASET_NAME = "guider_roi_vignetting_correction"
@@ -133,7 +133,7 @@ def get_vignetting_correction_from_butler(
     if not isinstance(data, VignettingCorrection):
         raise ValueError(
             f"Expected VignettingCorrection object from Butler, got {type(data)}. "
-            f"Please re-ingest vignetting data using the updated ingestion script."
+            "Please re-ingest vignetting data using the updated ingestion script."
         )
 
     return data
@@ -467,8 +467,16 @@ class GuiderROIs:
         Raises
         ------
         RuntimeError
-            If DM stack is not available when needed or no suitable guide
-            stars found.
+            If DM stack is not available when needed.
+
+        Notes
+        -----
+        Guiders with no suitable catalog guide star fall back to the ROIs
+        from `get_default_guider_rois`, and therefore have no entry in
+        ``cat_all``. Science and wavefront CCDs have no such fallback, so
+        for them a missing guide star means a missing ROI. Finding no
+        guide star at all is not an error: the returned specification can
+        have no ROI, leaving the observation to run unguided.
         """
         if not DM_STACK_AVAILABLE:
             raise RuntimeError(
@@ -843,15 +851,6 @@ class GuiderROIs:
 
         # build the ROI specification from the catalog with all stars
 
-        # Check if any guide stars were found
-        if len(cat_all) == 0:
-            raise RuntimeError(
-                f"No suitable guide stars found for the given pointing. "
-                f"Boresight: RA={ra:.6f}°, Dec={dec:.6f}°. "
-                f"This may be due to limited catalog coverage or overly "
-                f"restrictive selection criteria."
-            )
-
         # Create ROICommon with shared settings
         roi_common = ROICommon(
             rows=int(roi_size),
@@ -862,9 +861,8 @@ class GuiderROIs:
         # Build dictionary of ROIs for each detector
         roi_dict = {}
         for arow in cat_all:
-            ccdname = arow["ccdName"]
-            # Remove underscore from CCD name (e.g., "R00_SG0" -> "R00SG0")
-            ccd_guider_name = ccdname[0:3] + ccdname[4:]
+            # ROI spec names have no underscore, e.g. "R00_SG0" -> "R00SG0"
+            ccd_guider_name = arow["ccdName"].replace("_", "")
             ampname = arow["ampNameLL"]
             amp_guider_name = int(ampname[1:])  # remove the C in Cxy and convert to int
             start_col = int(arow["ampxLL"])
@@ -876,8 +874,77 @@ class GuiderROIs:
                 start_col=start_col,
             )
 
+        # Only guiders have a default ROI to fall back to, so science and
+        # wavefront CCDs still depend entirely on the guide star catalog.
+        if use_guider:
+            self._add_default_guider_rois(roi_dict, cam_wcs.keys())
+
+        if not roi_dict:
+            self.log.warning(
+                "No suitable guide stars found for the given pointing, "
+                "returning a specification with no ROI. "
+                f"Boresight: RA={ra:.6f}°, Dec={dec:.6f}°. "
+                "This may be due to limited catalog coverage or overly "
+                "restrictive selection criteria."
+            )
+
         # Create and return ROISpec
         roi_spec = ROISpec(common=roi_common, roi=roi_dict)
 
         # done!
         return roi_spec, cat_all
+
+    def _add_default_guider_rois(
+        self, roi_dict: dict[str, ROI], detector_ids: Iterable[int]
+    ) -> None:
+        """Add default ROIs for guiders with no catalog guide star.
+
+        Guiders left out of the ROI spec are not read out at all, so it is
+        preferable to fall back to a default ROI, which may catch a
+        volunteer star. In dense fields such a star is often bright enough
+        to guide on.
+
+        Parameters
+        ----------
+        roi_dict : `dict` [`str`, `ROI`]
+            ROIs selected from the guide star catalog, keyed by detector
+            name without the underscore, e.g. "R00SG0". Updated in place.
+        detector_ids : `Iterable` [`int`]
+            Ids of the detectors considered for ROI selection.
+        """
+        if self.camera is None:
+            raise RuntimeError("Camera object not available.")
+
+        default_guider_rois = get_default_guider_rois()
+
+        guider_names_without_star = []
+        non_guider_names_without_roi = []
+        for detector_id in detector_ids:
+            detector = self.camera[detector_id]
+            detector_name = detector.getName().replace("_", "")
+
+            # Science and wavefront CCDs are present whenever they are also
+            # selected for ROIs, and have no default to fall back to.
+            if detector.getType() != cameraGeom.DetectorType.GUIDER:
+                if detector_name not in roi_dict:
+                    non_guider_names_without_roi.append(detector_name)
+                continue
+
+            if detector_name in roi_dict:
+                continue
+
+            roi_dict[detector_name] = default_guider_rois[detector_name]
+            guider_names_without_star.append(detector_name)
+
+        if guider_names_without_star:
+            self.log.warning(
+                "No catalog guide star found for "
+                f"{', '.join(sorted(guider_names_without_star))}. "
+                "Using default ROIs to catch a volunteer star."
+            )
+
+        if non_guider_names_without_roi:
+            self.log.warning(
+                f"No ROI for {len(non_guider_names_without_roi)} non-guider "
+                "detectors: only guiders have a default ROI to fall back to."
+            )

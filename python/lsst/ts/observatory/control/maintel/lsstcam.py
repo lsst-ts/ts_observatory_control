@@ -30,7 +30,7 @@ from lsst.ts import salobj
 
 from ..base_camera import BaseCamera
 from ..remote_group import Usages, UsagesResources
-from ..utils import ROI, ROICommon, ROISpec
+from ..utils import ROICommon, ROISpec, get_default_guider_rois
 from .mtcs import MTCS
 
 
@@ -114,16 +114,7 @@ class LSSTCam(BaseCamera):
                 cols=self.DEFAULT_GUIDER_ROI_COLS,
                 integration_time_millis=self.DEFAULT_GUIDER_ROI_TIME_MS,
             ),
-            roi=dict(
-                R00SG0=ROI(segment=7, start_row=800, start_col=56),
-                R00SG1=ROI(segment=0, start_row=800, start_col=56),
-                R04SG0=ROI(segment=7, start_row=800, start_col=56),
-                R04SG1=ROI(segment=0, start_row=800, start_col=56),
-                R40SG0=ROI(segment=7, start_row=800, start_col=56),
-                R40SG1=ROI(segment=0, start_row=800, start_col=56),
-                R44SG0=ROI(segment=7, start_row=800, start_col=56),
-                R44SG1=ROI(segment=0, start_row=800, start_col=56),
-            ),
+            roi=get_default_guider_rois(),
         )
         roi_spec_dict = roi_spec.model_dump()
         roi = roi_spec_dict.pop("roi")
