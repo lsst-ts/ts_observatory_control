@@ -1,0 +1,1 @@
+In ``GuiderROIs.get_guider_rois``, fall back to a default ROI for guiders with no catalog guide star.
