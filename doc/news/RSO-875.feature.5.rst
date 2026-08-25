@@ -1,0 +1,1 @@
+Added the ``only_if_enabled`` option to ``BaseTCS.disable_dome_following`` for best-effort operations where the dome trajectory CSC is not required.
