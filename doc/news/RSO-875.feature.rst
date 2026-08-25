@@ -1,0 +1,1 @@
+Added MTCS preparation and finalization methods for the Simonyi Telescope daytime telescope and dome checkout.
