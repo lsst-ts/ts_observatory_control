@@ -1,26 +1,7 @@
 name: lint
 
-on:
-  - push
-  - pull_request
+on: push
 
 jobs:
-  lint:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-
-      - name: Set up Python
-        uses: actions/setup-python@v2
-        with:
-          python-version: '3.11'
-
-      - name: Install
-        run: |
-          $CONDA/bin/conda config --set solver classic
-          $CONDA/bin/conda install -c lsstts -c conda-forge pre-commit ts-pre-commit-config python=3.11 identify>=2.6 -y
-          $CONDA/bin/conda install -c conda-forge pre-commit identify>=2.6 -y
-          $CONDA/bin/generate_pre_commit_conf --skip-pre-commit-install
-
-      - name: Run pre commit checks
-        run: $CONDA/bin/pre-commit run --all
+  call-workflow:
+    uses: lsst-ts/tssw_workflows/.github/workflows/lint.yaml@main

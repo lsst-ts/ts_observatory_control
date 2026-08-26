@@ -1,6 +1,6 @@
-# This file is part of ts_observatory_control.
+# This file is part of ts-observatory-control.
 #
-# Developed for the Vera Rubin Observatory Telescope and Site.
+# Developed for the Vera C. Rubin Observatory Telescope and Site Systems.
 # This product includes software developed by the LSST Project
 # (https://www.lsst.org).
 # See the COPYRIGHT file at the top-level directory of this distribution
@@ -13,16 +13,17 @@
 #
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 # GNU General Public License for more details.
 #
 # You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+# along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 __all__ = [
     "ROICommon",
     "ROI",
     "ROISpec",
+    "get_default_guider_rois",
 ]
 
 from typing import Any, Generator
@@ -60,6 +61,31 @@ class ROI(BaseModel):
     segment: int
     startRow: int = Field(alias="start_row")
     startCol: int = Field(alias="start_col")
+
+
+def get_default_guider_rois() -> dict[str, ROI]:
+    """Get the default ROI for each guider.
+
+    These ROIs are used when no guide star is available from the guide
+    star catalog. They are positioned to catch a volunteer star, which in
+    dense fields is often bright enough to guide on.
+
+    Returns
+    -------
+    `dict` [`str`, `ROI`]
+        Default ROI for each guider, keyed by the name used in the ROI
+        specification, e.g. "R00SG0".
+    """
+    return {
+        "R00SG0": ROI(segment=7, start_row=800, start_col=56),
+        "R00SG1": ROI(segment=0, start_row=800, start_col=56),
+        "R04SG0": ROI(segment=7, start_row=800, start_col=56),
+        "R04SG1": ROI(segment=0, start_row=800, start_col=56),
+        "R40SG0": ROI(segment=7, start_row=800, start_col=56),
+        "R40SG1": ROI(segment=0, start_row=800, start_col=56),
+        "R44SG0": ROI(segment=7, start_row=800, start_col=56),
+        "R44SG1": ROI(segment=0, start_row=800, start_col=56),
+    }
 
 
 class ROISpec(BaseModel):

@@ -1,6 +1,6 @@
-# This file is part of ts_observatory_control
+# This file is part of ts-observatory-control.
 #
-# Developed for the Vera Rubin Observatory Data Management System.
+# Developed for the Vera C. Rubin Observatory Telescope and Site Systems.
 # This product includes software developed by the LSST Project
 # (https://www.lsst.org).
 # See the COPYRIGHT file at the top-level directory of this distribution
@@ -13,11 +13,11 @@
 #
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 # GNU General Public License for more details.
 #
-# You should have received a copy of the GNU General Public License.
-# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+# You should have received a copy of the GNU General Public License
+# along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 import logging
 import unittest.mock
@@ -25,6 +25,7 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 import pytest
+from lsst.ts.observatory.control.utils import ROI, get_default_guider_rois
 from lsst.ts.observatory.control.utils.extras import (
     DM_STACK_AVAILABLE,
     GuiderROIs,
@@ -276,21 +277,142 @@ class TestGuiderROIs:
         ):
             roi = GuiderROIs()
 
-            # Test that the method accepts the new parameter names
-            # This will fail due to no catalog data, but we can test the
-            # parameter names
+            # Test that the method accepts the new parameter names.
+            # There is no catalog data, so all guiders fall back to their
+            # default ROI.
             with unittest.mock.patch.object(
                 roi, "_get_catalog_data_from_butler", return_value=[]
             ):
-                with pytest.raises(RuntimeError, match="No suitable guide stars found"):
-                    roi.get_guider_rois(
-                        ra=127.5,  # Changed from boresight_RA
-                        dec=-44.2,  # Changed from boresight_DEC
-                        sky_angle=316.4,  # Changed from boresight_RotAngle
-                        roi_size=400,
-                        roi_time=200,
-                        band="i",  # Changed from filter
-                    )
+                roi_spec, cat_all = roi.get_guider_rois(
+                    ra=127.5,  # Changed from boresight_RA
+                    dec=-44.2,  # Changed from boresight_DEC
+                    sky_angle=316.4,  # Changed from boresight_RotAngle
+                    roi_size=400,
+                    roi_time=200,
+                    band="i",  # Changed from filter
+                )
+
+            assert len(cat_all) == 0
+            assert roi_spec.common.rows == 400
+            assert roi_spec.common.cols == 400
+            assert roi_spec.common.integrationTimeMillis == 200
+            assert roi_spec.roi == get_default_guider_rois()
+
+    @pytest.mark.skipif(not DM_STACK_AVAILABLE, reason="DM stack not available.")
+    def test_add_default_guider_rois_ignores_non_guiders(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """Test that only guiders have a default ROI to fall back to."""
+        mock_butler = unittest.mock.Mock()
+
+        mock_dataset_type = unittest.mock.Mock()
+        mock_dataset_type.dimensions.required = {"healpix5"}
+        mock_butler.registry.getDatasetType.return_value = mock_dataset_type
+
+        vignetting_correction = _create_mock_vignetting_correction()
+
+        with unittest.mock.patch(
+            "lsst.ts.observatory.control.utils.extras.guider_roi.makeDefaultButler",
+            return_value=mock_butler,
+        ), unittest.mock.patch(
+            "lsst.ts.observatory.control.utils.extras.guider_roi.get_vignetting_correction_from_butler",
+            return_value=vignetting_correction,
+        ):
+            roi = GuiderROIs()
+
+            non_guider_detector_ids = [
+                roi.camera["R22_S11"].getId(),  # science
+                roi.camera["R00_SW0"].getId(),  # wavefront
+            ]
+
+            roi_dict: dict[str, ROI] = {}
+            with caplog.at_level(logging.WARNING):
+                roi._add_default_guider_rois(roi_dict, non_guider_detector_ids)
+
+            assert roi_dict == {}
+            # a single warning, rather than one per detector
+            assert "No ROI for 2 non-guider detectors" in caplog.text
+
+    @pytest.mark.skipif(not DM_STACK_AVAILABLE, reason="DM stack not available.")
+    def test_get_guider_rois_without_any_guide_star(self) -> None:
+        """Test that finding no guide star at all is not an error."""
+        mock_butler = unittest.mock.Mock()
+
+        mock_dataset_type = unittest.mock.Mock()
+        mock_dataset_type.dimensions.required = {"healpix5"}
+        mock_butler.registry.getDatasetType.return_value = mock_dataset_type
+
+        vignetting_correction = _create_mock_vignetting_correction()
+
+        with unittest.mock.patch(
+            "lsst.ts.observatory.control.utils.extras.guider_roi.makeDefaultButler",
+            return_value=mock_butler,
+        ), unittest.mock.patch(
+            "lsst.ts.observatory.control.utils.extras.guider_roi.get_vignetting_correction_from_butler",
+            return_value=vignetting_correction,
+        ):
+            roi = GuiderROIs()
+
+            # Wavefront CCDs have no default ROI to fall back to, so with
+            # no catalog data the specification comes back with no ROI.
+            with unittest.mock.patch.object(
+                roi, "_get_catalog_data_from_butler", return_value=[]
+            ):
+                roi_spec, cat_all = roi.get_guider_rois(
+                    ra=127.5,
+                    dec=-44.2,
+                    sky_angle=316.4,
+                    roi_size=400,
+                    roi_time=200,
+                    band="i",
+                    use_guider=False,
+                    use_wavefront=True,
+                )
+
+            assert len(cat_all) == 0
+            assert roi_spec.roi == {}
+
+    @pytest.mark.skipif(not DM_STACK_AVAILABLE, reason="DM stack not available.")
+    def test_add_default_guider_rois(self) -> None:
+        """Test that default ROIs only replace the missing guiders."""
+        from lsst.afw import cameraGeom
+
+        mock_butler = unittest.mock.Mock()
+
+        mock_dataset_type = unittest.mock.Mock()
+        mock_dataset_type.dimensions.required = {"healpix5"}
+        mock_butler.registry.getDatasetType.return_value = mock_dataset_type
+
+        vignetting_correction = _create_mock_vignetting_correction()
+
+        with unittest.mock.patch(
+            "lsst.ts.observatory.control.utils.extras.guider_roi.makeDefaultButler",
+            return_value=mock_butler,
+        ), unittest.mock.patch(
+            "lsst.ts.observatory.control.utils.extras.guider_roi.get_vignetting_correction_from_butler",
+            return_value=vignetting_correction,
+        ):
+            roi = GuiderROIs()
+
+            guider_detector_ids = [
+                detector.getId()
+                for detector in roi.camera
+                if detector.getType() == cameraGeom.DetectorType.GUIDER
+            ]
+
+            roi_from_catalog = ROI(segment=3, start_row=100, start_col=200)
+            roi_dict = {"R00SG0": roi_from_catalog}
+
+            roi._add_default_guider_rois(roi_dict, guider_detector_ids)
+
+            default_guider_rois = get_default_guider_rois()
+
+            assert roi_dict["R00SG0"] is roi_from_catalog
+            assert roi_dict.keys() == default_guider_rois.keys()
+            for guider_name in default_guider_rois:
+                if guider_name == "R00SG0":
+                    continue
+                assert roi_dict[guider_name] == default_guider_rois[guider_name]
 
     @pytest.mark.skipif(not DM_STACK_AVAILABLE, reason="DM stack not available.")
     def test_get_guider_rois_without_dm_stack(self) -> None:

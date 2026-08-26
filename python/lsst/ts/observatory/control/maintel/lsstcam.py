@@ -1,6 +1,6 @@
-# This file is part of ts_observatory_control
+# This file is part of ts-observatory-control.
 #
-# Developed for the Vera Rubin Observatory Telescope and Site System.
+# Developed for the Vera C. Rubin Observatory Telescope and Site Systems.
 # This product includes software developed by the LSST Project
 # (https://www.lsst.org).
 # See the COPYRIGHT file at the top-level directory of this distribution
@@ -13,11 +13,11 @@
 #
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 # GNU General Public License for more details.
 #
 # You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+# along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 __all__ = ["LSSTCam", "LSSTCamUsages"]
 
@@ -30,7 +30,7 @@ from lsst.ts import salobj
 
 from ..base_camera import BaseCamera
 from ..remote_group import Usages, UsagesResources
-from ..utils import ROI, ROICommon, ROISpec
+from ..utils import ROICommon, ROISpec, get_default_guider_rois
 from .mtcs import MTCS
 
 
@@ -114,16 +114,7 @@ class LSSTCam(BaseCamera):
                 cols=self.DEFAULT_GUIDER_ROI_COLS,
                 integration_time_millis=self.DEFAULT_GUIDER_ROI_TIME_MS,
             ),
-            roi=dict(
-                R00SG0=ROI(segment=7, start_row=800, start_col=56),
-                R00SG1=ROI(segment=0, start_row=800, start_col=56),
-                R04SG0=ROI(segment=7, start_row=800, start_col=56),
-                R04SG1=ROI(segment=0, start_row=800, start_col=56),
-                R40SG0=ROI(segment=7, start_row=800, start_col=56),
-                R40SG1=ROI(segment=0, start_row=800, start_col=56),
-                R44SG0=ROI(segment=7, start_row=800, start_col=56),
-                R44SG1=ROI(segment=0, start_row=800, start_col=56),
-            ),
+            roi=get_default_guider_rois(),
         )
         roi_spec_dict = roi_spec.model_dump()
         roi = roi_spec_dict.pop("roi")
