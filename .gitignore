@@ -36,3 +36,4 @@ towncrier.toml
 .flake8
 .isort.cfg
 .mypy.ini
+.LICENSE.txt
