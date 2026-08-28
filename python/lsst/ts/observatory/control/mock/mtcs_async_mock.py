@@ -158,6 +158,11 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
             inPosition=[False, False],
         )
 
+        self._mtdome_evt_louvers_motion = types.SimpleNamespace(
+            state=[MTDome.MotionState.ENABLED] * len(MTDome.Louver),
+            inPosition=[True] * len(MTDome.Louver),
+        )
+
         # MTDomeTrajectory data
         self._mtdometrajectory_dome_following = types.SimpleNamespace(enabled=True)
         self._mtdometrajectory_telescope_vignetted = types.SimpleNamespace(
@@ -316,6 +321,10 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
             "evt_shutterMotion.aget.side_effect": self.mtdome_evt_shutter_motion_next,
             "cmd_openShutter.start.side_effect": self.mtdome_cmd_open_shutter,
             "cmd_closeShutter.start.side_effect": self.mtdome_cmd_close_shutter,
+            "evt_louversMotion.aget.side_effect": self.mtdome_evt_louvers_motion_next,
+            "evt_louversMotion.next.side_effect": self.mtdome_evt_louvers_motion_next,
+            "cmd_setLouvers.set_start.side_effect": self.mtdome_cmd_set_louvers,
+            "cmd_closeLouvers.start.side_effect": self.mtdome_cmd_close_louvers,
         }
 
         self.mtcs.rem.mtdome.configure_mock(**mtdome_mocks)
@@ -810,6 +819,46 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
         self._mtdome_evt_shutter_motion = types.SimpleNamespace(
             state=[MTDome.MotionState.CLOSED, MTDome.MotionState.CLOSED],
             inPosition=[True, True],
+        )
+
+    async def mtdome_evt_louvers_motion_next(
+        self, *args: typing.Any, **kwargs: typing.Any
+    ) -> types.SimpleNamespace:
+        return self._mtdome_evt_louvers_motion
+
+    async def mtdome_cmd_set_louvers(
+        self, position: list[float], *args: typing.Any, **kwargs: typing.Any
+    ) -> None:
+        """Simplified mock: commanded louvers immediately report in
+        position (no gradual motion simulation, unlike the shutter mock).
+        """
+        self._mtdome_evt_louvers_motion = types.SimpleNamespace(
+            state=self._mtdome_evt_louvers_motion.state,
+            inPosition=[
+                current or value != -1.0
+                for current, value in zip(
+                    self._mtdome_evt_louvers_motion.inPosition, position
+                )
+            ],
+        )
+
+    async def mtdome_cmd_close_louvers(
+        self, *args: typing.Any, **kwargs: typing.Any
+    ) -> None:
+        """Simplified mock: all enabled louvers immediately report
+        CLOSED/in position (no gradual motion simulation, unlike the
+        shutter mock).
+        """
+        self._mtdome_evt_louvers_motion = types.SimpleNamespace(
+            state=[
+                (
+                    MTDome.MotionState.DISABLED
+                    if state == MTDome.MotionState.DISABLED
+                    else MTDome.MotionState.CLOSED
+                )
+                for state in self._mtdome_evt_louvers_motion.state
+            ],
+            inPosition=[True] * len(self._mtdome_evt_louvers_motion.state),
         )
 
     async def mtdometrajectory_following_mode(
