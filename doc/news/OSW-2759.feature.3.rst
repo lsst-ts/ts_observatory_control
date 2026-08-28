@@ -1,0 +1,1 @@
+Added ``constants.mtcs_constants.SimonyiVentParameters``, a frozen dataclass bundling the Simonyi evening venting protocol's parameters.
