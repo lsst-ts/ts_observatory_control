@@ -3974,13 +3974,16 @@ class MTCS(BaseTCS):
                         f"No command ack seen in {self.fast_timeout}s. Continuing."
                     )
                 while force_actuator_state.slewFlag != open:
-                    self.log.debug(f"Waiting for valve to {desired_state}.")
+                    self.log.info(
+                        f"Waiting for valve to {desired_state}. "
+                        f"Slew flag active: {force_actuator_state.slewFlag}."
+                    )
                     force_actuator_state = (
                         await self.rem.mtm1m3.evt_forceControllerState.next(
                             flush=False, timeout=self.long_timeout
                         )
                     )
-                self.log.debug(f"Booster valve {desired_state}.")
+                self.log.info(f"Booster valve {desired_state}.")
             else:
                 self.log.info(f"Booster valve already {desired_state}.")
         else:
