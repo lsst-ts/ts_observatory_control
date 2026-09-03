@@ -1,0 +1,1 @@
+Added a method to ``BaseCamera`` to wait for the camera shutter to be in a specific state.

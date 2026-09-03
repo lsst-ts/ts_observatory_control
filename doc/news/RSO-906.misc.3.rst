@@ -1,0 +1,1 @@
+Improved handling of the force controller state event in ``mock/mtcs_async_mock.py``.
