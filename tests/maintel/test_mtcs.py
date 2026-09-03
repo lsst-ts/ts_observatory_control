@@ -550,12 +550,7 @@ class TestMTCS(MTCSAsyncMock):
             type=1, off1=ra_offset, off2=dec_offset, num=0
         )
 
-        self.mtcs.rem.mtm1m3.cmd_setSlewFlag.set_start.assert_awaited_with(
-            timeout=self.mtcs.fast_timeout,
-        )
-        self.mtcs.rem.mtm1m3.cmd_clearSlewFlag.set_start.assert_awaited_with(
-            timeout=self.mtcs.fast_timeout,
-        )
+        self.assert_m1m3_booster_valve()
 
     async def test_offset_radec_with_absorb(self) -> None:
         # Test offset_radec with absorb=True
@@ -570,12 +565,7 @@ class TestMTCS(MTCSAsyncMock):
             num=0, timeout=self.mtcs.fast_timeout
         )
 
-        self.mtcs.rem.mtm1m3.cmd_setSlewFlag.set_start.assert_awaited_with(
-            timeout=self.mtcs.fast_timeout,
-        )
-        self.mtcs.rem.mtm1m3.cmd_clearSlewFlag.set_start.assert_awaited_with(
-            timeout=self.mtcs.fast_timeout,
-        )
+        self.assert_m1m3_booster_valve()
 
     async def test_offset_azel(self) -> None:
         az_offset, el_offset = 10.0, -10.0
@@ -586,12 +576,7 @@ class TestMTCS(MTCSAsyncMock):
         self.mtcs.rem.mtptg.cmd_offsetAzEl.set_start.assert_called_with(
             az=az_offset, el=el_offset, num=1
         )
-        self.mtcs.rem.mtm1m3.cmd_setSlewFlag.set_start.assert_awaited_with(
-            timeout=self.mtcs.fast_timeout,
-        )
-        self.mtcs.rem.mtm1m3.cmd_clearSlewFlag.set_start.assert_awaited_with(
-            timeout=self.mtcs.fast_timeout,
-        )
+        self.assert_m1m3_booster_valve()
 
     async def test_offset_azel_with_defaults(self) -> None:
         az_offset, el_offset = 10.0, -10.0
@@ -717,12 +702,7 @@ class TestMTCS(MTCSAsyncMock):
             az=az, el=el, num=1
         )
 
-        self.mtcs.rem.mtm1m3.cmd_setSlewFlag.set_start.assert_awaited_with(
-            timeout=self.mtcs.fast_timeout,
-        )
-        self.mtcs.rem.mtm1m3.cmd_clearSlewFlag.set_start.assert_awaited_with(
-            timeout=self.mtcs.fast_timeout,
-        )
+        self.assert_m1m3_booster_valve()
 
     async def test_offset_xy_with_defaults(self) -> None:
         x_offset, y_offset = 10.0, -10.0
@@ -2837,21 +2817,21 @@ class TestMTCS(MTCSAsyncMock):
             )
             mtm1m3_evt_force_controller_state_next_calls = [
                 unittest.mock.call(flush=False, timeout=self.mtcs.long_long_timeout),
-                unittest.mock.call(flush=False, timeout=self.mtcs.long_timeout),
+                unittest.mock.call(flush=False, timeout=self.mtcs.fast_timeout),
             ]
 
             self.mtcs.rem.mtm1m3.evt_forceControllerState.next.assert_has_awaits(
                 mtm1m3_evt_force_controller_state_next_calls
             )
-            self.mtcs.rem.mtm1m3.cmd_setSlewFlag.set_start.assert_awaited_with(
-                timeout=self.mtcs.fast_timeout,
+            self.mtcs.rem.mtm1m3.cmd_setSlewFlag.start.assert_awaited_with(
+                timeout=self.mtcs.long_timeout,
             )
             if cleared:
-                self.mtcs.rem.mtm1m3.cmd_clearSlewFlag.set_start.assert_awaited_with(
-                    timeout=self.mtcs.fast_timeout,
+                self.mtcs.rem.mtm1m3.cmd_clearSlewFlag.start.assert_awaited_with(
+                    timeout=self.mtcs.long_timeout,
                 )
             else:
-                self.mtcs.rem.mtm1m3.cmd_clearSlewFlag.set_start.assert_not_awaited()
+                self.mtcs.rem.mtm1m3.cmd_clearSlewFlag.start.assert_not_awaited()
 
         else:
             self.mtcs.rem.mtm1m3.evt_boosterValveStatus.flush.assert_called()
@@ -2892,14 +2872,14 @@ class TestMTCS(MTCSAsyncMock):
             )
             mtm1m3_evt_force_controller_state_next_calls = [
                 unittest.mock.call(flush=False, timeout=self.mtcs.long_long_timeout),
-                unittest.mock.call(flush=False, timeout=self.mtcs.long_timeout),
+                unittest.mock.call(flush=False, timeout=self.mtcs.fast_timeout),
             ]
             self.mtcs.rem.mtm1m3.evt_forceControllerState.next.assert_has_awaits(
                 mtm1m3_evt_force_controller_state_next_calls
             )
-            self.mtcs.rem.mtm1m3.cmd_setSlewFlag.set_start.assert_not_awaited()
-            self.mtcs.rem.mtm1m3.cmd_clearSlewFlag.set_start.assert_awaited_with(
-                timeout=self.mtcs.fast_timeout
+            self.mtcs.rem.mtm1m3.cmd_setSlewFlag.start.assert_not_awaited()
+            self.mtcs.rem.mtm1m3.cmd_clearSlewFlag.start.assert_awaited_with(
+                timeout=self.mtcs.long_timeout
             )
         else:
             self.mtcs.rem.mtm1m3.evt_boosterValveStatus.flush.assert_called()
