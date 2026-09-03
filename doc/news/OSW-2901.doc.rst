@@ -1,0 +1,1 @@
+Fixed license headers and removed ``.LICENSE.txt`` file.
