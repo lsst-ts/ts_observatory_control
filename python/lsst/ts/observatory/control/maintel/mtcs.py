@@ -153,8 +153,9 @@ class MTCS(BaseTCS):
         # the rotator when checking if it is in position.
         self.mtrotator_race_condition_timeout = 3.0
 
+        # Used for daytime telescope and dome checkout.
         self.tel_park_el = 80.0
-        self.tel_park_az = 0.0
+        self.tel_park_az = 150.0
         self.tel_park_rot = 0.0
 
         self.tel_flat_el = 22.7
@@ -705,6 +706,58 @@ class MTCS(BaseTCS):
 
         return "MTDome in position."
 
+    async def wait_for_dome_azel_inposition(self, timeout: float) -> str:
+        """Wait for dome azimuth and elevation alignment.
+
+        This method ignores shutter vignetting so it can be used while the
+        dome shutters are closed.
+
+        Parameters
+        ----------
+        timeout : `float`
+            Maximum time to wait for a new telescope-vignetting event.
+
+        Returns
+        -------
+        ret_val : `str`
+            String indicating that the dome azimuth and elevation are in
+            position.
+        """
+        self.rem.mtdometrajectory.evt_telescopeVignetted.flush()
+
+        telescope_vignetted = (
+            await self.rem.mtdometrajectory.evt_telescopeVignetted.aget(
+                timeout=self.fast_timeout
+            )
+        )
+        azimuth = MTDomeTrajectory.TelescopeVignetted(telescope_vignetted.azimuth)
+        elevation = MTDomeTrajectory.TelescopeVignetted(telescope_vignetted.elevation)
+
+        while (
+            azimuth != MTDomeTrajectory.TelescopeVignetted.NO
+            or elevation != MTDomeTrajectory.TelescopeVignetted.NO
+        ):
+            self.log.debug(
+                "Waiting for MTDome alignment: "
+                f"{azimuth=!r} and {elevation=!r}. "
+                "Shutter vignetting is ignored."
+            )
+            telescope_vignetted = (
+                await self.rem.mtdometrajectory.evt_telescopeVignetted.next(
+                    flush=False, timeout=timeout
+                )
+            )
+            azimuth = MTDomeTrajectory.TelescopeVignetted(telescope_vignetted.azimuth)
+            elevation = MTDomeTrajectory.TelescopeVignetted(
+                telescope_vignetted.elevation
+            )
+
+        self.log.info(
+            f"MTDome aligned with the telescope: {azimuth=!r} and {elevation=!r}."
+        )
+
+        return "MTDome azimuth and elevation in position."
+
     async def wait_for_rotator_inposition(
         self,
         timeout: float,
@@ -749,7 +802,6 @@ class MTCS(BaseTCS):
             abs(target_position - current_position)
             > tracking_success_position_threshold
         ):
-
             self.log.debug(
                 f"Current rotator position ({current_position:.2f}) "
                 f"not in target position ({target_position:.2f}) range "
@@ -1936,6 +1988,331 @@ class MTCS(BaseTCS):
             )
 
         await self.ensure_m1m3_not_in_engineering_mode()
+
+    @staticmethod
+    def get_critical_components_for_daytime_checkout(
+        check_dome: bool = True,
+    ) -> list[str]:
+        """Return components that cannot be ignored for daytime checkout.
+
+        Parameters
+        ----------
+        check_dome : `bool`, optional
+            Include the dome components in the returned list.
+
+        Returns
+        -------
+        critical_components : `list` [`str`]
+            Components required for the requested checkout mode.
+        """
+
+        critical_components = ["mtmount", "mtrotator", "mtm1m3", "mtm2", "mtptg"]
+        if check_dome:
+            critical_components.extend(["mtdome", "mtdometrajectory"])
+        return critical_components
+
+    def _assert_critical_components_for_daytime_checkout(
+        self, check_dome: bool
+    ) -> None:
+        """Assert that required daytime-checkout components are checked."""
+
+        for component in self.get_critical_components_for_daytime_checkout(
+            check_dome=check_dome
+        ):
+            if not getattr(self.check, component, False):
+                raise RuntimeError(
+                    f"Cannot ignore {component} for the requested daytime checkout."
+                )
+
+    async def disable_dome_following_if_dome_enabled(self) -> None:
+        """Disable dome following if both dome CSCs are enabled.
+
+        This is intended for telescope-only operations, where the dome is not
+        otherwise required and its checks are disabled. Failure to read the
+        optional dome CSC states is logged and ignored.
+        """
+
+        try:
+            dome_state, trajectory_state = await asyncio.gather(
+                self.get_state("mtdome"),
+                self.get_state(self.dome_trajectory_name),
+            )
+        except Exception:
+            self.log.warning(
+                "Unable to determine the MTDome and MTDomeTrajectory states. "
+                "Skipping the dome-following disable command.",
+                exc_info=True,
+            )
+            return
+
+        if not all(
+            state == salobj.State.ENABLED for state in (dome_state, trajectory_state)
+        ):
+            self.log.info(
+                "Both dome CSCs are not enabled. Skipping the defensive "
+                "dome-following disable command."
+            )
+            return
+
+        check = copy.copy(self.check)
+        setattr(check, self.dome_trajectory_name, True)
+        self.log.warning(
+            "Dome checkout was not requested, but both dome CSCs are enabled. "
+            "Disabling dome following defensively."
+        )
+        await self.disable_dome_following(check=check)
+
+    async def assert_dome_shutters_closed(self) -> None:
+        """Assert that both dome shutter panels report CLOSED.
+
+        Raises
+        ------
+        RuntimeError
+            If either shutter panel does not report CLOSED.
+        """
+
+        self.rem.mtdome.evt_shutterMotion.flush()
+        shutter_state = await self.rem.mtdome.evt_shutterMotion.aget(
+            timeout=self.fast_timeout
+        )
+        shutter_states = [MTDome.MotionState(state) for state in shutter_state.state]
+        expected_shutter_states = [
+            MTDome.MotionState.CLOSED,
+            MTDome.MotionState.CLOSED,
+        ]
+        if shutter_states != expected_shutter_states:
+            raise RuntimeError(
+                "MTDome shutters must be closed for daytime checkout. "
+                f"Reported states: {[state.name for state in shutter_states]}. "
+                "Verify the telemetry and physical shutter condition, then take "
+                "the necessary action using the approved procedure before "
+                "rerunning the checkout."
+            )
+        self.log.info("Both MTDome shutter panels are closed.")
+
+    async def prepare_for_telescope_and_dome_checkout(
+        self,
+        check_dome: bool = True,
+        homing_attempts: int = 10,
+    ) -> list[str]:
+        """Prepare telescope and optionally the dome for daytime checkout.
+
+        This method leaves the telescope stopped at the MTCS park position.
+        If dome checkout is requested, the dome is unparked, moved to the same
+        azimuth, and left following the telescope. Dome shutters are required
+        to be closed and are never commanded by this method. The M1 mirror
+        covers are kept closed to provide optical protection during
+        telescope-only checkout, when the dome shutter state is not checked
+        and the shutters may be open.
+
+        The high-level steps are:
+
+        1. Assert that critical components are not ignored.
+        2. Assert that all checked MTCS components are enabled. This method
+           does not perform CSC summary-state transitions. It defers this
+           action to the caller script.
+        3. Stop telescope tracking.
+        4. Ensure the M2 force-balance system is enabled.
+        5. Check the telescope elevation and fail if it is unsafe for
+           raising M1M3.
+        6. Ensure the mirror covers are closed.
+        7. If checking the dome, assert both shutter panels are closed, then
+           disable dome following. Otherwise perform a defensive dome-following
+           check.
+        8. Raise M1M3 and assert its force-balance system is enabled.
+        9. Check the M1M3 slew-controller settings, reporting disabled flags
+           as warnings.
+        10. Home both mount axes with retry logic.
+        11. Enable camera cable-wrap following.
+        12. Enable compensation mode for each checked hexapod.
+        13. Ensure M1M3 is not in engineering mode.
+        14. If checking the dome, unpark it.
+        15. Slew the telescope independently to the starting position defined
+            by ``self.tel_park_az``, ``self.tel_park_el``, and
+            ``self.tel_park_rot``, then stop tracking.
+        16. If checking the dome, independently slew it to
+            ``self.tel_park_az``.
+        17. If checking the dome, enable dome following.
+
+        Parameters
+        ----------
+        check_dome : `bool`, optional
+            Prepare and exercise the dome as part of the checkout.
+        homing_attempts : `int`, optional
+            Number of attempts to home both mount axes.
+
+        Returns
+        -------
+        slew_controller_warnings : `list` [`str`]
+            Names of disabled M1M3 slew-controller settings.
+
+        Raises
+        ------
+        RuntimeError
+            If a required component is ignored, the current elevation is too
+            low to safely raise M1M3, or the dome shutters are not closed.
+        """
+
+        self.log.info("Asserting required daytime-checkout components are not ignored.")
+        self._assert_critical_components_for_daytime_checkout(check_dome=check_dome)
+
+        self.log.info("Asserting all checked MTCS components are enabled.")
+        await self.assert_all_enabled(
+            message="All checked MTCS CSCs must be enabled for daytime checkout."
+        )
+
+        self.log.info("Ensuring telescope tracking is stopped.")
+        await self.stop_tracking()
+
+        self.log.info("Ensuring the M2 force-balance system is enabled.")
+        await self.enable_m2_balance_system()
+
+        self.log.info("Checking telescope elevation before raising M1M3.")
+        elevation = (
+            await self.rem.mtmount.tel_elevation.aget(timeout=self.fast_timeout)
+        ).actualPosition
+        if elevation < self.m1m3_tel_min_el_to_raise:
+            raise RuntimeError(
+                f"Telescope elevation (El = {elevation} deg) is below the minimum "
+                f"safe elevation to raise M1M3 ({self.m1m3_tel_min_el_to_raise} deg). "
+                "Move the telescope to a safe elevation using the appropriate "
+                "reduced-speed procedure, then rerun the daytime checkout."
+            )
+
+        self.log.info("Ensuring M1 mirror covers are closed.")
+        await self.close_m1_cover()
+
+        if check_dome:
+            self.log.info("Asserting both MTDome shutter panels are closed.")
+            await self.assert_dome_shutters_closed()
+
+            self.log.info("Disabling dome following.")
+            await self.disable_dome_following()
+        else:
+            await self.disable_dome_following_if_dome_enabled()
+
+        self.log.info("Ensuring M1M3 is raised.")
+        await self.raise_m1m3()
+
+        self.log.info("Asserting the M1M3 force-balance system is enabled.")
+        await self.assert_m1m3_force_balance_system_enabled()
+
+        self.log.info("Asserting the M1M3 slew-controller settings are enabled.")
+        slew_controller_warnings = await self.assert_m1m3_slew_controller_settings()
+        if slew_controller_warnings:
+            self.log.warning(
+                "Some M1M3 slew-controller flags are not enabled. "
+                f"Disabled flags: {', '.join(slew_controller_warnings)}."
+            )
+
+        self.log.info("Ensuring both mount axes are homed.")
+        await self.home_both_axes(homing_attempts=homing_attempts)
+
+        self.log.info("Ensuring camera cable-wrap following is enabled.")
+        await self.enable_ccw_following()
+
+        enabled_hexapods = [
+            component
+            for component in self.compensation_mode_components
+            if getattr(self.check, component, False)
+        ]
+        if enabled_hexapods:
+            self.log.info(
+                "Ensuring compensation mode is enabled for: "
+                f"{', '.join(enabled_hexapods)}."
+            )
+            await asyncio.gather(
+                *[
+                    self.enable_compensation_mode(component)
+                    for component in enabled_hexapods
+                ]
+            )
+
+        self.log.info("Ensuring M1M3 is not in engineering mode.")
+        await self.ensure_m1m3_not_in_engineering_mode()
+
+        if check_dome:
+            self.log.info("Ensuring MTDome is unparked.")
+            await self.unpark_dome()
+
+        self.log.info(
+            "Slewing the telescope to daytime-checkout starting position: "
+            f"Az={self.tel_park_az} deg, El={self.tel_park_el} deg, "
+            f"Rot={self.tel_park_rot} deg."
+        )
+        await self.point_azel(
+            target_name="Daytime checkout starting position",
+            az=self.tel_park_az,
+            el=self.tel_park_el,
+            rot_tel=self.tel_park_rot,
+            wait_dome=False,
+        )
+        self.log.info("Ensuring telescope tracking is stopped.")
+        await self.stop_tracking()
+
+        if check_dome:
+            self.log.info(
+                "Slewing MTDome to daytime checkout position: "
+                f"{self.tel_park_az} degrees."
+            )
+            await self.slew_dome_to(az=self.tel_park_az)
+
+            self.log.info("Enabling dome following.")
+            await self.enable_dome_following()
+
+        return slew_controller_warnings
+
+    async def set_telescope_and_dome_checkout_final_state(
+        self,
+        check_dome: bool = True,
+    ) -> None:
+        """Leave the TMA and MTDome in their daytime-checkout final states.
+
+        The telescope is stopped at the MTCS park position. When dome checkout
+        is requested, following is disabled before the final telescope slew
+        and the dome is then parked.
+
+        The high-level steps are:
+
+        1. If checking the dome, disable dome following.
+        2. Slew the telescope to the final position defined by
+           ``self.tel_park_az``, ``self.tel_park_el``, and
+           ``self.tel_park_rot`` without waiting for dome synchronization.
+        3. Stop telescope tracking.
+        4. If checking the dome, park it.
+        5. If not checking the dome, perform only an optional defensive
+           dome-following check.
+
+        Parameters
+        ----------
+        check_dome : `bool`, optional
+            Finalize the dome checkout by disabling following and parking.
+        """
+
+        if check_dome:
+            self.log.info("Disabling dome following.")
+            await self.disable_dome_following()
+
+        self.log.info(
+            f"Slewing telescope to daytime-checkout final position: Az= "
+            f"{self.tel_park_az} deg, El={self.tel_park_el} deg, "
+            f"Rot={self.tel_park_rot} deg."
+        )
+        await self.point_azel(
+            target_name="Daytime checkout final position",
+            az=self.tel_park_az,
+            el=self.tel_park_el,
+            rot_tel=self.tel_park_rot,
+            wait_dome=False,
+        )
+        self.log.info("Ensuring telescope tracking is stopped.")
+        await self.stop_tracking()
+
+        if check_dome:
+            self.log.info("Parking MTDome.")
+            await self.park_dome()
+        else:
+            await self.disable_dome_following_if_dome_enabled()
 
     async def shutdown(self) -> None:
         # TODO: Implement (DM-21336).
