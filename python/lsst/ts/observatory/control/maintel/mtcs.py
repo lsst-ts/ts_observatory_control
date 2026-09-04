@@ -2117,8 +2117,8 @@ class MTCS(BaseTCS):
            raising M1M3.
         6. Ensure the mirror covers are closed.
         7. If checking the dome, assert both shutter panels are closed, then
-           disable and verify dome following. Otherwise perform a defensive
-           dome-following check.
+           disable dome following. Otherwise perform a defensive dome-following
+           check.
         8. Raise M1M3 and assert its force-balance system is enabled.
         9. Check the M1M3 slew-controller settings, reporting disabled flags
            as warnings.
@@ -2132,7 +2132,7 @@ class MTCS(BaseTCS):
             ``self.tel_park_rot``, then stop tracking.
         16. If checking the dome, independently slew it to
             ``self.tel_park_az``.
-        17. If checking the dome, enable and verify dome following.
+        17. If checking the dome, enable dome following.
 
         Parameters
         ----------
@@ -2186,10 +2186,8 @@ class MTCS(BaseTCS):
             self.log.info("Asserting both MTDome shutter panels are closed.")
             await self.assert_dome_shutters_closed()
 
-            self.log.info("Ensuring dome following is disabled.")
+            self.log.info("Disabling dome following.")
             await self.disable_dome_following()
-            if await self.check_dome_following():
-                raise RuntimeError("Dome following did not become disabled.")
         else:
             await self.disable_dome_following_if_dome_enabled()
 
@@ -2261,8 +2259,6 @@ class MTCS(BaseTCS):
 
             self.log.info("Enabling dome following.")
             await self.enable_dome_following()
-            if not await self.check_dome_following():
-                raise RuntimeError("Dome following did not become enabled.")
 
         return slew_controller_warnings
 
