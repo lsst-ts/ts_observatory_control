@@ -22,6 +22,7 @@
 import asyncio
 import copy
 import logging
+import types
 import typing
 import unittest.mock
 
@@ -1291,6 +1292,106 @@ class TestMTCS(MTCSAsyncMock):
 
         await self.mtcs.open_dome_shutter(force=True)
         self.mtcs.rem.mtdome.cmd_openShutter.start.assert_awaited()
+
+    async def test_get_enabled_dome_louvers(self) -> None:
+        self._mtdome_evt_louvers_motion.state[MTDome.Louver.A1 - 1] = (
+            MTDome.MotionState.DISABLED
+        )
+        self._mtdome_evt_louvers_motion.state[MTDome.Louver.D3 - 1] = (
+            MTDome.MotionState.DISABLED
+        )
+
+        enabled_louvers = await self.mtcs.get_enabled_dome_louvers()
+
+        assert MTDome.Louver.A1 not in enabled_louvers
+        assert MTDome.Louver.D3 not in enabled_louvers
+        assert len(enabled_louvers) == len(MTDome.Louver) - 2
+
+    async def test_assert_dome_louvers_enabled_raises_when_disabled(self) -> None:
+        self._mtdome_evt_louvers_motion.state[MTDome.Louver.A1 - 1] = (
+            MTDome.MotionState.DISABLED
+        )
+
+        # Neither of these is disabled: should not raise.
+        await self.mtcs.assert_dome_louvers_enabled(["B1", "C1"])
+
+        with pytest.raises(RuntimeError):
+            await self.mtcs.assert_dome_louvers_enabled(["A1", "B1"])
+
+    async def test_open_dome_louvers(self) -> None:
+        await self.mtcs.open_dome_louvers({"A1": 100.0, "B2": 50.0})
+
+        expected_position = [-1.0] * len(MTDome.Louver)
+        expected_position[MTDome.Louver.A1 - 1] = 100.0
+        expected_position[MTDome.Louver.B2 - 1] = 50.0
+        self.mtcs.rem.mtdome.cmd_setLouvers.set_start.assert_awaited_with(
+            position=expected_position, timeout=self.mtcs.long_timeout
+        )
+
+    async def test_open_dome_louvers_raises_when_requested_louver_disabled(
+        self,
+    ) -> None:
+        self._mtdome_evt_louvers_motion.state[MTDome.Louver.A1 - 1] = (
+            MTDome.MotionState.DISABLED
+        )
+
+        with pytest.raises(RuntimeError):
+            await self.mtcs.open_dome_louvers({"A1": 100.0})
+
+        self.mtcs.rem.mtdome.cmd_setLouvers.set_start.assert_not_awaited()
+
+    async def test_close_dome_louvers_when_open(self) -> None:
+        self._mtdome_evt_louvers_motion.state = [MTDome.MotionState.OPEN] * len(
+            MTDome.Louver
+        )
+        self._mtdome_evt_louvers_motion.inPosition = [True] * len(MTDome.Louver)
+
+        await self.mtcs.close_dome_louvers()
+
+        self.mtcs.rem.mtdome.cmd_closeLouvers.start.assert_awaited()
+
+    async def test_close_dome_louvers_when_already_closed(self) -> None:
+        self._mtdome_evt_louvers_motion.state = [MTDome.MotionState.CLOSED] * len(
+            MTDome.Louver
+        )
+        self._mtdome_evt_louvers_motion.inPosition = [True] * len(MTDome.Louver)
+
+        await self.mtcs.close_dome_louvers()
+
+        self.mtcs.rem.mtdome.cmd_closeLouvers.start.assert_not_awaited()
+
+    async def test_wait_for_louvers_in_position_loops_until_settled(self) -> None:
+        self._mtdome_evt_louvers_motion = types.SimpleNamespace(
+            state=[MTDome.MotionState.ENABLED] * len(MTDome.Louver),
+            inPosition=[False] * len(MTDome.Louver),
+        )
+        settled_state = types.SimpleNamespace(
+            state=[MTDome.MotionState.ENABLED] * len(MTDome.Louver),
+            inPosition=[True] * len(MTDome.Louver),
+        )
+        self.mtcs.rem.mtdome.evt_louversMotion.next = unittest.mock.AsyncMock(
+            return_value=settled_state
+        )
+
+        await self.mtcs.wait_for_louvers_in_position(timeout=5.0)
+
+        self.mtcs.rem.mtdome.evt_louversMotion.next.assert_awaited()
+
+    async def test_wait_for_louvers_in_position_raises_on_error_state(self) -> None:
+        self._mtdome_evt_louvers_motion = types.SimpleNamespace(
+            state=[MTDome.MotionState.ENABLED] * len(MTDome.Louver),
+            inPosition=[False] * len(MTDome.Louver),
+        )
+        error_state = types.SimpleNamespace(
+            state=[MTDome.MotionState.ERROR] * len(MTDome.Louver),
+            inPosition=[False] * len(MTDome.Louver),
+        )
+        self.mtcs.rem.mtdome.evt_louversMotion.next = unittest.mock.AsyncMock(
+            return_value=error_state
+        )
+
+        with pytest.raises(RuntimeError):
+            await self.mtcs.wait_for_louvers_in_position(timeout=5.0)
 
     async def test_prepare_for_flatfield(self) -> None:
         await self.mtcs.enable()
