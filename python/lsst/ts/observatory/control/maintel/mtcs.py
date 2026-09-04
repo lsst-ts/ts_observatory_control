@@ -105,6 +105,12 @@ class MTCS(BaseTCS):
 
     """
 
+    DEFAULT_TEL_PARK_ROT = 0.0
+    DEFAULT_TEL_OPEN_AZ = 150.0
+    DEFAULT_TEL_OPEN_EL = 70.0
+    DEFAULT_TEL_OPERATE_MIRROR_COVERS_EL = 20.0
+    DEFAULT_TEL_MAX_EL = 85.0
+
     def __init__(
         self,
         domain: typing.Optional[salobj.Domain] = None,
@@ -155,14 +161,15 @@ class MTCS(BaseTCS):
 
         self.tel_park_el = 80.0
         self.tel_park_az = 0.0
-        self.tel_park_rot = 0.0
+        self.tel_park_rot = self.DEFAULT_TEL_PARK_ROT
 
         self.tel_flat_el = 22.7
         self.tel_flat_az = -126.2
-        self.tel_open_az = 150.0
-        self.tel_open_el = 70.0
+        self.tel_open_az = self.DEFAULT_TEL_OPEN_AZ
+        self.tel_open_el = self.DEFAULT_TEL_OPEN_EL
         self.tel_settle_time = 3.0
-        self.tel_operate_mirror_covers_el = 20.0
+        self.tel_operate_mirror_covers_el = self.DEFAULT_TEL_OPERATE_MIRROR_COVERS_EL
+        self.tel_max_el = self.DEFAULT_TEL_MAX_EL
         self.tel_operate_dome_shutter_el = 5.0
 
         # Tolerance to the rotator position for move commands.
@@ -1804,6 +1811,9 @@ class MTCS(BaseTCS):
         self,
         overrides: typing.Optional[typing.Dict[str, str]] = None,
         homing_attempts: int = 10,
+        target_az: typing.Optional[float] = None,
+        target_el: typing.Optional[float] = None,
+        target_rot: typing.Optional[float] = None,
     ) -> None:
         """Prepare Simonyi Telescope for on-sky operations
 
@@ -1812,22 +1822,23 @@ class MTCS(BaseTCS):
 
         1. Assert that all MTCS components are enabled.
         2. Assert that critical components are not ignored.
-        3. Slew the dome to the open position (az=150).
-        4. Ensure the M2 balance system is enabled.
-        5. Check telescope elevation and raise M1M3 if safe.
-        6. Assert M1M3 force balance system is enabled.
-        7. Assert M1M3 slew controller flags are enabled (warning if not).
-        8. Home both axes of the mount (with retry logic).
-        9. Enable camera cable wrap following.
-        10. Enable hexapod compensation mode if not ignored.
-        11. Slew the telescope to the open position (az=150, el=70).
-            Rotator set to 0 deg.
-        12. Stop tracking.
-        13. Ensure mirror covers are closed before opening the dome.
-        14. Open the dome shutter.
-        15. Open the mirror covers.
-        16. Enable dome following if not ignored.
-        17. Ensure M1M3 is not in engineering mode.
+        3. Stop telescope tracking.
+        4. Slew the dome to the target azimuth.
+        5. Ensure the M2 balance system is enabled.
+        6. Check telescope elevation and raise M1M3 if safe.
+        7. Assert M1M3 force balance system is enabled.
+        8. Assert M1M3 slew controller flags are enabled (warning if not).
+        9. Home both axes of the mount (with retry logic).
+        10. Enable camera cable wrap following.
+        11. Enable hexapod compensation mode if not ignored.
+        12. Slew the telescope to the target azimuth, elevation, and
+            rotator position.
+        13. Stop tracking.
+        14. Ensure mirror covers are closed before opening the dome.
+        15. Open the dome shutter.
+        16. Open the mirror covers.
+        17. Enable dome following if not ignored.
+        18. Ensure M1M3 is not in engineering mode.
 
         Parameters
         ----------
@@ -1835,7 +1846,38 @@ class MTCS(BaseTCS):
             Dictionary of component overrides, by default None
         homing_attempts : `int`, optional
             Number of attempts to home both axes (default: 10).
+        target_az : `float`, optional
+            Target azimuth for both the dome and telescope, in degrees. If
+            `None`, use `self.tel_open_az`.
+        target_el : `float`, optional
+            Target telescope elevation, in degrees. If `None`, use
+            `self.tel_open_el`. Must be within the allowed target elevation
+            range.
+        target_rot : `float`, optional
+            Target rotator angle in mount physical coordinates, in degrees.
+            If `None`, use `self.tel_park_rot`.
+
+        Raises
+        ------
+        ValueError
+            If `target_el` is outside the allowed target elevation range.
         """
+
+        target_az = self.tel_open_az if target_az is None else target_az
+        target_el = self.tel_open_el if target_el is None else target_el
+        target_rot = self.tel_park_rot if target_rot is None else target_rot
+
+        if target_el < self.tel_operate_mirror_covers_el:
+            raise ValueError(
+                f"Target elevation ({target_el} deg) must be greater than or "
+                "equal to the minimum elevation for mirror cover operations "
+                f"({self.tel_operate_mirror_covers_el} deg)."
+            )
+        if target_el > self.tel_max_el:
+            raise ValueError(
+                f"Target elevation ({target_el} deg) must be less than or "
+                f"equal to the maximum operational elevation ({self.tel_max_el} deg)."
+            )
 
         await self.assert_all_enabled(
             message="All components need to be enabled for on-sky operations."
@@ -1843,9 +1885,12 @@ class MTCS(BaseTCS):
 
         self._assert_critical_components_in_prepare_for_onsky()
 
+        self.log.info("Ensuring telescope is not tracking.")
+        await self.stop_tracking()
+
         if self.check.mtdome:
-            self.log.info("Slewing dome to open position.")
-            await self.slew_dome_to(az=self.dome_open_az)
+            self.log.info(f"Slewing dome to target azimuth: {target_az} deg")
+            await self.slew_dome_to(az=target_az)
         else:
             self.log.warning("mtdome is ignored; skipping dome operations.")
 
@@ -1883,7 +1928,7 @@ class MTCS(BaseTCS):
 
         await self.home_both_axes(homing_attempts=homing_attempts)
 
-        self.log.info("Ensuring CCW is following before slewing to open position.")
+        self.log.info("Ensuring CCW is following before slewing to target position.")
         await self.enable_ccw_following()
 
         enabled_hexapods = [
@@ -1903,12 +1948,15 @@ class MTCS(BaseTCS):
                 ]
             )
 
-        self.log.info("Slewing telescope to open position.")
+        self.log.info(
+            f"Slewing telescope to target position: El={target_el} deg, "
+            f"Az={target_az} deg, Rot={target_rot} deg."
+        )
         await self.point_azel(
             target_name="Prepare for on-sky",
-            az=self.tel_open_az,
-            el=self.tel_open_el,
-            rot_tel=self.tel_park_rot,
+            az=target_az,
+            el=target_el,
+            rot_tel=target_rot,
             wait_dome=False,
         )
 
