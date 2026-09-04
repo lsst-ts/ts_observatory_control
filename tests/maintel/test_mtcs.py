@@ -87,6 +87,44 @@ class TestMTCS(MTCSAsyncMock):
         for comp in {"mtdome", "mtdometrajectory"}:
             assert not getattr(check, comp)
 
+    async def test_wait_for_dome_azel_inposition_ignores_shutter(self) -> None:
+        not_aligned = unittest.mock.Mock(
+            vignetted=xml.enums.MTDomeTrajectory.TelescopeVignetted.FULLY,
+            azimuth=xml.enums.MTDomeTrajectory.TelescopeVignetted.PARTIALLY,
+            elevation=xml.enums.MTDomeTrajectory.TelescopeVignetted.NO,
+            shutter=xml.enums.MTDomeTrajectory.TelescopeVignetted.FULLY,
+        )
+        aligned = unittest.mock.Mock(
+            vignetted=xml.enums.MTDomeTrajectory.TelescopeVignetted.FULLY,
+            azimuth=xml.enums.MTDomeTrajectory.TelescopeVignetted.NO,
+            elevation=xml.enums.MTDomeTrajectory.TelescopeVignetted.NO,
+            shutter=xml.enums.MTDomeTrajectory.TelescopeVignetted.FULLY,
+        )
+        telescope_vignetted = self.mtcs.rem.mtdometrajectory.evt_telescopeVignetted
+
+        with unittest.mock.patch.object(
+            telescope_vignetted,
+            "flush",
+            new=unittest.mock.Mock(),
+        ) as flush_telescope_vignetted, unittest.mock.patch.object(
+            telescope_vignetted,
+            "aget",
+            new=unittest.mock.AsyncMock(return_value=not_aligned),
+        ), unittest.mock.patch.object(
+            telescope_vignetted,
+            "next",
+            new=unittest.mock.AsyncMock(return_value=aligned),
+        ) as next_telescope_vignetted:
+            result = await self.mtcs.wait_for_dome_azel_inposition(
+                timeout=self.mtcs.long_long_timeout
+            )
+
+        flush_telescope_vignetted.assert_called_once_with()
+        next_telescope_vignetted.assert_awaited_once_with(
+            flush=False, timeout=self.mtcs.long_long_timeout
+        )
+        assert result == "MTDome azimuth and elevation in position."
+
     async def test_slew_ephem_target(self) -> None:
         await self.mtcs.enable()
         await self.mtcs.assert_all_enabled()
@@ -1760,23 +1798,11 @@ class TestMTCS(MTCSAsyncMock):
         self._mtdometrajectory_dome_following.enabled = True
         self._mtdome_evt_az_motion.state = MTDome.MotionState.ENABLED
         self._mtdome_evt_az_motion.inPosition = True
-        self._mtdome_evt_shutter_motion.state = [
-            MTDome.MotionState.CLOSED,
-            MTDome.MotionState.CLOSED,
-        ]
-        self._mtmount_evt_mirror_covers_motion_state.state = (
-            MTMount.DeployableMotionState.RETRACTED
-        )
-
-        # Isolate command calls made by finalization from those made while
-        # enabling and arranging the test state.
         self.mtcs.rem.mtptg.cmd_stopTracking.start.reset_mock()
-        self.mtcs.rem.mtdome.cmd_openShutter.start.reset_mock()
-        self.mtcs.rem.mtdome.cmd_closeShutter.start.reset_mock()
 
         try:
             with unittest.mock.patch.object(
-                self.mtcs, "point_azel", new=unittest.mock.AsyncMock()
+                self.mtcs, "point_azel", wraps=self.mtcs.point_azel
             ) as point_azel:
                 await self.mtcs.set_telescope_and_dome_checkout_final_state(
                     check_dome=True
@@ -1789,27 +1815,20 @@ class TestMTCS(MTCSAsyncMock):
             az=self.mtcs.tel_park_az,
             el=self.mtcs.tel_park_el,
             rot_tel=self.mtcs.tel_park_rot,
-            wait_dome=True,
+            wait_dome=False,
         )
+        assert self._mtmount_tel_azimuth.actualPosition == self.mtcs.tel_park_az
+        assert self._mtmount_tel_elevation.actualPosition == self.mtcs.tel_park_el
+        assert self._mtrotator_tel_rotation.actualPosition == self.mtcs.tel_park_rot
         self.mtcs.rem.mtptg.cmd_stopTracking.start.assert_awaited_with(
             timeout=self.mtcs.fast_timeout
         )
-        assert not await self.mtcs.check_dome_following()
+        assert not self._mtdometrajectory_dome_following.enabled
         az_motion = await self.mtcs.rem.mtdome.evt_azMotion.aget(
             timeout=self.mtcs.fast_timeout
         )
         assert az_motion.state == MTDome.MotionState.PARKED
         assert az_motion.inPosition
-        assert self._mtdome_evt_shutter_motion.state == [
-            MTDome.MotionState.CLOSED,
-            MTDome.MotionState.CLOSED,
-        ]
-        self.mtcs.rem.mtdome.cmd_openShutter.start.assert_not_awaited()
-        self.mtcs.rem.mtdome.cmd_closeShutter.start.assert_not_awaited()
-        assert (
-            self._mtmount_evt_mirror_covers_motion_state.state
-            == MTMount.DeployableMotionState.DEPLOYED
-        )
 
     async def test_set_telescope_and_dome_checkout_final_state_without_dome(
         self,
@@ -1822,12 +1841,6 @@ class TestMTCS(MTCSAsyncMock):
         self.mtcs.check.mtdome = False
         self.mtcs.check.mtdometrajectory = False
         self._mtdometrajectory_dome_following.enabled = True
-        self._mtmount_evt_mirror_covers_motion_state.state = (
-            MTMount.DeployableMotionState.RETRACTED
-        )
-
-        # Isolate command calls made by finalization from those made while
-        # enabling and arranging the test state.
         self.mtcs.rem.mtptg.cmd_stopTracking.start.reset_mock()
         self.mtcs.rem.mtdome.cmd_park.start.reset_mock()
 
@@ -1846,10 +1859,6 @@ class TestMTCS(MTCSAsyncMock):
         )
         assert not await self.mtcs.check_dome_following()
         self.mtcs.rem.mtdome.cmd_park.start.assert_not_awaited()
-        assert (
-            self._mtmount_evt_mirror_covers_motion_state.state
-            == MTMount.DeployableMotionState.DEPLOYED
-        )
 
     async def test_shutdown(self) -> None:
         with pytest.raises(NotImplementedError):
