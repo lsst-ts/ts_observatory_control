@@ -181,6 +181,10 @@ class MTCS(BaseTCS):
         #  dome to park. It might need updating.
         self.park_dome_timeout = 600
         self.move_dome_timeout = 600
+        # At the nominal AMCS velocity of 1.5 deg/s, a 180-degree slew takes
+        # at least 120 seconds. Allow additional time for acceleration,
+        # deceleration, settling, and telemetry updates.
+        self.dome_azel_in_position_timeout = 180.0
 
         self.home_both_axes_timeout = 300.0
 
@@ -706,7 +710,7 @@ class MTCS(BaseTCS):
 
         return "MTDome in position."
 
-    async def wait_for_dome_azel_inposition(self, timeout: float) -> str:
+    async def wait_for_dome_azel_inposition(self, timeout: float | None = None) -> str:
         """Wait for dome azimuth and elevation alignment.
 
         This method ignores shutter vignetting so it can be used while the
@@ -714,8 +718,9 @@ class MTCS(BaseTCS):
 
         Parameters
         ----------
-        timeout : `float`
+        timeout : `float`, optional
             Maximum time to wait for a new telescope-vignetting event.
+            Defaults to ``self.dome_azel_in_position_timeout``.
 
         Returns
         -------
@@ -723,6 +728,9 @@ class MTCS(BaseTCS):
             String indicating that the dome azimuth and elevation are in
             position.
         """
+        if timeout is None:
+            timeout = self.dome_azel_in_position_timeout
+
         self.rem.mtdometrajectory.evt_telescopeVignetted.flush()
 
         telescope_vignetted = (
@@ -2020,7 +2028,7 @@ class MTCS(BaseTCS):
             check_dome=check_dome
         ):
             if not getattr(self.check, component, False):
-                raise RuntimeError(
+                raise AssertionError(
                     f"Cannot ignore {component} for the requested daytime checkout."
                 )
 
@@ -2067,7 +2075,7 @@ class MTCS(BaseTCS):
 
         Raises
         ------
-        RuntimeError
+        AssertionError
             If either shutter panel does not report CLOSED.
         """
 
@@ -2081,7 +2089,7 @@ class MTCS(BaseTCS):
             MTDome.MotionState.CLOSED,
         ]
         if shutter_states != expected_shutter_states:
-            raise RuntimeError(
+            raise AssertionError(
                 "MTDome shutters must be closed for daytime checkout. "
                 f"Reported states: {[state.name for state in shutter_states]}. "
                 "Verify the telemetry and physical shutter condition, then take "
@@ -2148,9 +2156,11 @@ class MTCS(BaseTCS):
 
         Raises
         ------
+        AssertionError
+            If a required component is ignored or the dome shutters are not
+            closed.
         RuntimeError
-            If a required component is ignored, the current elevation is too
-            low to safely raise M1M3, or the dome shutters are not closed.
+            If the current elevation is too low to safely raise M1M3.
         """
 
         self.log.info("Asserting required daytime-checkout components are not ignored.")
@@ -2241,7 +2251,7 @@ class MTCS(BaseTCS):
             f"Rot={self.tel_park_rot} deg."
         )
         await self.point_azel(
-            target_name="Daytime checkout starting position",
+            target_name="CheckoutSetup",
             az=self.tel_park_az,
             el=self.tel_park_el,
             rot_tel=self.tel_park_rot,
@@ -2299,7 +2309,7 @@ class MTCS(BaseTCS):
             f"Rot={self.tel_park_rot} deg."
         )
         await self.point_azel(
-            target_name="Daytime checkout final position",
+            target_name="CheckoutFinal",
             az=self.tel_park_az,
             el=self.tel_park_el,
             rot_tel=self.tel_park_rot,

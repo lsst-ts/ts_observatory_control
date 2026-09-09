@@ -115,13 +115,11 @@ class TestMTCS(MTCSAsyncMock):
             "next",
             new=unittest.mock.AsyncMock(return_value=aligned),
         ) as next_telescope_vignetted:
-            result = await self.mtcs.wait_for_dome_azel_inposition(
-                timeout=self.mtcs.long_long_timeout
-            )
+            result = await self.mtcs.wait_for_dome_azel_inposition()
 
         flush_telescope_vignetted.assert_called_once_with()
         next_telescope_vignetted.assert_awaited_once_with(
-            flush=False, timeout=self.mtcs.long_long_timeout
+            flush=False, timeout=self.mtcs.dome_azel_in_position_timeout
         )
         assert result == "MTDome azimuth and elevation in position."
 
@@ -1655,7 +1653,7 @@ class TestMTCS(MTCSAsyncMock):
             timeout=self.mtcs.home_both_axes_timeout
         )
         point_azel.assert_awaited_once_with(
-            target_name="Daytime checkout starting position",
+            target_name="CheckoutSetup",
             az=self.mtcs.tel_park_az,
             el=self.mtcs.tel_park_el,
             rot_tel=self.mtcs.tel_park_rot,
@@ -1667,7 +1665,7 @@ class TestMTCS(MTCSAsyncMock):
             unittest.mock.call.disable_dome_following(),
             unittest.mock.call.unpark_dome(),
             unittest.mock.call.point_azel(
-                target_name="Daytime checkout starting position",
+                target_name="CheckoutSetup",
                 az=self.mtcs.tel_park_az,
                 el=self.mtcs.tel_park_el,
                 rot_tel=self.mtcs.tel_park_rot,
@@ -1786,7 +1784,7 @@ class TestMTCS(MTCSAsyncMock):
         ), unittest.mock.patch.object(
             self.mtcs, "close_m1_cover", new=unittest.mock.AsyncMock()
         ):
-            with pytest.raises(RuntimeError, match="shutters must be closed"):
+            with pytest.raises(AssertionError, match="shutters must be closed"):
                 await self.mtcs.prepare_for_telescope_and_dome_checkout(check_dome=True)
 
     async def test_set_telescope_and_dome_checkout_final_state(self) -> None:
@@ -1811,7 +1809,7 @@ class TestMTCS(MTCSAsyncMock):
             self.mtcs.check = original_check
 
         point_azel.assert_awaited_once_with(
-            target_name="Daytime checkout final position",
+            target_name="CheckoutFinal",
             az=self.mtcs.tel_park_az,
             el=self.mtcs.tel_park_el,
             rot_tel=self.mtcs.tel_park_rot,
