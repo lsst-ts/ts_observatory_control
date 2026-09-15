@@ -1704,42 +1704,40 @@ class TestMTCS(MTCSAsyncMock):
         assert not self._mthexapod_1_evt_compensation_mode.enabled
         assert not self._mthexapod_2_evt_compensation_mode.enabled
 
-    async def test_disable_dome_following_if_dome_enabled(self) -> None:
+    async def test_disable_dome_following_only_if_enabled(self) -> None:
         with unittest.mock.patch.object(
             self.mtcs,
             "get_state",
-            new=unittest.mock.AsyncMock(
-                side_effect=[salobj.State.ENABLED, salobj.State.ENABLED]
-            ),
-        ), unittest.mock.patch.object(
+            new=unittest.mock.AsyncMock(return_value=salobj.State.ENABLED),
+        ) as get_state:
+            await self.mtcs.disable_dome_following(only_if_enabled=True)
+
+        get_state.assert_awaited_once_with(self.mtcs.dome_trajectory_name)
+        self.mtcs.rem.mtdometrajectory.cmd_setFollowingMode.set_start.assert_awaited_once_with(
+            enable=False, timeout=self.mtcs.fast_timeout
+        )
+
+    async def test_disable_dome_following_only_if_enabled_skips_disabled(self) -> None:
+        with unittest.mock.patch.object(
             self.mtcs,
-            "disable_dome_following",
-            new=unittest.mock.AsyncMock(),
-        ) as disable_dome_following:
-            await self.mtcs.disable_dome_following_if_dome_enabled()
+            "get_state",
+            new=unittest.mock.AsyncMock(return_value=salobj.State.STANDBY),
+        ):
+            await self.mtcs.disable_dome_following(only_if_enabled=True)
 
-        disable_dome_following.assert_awaited_once()
-        await_args = disable_dome_following.await_args
-        assert await_args is not None
-        assert await_args.kwargs["check"].mtdometrajectory
+        self.mtcs.rem.mtdometrajectory.cmd_setFollowingMode.set_start.assert_not_awaited()
 
-    async def test_disable_dome_following_if_dome_enabled_skips_partial_dome(
+    async def test_disable_dome_following_only_if_enabled_skips_unavailable(
         self,
     ) -> None:
         with unittest.mock.patch.object(
             self.mtcs,
             "get_state",
-            new=unittest.mock.AsyncMock(
-                side_effect=[salobj.State.STANDBY, salobj.State.ENABLED]
-            ),
-        ), unittest.mock.patch.object(
-            self.mtcs,
-            "disable_dome_following",
-            new=unittest.mock.AsyncMock(),
-        ) as disable_dome_following:
-            await self.mtcs.disable_dome_following_if_dome_enabled()
+            new=unittest.mock.AsyncMock(side_effect=RuntimeError("Unavailable")),
+        ):
+            await self.mtcs.disable_dome_following(only_if_enabled=True)
 
-        disable_dome_following.assert_not_awaited()
+        self.mtcs.rem.mtdometrajectory.cmd_setFollowingMode.set_start.assert_not_awaited()
 
     async def test_prepare_for_telescope_and_dome_checkout_unsafe_elevation(
         self,

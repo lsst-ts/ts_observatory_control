@@ -2032,44 +2032,6 @@ class MTCS(BaseTCS):
                     f"Cannot ignore {component} for the requested daytime checkout."
                 )
 
-    async def disable_dome_following_if_dome_enabled(self) -> None:
-        """Disable dome following if both dome CSCs are enabled.
-
-        This is intended for telescope-only operations, where the dome is not
-        otherwise required and its checks are disabled. Failure to read the
-        optional dome CSC states is logged and ignored.
-        """
-
-        try:
-            dome_state, trajectory_state = await asyncio.gather(
-                self.get_state("mtdome"),
-                self.get_state(self.dome_trajectory_name),
-            )
-        except Exception:
-            self.log.warning(
-                "Unable to determine the MTDome and MTDomeTrajectory states. "
-                "Skipping the dome-following disable command.",
-                exc_info=True,
-            )
-            return
-
-        if not all(
-            state == salobj.State.ENABLED for state in (dome_state, trajectory_state)
-        ):
-            self.log.info(
-                "Both dome CSCs are not enabled. Skipping the defensive "
-                "dome-following disable command."
-            )
-            return
-
-        check = copy.copy(self.check)
-        setattr(check, self.dome_trajectory_name, True)
-        self.log.warning(
-            "Dome checkout was not requested, but both dome CSCs are enabled. "
-            "Disabling dome following defensively."
-        )
-        await self.disable_dome_following(check=check)
-
     async def assert_dome_shutters_closed(self) -> None:
         """Assert that both dome shutter panels report CLOSED.
 
@@ -2199,7 +2161,7 @@ class MTCS(BaseTCS):
             self.log.info("Disabling dome following.")
             await self.disable_dome_following()
         else:
-            await self.disable_dome_following_if_dome_enabled()
+            await self.disable_dome_following(only_if_enabled=True)
 
         self.log.info("Ensuring M1M3 is raised.")
         await self.raise_m1m3()
@@ -2322,7 +2284,7 @@ class MTCS(BaseTCS):
             self.log.info("Parking MTDome.")
             await self.park_dome()
         else:
-            await self.disable_dome_following_if_dome_enabled()
+            await self.disable_dome_following(only_if_enabled=True)
 
     async def shutdown(self) -> None:
         # TODO: Implement (DM-21336).
