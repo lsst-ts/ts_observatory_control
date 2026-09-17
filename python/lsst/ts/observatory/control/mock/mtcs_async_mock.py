@@ -202,6 +202,8 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
         self._mtm1m3_raise_task = utils.make_done_future()
         self._mtm1m3_lower_task = utils.make_done_future()
         self._hardpoint_corrections_task = utils.make_done_future()
+        self._mtm1m3_evt_force_actuator_state_event = asyncio.Event()
+        self._mtm1m3_evt_force_actuator_state_event.clear()
 
         # MTM2 data
         self._mtm2_evt_force_balance_system_status = types.SimpleNamespace(status=False)
@@ -337,7 +339,7 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
 
         self.mtm1m3_cmd_enter_engineering_timeout = False
 
-        m1m3_mocks = {
+        m1m3_mocks: dict[str, typing.Any] = {
             "evt_detailedState.next.side_effect": self.mtm1m3_evt_detailed_state,
             "evt_detailedState.aget.side_effect": self.mtm1m3_evt_detailed_state,
             "evt_hardpointTestStatus.next.side_effect": self.mtm1m3_evt_hp_test_status,
@@ -376,10 +378,13 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
         # Compatibility with xml>16
         if "evt_forceControllerState" in self.components_metadata["MTM1M3"].topics:
             m1m3_mocks["evt_forceControllerState.aget.side_effect"] = (
-                self.mtm1m3_evt_force_actuator_state
+                self.mtm1m3_aget_evt_force_actuator_state
             )
             m1m3_mocks["evt_forceControllerState.next.side_effect"] = (
-                self.mtm1m3_evt_force_actuator_state
+                self.mtm1m3_next_evt_force_actuator_state
+            )
+            m1m3_mocks["evt_forceControllerState.flush.side_effect"] = (
+                self.mtm1m3_flush_evt_force_actuator_state
             )
 
         if "evt_boosterValveStatus" in self.components_metadata["MTM1M3"].topics:
@@ -399,9 +404,15 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
             m1m3_mocks["cmd_setSlewFlag.set_start.side_effect"] = (
                 self.mtm1m3_cmd_set_slew_flag
             )
+            m1m3_mocks["cmd_setSlewFlag.start.side_effect"] = (
+                self.mtm1m3_cmd_set_slew_flag
+            )
 
         if "cmd_clearSlewFlag" in self.components_metadata["MTM1M3"].topics:
             m1m3_mocks["cmd_clearSlewFlag.set_start.side_effect"] = (
+                self.mtm1m3_cmd_clear_slew_flag
+            )
+            m1m3_mocks["cmd_clearSlewFlag.start.side_effect"] = (
                 self.mtm1m3_cmd_clear_slew_flag
             )
 
@@ -935,6 +946,25 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
         await asyncio.sleep(self.heartbeat_time / 4.0)
         return self._mtm1m3_evt_force_actuator_state
 
+    async def mtm1m3_aget_evt_force_actuator_state(
+        self, *args: typing.Any, **kwargs: typing.Any
+    ) -> types.SimpleNamespace:
+        await asyncio.sleep(self.heartbeat_time / 4.0)
+        return self._mtm1m3_evt_force_actuator_state
+
+    async def mtm1m3_next_evt_force_actuator_state(
+        self, *args: typing.Any, **kwargs: typing.Any
+    ) -> types.SimpleNamespace:
+        if kwargs.get("flush", False):
+            self.log.debug("Flushing!")
+            self._mtm1m3_evt_force_actuator_state_event.clear()
+        async with asyncio.timeout(kwargs.get("timeout", None)):
+            await self._mtm1m3_evt_force_actuator_state_event.wait()
+        return self._mtm1m3_evt_force_actuator_state
+
+    def mtm1m3_flush_evt_force_actuator_state(self) -> None:
+        self._mtm1m3_evt_force_actuator_state_event.clear()
+
     async def mtm1m3_cmd_set_air_slew_flag(
         self, *args: typing.Any, **kwargs: typing.Any
     ) -> None:
@@ -945,11 +975,13 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
     async def mtm1m3_cmd_set_slew_flag(
         self, *args: typing.Any, **kwargs: typing.Any
     ) -> None:
-        asyncio.create_task(self._mtm1m3_cmd_set_air_slew_flag(slew_flag=True))
+        self._mtm1m3_evt_force_actuator_state_event.clear()
+        await self._mtm1m3_cmd_set_air_slew_flag(slew_flag=True)
 
     async def mtm1m3_cmd_clear_slew_flag(
         self, *args: typing.Any, **kwargs: typing.Any
     ) -> None:
+        self._mtm1m3_evt_force_actuator_state_event.clear()
         asyncio.create_task(self._mtm1m3_cmd_set_air_slew_flag(slew_flag=False))
 
     async def mtm1m3_cmd_booster_valve_open(
@@ -963,8 +995,10 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
         asyncio.create_task(self._mtm1m3_cmd_set_air_slew_flag(slew_flag=False))
 
     async def _mtm1m3_cmd_set_air_slew_flag(self, slew_flag: bool) -> None:
+        self.log.debug("Set slew flag...")
         await asyncio.sleep(self.heartbeat_time / 2.0)
         self._mtm1m3_evt_force_actuator_state.slewFlag = slew_flag
+        self._mtm1m3_evt_force_actuator_state_event.set()
 
     async def mtm1m3_cmd_raise_m1m3(
         self, *args: typing.Any, **kwargs: typing.Any
@@ -1282,6 +1316,7 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
             self._mtm1m3_evt_applied_balance_forces.forceMagnitude = force_magnitude
             await asyncio.sleep(self.normal_process_time)
         self._mtm1m3_evt_force_actuator_state.balanceForcesApplied = True
+        self._mtm1m3_evt_force_actuator_state_event.set()
         return self._mtm1m3_evt_applied_balance_forces.forceMagnitude
 
     async def _execute_disable_hardpoint_corrections(self) -> float:
@@ -1289,6 +1324,7 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
             self._mtm1m3_evt_applied_balance_forces.forceMagnitude = force_magnitude
             await asyncio.sleep(self.normal_process_time)
         self._mtm1m3_evt_force_actuator_state.balanceForcesApplied = False
+        self._mtm1m3_evt_force_actuator_state_event.set()
         return self._mtm1m3_evt_applied_balance_forces.forceMagnitude
 
     async def mtm2_evt_force_balance_system_status(

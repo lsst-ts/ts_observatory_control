@@ -23,8 +23,10 @@ import logging
 import typing
 
 import pytest
+from lsst.ts.observatory.control.base_camera import CameraShutterDetailedState
 from lsst.ts.observatory.control.maintel.comcam import ComCam, ComCamUsages
 from lsst.ts.observatory.control.mock.base_camera_async_mock import BaseCameraAsyncMock
+from lsst.ts.utils import current_tai
 
 
 class TestComCam(BaseCameraAsyncMock):
@@ -59,6 +61,13 @@ class TestComCam(BaseCameraAsyncMock):
             component="CCCamera",
             topic="logevent_startIntegration",
         )
+
+        self.shutter_detailed_state = self.get_sample(
+            component="CCCamera",
+            topic="logevent_shutterDetailedState",
+        )
+        self.shutter_detailed_state.substate = CameraShutterDetailedState.CLOSED
+        self.shutter_detailed_state.timestampTransition = current_tai()
 
     async def test_setup_instrument(self) -> None:
         valid_entries: typing.List[
