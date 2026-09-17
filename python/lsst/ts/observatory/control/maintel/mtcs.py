@@ -63,6 +63,8 @@ class MTCSUsages(Usages):
     * Shutdown: Enable shutdown operations.
     * PrepareForFlatfield: Enable preparation for flat-field.
     * DryTest: Don't add any remote.
+    * PrepareForVent: Enable the Simonyi evening venting protocol
+      (dome/louver/shutter positioning, mirror cover, pointing).
     """
 
     Slew = 1 << 3
@@ -71,6 +73,7 @@ class MTCSUsages(Usages):
     PrepareForFlatfield = 1 << 6
     DryTest = 1 << 7
     AOS = 1 << 8
+    PrepareForVent = 1 << 9
 
     def __iter__(self) -> typing.Iterator[int]:
         return iter(
@@ -85,6 +88,7 @@ class MTCSUsages(Usages):
                 self.PrepareForFlatfield,
                 self.DryTest,
                 self.AOS,
+                self.PrepareForVent,
             ]
         )
 
@@ -1521,6 +1525,167 @@ class MTCS(BaseTCS):
                 f"Expected both doors to be in one of {accepted_closed_states}, "
                 f"or {[MTDome.MotionState.OPEN, MTDome.MotionState.OPEN]}."
             )
+
+    async def get_enabled_dome_louvers(self) -> list[MTDome.Louver]:
+        """Get the MTDome louvers that are currently enabled.
+
+        Returns
+        -------
+        `list` of `lsst.ts.xml.enums.MTDome.Louver`
+            Louvers whose motion state is not ``DISABLED``.
+        """
+        louvers_state = await self.rem.mtdome.evt_louversMotion.aget(
+            timeout=self.fast_timeout
+        )
+        return [
+            MTDome.Louver(i + 1)
+            for i, state in enumerate(louvers_state.state)
+            if state != MTDome.MotionState.DISABLED
+        ]
+
+    async def assert_dome_louvers_enabled(
+        self, louvers: typing.Iterable[MTDome.Louver | str]
+    ) -> None:
+        """Assert that the given MTDome louvers are all enabled.
+
+        Parameters
+        ----------
+        louvers : iterable of `lsst.ts.xml.enums.MTDome.Louver` or `str`
+            Louvers to check, either as enum members or by name (e.g.
+            ``"A1"``).
+
+        Raises
+        ------
+        RuntimeError
+            If any of ``louvers`` is not currently enabled.
+        """
+        requested_louvers = [
+            louver if isinstance(louver, MTDome.Louver) else MTDome.Louver[louver]
+            for louver in louvers
+        ]
+        enabled_louvers = await self.get_enabled_dome_louvers()
+        disabled_requested = [
+            louver for louver in requested_louvers if louver not in enabled_louvers
+        ]
+        if disabled_requested:
+            raise RuntimeError(
+                "The following louvers were requested but are not enabled: "
+                f"{[louver.name for louver in disabled_requested]}. "
+                "Currently enabled louvers: "
+                f"{[louver.name for louver in enabled_louvers]}."
+            )
+
+    async def wait_for_louvers_in_position(self, timeout: float) -> None:
+        """Wait until all enabled MTDome louvers report ``inPosition``.
+
+        Louvers with a ``DISABLED`` motion state are excluded from the
+        check, since they cannot be commanded and their ``inPosition``
+        value is not meaningful.
+
+        Parameters
+        ----------
+        timeout : `float`
+            Maximum time to wait for convergence, in seconds.
+
+        Raises
+        ------
+        RuntimeError
+            If a louver transitions to the ``ERROR`` state while waiting.
+        """
+
+        def enabled_louvers_in_position(
+            louvers_state: salobj.type_hints.BaseMsgType,
+        ) -> bool:
+            return all(
+                in_position
+                for state, in_position in zip(
+                    louvers_state.state, louvers_state.inPosition
+                )
+                if state != MTDome.MotionState.DISABLED
+            )
+
+        louvers_state = await self.rem.mtdome.evt_louversMotion.aget(timeout=timeout)
+
+        while not enabled_louvers_in_position(louvers_state):
+            louvers_state = await self.rem.mtdome.evt_louversMotion.next(
+                flush=False, timeout=timeout
+            )
+
+            if any(state == MTDome.MotionState.ERROR for state in louvers_state.state):
+                raise RuntimeError(
+                    "MTDome louvers transitioned to ERROR while waiting to reach "
+                    "position: "
+                    f"{[MTDome.MotionState(state).name for state in louvers_state.state]}."
+                )
+
+            self.log.debug(
+                "Waiting for louvers in position; "
+                f"state={[MTDome.MotionState(state).name for state in louvers_state.state]}, "
+                f"inPosition={louvers_state.inPosition}."
+            )
+
+        self.log.info("MTDome louvers are in position.")
+
+    async def open_dome_louvers(self, position: dict[str, float]) -> None:
+        """Open (or otherwise position) a set of MTDome louvers.
+
+        Note that while the sun is up, the EAS CSC's dome sun-avoidance
+        model may re-cap any louver facing the sun, independent of this
+        command.
+
+        Parameters
+        ----------
+        position : `dict` [`str`, `float`]
+            Mapping of louver name (e.g. ``"A1"``, see
+            `lsst.ts.xml.enums.MTDome.Louver`) to desired percent-open (0 is
+            closed, 100 is fully open). Only the louvers named in
+            ``position`` are commanded; all others are left uncommanded
+            (``-1``).
+
+        Raises
+        ------
+        RuntimeError
+            If any louver in ``position`` is not currently enabled.
+        """
+        await self.assert_dome_louvers_enabled(position.keys())
+
+        requested_position = [-1.0] * len(MTDome.Louver)
+        for louver_name, value in position.items():
+            requested_position[MTDome.Louver[louver_name] - 1] = value
+
+        self.log.info(f"Opening MTDome louvers: {list(position)}.")
+        self.rem.mtdome.evt_louversMotion.flush()
+        await self.rem.mtdome.cmd_setLouvers.set_start(
+            position=requested_position, timeout=self.long_timeout
+        )
+        await self.wait_for_louvers_in_position(timeout=self.long_timeout)
+        self.log.info("MTDome louvers are open.")
+
+    async def close_dome_louvers(self) -> None:
+        """Close all enabled MTDome louvers."""
+        enabled_louvers = await self.get_enabled_dome_louvers()
+
+        louvers_state = await self.rem.mtdome.evt_louversMotion.aget(
+            timeout=self.fast_timeout
+        )
+        expected_states = [
+            (
+                MTDome.MotionState.CLOSED
+                if MTDome.Louver(i + 1) in enabled_louvers
+                else MTDome.MotionState.DISABLED
+            )
+            for i in range(len(louvers_state.state))
+        ]
+
+        if louvers_state.state == expected_states:
+            self.log.info("MTDome louvers are already closed.")
+            return
+
+        self.log.info("Closing MTDome louvers.")
+        self.rem.mtdome.evt_louversMotion.flush()
+        await self.rem.mtdome.cmd_closeLouvers.start(timeout=self.long_timeout)
+        await self.wait_for_louvers_in_position(timeout=self.long_timeout)
+        self.log.info("MTDome louvers are closed.")
 
     async def open_m1_cover(self) -> None:
         """Method to open mirror covers.
@@ -4265,6 +4430,7 @@ class MTCS(BaseTCS):
                     "azMotion",
                     "azEnabled",
                     "shutterMotion",
+                    "louversMotion",
                 ],
                 mtdometrajectory=[
                     "followingMode",
@@ -4422,6 +4588,53 @@ class MTCS(BaseTCS):
                 mthexapod_2=[
                     "application",
                 ],
+            )
+
+            usages[self.valid_use_cases.PrepareForVent] = UsagesResources(
+                components_attr=[
+                    "mtptg",
+                    "mtmount",
+                    "mtaos",
+                    "mtm1m3",
+                    "mtrotator",
+                    "mtdome",
+                    "mtdometrajectory",
+                ],
+                readonly=False,
+                generics=["summaryState"],
+                mtrotator=[
+                    "configuration",
+                    "rotation",
+                    "inPosition",
+                    "controllerState",
+                    "target",
+                ],
+                mtmount=[
+                    "azimuth",
+                    "elevation",
+                    "elevationInPosition",
+                    "elevationMotionState",
+                    "azimuthInPosition",
+                    "azimuthMotionState",
+                    "cameraCableWrapFollowing",
+                    "mirrorCoversMotionState",
+                    "mirrorCoverLocksMotionState",
+                    "target",
+                ],
+                mtm1m3=[
+                    "forceControllerState",
+                    "boosterValveStatus",
+                ],
+                mtdome=[
+                    "azimuth",
+                    "azMotion",
+                    "shutterMotion",
+                    "louversMotion",
+                ],
+                mtdometrajectory=[
+                    "followingMode",
+                ],
+                mtaos=["closedLoopState"],
             )
 
             usages[self.valid_use_cases.DryTest] = UsagesResources(
