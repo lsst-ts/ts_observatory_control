@@ -190,6 +190,9 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
             * len(self.mtcs.get_m1m3_actuator_secondary_ids()),
             private_sndStamp=0.0,
         )
+        self._mtm1m3_evt_enabled_force_actuators = types.SimpleNamespace(
+            forceActuatorEnabled=[True] * len(self.mtcs.get_m1m3_actuator_ids()),
+        )
         self._mtm1m3_evt_force_actuator_state = types.SimpleNamespace(
             slewFlag=False,
             balanceForcesApplied=False,
@@ -344,6 +347,7 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
             "evt_hardpointTestStatus.aget.side_effect": self.mtm1m3_evt_hp_test_status,
             "evt_forceActuatorBumpTestStatus.next.side_effect": self.mtm1m3_evt_bump_test_status,
             "evt_forceActuatorBumpTestStatus.aget.side_effect": self.mtm1m3_evt_bump_test_status,
+            "evt_enabledForceActuators.aget.side_effect": self.mtm1m3_evt_enabled_force_actuators,
             "cmd_raiseM1M3.set_start.side_effect": self.mtm1m3_cmd_raise_m1m3,
             "cmd_lowerM1M3.set_start.side_effect": self.mtm1m3_cmd_lower_m1m3,
             "cmd_enableHardpointCorrections.start.side_effect": self.mtm1m3_cmd_enable_hardpoint_corrections,
@@ -922,6 +926,12 @@ class MTCSAsyncMock(RemoteGroupAsyncMock):
     ) -> types.SimpleNamespace:
         await asyncio.sleep(self.heartbeat_time / 4.0)
         return self._mtm1m3_evt_force_actuator_bump_test_status
+
+    async def mtm1m3_evt_enabled_force_actuators(
+        self, *args: typing.Any, **kwargs: typing.Any
+    ) -> types.SimpleNamespace:
+        await asyncio.sleep(self.heartbeat_time / 4.0)
+        return self._mtm1m3_evt_enabled_force_actuators
 
     async def mtm1m3_evt_applied_balance_forces(
         self, *args: typing.Any, **kwargs: typing.Any
