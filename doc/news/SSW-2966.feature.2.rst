@@ -1,0 +1,1 @@
+Added ``enabledForceActuators`` event support to ``MTCSAsyncMock`` for testing M1M3 force actuator enablement.
