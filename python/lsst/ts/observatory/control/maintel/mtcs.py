@@ -3117,6 +3117,24 @@ class MTCS(BaseTCS):
         """
         return list(self._m1m3_actuator_id_index_table.keys())
 
+    async def get_m1m3_enabled_actuator_ids(self) -> list[int]:
+        """Get a list of enabled M1M3 force actuator ids.
+
+        Returns
+        -------
+        `list` [ `int` ]
+            List of enabled M1M3 force actuator ids.
+        """
+        enabled_force_actuators = await self.rem.mtm1m3.evt_enabledForceActuators.aget(
+            timeout=self.fast_timeout
+        )
+
+        return [
+            actuator_id
+            for actuator_id, actuator_index in self._m1m3_actuator_id_index_table.items()
+            if enabled_force_actuators.forceActuatorEnabled[actuator_index]
+        ]
+
     def get_m1m3_actuator_secondary_ids(self) -> list[int]:
         """Get a list of the M1M3 actuator secondary ids.
 

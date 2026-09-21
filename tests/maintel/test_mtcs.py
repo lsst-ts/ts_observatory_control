@@ -2026,6 +2026,27 @@ class TestMTCS(MTCSAsyncMock):
         assert primary_status == MTM1M3.BumpTest.PASSED
         assert secondary_status == MTM1M3.BumpTest.NOTTESTED
 
+    async def test_get_m1m3_enabled_actuator_ids(self) -> None:
+        actuator_ids = self.mtcs.get_m1m3_actuator_ids()
+        disabled_actuator_ids = {101, 218}
+
+        for actuator_id in disabled_actuator_ids:
+            actuator_index = self.mtcs.get_m1m3_actuator_index(actuator_id)
+            self._mtm1m3_evt_enabled_force_actuators.forceActuatorEnabled[
+                actuator_index
+            ] = False
+
+        enabled_actuator_ids = await self.mtcs.get_m1m3_enabled_actuator_ids()
+
+        assert enabled_actuator_ids == [
+            actuator_id
+            for actuator_id in actuator_ids
+            if actuator_id not in disabled_actuator_ids
+        ]
+        self.mtcs.rem.mtm1m3.evt_enabledForceActuators.aget.assert_awaited_once_with(
+            timeout=self.mtcs.fast_timeout
+        )
+
     async def test_run_m1m3_actuator_bump_test_default_no_secondary(self) -> None:
         actuator_id = 101
 
