@@ -1,0 +1,1 @@
+Added ``MTCS.wait_for_dome_azel_inposition`` to wait for dome alignment while ignoring shutter vignetting.

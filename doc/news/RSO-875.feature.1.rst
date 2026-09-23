@@ -1,0 +1,1 @@
+Added ``MTCS.prepare_for_telescope_and_dome_checkout`` to prepare the Simonyi Telescope and optionally MTDome for daytime checkout.
