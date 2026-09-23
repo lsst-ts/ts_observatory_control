@@ -4316,20 +4316,37 @@ class MTCS(BaseTCS):
                     if open
                     else self.rem.mtm1m3.cmd_clearSlewFlag
                 )
-                try:
-                    await cmd.set_start(timeout=self.fast_timeout)
-                except salobj.AckTimeoutError:
-                    self.log.warning(
-                        f"No command ack seen in {self.fast_timeout}s. Continuing."
-                    )
+                cmd_task = asyncio.create_task(cmd.start(timeout=self.long_timeout))
+
                 while force_actuator_state.slewFlag != open:
-                    self.log.debug(f"Waiting for valve to {desired_state}.")
-                    force_actuator_state = (
-                        await self.rem.mtm1m3.evt_forceControllerState.next(
-                            flush=False, timeout=self.long_timeout
-                        )
+                    self.log.info(
+                        f"Waiting for valve to {desired_state}. "
+                        f"Slew flag active: {force_actuator_state.slewFlag}."
                     )
-                self.log.debug(f"Booster valve {desired_state}.")
+                    try:
+                        force_actuator_state = (
+                            await self.rem.mtm1m3.evt_forceControllerState.next(
+                                flush=False, timeout=self.fast_timeout
+                            )
+                        )
+                    except asyncio.TimeoutError:
+                        if cmd_task.done():
+                            await cmd_task
+                        else:
+                            self.log.info(
+                                "Timeout waiting for force controller state; "
+                                "command still executing. "
+                                "Continuing..."
+                            )
+                if cmd_task.done():
+                    await cmd_task
+                else:
+                    cmd_task.cancel()
+                    try:
+                        cmd_task
+                    except asyncio.CancelledError:
+                        pass
+                self.log.info(f"Booster valve {desired_state}.")
             else:
                 self.log.info(f"Booster valve already {desired_state}.")
         else:

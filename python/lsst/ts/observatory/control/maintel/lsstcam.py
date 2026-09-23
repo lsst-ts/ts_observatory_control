@@ -414,6 +414,8 @@ class LSSTCam(BaseCamera):
                     "endSetFilter",
                     "startIntegration",
                     "availableFilters",
+                    "ccsCommandState",
+                    "shutterDetailedState",
                 ],
                 mtheaderservice=["largeFileObjectAvailable"],
                 mtoods=["imageInOODS"],
@@ -430,6 +432,7 @@ class LSSTCam(BaseCamera):
                     "startIntegration",
                     "availableFilters",
                     "ccsCommandState",
+                    "shutterDetailedState",
                 ],
                 mtoods=[
                     "imageInOODS",
@@ -447,6 +450,7 @@ class LSSTCam(BaseCamera):
                     "startIntegration",
                     "availableFilters",
                     "ccsCommandState",
+                    "shutterDetailedState",
                 ],
                 mtheaderservice=["largeFileObjectAvailable"],
                 mtoods=[
