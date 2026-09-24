@@ -1,0 +1,1 @@
+Updated ``MTCS.prepare_for_onsky()`` to defensively stop telescope tracking before beginning the on-sky preparation sequence.
