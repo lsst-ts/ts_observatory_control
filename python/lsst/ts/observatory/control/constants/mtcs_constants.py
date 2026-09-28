@@ -55,9 +55,9 @@ class SimonyiVentParameters:
         Maximum dome azimuth (deg) allowed while the sun is up.
     """
 
-    sun_elevation_high: float = 6.0
-    sun_elevation_horizon: float = -1.0
-    sun_elevation_stop: float = -6.0
+    sun_elevation_high: float = 50.0
+    sun_elevation_horizon: float = 48.0
+    sun_elevation_stop: float = 46.0
     tel_vent_elevation: float = 30.0
     louver_sun_avoidance_angle: float = 60.0
     temperature_differential_threshold: float = -1.0
