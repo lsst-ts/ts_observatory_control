@@ -1,0 +1,1 @@
+Updated ``MTCS.prepare_for_onsky()`` to accept configurable target azimuth, elevation, and rotator angle while keeping the default target position defined by ``MTCS``.
