@@ -1,6 +1,6 @@
 # This file is part of ts_observatory_control.
 #
-# Developed for the Vera Rubin Observatory Telescope and Site Systems.
+# Developed for the Vera C. Rubin Observatory Telescope and Site Systems.
 # This product includes software developed by the LSST Project
 # (https://www.lsst.org).
 # See the COPYRIGHT file at the top-level directory of this distribution
@@ -13,10 +13,11 @@
 #
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 # GNU General Public License for more details.
 #
 # You should have received a copy of the GNU General Public License
+# along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 __all__ = ["BaseTCS"]
 
@@ -1453,9 +1454,44 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
                 "Dome trajectory check disable. Will not enable following."
             )
 
-    async def disable_dome_following(self, check: typing.Any = None) -> None:
-        """Disable dome following mode."""
-        if getattr(self.check if check is None else check, self.dome_trajectory_name):
+    async def disable_dome_following(
+        self,
+        check: typing.Any = None,
+        *,
+        only_if_enabled: bool = False,
+    ) -> None:
+        """Disable dome following mode.
+
+        Parameters
+        ----------
+        check : `types.SimpleNamespace` or `None`, optional
+            Override `self.check` for defining which resources are used.
+        only_if_enabled : `bool`, optional
+            If `True`, disable following only when the dome trajectory CSC is
+            enabled. Failure to determine its state is logged and ignored.
+            This option bypasses the dome trajectory resource check.
+        """
+        if only_if_enabled:
+            try:
+                trajectory_state = await self.get_state(self.dome_trajectory_name)
+            except Exception:
+                self.log.warning(
+                    "Unable to determine the dome trajectory CSC state. "
+                    "Skipping the dome-following disable command.",
+                    exc_info=True,
+                )
+                return
+
+            if trajectory_state != salobj.State.ENABLED:
+                self.log.info(
+                    "The dome trajectory CSC is not enabled. Skipping the "
+                    "dome-following disable command."
+                )
+                return
+
+        if only_if_enabled or getattr(
+            self.check if check is None else check, self.dome_trajectory_name
+        ):
             self.log.debug("Disable dome trajectory following.")
 
             await getattr(

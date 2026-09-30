@@ -1,0 +1,1 @@
+Added ``MTCS.assert_dome_shutters_closed`` to require both MTDome shutter panels to be closed before daytime checkout dome motion.

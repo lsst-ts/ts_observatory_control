@@ -1,6 +1,6 @@
 # This file is part of ts_observatory_control.
 #
-# Developed for the Vera Rubin Observatory Telescope and Site Systems.
+# Developed for the Vera C. Rubin Observatory Telescope and Site Systems.
 # This product includes software developed by the LSST Project
 # (https://www.lsst.org).
 # See the COPYRIGHT file at the top-level directory of this distribution
@@ -13,10 +13,11 @@
 #
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 # GNU General Public License for more details.
 #
 # You should have received a copy of the GNU General Public License
+# along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 __all__ = ["MTCS"]
 
@@ -62,6 +63,8 @@ class MTCSUsages(Usages):
     * Shutdown: Enable shutdown operations.
     * PrepareForFlatfield: Enable preparation for flat-field.
     * DryTest: Don't add any remote.
+    * PrepareForVent: Enable the Simonyi evening venting protocol
+      (dome/louver/shutter positioning, mirror cover, pointing).
     """
 
     Slew = 1 << 3
@@ -70,6 +73,7 @@ class MTCSUsages(Usages):
     PrepareForFlatfield = 1 << 6
     DryTest = 1 << 7
     AOS = 1 << 8
+    PrepareForVent = 1 << 9
 
     def __iter__(self) -> typing.Iterator[int]:
         return iter(
@@ -84,6 +88,7 @@ class MTCSUsages(Usages):
                 self.PrepareForFlatfield,
                 self.DryTest,
                 self.AOS,
+                self.PrepareForVent,
             ]
         )
 
@@ -103,6 +108,9 @@ class MTCS(BaseTCS):
         Domain to use of the Remotes. If `None`, create a new domain.
 
     """
+
+    tel_operate_mirror_covers_el = 20.0
+    tel_max_el = 85.0
 
     def __init__(
         self,
@@ -152,8 +160,9 @@ class MTCS(BaseTCS):
         # the rotator when checking if it is in position.
         self.mtrotator_race_condition_timeout = 3.0
 
+        # Used for daytime telescope and dome checkout.
         self.tel_park_el = 80.0
-        self.tel_park_az = 0.0
+        self.tel_park_az = 150.0
         self.tel_park_rot = 0.0
 
         self.tel_flat_el = 22.7
@@ -161,7 +170,6 @@ class MTCS(BaseTCS):
         self.tel_open_az = 150.0
         self.tel_open_el = 70.0
         self.tel_settle_time = 3.0
-        self.tel_operate_mirror_covers_el = 20.0
         self.tel_operate_dome_shutter_el = 5.0
 
         # Tolerance to the rotator position for move commands.
@@ -179,6 +187,10 @@ class MTCS(BaseTCS):
         #  dome to park. It might need updating.
         self.park_dome_timeout = 600
         self.move_dome_timeout = 600
+        # At the nominal AMCS velocity of 1.5 deg/s, a 180-degree slew takes
+        # at least 120 seconds. Allow additional time for acceleration,
+        # deceleration, settling, and telemetry updates.
+        self.dome_azel_in_position_timeout = 180.0
 
         self.home_both_axes_timeout = 300.0
 
@@ -704,6 +716,62 @@ class MTCS(BaseTCS):
 
         return "MTDome in position."
 
+    async def wait_for_dome_azel_inposition(self, timeout: float | None = None) -> str:
+        """Wait for dome azimuth and elevation alignment.
+
+        This method ignores shutter vignetting so it can be used while the
+        dome shutters are closed.
+
+        Parameters
+        ----------
+        timeout : `float`, optional
+            Maximum time to wait for a new telescope-vignetting event.
+            Defaults to ``self.dome_azel_in_position_timeout``.
+
+        Returns
+        -------
+        ret_val : `str`
+            String indicating that the dome azimuth and elevation are in
+            position.
+        """
+        if timeout is None:
+            timeout = self.dome_azel_in_position_timeout
+
+        self.rem.mtdometrajectory.evt_telescopeVignetted.flush()
+
+        telescope_vignetted = (
+            await self.rem.mtdometrajectory.evt_telescopeVignetted.aget(
+                timeout=self.fast_timeout
+            )
+        )
+        azimuth = MTDomeTrajectory.TelescopeVignetted(telescope_vignetted.azimuth)
+        elevation = MTDomeTrajectory.TelescopeVignetted(telescope_vignetted.elevation)
+
+        while (
+            azimuth != MTDomeTrajectory.TelescopeVignetted.NO
+            or elevation != MTDomeTrajectory.TelescopeVignetted.NO
+        ):
+            self.log.debug(
+                "Waiting for MTDome alignment: "
+                f"{azimuth=!r} and {elevation=!r}. "
+                "Shutter vignetting is ignored."
+            )
+            telescope_vignetted = (
+                await self.rem.mtdometrajectory.evt_telescopeVignetted.next(
+                    flush=False, timeout=timeout
+                )
+            )
+            azimuth = MTDomeTrajectory.TelescopeVignetted(telescope_vignetted.azimuth)
+            elevation = MTDomeTrajectory.TelescopeVignetted(
+                telescope_vignetted.elevation
+            )
+
+        self.log.info(
+            f"MTDome aligned with the telescope: {azimuth=!r} and {elevation=!r}."
+        )
+
+        return "MTDome azimuth and elevation in position."
+
     async def wait_for_rotator_inposition(
         self,
         timeout: float,
@@ -748,7 +816,6 @@ class MTCS(BaseTCS):
             abs(target_position - current_position)
             > tracking_success_position_threshold
         ):
-
             self.log.debug(
                 f"Current rotator position ({current_position:.2f}) "
                 f"not in target position ({target_position:.2f}) range "
@@ -1521,6 +1588,167 @@ class MTCS(BaseTCS):
                 f"or {[MTDome.MotionState.OPEN, MTDome.MotionState.OPEN]}."
             )
 
+    async def get_enabled_dome_louvers(self) -> list[MTDome.Louver]:
+        """Get the MTDome louvers that are currently enabled.
+
+        Returns
+        -------
+        `list` of `lsst.ts.xml.enums.MTDome.Louver`
+            Louvers whose motion state is not ``DISABLED``.
+        """
+        louvers_state = await self.rem.mtdome.evt_louversMotion.aget(
+            timeout=self.fast_timeout
+        )
+        return [
+            MTDome.Louver(i + 1)
+            for i, state in enumerate(louvers_state.state)
+            if state != MTDome.MotionState.DISABLED
+        ]
+
+    async def assert_dome_louvers_enabled(
+        self, louvers: typing.Iterable[MTDome.Louver | str]
+    ) -> None:
+        """Assert that the given MTDome louvers are all enabled.
+
+        Parameters
+        ----------
+        louvers : iterable of `lsst.ts.xml.enums.MTDome.Louver` or `str`
+            Louvers to check, either as enum members or by name (e.g.
+            ``"A1"``).
+
+        Raises
+        ------
+        RuntimeError
+            If any of ``louvers`` is not currently enabled.
+        """
+        requested_louvers = [
+            louver if isinstance(louver, MTDome.Louver) else MTDome.Louver[louver]
+            for louver in louvers
+        ]
+        enabled_louvers = await self.get_enabled_dome_louvers()
+        disabled_requested = [
+            louver for louver in requested_louvers if louver not in enabled_louvers
+        ]
+        if disabled_requested:
+            raise RuntimeError(
+                "The following louvers were requested but are not enabled: "
+                f"{[louver.name for louver in disabled_requested]}. "
+                "Currently enabled louvers: "
+                f"{[louver.name for louver in enabled_louvers]}."
+            )
+
+    async def wait_for_louvers_in_position(self, timeout: float) -> None:
+        """Wait until all enabled MTDome louvers report ``inPosition``.
+
+        Louvers with a ``DISABLED`` motion state are excluded from the
+        check, since they cannot be commanded and their ``inPosition``
+        value is not meaningful.
+
+        Parameters
+        ----------
+        timeout : `float`
+            Maximum time to wait for convergence, in seconds.
+
+        Raises
+        ------
+        RuntimeError
+            If a louver transitions to the ``ERROR`` state while waiting.
+        """
+
+        def enabled_louvers_in_position(
+            louvers_state: salobj.type_hints.BaseMsgType,
+        ) -> bool:
+            return all(
+                in_position
+                for state, in_position in zip(
+                    louvers_state.state, louvers_state.inPosition
+                )
+                if state != MTDome.MotionState.DISABLED
+            )
+
+        louvers_state = await self.rem.mtdome.evt_louversMotion.aget(timeout=timeout)
+
+        while not enabled_louvers_in_position(louvers_state):
+            louvers_state = await self.rem.mtdome.evt_louversMotion.next(
+                flush=False, timeout=timeout
+            )
+
+            if any(state == MTDome.MotionState.ERROR for state in louvers_state.state):
+                raise RuntimeError(
+                    "MTDome louvers transitioned to ERROR while waiting to reach "
+                    "position: "
+                    f"{[MTDome.MotionState(state).name for state in louvers_state.state]}."
+                )
+
+            self.log.debug(
+                "Waiting for louvers in position; "
+                f"state={[MTDome.MotionState(state).name for state in louvers_state.state]}, "
+                f"inPosition={louvers_state.inPosition}."
+            )
+
+        self.log.info("MTDome louvers are in position.")
+
+    async def open_dome_louvers(self, position: dict[str, float]) -> None:
+        """Open (or otherwise position) a set of MTDome louvers.
+
+        Note that while the sun is up, the EAS CSC's dome sun-avoidance
+        model may re-cap any louver facing the sun, independent of this
+        command.
+
+        Parameters
+        ----------
+        position : `dict` [`str`, `float`]
+            Mapping of louver name (e.g. ``"A1"``, see
+            `lsst.ts.xml.enums.MTDome.Louver`) to desired percent-open (0 is
+            closed, 100 is fully open). Only the louvers named in
+            ``position`` are commanded; all others are left uncommanded
+            (``-1``).
+
+        Raises
+        ------
+        RuntimeError
+            If any louver in ``position`` is not currently enabled.
+        """
+        await self.assert_dome_louvers_enabled(position.keys())
+
+        requested_position = [-1.0] * len(MTDome.Louver)
+        for louver_name, value in position.items():
+            requested_position[MTDome.Louver[louver_name] - 1] = value
+
+        self.log.info(f"Opening MTDome louvers: {list(position)}.")
+        self.rem.mtdome.evt_louversMotion.flush()
+        await self.rem.mtdome.cmd_setLouvers.set_start(
+            position=requested_position, timeout=self.long_timeout
+        )
+        await self.wait_for_louvers_in_position(timeout=self.long_timeout)
+        self.log.info("MTDome louvers are open.")
+
+    async def close_dome_louvers(self) -> None:
+        """Close all enabled MTDome louvers."""
+        enabled_louvers = await self.get_enabled_dome_louvers()
+
+        louvers_state = await self.rem.mtdome.evt_louversMotion.aget(
+            timeout=self.fast_timeout
+        )
+        expected_states = [
+            (
+                MTDome.MotionState.CLOSED
+                if MTDome.Louver(i + 1) in enabled_louvers
+                else MTDome.MotionState.DISABLED
+            )
+            for i in range(len(louvers_state.state))
+        ]
+
+        if louvers_state.state == expected_states:
+            self.log.info("MTDome louvers are already closed.")
+            return
+
+        self.log.info("Closing MTDome louvers.")
+        self.rem.mtdome.evt_louversMotion.flush()
+        await self.rem.mtdome.cmd_closeLouvers.start(timeout=self.long_timeout)
+        await self.wait_for_louvers_in_position(timeout=self.long_timeout)
+        self.log.info("MTDome louvers are closed.")
+
     async def open_m1_cover(self) -> None:
         """Method to open mirror covers.
 
@@ -1801,8 +2029,11 @@ class MTCS(BaseTCS):
 
     async def prepare_for_onsky(
         self,
-        overrides: typing.Optional[typing.Dict[str, str]] = None,
+        overrides: dict[str, str] | None = None,
         homing_attempts: int = 10,
+        target_az: float | None = None,
+        target_el: float | None = None,
+        target_rot: float | None = None,
     ) -> None:
         """Prepare Simonyi Telescope for on-sky operations
 
@@ -1811,30 +2042,65 @@ class MTCS(BaseTCS):
 
         1. Assert that all MTCS components are enabled.
         2. Assert that critical components are not ignored.
-        3. Slew the dome to the open position (az=150).
-        4. Ensure the M2 balance system is enabled.
-        5. Check telescope elevation and raise M1M3 if safe.
-        6. Assert M1M3 force balance system is enabled.
-        7. Assert M1M3 slew controller flags are enabled (warning if not).
-        8. Home both axes of the mount (with retry logic).
-        9. Enable camera cable wrap following.
-        10. Enable hexapod compensation mode if not ignored.
-        11. Slew the telescope to the open position (az=150, el=70).
-            Rotator set to 0 deg.
-        12. Stop tracking.
-        13. Ensure mirror covers are closed before opening the dome.
-        14. Open the dome shutter.
-        15. Open the mirror covers.
-        16. Enable dome following if not ignored.
-        17. Ensure M1M3 is not in engineering mode.
+        3. Stop telescope tracking.
+        4. Slew the dome to the target azimuth.
+        5. Ensure the M2 balance system is enabled.
+        6. Check telescope elevation and raise M1M3 if safe.
+        7. Assert M1M3 force balance system is enabled.
+        8. Assert M1M3 slew controller flags are enabled (warning if not).
+        9. Home both axes of the mount (with retry logic).
+        10. Enable camera cable wrap following.
+        11. Enable hexapod compensation mode if not ignored.
+        12. Slew the telescope to the target azimuth, elevation, and
+            rotator position.
+        13. Stop tracking.
+        14. Ensure mirror covers are closed before opening the dome.
+        15. Open the dome shutter.
+        16. Open the mirror covers.
+        17. Enable dome following if not ignored.
+        18. Ensure M1M3 is not in engineering mode.
 
         Parameters
         ----------
-        overrides : typing.Optional[typing.Dict[str, str]], optional
+        overrides : dict[str, str] | None, optional
             Dictionary of component overrides, by default None
         homing_attempts : `int`, optional
             Number of attempts to home both axes (default: 10).
+        target_az : `float` | None, optional
+            Target azimuth for both the dome and telescope, in degrees. If
+            `None`, use `self.tel_open_az`.
+        target_el : `float` | None, optional
+            Target telescope elevation, in degrees. If `None`, use
+            `self.tel_open_el`. Must be within the allowed target elevation
+            range.
+        target_rot : `float` | None, optional
+            Target rotator angle in mount physical coordinates, in degrees.
+            If `None`, use `self.tel_park_rot`.
+
+        Raises
+        ------
+        ValueError
+            If `target_el` is outside the allowed target elevation range.
         """
+
+        target_az = self.tel_open_az if target_az is None else target_az
+        target_el = self.tel_open_el if target_el is None else target_el
+        target_rot = self.tel_park_rot if target_rot is None else target_rot
+
+        if target_el < self.tel_operate_mirror_covers_el:
+            raise ValueError(
+                f"Requested elevation ({target_el} deg) lower than the minimum "
+                f"elevation for mirror cover operations ({self.tel_operate_mirror_covers_el} deg). "
+                "Choose an elevation above the limit. If the telescope cannot "
+                "be moved you might have to postpone this operation."
+            )
+        if target_el > self.tel_max_el:
+            raise ValueError(
+                f"Requested elevation ({target_el} deg) higher than the maximum "
+                f"operational elevation ({self.tel_max_el} deg). "
+                "Choose an elevation below the limit. If the telescope cannot "
+                "be moved you might have to postpone this operation."
+            )
 
         await self.assert_all_enabled(
             message="All components need to be enabled for on-sky operations."
@@ -1842,9 +2108,12 @@ class MTCS(BaseTCS):
 
         self._assert_critical_components_in_prepare_for_onsky()
 
+        self.log.debug("Stop tracking.")
+        await self.stop_tracking()
+
         if self.check.mtdome:
-            self.log.info("Slewing dome to open position.")
-            await self.slew_dome_to(az=self.dome_open_az)
+            self.log.info(f"Slewing dome to target azimuth: {target_az} deg.")
+            await self.slew_dome_to(az=target_az)
         else:
             self.log.warning("mtdome is ignored; skipping dome operations.")
 
@@ -1882,7 +2151,7 @@ class MTCS(BaseTCS):
 
         await self.home_both_axes(homing_attempts=homing_attempts)
 
-        self.log.info("Ensuring CCW is following before slewing to open position.")
+        self.log.info("Ensuring CCW is following before slewing to target position.")
         await self.enable_ccw_following()
 
         enabled_hexapods = [
@@ -1902,12 +2171,15 @@ class MTCS(BaseTCS):
                 ]
             )
 
-        self.log.info("Slewing telescope to open position.")
+        self.log.info(
+            f"Slewing telescope to target position: El={target_el} deg, "
+            f"Az={target_az} deg, Rot={target_rot} deg."
+        )
         await self.point_azel(
             target_name="Prepare for on-sky",
-            az=self.tel_open_az,
-            el=self.tel_open_el,
-            rot_tel=self.tel_park_rot,
+            az=target_az,
+            el=target_el,
+            rot_tel=target_rot,
             wait_dome=False,
         )
 
@@ -1935,6 +2207,295 @@ class MTCS(BaseTCS):
             )
 
         await self.ensure_m1m3_not_in_engineering_mode()
+
+    @staticmethod
+    def get_critical_components_for_daytime_checkout(
+        check_dome: bool = True,
+    ) -> list[str]:
+        """Return components that cannot be ignored for daytime checkout.
+
+        Parameters
+        ----------
+        check_dome : `bool`, optional
+            Include the dome components in the returned list.
+
+        Returns
+        -------
+        critical_components : `list` [`str`]
+            Components required for the requested checkout mode.
+        """
+
+        critical_components = ["mtmount", "mtrotator", "mtm1m3", "mtm2", "mtptg"]
+        if check_dome:
+            critical_components.extend(["mtdome", "mtdometrajectory"])
+        return critical_components
+
+    def _assert_critical_components_for_daytime_checkout(
+        self, check_dome: bool
+    ) -> None:
+        """Assert that required daytime-checkout components are checked."""
+
+        for component in self.get_critical_components_for_daytime_checkout(
+            check_dome=check_dome
+        ):
+            if not getattr(self.check, component, False):
+                raise AssertionError(
+                    f"Cannot ignore {component} for the requested daytime checkout."
+                )
+
+    async def assert_dome_shutters_closed(self) -> None:
+        """Assert that both dome shutter panels report CLOSED.
+
+        Raises
+        ------
+        AssertionError
+            If either shutter panel does not report CLOSED.
+        """
+
+        self.rem.mtdome.evt_shutterMotion.flush()
+        shutter_state = await self.rem.mtdome.evt_shutterMotion.aget(
+            timeout=self.fast_timeout
+        )
+        shutter_states = [MTDome.MotionState(state) for state in shutter_state.state]
+        expected_shutter_states = [
+            MTDome.MotionState.CLOSED,
+            MTDome.MotionState.CLOSED,
+        ]
+        if shutter_states != expected_shutter_states:
+            raise AssertionError(
+                "MTDome shutters must be closed for daytime checkout. "
+                f"Reported states: {[state.name for state in shutter_states]}. "
+                "Verify the telemetry and physical shutter condition, then take "
+                "the necessary action using the approved procedure before "
+                "rerunning the checkout."
+            )
+        self.log.info("Both MTDome shutter panels are closed.")
+
+    async def prepare_for_telescope_and_dome_checkout(
+        self,
+        check_dome: bool = True,
+        homing_attempts: int = 10,
+    ) -> list[str]:
+        """Prepare telescope and optionally the dome for daytime checkout.
+
+        This method leaves the telescope stopped at the MTCS park position.
+        If dome checkout is requested, the dome is unparked, moved to the same
+        azimuth, and left following the telescope. Dome shutters are required
+        to be closed and are never commanded by this method. The M1 mirror
+        covers are kept closed to provide optical protection during
+        telescope-only checkout, when the dome shutter state is not checked
+        and the shutters may be open.
+
+        The high-level steps are:
+
+        1. Assert that critical components are not ignored.
+        2. Assert that all checked MTCS components are enabled. This method
+           does not perform CSC summary-state transitions. It defers this
+           action to the caller script.
+        3. Stop telescope tracking.
+        4. Ensure the M2 force-balance system is enabled.
+        5. Check the telescope elevation and fail if it is unsafe for
+           raising M1M3.
+        6. Ensure the mirror covers are closed.
+        7. If checking the dome, assert both shutter panels are closed, then
+           disable dome following. Otherwise perform a defensive dome-following
+           check.
+        8. Raise M1M3 and assert its force-balance system is enabled.
+        9. Check the M1M3 slew-controller settings, reporting disabled flags
+           as warnings.
+        10. Home both mount axes with retry logic.
+        11. Enable camera cable-wrap following.
+        12. Enable compensation mode for each checked hexapod.
+        13. Ensure M1M3 is not in engineering mode.
+        14. If checking the dome, unpark it.
+        15. Slew the telescope independently to the starting position defined
+            by ``self.tel_park_az``, ``self.tel_park_el``, and
+            ``self.tel_park_rot``, then stop tracking.
+        16. If checking the dome, independently slew it to
+            ``self.tel_park_az``.
+        17. If checking the dome, enable dome following.
+
+        Parameters
+        ----------
+        check_dome : `bool`, optional
+            Prepare and exercise the dome as part of the checkout.
+        homing_attempts : `int`, optional
+            Number of attempts to home both mount axes.
+
+        Returns
+        -------
+        slew_controller_warnings : `list` [`str`]
+            Names of disabled M1M3 slew-controller settings.
+
+        Raises
+        ------
+        AssertionError
+            If a required component is ignored or the dome shutters are not
+            closed.
+        RuntimeError
+            If the current elevation is too low to safely raise M1M3.
+        """
+
+        self.log.info("Asserting required daytime-checkout components are not ignored.")
+        self._assert_critical_components_for_daytime_checkout(check_dome=check_dome)
+
+        self.log.info("Asserting all checked MTCS components are enabled.")
+        await self.assert_all_enabled(
+            message="All checked MTCS CSCs must be enabled for daytime checkout."
+        )
+
+        self.log.info("Ensuring telescope tracking is stopped.")
+        await self.stop_tracking()
+
+        self.log.info("Ensuring the M2 force-balance system is enabled.")
+        await self.enable_m2_balance_system()
+
+        self.log.info("Checking telescope elevation before raising M1M3.")
+        elevation = (
+            await self.rem.mtmount.tel_elevation.aget(timeout=self.fast_timeout)
+        ).actualPosition
+        if elevation < self.m1m3_tel_min_el_to_raise:
+            raise RuntimeError(
+                f"Telescope elevation (El = {elevation} deg) is below the minimum "
+                f"safe elevation to raise M1M3 ({self.m1m3_tel_min_el_to_raise} deg). "
+                "Move the telescope to a safe elevation using the appropriate "
+                "reduced-speed procedure, then rerun the daytime checkout."
+            )
+
+        self.log.info("Ensuring M1 mirror covers are closed.")
+        await self.close_m1_cover()
+
+        if check_dome:
+            self.log.info("Asserting both MTDome shutter panels are closed.")
+            await self.assert_dome_shutters_closed()
+
+            self.log.info("Disabling dome following.")
+            await self.disable_dome_following()
+        else:
+            await self.disable_dome_following(only_if_enabled=True)
+
+        self.log.info("Ensuring M1M3 is raised.")
+        await self.raise_m1m3()
+
+        self.log.info("Asserting the M1M3 force-balance system is enabled.")
+        await self.assert_m1m3_force_balance_system_enabled()
+
+        self.log.info("Asserting the M1M3 slew-controller settings are enabled.")
+        slew_controller_warnings = await self.assert_m1m3_slew_controller_settings()
+        if slew_controller_warnings:
+            self.log.warning(
+                "Some M1M3 slew-controller flags are not enabled. "
+                f"Disabled flags: {', '.join(slew_controller_warnings)}."
+            )
+
+        self.log.info("Ensuring both mount axes are homed.")
+        await self.home_both_axes(homing_attempts=homing_attempts)
+
+        self.log.info("Ensuring camera cable-wrap following is enabled.")
+        await self.enable_ccw_following()
+
+        enabled_hexapods = [
+            component
+            for component in self.compensation_mode_components
+            if getattr(self.check, component, False)
+        ]
+        if enabled_hexapods:
+            self.log.info(
+                "Ensuring compensation mode is enabled for: "
+                f"{', '.join(enabled_hexapods)}."
+            )
+            await asyncio.gather(
+                *[
+                    self.enable_compensation_mode(component)
+                    for component in enabled_hexapods
+                ]
+            )
+
+        self.log.info("Ensuring M1M3 is not in engineering mode.")
+        await self.ensure_m1m3_not_in_engineering_mode()
+
+        if check_dome:
+            self.log.info("Ensuring MTDome is unparked.")
+            await self.unpark_dome()
+
+        self.log.info(
+            "Slewing the telescope to daytime-checkout starting position: "
+            f"Az={self.tel_park_az} deg, El={self.tel_park_el} deg, "
+            f"Rot={self.tel_park_rot} deg."
+        )
+        await self.point_azel(
+            target_name="CheckoutSetup",
+            az=self.tel_park_az,
+            el=self.tel_park_el,
+            rot_tel=self.tel_park_rot,
+            wait_dome=False,
+        )
+        self.log.info("Ensuring telescope tracking is stopped.")
+        await self.stop_tracking()
+
+        if check_dome:
+            self.log.info(
+                "Slewing MTDome to daytime checkout position: "
+                f"{self.tel_park_az} degrees."
+            )
+            await self.slew_dome_to(az=self.tel_park_az)
+
+            self.log.info("Enabling dome following.")
+            await self.enable_dome_following()
+
+        return slew_controller_warnings
+
+    async def set_telescope_and_dome_checkout_final_state(
+        self,
+        check_dome: bool = True,
+    ) -> None:
+        """Leave the TMA and MTDome in their daytime-checkout final states.
+
+        The telescope is stopped at the MTCS park position. When dome checkout
+        is requested, following is disabled before the final telescope slew
+        and the dome is then parked.
+
+        The high-level steps are:
+
+        1. If checking the dome, disable dome following.
+        2. Slew the telescope to the final position defined by
+           ``self.tel_park_az``, ``self.tel_park_el``, and
+           ``self.tel_park_rot`` without waiting for dome synchronization.
+        3. Stop telescope tracking.
+        4. If checking the dome, park it.
+        5. If not checking the dome, perform only an optional defensive
+           dome-following check.
+
+        Parameters
+        ----------
+        check_dome : `bool`, optional
+            Finalize the dome checkout by disabling following and parking.
+        """
+
+        if check_dome:
+            self.log.info("Disabling dome following.")
+            await self.disable_dome_following()
+
+        self.log.info(
+            f"Slewing telescope to daytime-checkout final position: Az= "
+            f"{self.tel_park_az} deg, El={self.tel_park_el} deg, "
+            f"Rot={self.tel_park_rot} deg."
+        )
+        await self.point_azel(
+            target_name="CheckoutFinal",
+            az=self.tel_park_az,
+            el=self.tel_park_el,
+            rot_tel=self.tel_park_rot,
+            wait_dome=False,
+        )
+        self.log.info("Ensuring telescope tracking is stopped.")
+        await self.stop_tracking()
+
+        if check_dome:
+            self.log.info("Parking MTDome.")
+            await self.park_dome()
+        else:
+            await self.disable_dome_following(only_if_enabled=True)
 
     async def shutdown(self) -> None:
         # TODO: Implement (DM-21336).
@@ -4264,6 +4825,7 @@ class MTCS(BaseTCS):
                     "azMotion",
                     "azEnabled",
                     "shutterMotion",
+                    "louversMotion",
                 ],
                 mtdometrajectory=[
                     "followingMode",
@@ -4421,6 +4983,53 @@ class MTCS(BaseTCS):
                 mthexapod_2=[
                     "application",
                 ],
+            )
+
+            usages[self.valid_use_cases.PrepareForVent] = UsagesResources(
+                components_attr=[
+                    "mtptg",
+                    "mtmount",
+                    "mtaos",
+                    "mtm1m3",
+                    "mtrotator",
+                    "mtdome",
+                    "mtdometrajectory",
+                ],
+                readonly=False,
+                generics=["summaryState"],
+                mtrotator=[
+                    "configuration",
+                    "rotation",
+                    "inPosition",
+                    "controllerState",
+                    "target",
+                ],
+                mtmount=[
+                    "azimuth",
+                    "elevation",
+                    "elevationInPosition",
+                    "elevationMotionState",
+                    "azimuthInPosition",
+                    "azimuthMotionState",
+                    "cameraCableWrapFollowing",
+                    "mirrorCoversMotionState",
+                    "mirrorCoverLocksMotionState",
+                    "target",
+                ],
+                mtm1m3=[
+                    "forceControllerState",
+                    "boosterValveStatus",
+                ],
+                mtdome=[
+                    "azimuth",
+                    "azMotion",
+                    "shutterMotion",
+                    "louversMotion",
+                ],
+                mtdometrajectory=[
+                    "followingMode",
+                ],
+                mtaos=["closedLoopState"],
             )
 
             usages[self.valid_use_cases.DryTest] = UsagesResources(

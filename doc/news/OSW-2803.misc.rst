@@ -1,0 +1,1 @@
+Added a pre-commit hook that checks for the license header, with the reference header in ``.LICENSE.txt``.
