@@ -1,1 +1,0 @@
-Added new methods ``open_dome_louvers`` and ``close_dome_louvers`` to operate the MTDome louvers. 

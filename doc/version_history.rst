@@ -8,6 +8,40 @@ Version History
 
 .. towncrier release notes start
 
+v0.53.0 (2026-09-30)
+====================
+
+New Features
+------------
+
+- Adding ability to change the sequence configurations in mtcalsys.yaml when calling MTCalsys (`OSW-2560 <https://rubinobs.atlassian.net/browse/OSW-2560>`_)
+- Added new ``MTCSUsages.PrepareForVent`` usage, for use by the Simonyi evening venting script. (`OSW-2759 <https://rubinobs.atlassian.net/browse/OSW-2759>`_)
+- Added ``constants.mtcs_constants.SimonyiVentParameters``, a frozen dataclass bundling the Simonyi evening venting protocol's parameters. (`OSW-2759 <https://rubinobs.atlassian.net/browse/OSW-2759>`_)
+- Added new methods ``open_dome_louvers`` and ``close_dome_louvers`` to operate the MTDome louvers. (`OSW-2759 <https://rubinobs.atlassian.net/browse/OSW-2759>`_)
+- In ``GuiderROIs.get_guider_rois``, fall back to a default ROI for guiders with no catalog guide star. (`OSW-2803 <https://rubinobs.atlassian.net/browse/OSW-2803>`_)
+- Added get_projector_setup to prepare_for_flats, since removed it from the setup_calsys_flats external script. (`RSO-610 <https://rubinobs.atlassian.net/browse/RSO-610>`_)
+- Updated ``MTCS.prepare_for_onsky()`` to accept configurable target azimuth, elevation, and rotator angle while keeping the default target position defined by ``MTCS``. (`RSO-808 <https://rubinobs.atlassian.net/browse/RSO-808>`_)
+- Updated ``MTCS.prepare_for_onsky()`` to defensively stop telescope tracking before beginning the on-sky preparation sequence. (`RSO-808 <https://rubinobs.atlassian.net/browse/RSO-808>`_)
+- Added the ``only_if_enabled`` option to ``BaseTCS.disable_dome_following`` for best-effort operations where the dome trajectory CSC is not required. (`RSO-875 <https://rubinobs.atlassian.net/browse/RSO-875>`_)
+- Added ``MTCS.wait_for_dome_azel_inposition`` to wait for dome alignment while ignoring shutter vignetting. (`RSO-875 <https://rubinobs.atlassian.net/browse/RSO-875>`_)
+- Added ``MTCS.assert_dome_shutters_closed`` to require both MTDome shutter panels to be closed before daytime checkout dome motion. (`RSO-875 <https://rubinobs.atlassian.net/browse/RSO-875>`_)
+- Added ``MTCS.set_telescope_and_dome_checkout_final_state`` to leave the telescope and dome in their required final states after daytime checkout. (`RSO-875 <https://rubinobs.atlassian.net/browse/RSO-875>`_)
+- Added ``MTCS.prepare_for_telescope_and_dome_checkout`` to prepare the Simonyi Telescope and optionally MTDome for daytime checkout. (`RSO-875 <https://rubinobs.atlassian.net/browse/RSO-875>`_)
+
+
+Documentation
+-------------
+
+- Fixed license headers and removed ``.LICENSE.txt`` file. (`OSW-2901 <https://rubinobs.atlassian.net/browse/OSW-2901>`_)
+
+
+Other Changes and Additions
+---------------------------
+
+- Updated ``LSSTCamUsages.All`` in ``maintel/lsstcam.py`` to include the ``imageInOODS`` event. (`DM-51658 <https://rubinobs.atlassian.net/browse/DM-51658>`_)
+- Added a pre-commit hook that checks for the license header, with the reference header in ``.LICENSE.txt``. (`OSW-2803 <https://rubinobs.atlassian.net/browse/OSW-2803>`_)
+
+
 v0.52.3 (2026-07-02)
 ====================
 
