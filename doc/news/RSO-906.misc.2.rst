@@ -1,0 +1,1 @@
+Refactored how the slew flag is set in ``_handle_m1m3_booster_valve`` in ``maintel/mtcs.py``.

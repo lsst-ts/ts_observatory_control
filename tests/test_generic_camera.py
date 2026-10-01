@@ -27,6 +27,7 @@ from typing import Any, Dict
 import pytest
 from lsst.ts import utils
 from lsst.ts.observatory.control import Usages
+from lsst.ts.observatory.control.base_camera import CameraShutterDetailedState
 from lsst.ts.observatory.control.generic_camera import GenericCamera
 from lsst.ts.observatory.control.mock.base_camera_async_mock import BaseCameraAsyncMock
 
@@ -73,6 +74,13 @@ class TestGenericCamera(BaseCameraAsyncMock):
             component="GenericCamera:1",
             topic="logevent_startIntegration",
         )
+
+        self.shutter_detailed_state = self.get_sample(
+            component="GenericCamera:1",
+            topic="logevent_shutterDetailedState",
+        )
+        self.shutter_detailed_state.substate = CameraShutterDetailedState.CLOSED
+        self.shutter_detailed_state.timestampTransition = utils.current_tai()
 
     async def test_start_live_view(self) -> None:
         await self.generic_camera.start_live_view(exptime=1.0)
