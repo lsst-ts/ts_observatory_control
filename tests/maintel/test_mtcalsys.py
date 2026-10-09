@@ -29,6 +29,7 @@ from lsst.ts.observatory.control.maintel.comcam import ComCam, ComCamUsages
 from lsst.ts.observatory.control.maintel.mtcalsys import MTCalsys, MTCalsysUsages
 from lsst.ts.observatory.control.mock import RemoteGroupAsyncMock
 from lsst.ts.utils import index_generator
+from lsst.ts.xml.enums.TunableLaser import LaserDetailedState
 
 
 class TestMTCalsys(RemoteGroupAsyncMock):
@@ -168,6 +169,93 @@ class TestMTCalsys(RemoteGroupAsyncMock):
         # TO-DO (DM-50206): Swap On/Off
         self.mtcalsys.rem.ledprojector.cmd_switchAllOn.start.assert_awaited_with(
             timeout=self.mtcalsys.long_timeout
+        )
+
+    async def test_take_fiber_spectrograph_dark(self) -> None:
+        self.mtcalsys.use_fiberspectrograph_red = True
+        self.mtcalsys.use_fiberspectrograph_blue = True
+
+        try:
+            dark_exposures = await self.mtcalsys.take_fiber_spectrograph_dark(
+                group_id="GID_TEST"
+            )
+        finally:
+            self.mtcalsys.use_fiberspectrograph_red = False
+            self.mtcalsys.use_fiberspectrograph_blue = False
+
+        assert len(dark_exposures["red"]) == 1
+        assert len(dark_exposures["blue"]) == 1
+
+        self.mtcalsys.rem.ledprojector.cmd_switchAllOn.start.assert_awaited_with(
+            timeout=self.mtcalsys.long_timeout
+        )
+        # Laser was not reported as propagating, so it should not have been
+        # touched.
+        self.mtcalsys.rem.tunablelaser.cmd_stopPropagateLaser.start.assert_not_awaited()
+        self.mtcalsys.rem.tunablelaser.cmd_startPropagateLaser.start.assert_not_awaited()
+
+    def mock_laser_propagating_initially(self) -> None:
+        """Make the tunablelaser mock behave like a real laser that starts
+        out propagating: querying its detailed state reflects whichever of
+        stopPropagateLaser/startPropagateLaser was called most recently.
+        """
+        laser_state = {"detailedState": LaserDetailedState.PROPAGATING_CONTINUOUS_MODE}
+
+        async def get_detailed_state(
+            *args: object, **kwargs: object
+        ) -> types.SimpleNamespace:
+            return types.SimpleNamespace(detailedState=laser_state["detailedState"])
+
+        async def stop_propagating(*args: object, **kwargs: object) -> None:
+            laser_state["detailedState"] = (
+                LaserDetailedState.NONPROPAGATING_CONTINUOUS_MODE
+            )
+
+        async def start_propagating(*args: object, **kwargs: object) -> None:
+            laser_state["detailedState"] = (
+                LaserDetailedState.PROPAGATING_CONTINUOUS_MODE
+            )
+
+        self.mtcalsys.rem.tunablelaser.evt_detailedState.aget.side_effect = (
+            get_detailed_state
+        )
+        self.mtcalsys.rem.tunablelaser.evt_detailedState.next.side_effect = (
+            get_detailed_state
+        )
+        self.mtcalsys.rem.tunablelaser.cmd_stopPropagateLaser.start.side_effect = (
+            stop_propagating
+        )
+        self.mtcalsys.rem.tunablelaser.cmd_startPropagateLaser.start.side_effect = (
+            start_propagating
+        )
+
+    async def test_take_fiber_spectrograph_dark_laser_propagating(self) -> None:
+        self.mock_laser_propagating_initially()
+
+        await self.mtcalsys.take_fiber_spectrograph_dark(group_id="GID_TEST")
+
+        self.mtcalsys.rem.tunablelaser.cmd_stopPropagateLaser.start.assert_awaited_with(
+            timeout=self.mtcalsys.laser_warmup
+        )
+        self.mtcalsys.rem.tunablelaser.cmd_startPropagateLaser.start.assert_awaited_with(
+            timeout=self.mtcalsys.laser_warmup
+        )
+
+    async def test_take_fiber_spectrograph_dark_led_failure_restarts_laser(
+        self,
+    ) -> None:
+        self.mock_laser_propagating_initially()
+        self.mtcalsys.rem.ledprojector.cmd_switchAllOn.start.side_effect = RuntimeError(
+            "LED projector unreachable"
+        )
+
+        with self.assertRaises(RuntimeError):
+            await self.mtcalsys.take_fiber_spectrograph_dark(group_id="GID_TEST")
+
+        # Even though taking the dark failed, the laser must still have been
+        # restarted since it was propagating beforehand.
+        self.mtcalsys.rem.tunablelaser.cmd_startPropagateLaser.start.assert_awaited_with(
+            timeout=self.mtcalsys.laser_warmup
         )
 
     async def test_prepare_for_whitelight_flat(self) -> None:
