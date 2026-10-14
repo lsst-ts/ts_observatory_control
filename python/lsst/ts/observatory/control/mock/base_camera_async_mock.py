@@ -29,7 +29,10 @@ import astropy
 import pytest
 from lsst.ts import utils
 from lsst.ts.observatory.control import CameraExposure
-from lsst.ts.observatory.control.base_camera import CameraSubstate
+from lsst.ts.observatory.control.base_camera import (
+    CameraShutterDetailedState,
+    CameraSubstate,
+)
 from lsst.ts.observatory.control.mock import RemoteGroupAsyncMock
 
 HB_TIMEOUT = 5  # Heartbeat timeout (sec)
@@ -93,6 +96,8 @@ class BaseCameraAsyncMock(RemoteGroupAsyncMock):
         self._start_integration_event = asyncio.Event()
         self._start_integration_event.clear()
         self._camera_substate = CameraSubstate.IDLE
+        self._shutter_detailed_state_event = asyncio.Event()
+        self._shutter_detailed_state_event.clear()
 
         self.image_name: str | None = None
 
@@ -110,6 +115,12 @@ class BaseCameraAsyncMock(RemoteGroupAsyncMock):
         )
         self.remote_group.camera.evt_ccsCommandState.aget.configure_mock(
             side_effect=self.aget_ccs_command_state
+        )
+        self.remote_group.camera.evt_shutterDetailedState.aget.configure_mock(
+            side_effect=self.aget_shutter_detailed_state
+        )
+        self.remote_group.camera.evt_shutterDetailedState.next.configure_mock(
+            side_effect=self.next_shutter_detailed_state
         )
         self.remote_group.camera.cmd_takeImages.start.configure_mock(
             side_effect=self.start_take_images
@@ -173,6 +184,23 @@ class BaseCameraAsyncMock(RemoteGroupAsyncMock):
     ) -> types.SimpleNamespace:
         return types.SimpleNamespace(substate=self._camera_substate.value)
 
+    async def aget_shutter_detailed_state(
+        self, *args: typing.Any, **kwargs: typing.Any
+    ) -> types.SimpleNamespace:
+        return self.shutter_detailed_state
+
+    async def next_shutter_detailed_state(
+        self, flush: bool, *args: typing.Any, **kwargs: typing.Any
+    ) -> types.SimpleNamespace:
+        if flush:
+            self._shutter_detailed_state_event.clear()
+        await self._shutter_detailed_state_event.wait()
+        self._shutter_detailed_state_event.clear()
+        return self.shutter_detailed_state
+
+    def flush_shutter_detailed_state(self) -> None:
+        self._shutter_detailed_state_event.clear()
+
     async def start_take_images(self, *args: typing.Any, **kwargs: typing.Any) -> None:
         self.log.debug("Take images start.")
         for snap in range(self.start_integration.numImages - 1):
@@ -208,6 +236,10 @@ class BaseCameraAsyncMock(RemoteGroupAsyncMock):
         self.set_next_image_name()
         self.start_integration.imageName = self.image_name
         self._start_integration_event.set()
+        self.shutter_detailed_state.substate = CameraShutterDetailedState.OPENING
+        self.shutter_detailed_state.timestampTransition = utils.current_tai()
+        self._shutter_detailed_state_event.set()
+        await asyncio.sleep(0.5)
 
     async def start_end_image(self, *args: typing.Any, **kwargs: typing.Any) -> None:
         self._end_readout_event.set()
@@ -219,7 +251,22 @@ class BaseCameraAsyncMock(RemoteGroupAsyncMock):
 
     async def _mock_take_image(self) -> None:
         self.log.debug("Mock take image start.")
+
+        self.shutter_detailed_state.substate = CameraShutterDetailedState.OPEN
+        self.shutter_detailed_state.timestampTransition = utils.current_tai()
+        self._shutter_detailed_state_event.set()
         await asyncio.sleep(0.5)
+
+        self.shutter_detailed_state.substate = CameraShutterDetailedState.CLOSING
+        self.shutter_detailed_state.timestampTransition = utils.current_tai()
+        self._shutter_detailed_state_event.set()
+        await asyncio.sleep(0.5)
+
+        self.shutter_detailed_state.substate = CameraShutterDetailedState.CLOSED
+        self.shutter_detailed_state.timestampTransition = utils.current_tai()
+        self._shutter_detailed_state_event.set()
+        await asyncio.sleep(0.5)
+
         self._end_readout_event.set()
         self._start_integration_event.clear()
         self.log.debug("Mock take image end.")

@@ -19,15 +19,18 @@
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <https://www.gnu.org/licenses/>.
 
+import asyncio
 import json
 import logging
 import typing
 from unittest.mock import AsyncMock, call, patch
 
 import pytest
+from lsst.ts.observatory.control.base_camera import CameraShutterDetailedState
 from lsst.ts.observatory.control.maintel.lsstcam import LSSTCam, LSSTCamUsages
 from lsst.ts.observatory.control.mock.base_camera_async_mock import BaseCameraAsyncMock
 from lsst.ts.observatory.control.utils.roi_spec import ROI, ROICommon, ROISpec
+from lsst.ts.utils import current_tai
 
 
 class TestLSSTCam(BaseCameraAsyncMock):
@@ -63,6 +66,13 @@ class TestLSSTCam(BaseCameraAsyncMock):
             component="MTCamera",
             topic="logevent_startIntegration",
         )
+
+        self.shutter_detailed_state = self.get_sample(
+            component="MTCamera",
+            topic="logevent_shutterDetailedState",
+        )
+        self.shutter_detailed_state.substate = CameraShutterDetailedState.CLOSED
+        self.shutter_detailed_state.timestampTransition = current_tai()
 
     async def test_setup_instrument(self) -> None:
         # OK when no filter requested
@@ -711,3 +721,26 @@ class TestLSSTCam(BaseCameraAsyncMock):
             reason="UNIT TEST",
             program="UTEST",
         )
+
+    async def test_wait_for_camera_shutter_state(self) -> None:
+        async with asyncio.timeout(10):
+            await self.lsstcam.wait_for_camera_shutter_state(
+                {
+                    CameraShutterDetailedState.CLOSED,
+                },
+                timeout=5,
+            )
+
+        task = asyncio.create_task(
+            self.lsstcam.wait_for_camera_shutter_state(
+                {
+                    CameraShutterDetailedState.OPENING,
+                },
+                timeout=5,
+            )
+        )
+
+        self.shutter_detailed_state.substate = CameraShutterDetailedState.OPENING
+
+        async with asyncio.timeout(5):
+            await task

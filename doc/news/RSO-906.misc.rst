@@ -1,0 +1,1 @@
+Added mocking of the camera shutter to ``mock/base_camera_async_mock.py``.
