@@ -40,6 +40,13 @@ class CameraSubstate(enum.IntEnum):
     BUSY = enum.auto()
 
 
+class CameraShutterDetailedState(enum.IntEnum):
+    CLOSED = enum.auto()
+    OPEN = enum.auto()
+    CLOSING = enum.auto()
+    OPENING = enum.auto()
+
+
 class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
     """Base class for camera instruments.
 
@@ -1716,6 +1723,59 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
                 )
 
         self.camera.evt_startIntegration.flush()
+
+    async def wait_for_camera_shutter_state(
+        self,
+        expected_states: set[CameraShutterDetailedState],
+        timeout: float,
+    ) -> None:
+        """Wait for the camera shutter state to match one of the
+        specified states.
+
+        Parameters
+        ----------
+        substate : `set`[`CameraShutterSubstate`]
+            Which substates to wait the camera shutter to be.
+        timeout : `float`
+            How to long to wait for updates in shutter detailed
+            state (seconds).
+        """
+
+        if hasattr(self.camera, "evt_shutterDetailedState"):
+            self.log.info("Handling camera shutter state.")
+            try:
+                shutter_detailed_state = CameraShutterDetailedState(
+                    (
+                        await self.camera.evt_shutterDetailedState.aget(
+                            timeout=self.fast_timeout,
+                        )
+                    ).substate
+                )
+                self.camera.evt_shutterDetailedState.flush()
+                self.log.info(
+                    f"Current shutter State: {shutter_detailed_state!r}. "
+                    f"Expected states: {expected_states}."
+                )
+                while shutter_detailed_state not in expected_states:
+                    shutter_detailed_state = CameraShutterDetailedState(
+                        (
+                            await self.camera.evt_shutterDetailedState.next(
+                                flush=False,
+                                timeout=timeout,
+                            )
+                        ).substate
+                    )
+                    self.log.info(
+                        f"Current shutter State: {shutter_detailed_state!r}. "
+                        f"Expected states: {expected_states}."
+                    )
+
+            except asyncio.TimeoutError:
+                self.log.warning(
+                    "Could not determine Shutter Detailed State; ignoring."
+                )
+        else:
+            self.log.info("Not handling shutter state.")
 
     async def wait_for_camera_state(self, substate: CameraSubstate) -> None:
         """Wait for the camera command state to match the specified one.
