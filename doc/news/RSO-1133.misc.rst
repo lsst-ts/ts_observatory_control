@@ -1,0 +1,1 @@
+Modifying laser_cbp sequence to be burst mode.
