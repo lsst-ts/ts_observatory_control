@@ -1768,6 +1768,32 @@ ptc_i_39_750:
     random_seed: null
     exp_list_start_idx: 0
 
+ptc_r_57_750:
+  mtcamera_filter: r_57
+  led_name:
+    - M565L3
+    - M660L4
+  wavelength: 612.5
+  led_location: 66.87
+  led_focus: 7.52
+  use_camera: True
+  n_flat: 2
+  constrained_random_exposure_times:
+    samples_per_bin:
+      - 225
+      - 150
+      - 375
+    bin_edges:
+      - [1.0, 30.0]
+      - [1.0, 15.0]
+      - [4.0, 65.0]
+    bin_dac_values:
+      - 0.15
+      - 0.5
+      - 0.8
+    random_seed: null
+    exp_list_start_idx: 0
+
 laser_ptc:
   calib_type: Mono
   laser_mode: 1
