@@ -1991,6 +1991,109 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
             raise RuntimeError(f"Could not find {object_name} in Simbad database.")
         return target_info
 
+    def _query_region_from_simbad(
+        self, radec: ICRS, radius: u.Quantity, criteria: str
+    ) -> Table | None:
+        """Run a cone search on Simbad.
+
+        This is the only place where ``find_target_simbad`` reaches the
+        remote server, which makes it easy to replace in unit tests.
+
+        Parameters
+        ----------
+        radec : `ICRS`
+            Center of the cone search.
+        radius : `astropy.units.Quantity`
+            Radius of the cone search.
+        criteria : `str`
+            ADQL criteria to filter the results.
+
+        Returns
+        -------
+        `Table` or `None`
+            Query results.
+        """
+        custom_simbad = Simbad()
+
+        custom_simbad.add_votable_fields("V", "rvz_redshift", "ident")
+        custom_simbad.TIMEOUT = self.long_long_timeout
+
+        return custom_simbad.query_region(
+            coordinates=radec,
+            radius=radius,
+            criteria=criteria,
+        )
+
+    @staticmethod
+    def _select_brightest_from_region_table(result_table: Table) -> tuple[str, ICRS]:
+        """Select the brightest target from a Simbad cone search result.
+
+        Parameters
+        ----------
+        result_table : `Table`
+            Table returned by Simbad ``query_region``, with at least the
+            ``V``, ``ra`` and ``dec`` columns and one identifier column.
+
+        Returns
+        -------
+        target_name : `str`
+            Name of the brightest target.
+        radec_icrs : `ICRS`
+            Coordinates of the brightest target.
+
+        Raises
+        ------
+        KeyError
+            If no suitable identifier column is found.
+        """
+        result_table = result_table.copy()
+        result_table.sort("V")
+
+        for ident_column in ("id", "main_id", "ident.id"):
+            if ident_column in result_table.colnames:
+                target_name = str(result_table[ident_column][0]).rstrip()
+                break
+        else:
+            raise KeyError(
+                "No suitable identifier column found in Simbad search results. "
+                f"Available columns: {result_table.colnames}."
+            )
+
+        radec_icrs = ICRS(
+            ra=Angle(result_table[0]["ra"], unit=u.deg),
+            dec=Angle(result_table[0]["dec"], unit=u.deg),
+        )
+
+        return target_name, radec_icrs
+
+    @staticmethod
+    def _radec_from_object_table(object_table: Table) -> ICRS:
+        """Get coordinates from the first row of an object table.
+
+        Supports both the internal catalog format (``RA`` in hour angle and
+        ``DEC`` columns) and the Simbad format (``ra`` and ``dec`` in
+        degrees).
+
+        Parameters
+        ----------
+        object_table : `Table`
+            Object information, as returned by `_query_object`.
+
+        Returns
+        -------
+        `ICRS`
+            Coordinates of the object.
+        """
+        ra_key, ra_unit = (
+            ("RA", u.hourangle) if "RA" in object_table.colnames else ("ra", u.deg)
+        )
+        dec_key = "DEC" if "DEC" in object_table.colnames else "dec"
+
+        ra = Angle(object_table[0][ra_key], unit=ra_unit)
+        dec = Angle(object_table[0][dec_key], unit=u.deg)
+
+        return ICRS(ra=ra.to(u.hourangle), dec=dec)
+
     async def _handle_in_position(
         self,
         in_position_event: salobj.type_hints.BaseMsgType,
