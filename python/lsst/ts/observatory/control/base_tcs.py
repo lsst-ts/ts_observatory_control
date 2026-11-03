@@ -1755,11 +1755,6 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
             If no object is found.
         """
 
-        customSimbad = Simbad()
-
-        customSimbad.add_votable_fields("V", "rvz_redshift", "ident")
-        customSimbad.TIMEOUT = self.long_long_timeout
-
         radec = self.radec_from_azel(az=az, el=el)
 
         # Build the ADQL-like criteria for V magnitude + HD catalog
@@ -1768,8 +1763,8 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
         )
 
         query_callable = partial(
-            customSimbad.query_region,
-            coordinates=radec,
+            self._query_region_from_simbad,
+            radec=radec,
             radius=radius * u.deg,
             criteria=criteria,
         )
@@ -1784,27 +1779,11 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
         if result_table is None or len(result_table) == 0:
             raise RuntimeError(f"No results found for region around {radec}.")
 
-        result_table.sort("V")
+        target_name, radec_icrs = self._select_brightest_from_region_table(result_table)
 
-        if "id" in result_table.colnames:
-            target_ident_id = str(result_table["id"][0])
-        elif "main_id" in result_table.colnames:
-            target_ident_id = str(result_table["main_id"][0])
-        elif "ident.id" in result_table.colnames:
-            target_ident_id = str(result_table["ident.id"][0])
-        else:
-            raise KeyError(
-                f"No suitable identifier column found in Simbad search for {radec}"
-            )
+        self.object_list_add(target_name, radec_icrs)
 
-        radec_icrs = ICRS(
-            ra=Angle(result_table[0]["ra"], unit=u.deg),
-            dec=Angle(result_table[0]["dec"], unit=u.deg),
-        )
-
-        self.object_list_add(f"{target_ident_id}".rstrip(), radec_icrs)
-
-        return f"{target_ident_id}".rstrip()
+        return target_name
 
     async def find_target_local_catalog(
         self,
