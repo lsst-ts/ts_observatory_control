@@ -199,19 +199,7 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
                     f"Found more than one entry for {name}. Using first one."
                 )
 
-            # Get RA and DEC keyword from table
-            ra_key, ra_coordinates = (
-                ("RA", u.hourangle) if "RA" in object_table.columns else ("ra", u.deg)
-            )
-            dec_key = "DEC" if "DEC" in object_table.columns else "dec"
-
-            ra = Angle(object_table[0][ra_key], unit=ra_coordinates)
-            dec = Angle(object_table[0][dec_key], unit=u.deg)
-
-            radec_icrs = ICRS(
-                ra=ra.to(u.hourangle),
-                dec=dec,
-            )
+            radec_icrs = self._radec_from_object_table(object_table)
 
             self.object_list_add(name, radec_icrs)
         else:
