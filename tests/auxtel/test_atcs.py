@@ -121,15 +121,19 @@ class TestATTCS(ATCSAsyncMock):
 
         assert not self.atcs.is_catalog_loaded()
 
-    @pytest.mark.xfail(
-        reason="Access to Simbad database is sometimes flaky.",
-        raises=RuntimeError,
-    )
     async def test_find_target(self) -> None:
         # Make sure it searches Simbad and not local catalog
         self.atcs.clear_catalog()
 
         name = await self.atcs.find_target(az=-180.0, el=30.0, mag_limit=9.0)
+
+        # Brightest target in tests/data/simbad/query_region.ecsv.
+        assert name == "HD  66943"
+        assert name in self.atcs._object_list
+        assert self.atcs._object_list[name].ra.deg == pytest.approx(120.59033678217)
+        assert self.atcs._object_list[name].dec.deg == pytest.approx(-59.81287314777)
+
+        self.atcs.object_list_clear()
 
         assert name in self.atcs._object_list
 
