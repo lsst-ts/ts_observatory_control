@@ -1954,7 +1954,9 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
         """
         target_info = Simbad.query_object(object_name)
 
-        if target_info is None:
+        # Older astroquery versions return None when the object is not found,
+        # newer ones return an empty table.
+        if target_info is None or len(target_info) == 0:
             raise RuntimeError(f"Could not find {object_name} in Simbad database.")
         return target_info
 
