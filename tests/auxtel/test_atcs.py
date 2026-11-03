@@ -31,7 +31,6 @@ import astropy.units as u
 import numpy as np
 import pytest
 from astropy.coordinates import Angle
-from astroquery.simbad import Simbad
 from lsst.ts import salobj
 from lsst.ts.observatory.control.mock.atcs_async_mock import ATCSAsyncMock
 from lsst.ts.observatory.control.utils import RotType
@@ -74,7 +73,7 @@ class TestATTCS(ATCSAsyncMock):
     def test_object_list_add(self) -> None:
         name = "HD 185975"
 
-        object_table = Simbad.query_object(name)
+        object_table = self.atcs._query_object_from_simbad(name)
 
         self.atcs.object_list_add(name, object_table)
 
