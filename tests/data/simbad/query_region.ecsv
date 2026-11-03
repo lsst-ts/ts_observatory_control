@@ -1,0 +1,91 @@
+# %ECSV 1.0
+# ---
+# datatype:
+# - name: main_id
+#   datatype: string
+#   description: Main identifier for an object
+#   meta: !!omap
+#   - {ucd: meta.id;meta.main}
+#   - {utype: 'mango:MangoObject.identifier'}
+#   - {_votable_string_dtype: char}
+#   - {_votable_arraysize: '*'}
+#   subtype: json
+# - name: ra
+#   unit: deg
+#   datatype: float64
+#   description: Right ascension
+#   meta: !!omap
+#   - {ucd: pos.eq.ra;meta.main}
+#   - {utype: 'mango:EpochPosition.longitude[CS.spaceSys=ICRS CT.epoch=J2000]'}
+# - name: dec
+#   unit: deg
+#   datatype: float64
+#   description: Declination
+#   meta: !!omap
+#   - {ucd: pos.eq.dec;meta.main}
+#   - {utype: 'mango:EpochPosition.latitude[CS.spaceSys=ICRS CT.epoch=J2000]'}
+# - name: coo_err_maj
+#   unit: mas
+#   datatype: float32
+#   description: Coordinate error major axis
+#   meta: !!omap
+#   - {ucd: phys.angSize.smajAxis;pos.errorEllipse;pos.eq}
+#   - {utype: 'mango:EpochPosition.errors.position/mango:error.PErrorEllipse.semiMajorAxis[CS.spaceSys=ICRS CT.epoch=J2000]'}
+# - name: coo_err_min
+#   unit: mas
+#   datatype: float32
+#   description: Coordinate error minor axis
+#   meta: !!omap
+#   - {ucd: phys.angSize.sminAxis;pos.errorEllipse;pos.eq}
+#   - {utype: 'mango:EpochPosition.errors.position/mango:error.PErrorEllipse.semiMinorAxis[CS.spaceSys=ICRS CT.epoch=J2000]'}
+# - name: coo_err_angle
+#   unit: deg
+#   datatype: int16
+#   description: Coordinate error angle
+#   meta: !!omap
+#   - {ucd: pos.posAng;pos.errorEllipse;pos.eq}
+#   - {utype: 'mango:EpochPosition.errors.position/mango:error.PErrorEllipse.angle[CS.spaceSys=ICRS CT.epoch=J2000]'}
+#   - values: {'null': -32768}
+# - name: coo_wavelength
+#   datatype: string
+#   description: Wavelength class for the origin of the coordinates (R,I,V,U,X,G)
+#   meta: !!omap
+#   - {ucd: instr.bandpass;pos.eq}
+#   - {_votable_string_dtype: char}
+# - name: coo_bibcode
+#   datatype: string
+#   description: Coordinate reference
+#   meta: !!omap
+#   - {ucd: meta.bib.bibcode;pos.eq}
+#   - {_votable_string_dtype: char}
+#   - {_votable_arraysize: '*'}
+#   subtype: json
+# - name: V
+#   datatype: float64
+#   description: V magnitude
+#   meta: !!omap
+#   - {ucd: phot.mag;em.opt.V}
+#   - {utype: 'mango:Brightness.value[CS.photCal=V]'}
+# - name: rvz_redshift
+#   datatype: float64
+#   description: redshift
+#   meta: !!omap
+#   - {ucd: src.redshift}
+# - name: ident.id
+#   datatype: string
+#   description: Identifier
+#   meta: !!omap
+#   - {ucd: meta.id}
+#   - {_votable_string_dtype: char}
+#   - {_votable_arraysize: '*'}
+#   subtype: json
+# meta: !!omap
+# - {ID: result_S1793741952649}
+# - {name: result_S1793741952649}
+# schema: astropy-2.0
+main_id ra dec coo_err_maj coo_err_min coo_err_angle coo_wavelength coo_bibcode V rvz_redshift ident.id
+"""HD  67084""" 120.74219704111 -60.23017302059 0.011 0.0117 90 O """2020yCat.1350....0G""" 9.4399995803833 7.588871120600693e-05 """HD  67084"""
+"""HD  66943""" 120.59033678217001 -59.81287314777 0.0293 0.0278 90 O """2020yCat.1350....0G""" 9.170000076293945 6.808274946035198e-05 """HD  66943"""
+"""HD  67107""" 120.76043286891 -60.06963120564999 0.0169 0.0164 90 O """2020yCat.1350....0G""" 9.510000228881836 6.691519631862874e-05 """HD  67107"""
+"""HD  67197""" 120.85763107140001 -60.15306966874 0.0131 0.0153 90 O """2020yCat.1350....0G""" 9.34000015258789 7.595542909011321e-05 """HD  67197"""
+"""HD  66388""" 119.95972788904 -59.967056985910006 0.0139 0.0146 90 O """2020yCat.1350....0G""" 9.59000015258789 6.754901071204245e-05 """HD  66388"""
