@@ -1714,6 +1714,7 @@ class BaseCamera(RemoteGroup, metaclass=abc.ABCMeta):
                     "This is most likely due to a camera fault not producing the last "
                     "end readout event. Continuing..."
                 )
+                break
 
         self.camera.evt_startIntegration.flush()
 

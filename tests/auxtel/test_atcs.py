@@ -22,6 +22,7 @@
 import asyncio
 import copy
 import logging
+import pathlib
 import typing
 import unittest
 import unittest.mock
@@ -30,8 +31,8 @@ from contextlib import contextmanager
 import astropy.units as u
 import numpy as np
 import pytest
-from astropy.coordinates import Angle
-from astroquery.simbad import Simbad
+from astropy.coordinates import ICRS, Angle
+from astropy.table import Table
 from lsst.ts import salobj
 from lsst.ts.observatory.control.mock.atcs_async_mock import ATCSAsyncMock
 from lsst.ts.observatory.control.utils import RotType
@@ -74,7 +75,7 @@ class TestATTCS(ATCSAsyncMock):
     def test_object_list_add(self) -> None:
         name = "HD 185975"
 
-        object_table = Simbad.query_object(name)
+        object_table = self.atcs._query_object_from_simbad(name)
 
         self.atcs.object_list_add(name, object_table)
 
@@ -121,15 +122,122 @@ class TestATTCS(ATCSAsyncMock):
 
         assert not self.atcs.is_catalog_loaded()
 
-    @pytest.mark.xfail(
-        reason="Access to Simbad database is sometimes flaky.",
-        raises=RuntimeError,
-    )
+    def test_object_list_get_not_in_simbad(self) -> None:
+        with pytest.raises(RuntimeError, match="Could not find"):
+            self.atcs.object_list_get("NOT A REAL STAR")
+
+        assert "NOT A REAL STAR" not in self.atcs._object_list
+
     async def test_find_target(self) -> None:
         # Make sure it searches Simbad and not local catalog
         self.atcs.clear_catalog()
 
         name = await self.atcs.find_target(az=-180.0, el=30.0, mag_limit=9.0)
+
+        # Brightest target in tests/data/simbad/query_region.ecsv.
+        assert name == "HD  66943"
+        assert name in self.atcs._object_list
+        assert self.atcs._object_list[name].ra.deg == pytest.approx(120.59033678217)
+        assert self.atcs._object_list[name].dec.deg == pytest.approx(-59.81287314777)
+
+        self.atcs.object_list_clear()
+
+    async def test_find_target_simbad_no_results(self) -> None:
+        empty_table = Table(names=("main_id", "ra", "dec", "V"))
+        with unittest.mock.patch.object(
+            self.atcs, "_query_region_from_simbad", return_value=empty_table
+        ), pytest.raises(RuntimeError, match="No results found"):
+            await self.atcs.find_target_simbad(az=-180.0, el=30.0, mag_limit=9.0)
+
+    async def test_find_target_simbad_query_fails(self) -> None:
+        with unittest.mock.patch.object(
+            self.atcs,
+            "_query_region_from_simbad",
+            side_effect=ConnectionError("Simbad is down"),
+        ), pytest.raises(RuntimeError, match="Simbad is down"):
+            await self.atcs.find_target_simbad(az=-180.0, el=30.0, mag_limit=9.0)
+
+    def test_select_brightest_from_region_table(self) -> None:
+        table = Table(
+            {
+                "main_id": ["faint", "bright  ", "medium"],
+                "ra": [10.0, 20.0, 30.0],
+                "dec": [-10.0, -20.0, -30.0],
+                "V": [11.0, 9.0, 10.0],
+            }
+        )
+
+        name, radec = self.atcs._select_brightest_from_region_table(table)
+
+        assert name == "bright"
+        assert radec.ra.deg == pytest.approx(20.0)
+        assert radec.dec.deg == pytest.approx(-20.0)
+        # Input table must not be modified.
+        assert list(table["main_id"]) == ["faint", "bright  ", "medium"]
+
+    def test_select_brightest_from_region_table_ident_columns(self) -> None:
+        for ident_column in ("id", "main_id", "ident.id"):
+            with self.subTest(ident_column=ident_column):
+                table = Table(
+                    {ident_column: ["HD 1"], "ra": [1.0], "dec": [2.0], "V": [8.0]}
+                )
+                name, _ = self.atcs._select_brightest_from_region_table(table)
+                assert name == "HD 1"
+
+        table = Table({"name": ["HD 1"], "ra": [1.0], "dec": [2.0], "V": [8.0]})
+        with pytest.raises(KeyError, match="No suitable identifier column"):
+            self.atcs._select_brightest_from_region_table(table)
+
+    def test_radec_from_object_table(self) -> None:
+        simbad_format = Table({"main_id": ["HD 1"], "ra": [30.0], "dec": [-45.0]})
+        catalog_format = Table({"MAIN_ID": ["HD 1"], "RA": [2.0], "DEC": [-45.0]})
+
+        for table in (simbad_format, catalog_format):
+            with self.subTest(colnames=table.colnames):
+                radec = self.atcs._radec_from_object_table(table)
+                assert radec.ra.deg == pytest.approx(30.0)
+                assert radec.dec.deg == pytest.approx(-45.0)
+
+    @pytest.mark.remote
+    def test_object_list_get_simbad_remote(self) -> None:
+        name = "HD 185975"
+
+        radec = self.atcs.object_list_get(name)
+
+        assert radec.ra.deg == pytest.approx(307.078, abs=1e-2)
+        assert radec.dec.deg == pytest.approx(-87.472, abs=1e-2)
+
+        self.atcs.object_list_clear()
+
+    @pytest.mark.remote
+    def test_object_list_get_not_in_simbad_remote(self) -> None:
+        with pytest.raises(RuntimeError, match="Could not find"):
+            self.atcs.object_list_get("NOT A REAL STAR")
+
+    @pytest.mark.remote
+    async def test_query_region_from_simbad_remote(self) -> None:
+        """Check that the live Simbad response still matches the recorded
+        fixtures. If this fails, re-run
+        ``tests/data/simbad/record_fixtures.py`` and adapt the parsing code.
+        """
+        fixture = Table.read(
+            pathlib.Path(__file__).parents[1] / "data" / "simbad" / "query_region.ecsv"
+        )
+
+        result = self.atcs._query_region_from_simbad(
+            radec=ICRS(ra=Angle(120.0, unit=u.deg), dec=Angle(-60.0, unit=u.deg)),
+            radius=0.5 * u.deg,
+            criteria="V>9.0 AND V<11.0 AND ident.id LIKE 'HD%'",
+        )
+
+        assert result is not None and len(result) > 0
+        assert set(fixture.colnames) <= set(result.colnames)
+        name, _ = self.atcs._select_brightest_from_region_table(result)
+        assert name.startswith("HD")
+
+    @pytest.mark.remote
+    async def test_find_target_simbad_remote(self) -> None:
+        name = await self.atcs.find_target_simbad(az=-180.0, el=30.0, mag_limit=9.0)
 
         assert name in self.atcs._object_list
 

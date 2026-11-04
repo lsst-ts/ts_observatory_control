@@ -1,0 +1,76 @@
+# %ECSV 1.0
+# ---
+# datatype:
+# - name: main_id
+#   datatype: string
+#   description: Main identifier for an object
+#   meta: !!omap
+#   - {ucd: meta.id;meta.main}
+#   - {utype: 'mango:MangoObject.identifier'}
+#   - {_votable_string_dtype: char}
+#   - {_votable_arraysize: '*'}
+#   subtype: json
+# - name: ra
+#   unit: deg
+#   datatype: float64
+#   description: Right ascension
+#   meta: !!omap
+#   - {ucd: pos.eq.ra;meta.main}
+#   - {utype: 'mango:EpochPosition.longitude[CS.spaceSys=ICRS CT.epoch=J2000]'}
+# - name: dec
+#   unit: deg
+#   datatype: float64
+#   description: Declination
+#   meta: !!omap
+#   - {ucd: pos.eq.dec;meta.main}
+#   - {utype: 'mango:EpochPosition.latitude[CS.spaceSys=ICRS CT.epoch=J2000]'}
+# - name: coo_err_maj
+#   unit: mas
+#   datatype: float32
+#   description: Coordinate error major axis
+#   meta: !!omap
+#   - {ucd: phys.angSize.smajAxis;pos.errorEllipse;pos.eq}
+#   - {utype: 'mango:EpochPosition.errors.position/mango:error.PErrorEllipse.semiMajorAxis[CS.spaceSys=ICRS CT.epoch=J2000]'}
+# - name: coo_err_min
+#   unit: mas
+#   datatype: float32
+#   description: Coordinate error minor axis
+#   meta: !!omap
+#   - {ucd: phys.angSize.sminAxis;pos.errorEllipse;pos.eq}
+#   - {utype: 'mango:EpochPosition.errors.position/mango:error.PErrorEllipse.semiMinorAxis[CS.spaceSys=ICRS CT.epoch=J2000]'}
+# - name: coo_err_angle
+#   unit: deg
+#   datatype: int16
+#   description: Coordinate error angle
+#   meta: !!omap
+#   - {ucd: pos.posAng;pos.errorEllipse;pos.eq}
+#   - {utype: 'mango:EpochPosition.errors.position/mango:error.PErrorEllipse.angle[CS.spaceSys=ICRS CT.epoch=J2000]'}
+#   - values: {'null': -32768}
+# - name: coo_wavelength
+#   datatype: string
+#   description: Wavelength class for the origin of the coordinates (R,I,V,U,X,G)
+#   meta: !!omap
+#   - {ucd: instr.bandpass;pos.eq}
+#   - {_votable_string_dtype: char}
+# - name: coo_bibcode
+#   datatype: string
+#   description: Coordinate reference
+#   meta: !!omap
+#   - {ucd: meta.bib.bibcode;pos.eq}
+#   - {_votable_string_dtype: char}
+#   - {_votable_arraysize: '*'}
+#   subtype: json
+# - name: matched_id
+#   datatype: string
+#   description: Identifier
+#   meta: !!omap
+#   - {ucd: meta.id}
+#   - {_votable_string_dtype: char}
+#   - {_votable_arraysize: '*'}
+#   subtype: json
+# meta: !!omap
+# - {ID: result_S1793741951988}
+# - {name: result_S1793741951988}
+# schema: astropy-2.0
+main_id ra dec coo_err_maj coo_err_min coo_err_angle coo_wavelength coo_bibcode matched_id
+"""HD 185975""" 307.07808261007 -87.47220487981 0.0121 0.0123 90 O """2020yCat.1350....0G""" """HD 185975"""
