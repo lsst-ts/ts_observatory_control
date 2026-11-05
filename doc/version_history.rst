@@ -8,6 +8,33 @@ Version History
 
 .. towncrier release notes start
 
+v0.51.2 (2026-11-05)
+====================
+
+New Features
+------------
+
+- Added new MTCalsys PTC schema for r band. (`SSW-3133 <https://rubinobs.atlassian.net/browse/SSW-3133>`_)
+
+
+Bug Fixes
+---------
+
+- In ``base_camera.py``, fixed an issue with taking images when the camera faults and does not publish the end readout event. (`SSW-3133 <https://rubinobs.atlassian.net/browse/SSW-3133>`_)
+
+
+Performance Enhancement
+-----------------------
+
+- Refactored how object coordinates is retrieved using Simbad. (`SSW-3133 <https://rubinobs.atlassian.net/browse/SSW-3133>`_)
+
+
+Other Changes and Additions
+---------------------------
+
+- In ``mock/base_camera_async_mock.py``, added mocking of the camera endReadout flush method. (`SSW-3133 <https://rubinobs.atlassian.net/browse/SSW-3133>`_)
+
+
 v0.53.1 (2026-10-22)
 ====================
 

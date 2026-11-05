@@ -1,1 +1,0 @@
-In ``base_camera.py``, fixed an issue with taking images when the camera faults and does not publish the end readout event.

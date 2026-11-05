@@ -1,1 +1,0 @@
-Refactored how object coordinates is retrieved using Simbad.
