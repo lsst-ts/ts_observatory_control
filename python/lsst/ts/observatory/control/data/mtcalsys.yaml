@@ -26,7 +26,8 @@ laser_cbp:
   use_camera: False
   use_cbp_electrometer: True
   use_flatfield_electrometer: False
-  laser_mode: 1
+  laser_mode: 4
+  nburst: 3
   optical_configuration: F1 SCU
   electrometer_mode: 'CHARGE'
   electrometer_integration_time: 1
@@ -35,7 +36,7 @@ laser_cbp:
   wavelength_width: 800
   wavelength_resolution: 100.
   exposure_times:
-    - 2.0
+    - 20.0
 
 cbp_g_leak:
   mtcamera_filter: g_6
