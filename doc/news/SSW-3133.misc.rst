@@ -1,1 +1,0 @@
-In ``mock/base_camera_async_mock.py``, added mocking of the camera endReadout flush method.
