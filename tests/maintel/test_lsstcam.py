@@ -19,6 +19,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <https://www.gnu.org/licenses/>.
 
+import asyncio
 import json
 import logging
 import typing
@@ -711,3 +712,22 @@ class TestLSSTCam(BaseCameraAsyncMock):
             reason="UNIT TEST",
             program="UTEST",
         )
+
+    async def test_no_end_readout_from_camera(self) -> None:
+        exptime = 1.0
+        await self.lsstcam.take_darks(
+            ndarks=1,
+            exptime=exptime,
+        )
+
+        await self.lsstcam.wait_for_camera_readiness()
+
+        self.image_name = f"{self.image_name}_x"  # type: ignore
+        self.end_readout.imageName = self.image_name
+
+        self.log.info("Checking wait for camera readiness...")
+
+        async with asyncio.timeout(
+            self.lsstcam.long_timeout + self.lsstcam.read_out_time + exptime * 3
+        ):
+            await self.lsstcam.wait_for_camera_readiness()

@@ -199,19 +199,7 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
                     f"Found more than one entry for {name}. Using first one."
                 )
 
-            # Get RA and DEC keyword from table
-            ra_key, ra_coordinates = (
-                ("RA", u.hourangle) if "RA" in object_table.columns else ("ra", u.deg)
-            )
-            dec_key = "DEC" if "DEC" in object_table.columns else "dec"
-
-            ra = Angle(object_table[0][ra_key], unit=ra_coordinates)
-            dec = Angle(object_table[0][dec_key], unit=u.deg)
-
-            radec_icrs = ICRS(
-                ra=ra.to(u.hourangle),
-                dec=dec,
-            )
+            radec_icrs = self._radec_from_object_table(object_table)
 
             self.object_list_add(name, radec_icrs)
         else:
@@ -1755,11 +1743,6 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
             If no object is found.
         """
 
-        customSimbad = Simbad()
-
-        customSimbad.add_votable_fields("V", "rvz_redshift", "ident")
-        customSimbad.TIMEOUT = self.long_long_timeout
-
         radec = self.radec_from_azel(az=az, el=el)
 
         # Build the ADQL-like criteria for V magnitude + HD catalog
@@ -1768,8 +1751,8 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
         )
 
         query_callable = partial(
-            customSimbad.query_region,
-            coordinates=radec,
+            self._query_region_from_simbad,
+            radec=radec,
             radius=radius * u.deg,
             criteria=criteria,
         )
@@ -1784,27 +1767,11 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
         if result_table is None or len(result_table) == 0:
             raise RuntimeError(f"No results found for region around {radec}.")
 
-        result_table.sort("V")
+        target_name, radec_icrs = self._select_brightest_from_region_table(result_table)
 
-        if "id" in result_table.colnames:
-            target_ident_id = str(result_table["id"][0])
-        elif "main_id" in result_table.colnames:
-            target_ident_id = str(result_table["main_id"][0])
-        elif "ident.id" in result_table.colnames:
-            target_ident_id = str(result_table["ident.id"][0])
-        else:
-            raise KeyError(
-                f"No suitable identifier column found in Simbad search for {radec}"
-            )
+        self.object_list_add(target_name, radec_icrs)
 
-        radec_icrs = ICRS(
-            ra=Angle(result_table[0]["ra"], unit=u.deg),
-            dec=Angle(result_table[0]["dec"], unit=u.deg),
-        )
-
-        self.object_list_add(f"{target_ident_id}".rstrip(), radec_icrs)
-
-        return f"{target_ident_id}".rstrip()
+        return target_name
 
     async def find_target_local_catalog(
         self,
@@ -1987,9 +1954,114 @@ class BaseTCS(RemoteGroup, metaclass=abc.ABCMeta):
         """
         target_info = Simbad.query_object(object_name)
 
-        if target_info is None:
+        # Older astroquery versions return None when the object is not found,
+        # newer ones return an empty table.
+        if target_info is None or len(target_info) == 0:
             raise RuntimeError(f"Could not find {object_name} in Simbad database.")
         return target_info
+
+    def _query_region_from_simbad(
+        self, radec: ICRS, radius: u.Quantity, criteria: str
+    ) -> Table | None:
+        """Run a cone search on Simbad.
+
+        This is the only place where ``find_target_simbad`` reaches the
+        remote server, which makes it easy to replace in unit tests.
+
+        Parameters
+        ----------
+        radec : `ICRS`
+            Center of the cone search.
+        radius : `astropy.units.Quantity`
+            Radius of the cone search.
+        criteria : `str`
+            ADQL criteria to filter the results.
+
+        Returns
+        -------
+        `Table` or `None`
+            Query results.
+        """
+        custom_simbad = Simbad()
+
+        custom_simbad.add_votable_fields("V", "rvz_redshift", "ident")
+        custom_simbad.TIMEOUT = self.long_long_timeout
+
+        return custom_simbad.query_region(
+            coordinates=radec,
+            radius=radius,
+            criteria=criteria,
+        )
+
+    @staticmethod
+    def _select_brightest_from_region_table(result_table: Table) -> tuple[str, ICRS]:
+        """Select the brightest target from a Simbad cone search result.
+
+        Parameters
+        ----------
+        result_table : `Table`
+            Table returned by Simbad ``query_region``, with at least the
+            ``V``, ``ra`` and ``dec`` columns and one identifier column.
+
+        Returns
+        -------
+        target_name : `str`
+            Name of the brightest target.
+        radec_icrs : `ICRS`
+            Coordinates of the brightest target.
+
+        Raises
+        ------
+        KeyError
+            If no suitable identifier column is found.
+        """
+        result_table = result_table.copy()
+        result_table.sort("V")
+
+        for ident_column in ("id", "main_id", "ident.id"):
+            if ident_column in result_table.colnames:
+                target_name = str(result_table[ident_column][0]).rstrip()
+                break
+        else:
+            raise KeyError(
+                "No suitable identifier column found in Simbad search results. "
+                f"Available columns: {result_table.colnames}."
+            )
+
+        radec_icrs = ICRS(
+            ra=Angle(result_table[0]["ra"], unit=u.deg),
+            dec=Angle(result_table[0]["dec"], unit=u.deg),
+        )
+
+        return target_name, radec_icrs
+
+    @staticmethod
+    def _radec_from_object_table(object_table: Table) -> ICRS:
+        """Get coordinates from the first row of an object table.
+
+        Supports both the internal catalog format (``RA`` in hour angle and
+        ``DEC`` columns) and the Simbad format (``ra`` and ``dec`` in
+        degrees).
+
+        Parameters
+        ----------
+        object_table : `Table`
+            Object information, as returned by `_query_object`.
+
+        Returns
+        -------
+        `ICRS`
+            Coordinates of the object.
+        """
+        ra_key, ra_unit = (
+            ("RA", u.hourangle) if "RA" in object_table.colnames else ("ra", u.deg)
+        )
+        dec_key = "DEC" if "DEC" in object_table.colnames else "dec"
+
+        ra = Angle(object_table[0][ra_key], unit=ra_unit)
+        dec = Angle(object_table[0][dec_key], unit=u.deg)
+
+        return ICRS(ra=ra.to(u.hourangle), dec=dec)
 
     async def _handle_in_position(
         self,

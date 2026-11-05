@@ -102,6 +102,9 @@ class BaseCameraAsyncMock(RemoteGroupAsyncMock):
         self.remote_group.camera.evt_endReadout.aget.configure_mock(
             side_effect=self.aget_end_readout
         )
+        self.remote_group.camera.evt_endReadout.flush.configure_mock(
+            side_effect=self.flush_end_readout
+        )
         self.remote_group.camera.evt_startIntegration.aget.configure_mock(
             side_effect=self.aget_start_integration
         )
@@ -149,6 +152,11 @@ class BaseCameraAsyncMock(RemoteGroupAsyncMock):
         self.end_readout.imageName = self.image_name
         self.log.info("Waiting for next end readout end.")
         return self.end_readout
+
+    def flush_end_readout(self) -> None:
+        self.log.info(f"Flush end readout: {self._end_readout_event.is_set()}.")
+        self._end_readout_event.clear()
+        self.log.info(f"Flush end readout: {self._end_readout_event.is_set()}.")
 
     async def aget_start_integration(
         self, *args: typing.Any, **kwargs: typing.Any

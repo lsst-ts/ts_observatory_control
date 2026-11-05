@@ -26,6 +26,9 @@ __version__ = "{version}"
  
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
+markers = [
+  "remote: test accesses a remote service (e.g. Simbad); skipped unless --run-remote is given or TS_OBSERVATORY_CONTROL_RUN_REMOTE=1.",
+]
  
 [tool.mypy]
 disallow_untyped_defs = "True"
