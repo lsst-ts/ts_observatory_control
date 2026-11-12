@@ -603,8 +603,7 @@ class MTCalsys(BaseCalsys):
 
         await asyncio.gather(led_focus_home, laser_focus_home)
         # Turn off the LEDs
-        # TO-DO (DM-50206): Swap switchON/OFF
-        await self.rem.ledprojector.cmd_switchAllOn.start(
+        await self.rem.ledprojector.cmd_switchAllOff.start(
             timeout=self.long_timeout,
         )
 
@@ -990,8 +989,7 @@ class MTCalsys(BaseCalsys):
 
         if calibration_type == CalibrationType.WhiteLight:
             # Turn off all LEDs
-            # TO-DO (DM-50206): Swap switchON/OFF
-            await self.rem.ledprojector.cmd_switchAllOn.start(
+            await self.rem.ledprojector.cmd_switchAllOff.start(
                 timeout=self.long_timeout,
             )
 
@@ -1028,7 +1026,7 @@ class MTCalsys(BaseCalsys):
             )
 
             led_names: typing.Iterable[str] = config_data.get("led_name", [])
-            task_turn_led_on = self.rem.ledprojector.cmd_switchOff.set_start(
+            task_turn_led_on = self.rem.ledprojector.cmd_switchOn.set_start(
                 serialNumbers=",".join(led_names),
                 timeout=self.long_timeout,
             )
@@ -1811,10 +1809,11 @@ class MTCalsys(BaseCalsys):
         exposures_done.set_result(True)
 
         try:
-            # Turn off all LEDs (cmd_switchAllOn turns them off per
-            # DM-50206 TODO). Done inside the try so a failure here still
+            # Turn off all LEDs. Done inside the try so a failure here still
             # restarts the laser in the finally block below.
-            await self.rem.ledprojector.cmd_switchAllOn.start(timeout=self.long_timeout)
+            await self.rem.ledprojector.cmd_switchAllOff.start(
+                timeout=self.long_timeout
+            )
 
             # exptimes=[None] is a placeholder: the exposure time values
             # currently have no effect on the result (see TODO in
