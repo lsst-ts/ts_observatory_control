@@ -5,3 +5,4 @@ flake8: true
 insert-license: true
 isort: true
 mypy: true
+towncrier: true

@@ -785,8 +785,8 @@ scan_g:
   optical_configuration: F2 SCU
   use_camera: True
   mtcamera_filter: g_6
-  wavelength: 480.0
-  wavelength_width: 220
+  wavelength: 465.0
+  wavelength_width: 250
   wavelength_resolution: 5.0
   n_flat: 2
   exposure_times:
