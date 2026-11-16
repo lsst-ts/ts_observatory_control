@@ -1781,6 +1781,10 @@ class MTCalsys(BaseCalsys):
         dark exposures and restarts it afterwards. Also turns off all LEDs.
         The laser restart is guaranteed via a ``finally`` block.
 
+        If the TunableLaser or LED projector reject the stop/restart or
+        LED shutdown commands because they are not Enabled, the rejection
+        is logged and ignored instead of raising an error.
+
         Exposure times are determined by
         `_calculate_fiberspectrograph_exposure_times`.
 
@@ -1805,7 +1809,16 @@ class MTCalsys(BaseCalsys):
 
         if laser_was_propagating:
             self.log.info("Stopping laser propagation for fiber spectrograph dark.")
-            await self.laser_stop_propagate()
+            try:
+                await self.laser_stop_propagate()
+            except salobj.AckError as e:
+                if e.ackcmd.ack != salobj.SalRetCode.CMD_NOPERM:
+                    raise
+                self.log.warning(
+                    "TunableLaser rejected stopPropagateLaser, likely because "
+                    f"it is not Enabled; continuing without stopping it: {e}"
+                )
+                laser_was_propagating = False
 
         exposures_done: asyncio.Future = asyncio.Future()
         exposures_done.set_result(True)
@@ -1814,7 +1827,17 @@ class MTCalsys(BaseCalsys):
             # Turn off all LEDs (cmd_switchAllOn turns them off per
             # DM-50206 TODO). Done inside the try so a failure here still
             # restarts the laser in the finally block below.
-            await self.rem.ledprojector.cmd_switchAllOn.start(timeout=self.long_timeout)
+            try:
+                await self.rem.ledprojector.cmd_switchAllOn.start(
+                    timeout=self.long_timeout
+                )
+            except salobj.AckError as e:
+                if e.ackcmd.ack != salobj.SalRetCode.CMD_NOPERM:
+                    raise
+                self.log.warning(
+                    "LED projector rejected switchAllOn, likely because it is "
+                    f"not Enabled; continuing without turning off the LEDs: {e}"
+                )
 
             # exptimes=[None] is a placeholder: the exposure time values
             # currently have no effect on the result (see TODO in
@@ -1858,7 +1881,15 @@ class MTCalsys(BaseCalsys):
                 self.log.info(
                     "Restarting laser propagation after fiber spectrograph dark."
                 )
-                await self.laser_start_propagate()
+                try:
+                    await self.laser_start_propagate()
+                except salobj.AckError as e:
+                    if e.ackcmd.ack != salobj.SalRetCode.CMD_NOPERM:
+                        raise
+                    self.log.warning(
+                        "TunableLaser rejected startPropagateLaser, likely "
+                        f"because it is not Enabled; leaving it as is: {e}"
+                    )
 
         return {"red": red_result, "blue": blue_result}
 
