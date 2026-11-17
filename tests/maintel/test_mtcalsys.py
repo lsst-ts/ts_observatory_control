@@ -166,8 +166,7 @@ class TestMTCalsys(RemoteGroupAsyncMock):
     async def test_park_projector(self) -> None:
         await self.mtcalsys.park_projector()
 
-        # TO-DO (DM-50206): Swap On/Off
-        self.mtcalsys.rem.ledprojector.cmd_switchAllOn.start.assert_awaited_with(
+        self.mtcalsys.rem.ledprojector.cmd_switchAllOff.start.assert_awaited_with(
             timeout=self.mtcalsys.long_timeout
         )
 
@@ -186,7 +185,7 @@ class TestMTCalsys(RemoteGroupAsyncMock):
         assert len(dark_exposures["red"]) == 1
         assert len(dark_exposures["blue"]) == 1
 
-        self.mtcalsys.rem.ledprojector.cmd_switchAllOn.start.assert_awaited_with(
+        self.mtcalsys.rem.ledprojector.cmd_switchAllOff.start.assert_awaited_with(
             timeout=self.mtcalsys.long_timeout
         )
         # Laser was not reported as propagating, so it should not have been
@@ -245,8 +244,8 @@ class TestMTCalsys(RemoteGroupAsyncMock):
         self,
     ) -> None:
         self.mock_laser_propagating_initially()
-        self.mtcalsys.rem.ledprojector.cmd_switchAllOn.start.side_effect = RuntimeError(
-            "LED projector unreachable"
+        self.mtcalsys.rem.ledprojector.cmd_switchAllOff.start.side_effect = (
+            RuntimeError("LED projector unreachable")
         )
 
         with self.assertRaises(RuntimeError):
