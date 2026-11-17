@@ -8,6 +8,25 @@ Version History
 
 .. towncrier release notes start
 
+v0.51.3 (2026-11-17)
+====================
+
+Bug Fixes
+---------
+
+- Check whether the Laser and/or LED are Enabled before checking if they are on or not for fiber spec dark exposures. (`RSO-1194 <https://rubinobs.atlassian.net//browse/RSO-1194>`_)
+
+
+Other Changes and Additions
+---------------------------
+
+- Updated the news fragment github workflow to use the tssw_workflow rule instead of a bespoke one. (`RSO-1104 <https://rubinobs.atlassian.net//browse/RSO-1104>`_)
+- Reconfigured towncrier to use ts-pre-commit-config. (`RSO-1104 <https://rubinobs.atlassian.net//browse/RSO-1104>`_)
+- Increased the wavelength range of the g-band monochromatic flats. (`RSO-1104 <https://rubinobs.atlassian.net//browse/RSO-1104>`_)
+- Modifying laser_cbp sequence to be burst mode (`RSO-1133 <https://rubinobs.atlassian.net//browse/RSO-1133>`_)
+- Swapped LEDOff and LEDOn. This was a known ToDo. (`RSO-1212 <https://rubinobs.atlassian.net//browse/RSO-1212>`_)
+
+
 v0.51.2 (2026-11-05)
 ====================
 
