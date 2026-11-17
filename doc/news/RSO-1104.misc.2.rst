@@ -1,0 +1,1 @@
+Reconfigured towncrier to use ts-pre-commit-config.

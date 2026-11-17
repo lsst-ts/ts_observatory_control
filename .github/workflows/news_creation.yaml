@@ -1,26 +1,9 @@
 name: ChangelogUpdated
 on:
   pull_request:
-    types: [assigned, opened, synchronize, reopened, labeled, unlabeled]
+    types: [opened, reopened, synchronize]
 
 jobs:
-  build:
-    name: Check for new news fragments
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-        with:
-          fetch-depth: 0
+  call-workflow:
+    uses: lsst-ts/tssw_workflows/.github/workflows/news_creation.yaml@main
 
-      - name: Set up python
-        uses: actions/setup-python@v2
-        with:
-          python-version: '3.11'
-
-      - name: Install towncrier
-        run: |
-          $CONDA/bin/conda install -c conda-forge towncrier -y
-  
-      - name: Run towncrier check command
-        run: |
-          $CONDA/bin/towncrier check --compare-with origin/develop --config pyproject.toml

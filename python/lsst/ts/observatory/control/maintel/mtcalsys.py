@@ -603,8 +603,7 @@ class MTCalsys(BaseCalsys):
 
         await asyncio.gather(led_focus_home, laser_focus_home)
         # Turn off the LEDs
-        # TO-DO (DM-50206): Swap switchON/OFF
-        await self.rem.ledprojector.cmd_switchAllOn.start(
+        await self.rem.ledprojector.cmd_switchAllOff.start(
             timeout=self.long_timeout,
         )
 
@@ -990,8 +989,7 @@ class MTCalsys(BaseCalsys):
 
         if calibration_type == CalibrationType.WhiteLight:
             # Turn off all LEDs
-            # TO-DO (DM-50206): Swap switchON/OFF
-            await self.rem.ledprojector.cmd_switchAllOn.start(
+            await self.rem.ledprojector.cmd_switchAllOff.start(
                 timeout=self.long_timeout,
             )
 
@@ -1028,7 +1026,7 @@ class MTCalsys(BaseCalsys):
             )
 
             led_names: typing.Iterable[str] = config_data.get("led_name", [])
-            task_turn_led_on = self.rem.ledprojector.cmd_switchOff.set_start(
+            task_turn_led_on = self.rem.ledprojector.cmd_switchOn.set_start(
                 serialNumbers=",".join(led_names),
                 timeout=self.long_timeout,
             )
@@ -1781,6 +1779,10 @@ class MTCalsys(BaseCalsys):
         dark exposures and restarts it afterwards. Also turns off all LEDs.
         The laser restart is guaranteed via a ``finally`` block.
 
+        If the TunableLaser or LED projector reject the stop/restart or
+        LED shutdown commands because they are not Enabled, the rejection
+        is logged and ignored instead of raising an error.
+
         Exposure times are determined by
         `_calculate_fiberspectrograph_exposure_times`.
 
@@ -1805,16 +1807,34 @@ class MTCalsys(BaseCalsys):
 
         if laser_was_propagating:
             self.log.info("Stopping laser propagation for fiber spectrograph dark.")
-            await self.laser_stop_propagate()
+            try:
+                await self.laser_stop_propagate()
+            except salobj.AckError as e:
+                if e.ackcmd.ack != salobj.SalRetCode.CMD_NOPERM:
+                    raise
+                self.log.warning(
+                    "TunableLaser rejected stopPropagateLaser, likely because "
+                    f"it is not Enabled; continuing without stopping it: {e}"
+                )
+                laser_was_propagating = False
 
         exposures_done: asyncio.Future = asyncio.Future()
         exposures_done.set_result(True)
 
         try:
-            # Turn off all LEDs (cmd_switchAllOn turns them off per
-            # DM-50206 TODO). Done inside the try so a failure here still
+            # Turn off all LEDs. Done inside the try so a failure here still
             # restarts the laser in the finally block below.
-            await self.rem.ledprojector.cmd_switchAllOn.start(timeout=self.long_timeout)
+            try:
+                await self.rem.ledprojector.cmd_switchAllOff.start(
+                    timeout=self.long_timeout
+                )
+            except salobj.AckError as e:
+                if e.ackcmd.ack != salobj.SalRetCode.CMD_NOPERM:
+                    raise
+                self.log.warning(
+                    "LED projector rejected switchAllOn, likely because it is "
+                    f"not Enabled; continuing without turning off the LEDs: {e}"
+                )
 
             # exptimes=[None] is a placeholder: the exposure time values
             # currently have no effect on the result (see TODO in
@@ -1858,7 +1878,15 @@ class MTCalsys(BaseCalsys):
                 self.log.info(
                     "Restarting laser propagation after fiber spectrograph dark."
                 )
-                await self.laser_start_propagate()
+                try:
+                    await self.laser_start_propagate()
+                except salobj.AckError as e:
+                    if e.ackcmd.ack != salobj.SalRetCode.CMD_NOPERM:
+                        raise
+                    self.log.warning(
+                        "TunableLaser rejected startPropagateLaser, likely "
+                        f"because it is not Enabled; leaving it as is: {e}"
+                    )
 
         return {"red": red_result, "blue": blue_result}
 
